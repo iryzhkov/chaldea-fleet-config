@@ -6,7 +6,7 @@ unset VIRTUAL_ENV PYTHONPATH PYTHONHOME
 export PIP_CACHE_DIR="$ROOT/.cache-ci/pip" TMPDIR="$ROOT/.cache-ci/tmp"
 mkdir -p "$TMPDIR"
 PYTHON=${CI_PYTHON:-python3.13}
-"$PYTHON" -c 'import sys; assert sys.version_info[:3] == (3, 13, 5), sys.version'
+"$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info[:3] == (3, 13, 5) else "Python version mismatch: " + sys.version)'
 LOCK=$("$PYTHON" -c 'import hashlib; print(hashlib.sha256(open("requirements-ci.txt","rb").read()).hexdigest())')
 if [[ ! -d .venv-ci ]]; then
   "$PYTHON" -m venv .venv-ci
@@ -19,11 +19,14 @@ fi
 import importlib.metadata as m
 import pathlib
 import sys
-assert sys.version_info[:3] == (3, 13, 5), sys.version
+if sys.version_info[:3] != (3, 13, 5):
+    raise SystemExit("Python version mismatch: " + sys.version)
 for line in pathlib.Path("requirements-ci.txt").read_text().splitlines():
     if line and not line.startswith("#"):
         name, version = line.split(" --hash=")[0].split("==")
-        assert m.version(name) == version, (name, m.version(name), version)
+        installed = m.version(name)
+        if installed != version:
+            raise SystemExit(f"Distribution version mismatch: {name}: {installed} != {version}")
 print("Verified Python", sys.version.split()[0], "and all locked distributions")
 PY
 for tool in python3 ansible-playbook ansible-lint; do

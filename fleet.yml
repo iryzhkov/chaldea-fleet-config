@@ -1,4 +1,20 @@
 ---
+- name: Controller topology guard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Refuse missing runner before any target play
+      ansible.builtin.assert:
+        that:
+          - groups.get('pull_runner', []) | length == 1
+          - groups.get('fleet_targets', []) | length > 0
+          - groups.get('pull_runner', []) | difference(groups.get('fleet_targets', [])) | length == 0
+          - not (pull_timer_enabled | default(false) | bool)
+          - not (live_preflight_enabled | default(false) | bool)
+        fail_msg: Invalid topology or unfinished intent refused before target contact
+
 - name: Controller offline validation
   hosts: pull_runner
   gather_facts: false

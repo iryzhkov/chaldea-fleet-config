@@ -89,6 +89,14 @@ def workflow_valid(workflow):
     assert "secrets." not in json.dumps(workflow)
 
 
+def observed_path_valid(value):
+    assert isinstance(value, str) and value.startswith("/") and not value.startswith("//")
+    assert len(PurePosixPath(value).parts) > 1
+    assert not any(ord(c) < 32 or ord(c) == 127 for c in value)
+    assert "\\" not in value
+    assert not any(part in {"", ".", ".."} for part in value.split("/")[1:])
+
+
 def inventory_valid(inv):
     all_ = inv["all"]
     hosts = all_["children"]["fleet_targets"]["hosts"]
@@ -120,7 +128,12 @@ def inventory_valid(inv):
         assert h["observed_machine"] in {"x86_64", "aarch64"}
         assert h["observed_config_exists"] is True
         assert h["observed_config_path"].startswith(h["observed_home"] + "/")
-        assert h["observed_state_path_candidates"]
+        assert isinstance(h["observed_hostname"], str)
+        assert re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", h["observed_hostname"])
+        candidates = h["observed_state_path_candidates"]
+        assert isinstance(candidates, list) and candidates
+        for path in candidates:
+            observed_path_valid(path)
         for service in ("t3-steward.service", "t3-steward-worker.service"):
             s = h["observed_services"][service]
             assert [s[k] for k in ("LoadState", "ActiveState", "SubState")] == ["loaded", "active", "running"]
@@ -130,7 +143,10 @@ def inventory_valid(inv):
             args = runtime["explicit_config_arguments"]
             expected = h["observed_config_path"] if service == "t3-steward.service" else h["observed_home"] + "/.config/t3-steward/persistent-worker.yaml"
             assert args == [expected]
-            assert isinstance(h["observed_open_state_database_fds"][service], list)
+            descriptors = h["observed_open_state_database_fds"][service]
+            assert isinstance(descriptors, list)
+            for path in descriptors:
+                observed_path_valid(path)
         assert h.get("observed_configured_paths", {}).get(".state_path", "") == ""
 
 
@@ -249,8 +265,11 @@ class Contract(unittest.TestCase):
                 self.assertRegex(s["uses"], r"^actions/(checkout|setup-python)@[0-9a-f]{40}$")
         self.assertEqual(steps[1]["with"]["python-version"], "3.13.5")
         plays = read("fleet.yml")
-        self.assertEqual(plays[0]["hosts"], "pull_runner")
-        for play, role in zip(plays[1:], ("worker", "coordinator")):
+        self.assertEqual(plays[0]["hosts"], "localhost")
+        self.assertEqual(plays[0]["connection"], "local")
+        self.assertFalse(plays[0]["gather_facts"])
+        self.assertEqual(plays[1]["hosts"], "pull_runner")
+        for play, role in zip(plays[2:], ("worker", "coordinator")):
             self.assertEqual(play["hosts"], "adopted_" + role)
             self.assertEqual(play["roles"], [role])
             self.assertEqual(play["order"], "inventory")
@@ -326,6 +345,130 @@ class Contract(unittest.TestCase):
                     self.assertIn("unfinished", (result.stdout + result.stderr).lower())
                     self.assertFalse(sentinel.exists())
 
+    def test_missing_runner_refusal(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / ".cache-ci") as temp:
+            temp = Path(temp)
+            sentinel = temp / "ssh-called"
+            ssh = temp / "ssh"
+            ssh.write_text(f"#!/bin/sh\ntouch '{sentinel}'\nexit 97\n")
+            ssh.chmod(0o700)
+            env = dict(os.environ, ANSIBLE_SSH_EXECUTABLE=str(ssh))
+            for runner in (None, {"hosts": {}}):
+                for role in ("worker", "coordinator"):
+                    for check in ([], ["--check", "--diff"]):
+                        for intent in ({}, {"live_preflight_enabled": True},
+                                       {"pull_timer_enabled": True}, {"adopted": True}):
+                            children = {"fleet_targets": {"hosts": {
+                                "synthetic_local": {"ansible_connection": "local", "adopted": False,
+                                    "desired_role": "worker", "desired_order": 1},
+                                "synthetic_remote": {"ansible_connection": "ssh", "adopted": True,
+                                    "desired_role": role, "desired_order": 2,
+                                    "ansible_host": "invalid.example"}}}}
+                            if runner is not None:
+                                children["pull_runner"] = runner
+                            inventory = temp / "hosts.yml"
+                            inventory.write_text(yaml.safe_dump({"all": {"children": children}}))
+                            result = subprocess.run(["ansible-playbook", "-i", str(inventory),
+                                "fleet.yml", "-e", json.dumps(intent)] + check,
+                                cwd=ROOT, env=env, capture_output=True, text=True)
+                            output = result.stdout + result.stderr
+                            with self.subTest(runner=runner, role=role, check=check, intent=intent):
+                                self.assertNotEqual(result.returncode, 0, output)
+                                self.assertIn("refused", output)
+                                self.assertFalse(sentinel.exists(), output)
+
+    def test_observation_schema_mutations(self):
+        for key, values in {
+            "observed_hostname": [None, "", 1, "ambiguous identity"],
+            "observed_state_path_candidates": [None, [], "/absolute/state.db",
+                ["relative/ambiguous"], [1], ["/"], ["/state/../state.db"],
+                ["/state/./state.db"], ["/state//state.db"], ["/state\\bad"],
+                ["/state\nbad"]],
+        }.items():
+            for value in values:
+                bad = copy.deepcopy(self.inventory)
+                h = bad["all"]["children"]["fleet_targets"]["hosts"][next(iter(self.hosts))]
+                if value is None:
+                    del h[key]
+                else:
+                    h[key] = value
+                with self.subTest(key=key, value=value), self.assertRaises((AssertionError, KeyError)):
+                    inventory_valid(bad)
+        for service in ("t3-steward.service", "t3-steward-worker.service"):
+            for value in (None, "/absolute/state.db", ["relative/ambiguous"], [1],
+                          ["/"], ["/state/../state.db"], ["/state/./state.db"],
+                          ["/state//state.db"], ["/state\\bad"], ["/state\nbad"]):
+                bad = copy.deepcopy(self.inventory)
+                fds = bad["all"]["children"]["fleet_targets"]["hosts"][next(iter(self.hosts))]["observed_open_state_database_fds"]
+                if value is None:
+                    del fds[service]
+                else:
+                    fds[service] = value
+                with self.subTest(service=service, value=value), self.assertRaises((AssertionError, KeyError)):
+                    inventory_valid(bad)
+        valid = copy.deepcopy(self.inventory)
+        h = valid["all"]["children"]["fleet_targets"]["hosts"][next(iter(self.hosts))]
+        h["observed_state_path_candidates"] = ["/candidate/state.db"]
+        h["observed_open_state_database_fds"] = {
+            "t3-steward.service": ["/runtime/state.db", "/runtime/state.db-wal"],
+            "t3-steward-worker.service": []}
+        inventory_valid(valid)
+
+    def test_wrapper_resource_limits(self):
+        keys = ("ANSIBLE_FORKS", "GOMAXPROCS", "GOFLAGS", "MAKEFLAGS", "CARGO_BUILD_JOBS")
+        command = ["bash", "tools/with-ci-env.sh", "python3", "-c",
+                   "import json, os; print(json.dumps({k: os.environ[k] for k in " + repr(keys) + "}))"]
+        cases = ({}, dict(zip(keys, ("1", "1", "-p=1", "-j1", "1"))),
+                 dict(zip(keys, ("1", "1", "-race -p=1", "-j1 --keep-going", "1"))))
+        for incoming in cases:
+            env = {k: v for k, v in os.environ.items() if k not in keys}
+            env.update(incoming)
+            result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            expected = incoming or dict(zip(keys, ("1", "1", "-p=1", "-j1", "1")))
+            with self.subTest(incoming=incoming):
+                self.assertEqual(json.loads(result.stdout.splitlines()[-1]), expected)
+
+    def test_optimized_bootstrap_mismatch(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / ".cache-ci") as temp:
+            temp = Path(temp)
+            shutil.copytree(ROOT / "tools", temp / "tools")
+            lock = (ROOT / "requirements-ci.txt").read_text()
+            (temp / "requirements-ci.txt").write_text(lock.replace("ansible-core==2.19.14", "ansible-core==0.0.0"))
+            bin_ = temp / ".venv-ci/bin"
+            bin_.mkdir(parents=True)
+            for tool in ("python", "python3", "ansible-playbook", "ansible-lint"):
+                script = bin_ / tool
+                script.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+                script.chmod(0o700)
+            (temp / ".venv-ci/lock.sha256").write_text(
+                hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest())
+            for optimize in ("0", "1", "2"):
+                result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp,
+                    env=dict(os.environ, PYTHONOPTIMIZE=optimize), capture_output=True, text=True)
+                with self.subTest(optimize=optimize):
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn("ansible-core", result.stderr)
+            # Simulate a wrong bootstrap interpreter, then a wrong existing venv interpreter.
+            (temp / "requirements-ci.txt").write_text(lock)
+            (temp / ".venv-ci/lock.sha256").write_text(
+                hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest())
+            wrong_python = temp / "wrong-python"
+            wrong_python.write_text(f"#!{sys.executable}\nimport sys\nsys.version_info = (0, 0, 0)\n"
+                "exec(sys.argv[2] if sys.argv[1:] and sys.argv[1] == '-c' else sys.stdin.read())\n")
+            wrong_python.chmod(0o700)
+            for stage in ("bootstrap", "venv"):
+                env = dict(os.environ, PYTHONOPTIMIZE="1", CI_PYTHON=sys.executable)
+                if stage == "bootstrap":
+                    env["CI_PYTHON"] = str(wrong_python)
+                else:
+                    shutil.copy(wrong_python, bin_ / "python")
+                result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp,
+                    env=env, capture_output=True, text=True)
+                with self.subTest(stage=stage):
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn("Python version mismatch", result.stderr)
+
     def test_environment_reuse_and_failures(self):
         lock = (ROOT / "requirements-ci.txt").read_text()
         for line in lock.splitlines():
@@ -364,7 +507,7 @@ class Contract(unittest.TestCase):
             (temp / ".venv-ci/lock.sha256").write_text(hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest())
             result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn(b"AssertionError", result.stderr)
+            self.assertIn(b"Distribution version mismatch: ansible-core", result.stderr)
 
 
 if __name__ == "__main__":
