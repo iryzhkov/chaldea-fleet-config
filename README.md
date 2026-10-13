@@ -7,7 +7,10 @@ Secrets appear only as SOPS+age references. Unit p1-1-15a-fleet-config-repo supp
 Bootstrap is offline preparation only. Every inventory adoption flag and the pull
 timer are disabled. The controller validates locally and refuses unfinished
 worker, coordinator, timer or live-preflight intent in normal and check mode,
-before gathering remote facts or opening SSH. Disabled validation reports
+before gathering remote facts or opening SSH. The first inventory-wide play uses
+only connection-free controller assertions, so missing/empty runners still refuse
+under --limit all for nonempty target inventories. A wholly hostless inventory has
+no Ansible execution context. Disabled validation reports
 "not converged"; it proves no runtime adoption.
 
 Clone this repository using the existing repository identity, then from its root:
@@ -21,19 +24,36 @@ env -u VIRTUAL_ENV -u PYTHONPATH bash tools/with-ci-env.sh ansible-lint
 The exact gates are `bash tools/with-ci-env.sh python3 -m unittest discover -s tests -v`
 and `bash tools/with-ci-env.sh ansible-lint`. Workflow and job are both
 `ci`, on every PR and main push, with read-only contents permission.
-Bootstrap requires tested Python 3.13.5 and resolves no new versions: the complete
-wheel hash lock installs ansible-core 2.19.14, ansible-lint 26.10.0 and PyYAML 6.0.3
-into ignored .venv-ci. The lock targets Linux x86_64 CI/workers, not fleet runtime
-interpreters. Bootstrap may fetch those pinned wheels; both core gates are offline.
-The wrapper clears inherited Python activation/path state and verifies all locked
-versions and required executables on each call. Caches and temporary files stay
-under .cache-ci. Installation or verification failure stops the command.
+Bootstrap uses exact ordinary-GIL CPython 3.13.5 on Linux x86_64/aarch64 with
+glibc >=2.34. All 29 versions stay pinned; seven verified extra wheel hashes cover
+ARM64, including Black's portable wheel. The lock installs ansible-core 2.19.14,
+ansible-lint 26.10.0 and PyYAML 6.0.3; fleet runtime interpreters are separate.
+
+Each independent wrapper shell rediscovers artifacts/.cache-ci/python-3.13.5.
+An explicit CI_PYTHON is authoritative and fails for missing/wrong interpreters.
+Otherwise an exact setup interpreter may be used; absent Python triggers the fixed
+official CPython source download, SHA256 verification and task-local build.
+Prerequisites are Linux/glibc, C11 compiler, GNU make, pkg-config, HTTPS curl,
+sha256sum, tar/xz, 1 GiB free storage, OpenSSL >=1.1.1, libffi, zlib, bzip2, lzma,
+sqlite headers/libraries and ARM libatomic. Missing prerequisites stop bootstrap;
+resolve host prerequisites separately. No global installation is performed.
+
+Builds preserve incoming MAKEFLAGS (default one job); install explicitly uses
+COMPILEALL_OPTS=-j1 and a separate bounded compileall must pass before the receipt.
+The receipt binds source digest, exact version, architecture and configuration.
+Partial/mismatched receipts, ABI, modules and existing venv versions fail closed.
+Source identity does not promise identical binaries across compilers.
+Dependencies, caches and temporary files stay under artifacts/.venv-ci and
+artifacts/.cache-ci. Bootstrap may fetch pinned inputs; both core gates are offline.
+The wrapper clears inherited Python state, verifies all versions/executables and
+pip dependency consistency, and preserves caller CPU caps (safe-one defaults).
+Installation or verification failure stops the command.
 
 Safe local check/diff uses synthetic temporary inventory only:
 
 ```sh
-mkdir -p .cache-ci
-cat > .cache-ci/synthetic.yml <<'YAML'
+mkdir -p artifacts/.cache-ci
+cat > artifacts/.cache-ci/synthetic.yml <<'YAML'
 all:
   children:
     pull_runner:
@@ -47,7 +67,7 @@ all:
           desired_role: worker
           desired_order: 1
 YAML
-bash tools/with-ci-env.sh ansible-playbook -i .cache-ci/synthetic.yml fleet.yml --check --diff
+bash tools/with-ci-env.sh ansible-playbook -i artifacts/.cache-ci/synthetic.yml fleet.yml --check --diff
 ```
 
 Do not execute the production inventory during bootstrap. Later, the sole

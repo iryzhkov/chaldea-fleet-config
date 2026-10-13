@@ -150,6 +150,54 @@ def inventory_valid(inv):
         assert h.get("observed_configured_paths", {}).get(".state_path", "") == ""
 
 
+# Exact approved same-version wheel set; independent of the parsed lock.
+APPROVED_WHEELS = {
+    "ansible-compat==26.10.0": {"700f0778fbb348daf6ee58941871e8ca77a987702993e8bf7895761d036d6450"},
+    "ansible-core==2.19.14": {"d518d0e96fa75bedfe9b0a96d5b158aa712d092961824c115140c8677b88ff06"},
+    "ansible-lint==26.10.0": {"eaf427a800a65312f4446c33e53d531ddca1d81b82915a3a07dadc79160ec9dc"},
+    "attrs==26.1.0": {"c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309"},
+    "black==26.10.1": {"03c0ddd93bb392e71209903a691767eb366fe1a76deb9509ccbaae9e1f14bb52", "28842f9a8207cc1df6eb983a35a14c5a0dfcd603d214fe82d84bef552afd2e3a"},
+    "bracex==3.1": {"52002b8455658c21f3b6e5eb0f662b57ec9085f42709e58bc86eeab5bc4c37d7"},
+    "cffi==2.1.1": {"a931079504ecc49efed7744c476a5c343a92fabf66dec2db95edb1b2fdc770e2", "f16c709686a78c727bbbf059f92b0bf41c6fc60deec706d2dc19f529175a6125"},
+    "click==8.5.0": {"255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360"},
+    "cryptography==50.0.2": {"9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079", "87e9ce85beb6b328ba370cc6e6aea483c92617b4c95b1d33a49297eb662bfb04"},
+    "distro==1.9.0": {"7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2"},
+    "filelock==4.1.1": {"3f4a557945a7b0f95efeb1f432267affe5d45ac8ddde2aed1b97ebb62382c089"},
+    "jinja2==3.1.6": {"85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67"},
+    "jsonschema-specifications==2025.9.1": {"98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe"},
+    "jsonschema==4.26.0": {"d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce"},
+    "markupsafe==3.0.4": {"434139499bb20b502ed3baa1f169e618f924a97e7a777fea1a49446d80106cf6", "7018d4af1cd272e847aa5917983ab5e83e4f6579f9dbfecd4a79c0ca80b144c2"},
+    "mypy-extensions==1.1.0": {"1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505"},
+    "packaging==26.3": {"d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"},
+    "pathspec==1.1.1": {"a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189"},
+    "platformdirs==4.13.0": {"3dbcf4cd708f21cf876c4eaa90e58412bc4f033d87143f41b1493ff77c25b7e1"},
+    "pycparser==3.11": {"51d5a8ba2be0bbe440b99d2112604c95bbbc3c2748a64260186c541e1729cd80"},
+    "pytokens==0.4.1": {"29d1d8fb1030af4d231789959f21821ab6325e463f0503a61d204343c9b355d1", "5502408cab1cb18e128570f8d598981c68a50d0cbd7c61312a90507cd3a1276f"},
+    "pyyaml==6.0.3": {"0f29edc409a6392443abf94b9cf89ce99889a1dd5376d94316ae5145dfedd5d6", "ee2922902c45ae8ccada2c5b501ab86c36525b883eff4255313a253a3160861c"},
+    "referencing==0.37.0": {"381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231"},
+    "resolvelib==1.2.1": {"fb06b66c8da04172d9e72a21d7d06186d8919e32ae5ab5cdf5b9d920be805ac2"},
+    "rpds-py==2026.9.1": {"7868b85224291c6cb6759f9b5adb9745f486d226f62b16a614dd5a2a5ab2b35b", "457866b85daf5034296666168b84a69e0b2e89dc4f1af102b46f6448a60b9063"},
+    "ruamel.yaml==0.19.1": {"27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93"},
+    "subprocess-tee==0.4.2": {"21942e976715af4a19a526918adb03a8a27a8edab959f2d075b777e3d78f532d"},
+    "wcmatch==11.1": {"2863afee97a7dd62e64f7feada864848c1a5e31cb331b3aa530fa1300d2d5d3c"},
+    "yamllint==1.38.0": {"fc394a5b3be980a4062607b8fdddc0843f4fa394152b6da21722f5d59013c220"},
+}
+
+
+def lock_valid(text):
+    result = {}
+    for line in text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        assert re.fullmatch(r"[\w.-]+==[\d.]+(?: --hash=sha256:[0-9a-f]{64})+", line)
+        pin, *tokens = line.split(" ")
+        assert pin not in result
+        hashes = [token.removeprefix("--hash=sha256:") for token in tokens]
+        assert len(set(hashes)) == len(hashes)
+        result[pin] = set(hashes)
+    assert result == APPROVED_WHEELS
+
+
 class Contract(unittest.TestCase):
     def setUp(self):
         self.inventory = read("inventory/hosts.yml")
@@ -265,8 +313,10 @@ class Contract(unittest.TestCase):
                 self.assertRegex(s["uses"], r"^actions/(checkout|setup-python)@[0-9a-f]{40}$")
         self.assertEqual(steps[1]["with"]["python-version"], "3.13.5")
         plays = read("fleet.yml")
-        self.assertEqual(plays[0]["hosts"], "localhost")
-        self.assertEqual(plays[0]["connection"], "local")
+        self.assertEqual(plays[0]["hosts"], "all")
+        self.assertTrue(plays[0]["any_errors_fatal"])
+        for task in plays[0]["tasks"]:
+            self.assertIn("ansible.builtin.assert", task)
         self.assertFalse(plays[0]["gather_facts"])
         self.assertEqual(plays[1]["hosts"], "pull_runner")
         for play, role in zip(plays[2:], ("worker", "coordinator")):
@@ -299,13 +349,13 @@ class Contract(unittest.TestCase):
 
     def test_syntax(self):
         executable = shutil.which("ansible-playbook")
-        self.assertEqual(Path(executable).parent, ROOT / ".venv-ci/bin")
+        self.assertEqual(Path(executable).parent, ROOT / "artifacts/.venv-ci/bin")
         result = subprocess.run([executable, "-i", "inventory/hosts.yml", "--syntax-check", "fleet.yml"],
                                 cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_local_refusal(self):
-        with tempfile.TemporaryDirectory(dir=ROOT / ".cache-ci") as temp:
+        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts/.cache-ci") as temp:
             temp = Path(temp)
             sentinel = temp / "ssh-called"
             ssh = temp / "ssh"
@@ -346,7 +396,7 @@ class Contract(unittest.TestCase):
                     self.assertFalse(sentinel.exists())
 
     def test_missing_runner_refusal(self):
-        with tempfile.TemporaryDirectory(dir=ROOT / ".cache-ci") as temp:
+        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts/.cache-ci") as temp:
             temp = Path(temp)
             sentinel = temp / "ssh-called"
             ssh = temp / "ssh"
@@ -356,26 +406,67 @@ class Contract(unittest.TestCase):
             for runner in (None, {"hosts": {}}):
                 for role in ("worker", "coordinator"):
                     for check in ([], ["--check", "--diff"]):
-                        for intent in ({}, {"live_preflight_enabled": True},
-                                       {"pull_timer_enabled": True}, {"adopted": True}):
-                            children = {"fleet_targets": {"hosts": {
-                                "synthetic_local": {"ansible_connection": "local", "adopted": False,
-                                    "desired_role": "worker", "desired_order": 1},
-                                "synthetic_remote": {"ansible_connection": "ssh", "adopted": True,
-                                    "desired_role": role, "desired_order": 2,
-                                    "ansible_host": "invalid.example"}}}}
-                            if runner is not None:
-                                children["pull_runner"] = runner
-                            inventory = temp / "hosts.yml"
-                            inventory.write_text(yaml.safe_dump({"all": {"children": children}}))
-                            result = subprocess.run(["ansible-playbook", "-i", str(inventory),
-                                "fleet.yml", "-e", json.dumps(intent)] + check,
-                                cwd=ROOT, env=env, capture_output=True, text=True)
-                            output = result.stdout + result.stderr
-                            with self.subTest(runner=runner, role=role, check=check, intent=intent):
-                                self.assertNotEqual(result.returncode, 0, output)
-                                self.assertIn("refused", output)
-                                self.assertFalse(sentinel.exists(), output)
+                        for limit in ([], ["--limit", "all"]):
+                            for intent in ({}, {"live_preflight_enabled": True},
+                                           {"pull_timer_enabled": True}, {"adopted": True}):
+                                children = {"fleet_targets": {"hosts": {
+                                    "synthetic_local": {"ansible_connection": "local", "adopted": False,
+                                        "desired_role": "worker", "desired_order": 1},
+                                    "synthetic_remote": {"ansible_connection": "ssh", "adopted": True,
+                                        "desired_role": role, "desired_order": 2,
+                                        "ansible_host": "invalid.example"}}}}
+                                if runner is not None:
+                                    children["pull_runner"] = runner
+                                inventory = temp / "hosts.yml"
+                                inventory.write_text(yaml.safe_dump({"all": {"children": children}}))
+                                result = subprocess.run(["ansible-playbook", "-i", str(inventory),
+                                    "fleet.yml", "-e", json.dumps(intent)] + check + limit,
+                                    cwd=ROOT, env=env, capture_output=True, text=True)
+                                output = result.stdout + result.stderr
+                                with self.subTest(runner=runner, role=role, check=check, limit=limit, intent=intent):
+                                    self.assertNotEqual(result.returncode, 0, output)
+                                    self.assertIn("refused", output)
+                                    self.assertFalse(sentinel.exists(), output)
+
+    def test_disabled_topology_and_valid_runner_matrix(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts/.cache-ci") as temp:
+            temp = Path(temp)
+            sentinel = temp / "ssh-called"
+            ssh = temp / "ssh"
+            ssh.write_text(f"#!/bin/sh\ntouch '{sentinel}'\nexit 97\n")
+            ssh.chmod(0o700)
+            env = dict(os.environ, ANSIBLE_SSH_EXECUTABLE=str(ssh))
+            for runner in ("valid", "missing", "empty"):
+                for role in ("worker", "coordinator"):
+                    for check in ([], ["--check", "--diff"]):
+                        for limit in ([], ["--limit", "all"]):
+                            intents = ({}, {"live_preflight_enabled": True},
+                                       {"pull_timer_enabled": True}, {"adopted": True}) if runner == "valid" else ({},)
+                            for intent in intents:
+                                hosts = {
+                                    "synthetic_local": {"ansible_connection": "local", "adopted": False,
+                                        "desired_role": "worker", "desired_order": 1},
+                                    "synthetic_remote": {"ansible_connection": "ssh", "adopted": False,
+                                        "desired_role": role, "desired_order": 2,
+                                        "ansible_host": "invalid.example"}}
+                                # Only remote host carries intent: selected local vars must not mask it.
+                                hosts["synthetic_remote"].update(intent)
+                                children = {"fleet_targets": {"hosts": hosts}}
+                                if runner != "missing":
+                                    children["pull_runner"] = {"hosts": {"synthetic_local": {}} if runner == "valid" else {}}
+                                inventory = temp / "hosts.yml"
+                                inventory.write_text(yaml.safe_dump({"all": {"children": children}}))
+                                result = subprocess.run(["ansible-playbook", "-i", str(inventory), "fleet.yml"] + check + limit,
+                                    cwd=ROOT, env=env, capture_output=True, text=True)
+                                output = result.stdout + result.stderr
+                                with self.subTest(runner=runner, role=role, check=check, limit=limit, intent=intent):
+                                    if runner == "valid" and not intent:
+                                        self.assertEqual(result.returncode, 0, output)
+                                        self.assertIn("not converged", output)
+                                    else:
+                                        self.assertNotEqual(result.returncode, 0, output)
+                                        self.assertIn("refused", output)
+                                    self.assertFalse(sentinel.exists(), output)
 
     def test_observation_schema_mutations(self):
         for key, values in {
@@ -430,28 +521,28 @@ class Contract(unittest.TestCase):
                 self.assertEqual(json.loads(result.stdout.splitlines()[-1]), expected)
 
     def test_optimized_bootstrap_mismatch(self):
-        with tempfile.TemporaryDirectory(dir=ROOT / ".cache-ci") as temp:
+        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts/.cache-ci") as temp:
             temp = Path(temp)
             shutil.copytree(ROOT / "tools", temp / "tools")
             lock = (ROOT / "requirements-ci.txt").read_text()
             (temp / "requirements-ci.txt").write_text(lock.replace("ansible-core==2.19.14", "ansible-core==0.0.0"))
-            bin_ = temp / ".venv-ci/bin"
+            bin_ = temp / "artifacts/.venv-ci/bin"
             bin_.mkdir(parents=True)
             for tool in ("python", "python3", "ansible-playbook", "ansible-lint"):
                 script = bin_ / tool
                 script.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
                 script.chmod(0o700)
-            (temp / ".venv-ci/lock.sha256").write_text(
+            (temp / "artifacts/.venv-ci/lock.sha256").write_text(
                 hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest())
             for optimize in ("0", "1", "2"):
                 result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp,
-                    env=dict(os.environ, PYTHONOPTIMIZE=optimize), capture_output=True, text=True)
+                    env=dict(os.environ, PYTHONOPTIMIZE=optimize, CI_PYTHON=sys.executable), capture_output=True, text=True)
                 with self.subTest(optimize=optimize):
                     self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                     self.assertIn("ansible-core", result.stderr)
             # Simulate a wrong bootstrap interpreter, then a wrong existing venv interpreter.
             (temp / "requirements-ci.txt").write_text(lock)
-            (temp / ".venv-ci/lock.sha256").write_text(
+            (temp / "artifacts/.venv-ci/lock.sha256").write_text(
                 hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest())
             wrong_python = temp / "wrong-python"
             wrong_python.write_text(f"#!{sys.executable}\nimport sys\nsys.version_info = (0, 0, 0)\n"
@@ -469,19 +560,141 @@ class Contract(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                     self.assertIn("Python version mismatch", result.stderr)
 
+    def test_lock_mutations(self):
+        lock = (ROOT / "requirements-ci.txt").read_text()
+        lock_valid(lock)
+        pin, hashes = next(iter(APPROVED_WHEELS.items()))
+        digest = next(iter(hashes))
+        line = pin + " --hash=sha256:" + digest
+        for bad in (lock.replace(line, pin), lock.replace(digest, "bad"),
+                    lock.replace(line, line + " --hash=sha256:" + digest),
+                    lock.replace(digest, "0" * 64), lock + line + "\n",
+                    lock.replace(pin, pin.split("==")[0] + "==0.0.0"),
+                    "\n".join(lock.splitlines()[:-1])):
+            with self.subTest(lock=bad), self.assertRaises(AssertionError):
+                lock_valid(bad)
+
+    def test_provisioning_failure_boundaries(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts/.cache-ci") as temp:
+            temp = Path(temp)
+            shutil.copytree(ROOT / "tools", temp / "tools")
+            shutil.copy(ROOT / "requirements-ci.txt", temp)
+            stubs = temp / "stubs"
+            stubs.mkdir()
+            def stub(name, body):
+                path = stubs / name
+                path.write_text("#!/bin/bash\n" + body + "\n")
+                path.chmod(0o700)
+            stub("python3.13", "exit 1")
+            env = dict(os.environ, PATH=str(stubs) + ":" + os.environ["PATH"])
+            env.pop("CI_PYTHON", None)
+            command = ["bash", "tools/bootstrap-ci.sh"]
+            prefix = temp / "artifacts/.cache-ci/python-3.13.5"
+            for override in ("/nonexistent/synthetic-python", "/bin/false"):
+                result = subprocess.run(command, cwd=temp, env=dict(env, CI_PYTHON=override), capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(prefix.exists())
+            prefix.mkdir(parents=True)
+            for receipt in (None, "partial"):
+                if receipt:
+                    (prefix / "complete").write_text(receipt)
+                result = subprocess.run(command, cwd=temp, env=env, capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("receipt", result.stderr)
+            shutil.rmtree(prefix)
+            for tool, body, message in (
+                    ("uname", "echo unsupported", "Unsupported native platform"),
+                    ("getconf", "echo 'glibc 2.33'", "Requires glibc"),
+                    ("getconf", "echo musl", "Requires glibc"),
+                    ("make", "echo non-GNU", "Requires GNU make"),
+                    ("cc", "exit 72", "Missing native"),
+                    ("curl", "exit 74", ""),
+                    ("sha256sum", "exit 75", "archive hash mismatch")):
+                stub(tool, body)
+                if tool == "sha256sum":
+                    stub("curl", "exit 0")
+                result = subprocess.run(command, cwd=temp, env=env, capture_output=True, text=True)
+                with self.subTest(boundary=tool):
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn(message, result.stderr)
+                    self.assertFalse((prefix / "complete").exists())
+                (stubs / tool).unlink()
+                if tool == "sha256sum":
+                    (stubs / "curl").unlink()
+            # A missing required tool must fail before retrieval, even with other tools present.
+            missing = temp / "missing-tool.sh"
+            missing.write_text('command() { if [[ "$*" == "-v pkg-config" ]]; then return 1; fi; builtin command "$@"; }\n')
+            result = subprocess.run(command, cwd=temp, env=dict(env, BASH_ENV=str(missing)), capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Missing build prerequisite: pkg-config", result.stderr)
+            # A genuinely corrupt archive is checked by the real sha256sum.
+            stub("curl", 'printf corrupt > "$PWD/artifacts/.cache-ci/python-build/Python-3.13.5.tar.xz"')
+            result = subprocess.run(command, cwd=temp, env=env, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("archive hash mismatch", result.stderr)
+            (stubs / "curl").unlink()
+            # A completed receipt still cannot authorize a wrong local executable.
+            prefix.mkdir(parents=True)
+            config = f"--prefix={prefix} --with-ensurepip=install --disable-test-modules"
+            digest = "93e583f243454e6e9e4588ca2c2662206ad961659863277afcdb96801647d640"
+            (prefix / "complete").write_text(f"{digest}|3.13.5|{os.uname().machine}|{config}|COMPILEALL_OPTS=-j1\n")
+            (prefix / "bin").mkdir()
+            wrong_local = prefix / "bin/python3.13"
+            wrong_local.write_text("#!/bin/sh\nexit 79\n")
+            wrong_local.chmod(0o700)
+            result = subprocess.run(command, cwd=temp, env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 79)
+            shutil.rmtree(prefix)
+            # Downstream failure fixtures stub the authenticated download/extraction boundary.
+            stub("curl", "exit 0")
+            stub("sha256sum", "exit 0")
+            stub("tar", 'mkdir -p "$PWD/artifacts/.cache-ci/python-build/Python-3.13.5"')
+            build = temp / "artifacts/.cache-ci/python-build/Python-3.13.5"
+            build.mkdir(parents=True, exist_ok=True)
+            configure = build / "configure"
+            for stage in ("configure", "build", "install", "compileall"):
+                configure.write_text("#!/bin/sh\nexit " + ("76" if stage == "configure" else "0") + "\n")
+                configure.chmod(0o700)
+                stub("make", 'if [[ "$1" == --version ]]; then echo "GNU Make"; exit 0; fi\n' +
+                     ('exit 77' if stage == "build" else '[[ "$1" != install ]] || exit 78'))
+                if stage == "compileall":
+                    fake_python = f'#!/bin/bash\n[[ "$1" != -m ]] || exit 80\nexec "{sys.executable}" "$@"\n'
+                    stub("make", 'if [[ "$1" == --version ]]; then echo "GNU Make"; exit 0; fi\n' +
+                        f'mkdir -p "{prefix}/bin"\n' +
+                        f"cat > '{prefix}/bin/python3.13' <<'PYTHON'\n" + fake_python +
+                        f"PYTHON\nchmod +x '{prefix}/bin/python3.13'")
+                result = subprocess.run(command, cwd=temp, env=env, capture_output=True, text=True)
+                with self.subTest(stage=stage):
+                    self.assertEqual(result.returncode, {"configure": 76, "build": 77, "install": 78, "compileall": 80}[stage])
+                    self.assertFalse((prefix / "complete").exists())
+            # Missing capability and unsupported ABI are rejected even for explicit exact Python.
+            for injection, message in (
+                    ("sysconfig.get_config_var = lambda key: 1", "Unsupported Python ABI"),
+                    ("platform.machine = lambda: 'unsupported'", "Unsupported Python architecture"),
+                    ("sys.modules['ssl'] = None", "ssl")):
+                wrong = temp / "synthetic-python"
+                wrong.write_text(f"#!{sys.executable}\nimport sys, sysconfig, platform\n" +
+                    injection + "\nsys.argv = sys.argv[1:]\nexec(sys.stdin.read())\n")
+                wrong.chmod(0o700)
+                result = subprocess.run(command, cwd=temp, env=dict(env, CI_PYTHON=str(wrong)), capture_output=True, text=True)
+                with self.subTest(injection=injection):
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(message, result.stderr)
+
     def test_environment_reuse_and_failures(self):
         lock = (ROOT / "requirements-ci.txt").read_text()
+        lock_valid(lock)
         for line in lock.splitlines():
             if line and not line.startswith("#"):
-                self.assertRegex(line, r"^[\w.-]+==[\d.]+ --hash=sha256:[0-9a-f]{64}$")
+                self.assertRegex(line, r"^[\w.-]+==[\d.]+(?: --hash=sha256:[0-9a-f]{64})+$")
                 name, version = line.split(" --hash=")[0].split("==")
                 self.assertEqual(metadata.version(name), version)
         command = ["env", "-u", "VIRTUAL_ENV", "-u", "PYTHONPATH", "bash",
                    "tools/with-ci-env.sh", "python3", "-c", "import sys; print(sys.prefix)"]
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn(str(ROOT / ".venv-ci"), result.stdout)
-        with tempfile.TemporaryDirectory(dir=ROOT / ".cache-ci") as temp:
+        self.assertIn(str(ROOT / "artifacts/.venv-ci"), result.stdout)
+        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts/.cache-ci") as temp:
             temp = Path(temp)
             shutil.copytree(ROOT / "tools", temp / "tools")
             shutil.copy(ROOT / "requirements-ci.txt", temp)
@@ -489,14 +702,14 @@ class Contract(unittest.TestCase):
             result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, env=env)
             self.assertNotEqual(result.returncode, 0)
             # Local fake venv tests failure propagation without network or shared changes.
-            (temp / ".venv-ci/bin").mkdir(parents=True)
-            python = temp / ".venv-ci/bin/python"
+            (temp / "artifacts/.venv-ci/bin").mkdir(parents=True)
+            python = temp / "artifacts/.venv-ci/bin/python"
             python.write_text("#!/bin/sh\nexit 73\n")
             python.chmod(0o700)
-            result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, capture_output=True)
+            result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, env=dict(os.environ, CI_PYTHON=sys.executable), capture_output=True)
             self.assertEqual(result.returncode, 73)  # installer failure
             digest = hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest()
-            (temp / ".venv-ci/lock.sha256").write_text(digest)
+            (temp / "artifacts/.venv-ci/lock.sha256").write_text(digest)
             result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, capture_output=True)
             self.assertEqual(result.returncode, 73)  # version verifier failure
             python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
@@ -504,7 +717,7 @@ class Contract(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"Missing local executable", result.stderr)
             (temp / "requirements-ci.txt").write_text(lock.replace("ansible-core==2.19.14", "ansible-core==0.0.0"))
-            (temp / ".venv-ci/lock.sha256").write_text(hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest())
+            (temp / "artifacts/.venv-ci/lock.sha256").write_text(hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest())
             result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"Distribution version mismatch: ansible-core", result.stderr)
