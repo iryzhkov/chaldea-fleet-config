@@ -18,14 +18,36 @@ CONFIG="--prefix=$PREFIX --with-ensurepip=install --disable-test-modules"
 RECEIPT="$SOURCE_SHA|3.13.5|$ARCH|$CONFIG|COMPILEALL_OPTS=-j1"
 validate_python() {
   "$1" - "$ARCH" <<'PY'
-import platform, sys, sysconfig
+import platform, struct, sys, sysconfig
 if sys.version_info[:3] != (3, 13, 5):
     raise SystemExit("Python version mismatch: " + sys.version)
 if platform.python_implementation() != "CPython" or sysconfig.get_config_var("Py_GIL_DISABLED"):
     raise SystemExit("Unsupported Python ABI")
 if platform.machine() != sys.argv[1] or platform.system() != "Linux":
     raise SystemExit("Unsupported Python architecture")
+multiarch = sys.argv[1] + "-linux-gnu"
+if (struct.calcsize("P") != 8 or sysconfig.get_config_var("SIZEOF_VOID_P") != 8 or
+        sysconfig.get_config_var("MULTIARCH") != multiarch or
+        sysconfig.get_config_var("SOABI") != "cpython-313-" + multiarch):
+    raise SystemExit("Unsupported Python ABI")
 import ssl, venv, ensurepip, ctypes, zlib, bz2, lzma, sqlite3
+# The fixed CPython source supplies ensurepip 25.1.1, including packaging.
+# Read its wheel before installation; do not require a new bootstrap dependency.
+if ensurepip.version() != "25.1.1":
+    raise SystemExit("Unsupported ensurepip tag provider")
+with ensurepip._get_pip_whl_path_ctx() as wheel:
+    sys.path.insert(0, str(wheel))
+    from pip._vendor.packaging.tags import sys_tags
+    supported = {(tag.interpreter, tag.abi, tag.platform) for tag in sys_tags()}
+    sys.path.pop(0)
+required = {
+    ("cp313", "cp313", "manylinux_2_17_" + sys.argv[1]),
+    ("cp313", "cp313", "manylinux_2_28_" + sys.argv[1]),
+    ("cp311", "abi3", "manylinux_2_34_" + sys.argv[1]),
+    ("py3", "none", "any"),
+}
+if not required <= supported:
+    raise SystemExit("Unsupported Python wheel tags")
 if ssl.OPENSSL_VERSION_INFO < (1, 1, 1):
     raise SystemExit("Requires OpenSSL >=1.1.1")
 PY

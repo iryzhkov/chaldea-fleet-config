@@ -707,11 +707,11 @@ class Contract(unittest.TestCase):
             python.write_text("#!/bin/sh\nexit 73\n")
             python.chmod(0o700)
             result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, env=dict(os.environ, CI_PYTHON=sys.executable), capture_output=True)
-            self.assertEqual(result.returncode, 73)  # installer failure
+            self.assertEqual(result.returncode, 73)  # existing venv interpreter validation failure
             digest = hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest()
             (temp / "artifacts/.venv-ci/lock.sha256").write_text(digest)
             result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, capture_output=True)
-            self.assertEqual(result.returncode, 73)  # version verifier failure
+            self.assertEqual(result.returncode, 73)  # cached marker cannot bypass interpreter validation
             python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
             result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
@@ -721,6 +721,109 @@ class Contract(unittest.TestCase):
             result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"Distribution version mismatch: ansible-core", result.stderr)
+
+    def test_dependency_install_and_hash_rejection(self):
+        import zipfile
+        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts/.cache-ci") as temp:
+            temp = Path(temp)
+            shutil.copytree(ROOT / "tools", temp / "tools")
+            shutil.copy(ROOT / "requirements-ci.txt", temp)
+            bin_ = temp / "artifacts/.venv-ci/bin"
+            bin_.mkdir(parents=True)
+            python = bin_ / "python"
+            calls = temp / "pip.calls"
+            marker = temp / "artifacts/.venv-ci/lock.sha256"
+            command = ["bash", "tools/bootstrap-ci.sh"]
+            env = dict(os.environ, CI_PYTHON=sys.executable)
+            for failure in ("installer", "hash"):
+                with self.subTest(failure=failure):
+                    if failure == "hash":
+                        wheel = temp / "synthetic_pkg-1.0-py3-none-any.whl"
+                        with zipfile.ZipFile(wheel, "w") as archive:
+                            archive.writestr("synthetic_pkg.py", "")
+                            archive.writestr("synthetic_pkg-1.0.dist-info/METADATA",
+                                             "Metadata-Version: 2.1\nName: synthetic-pkg\nVersion: 1.0\n")
+                            archive.writestr("synthetic_pkg-1.0.dist-info/WHEEL",
+                                             "Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n")
+                            archive.writestr("synthetic_pkg-1.0.dist-info/RECORD", "")
+                        (temp / "requirements-ci.txt").write_text(
+                            "synthetic-pkg==1.0 --hash=sha256:" + "0" * 64 + "\n")
+                    action = "exit 73" if failure == "installer" else (
+                        f'exec "{sys.executable}" "$@" --no-index --find-links "{temp}"')
+                    python.write_text("#!/bin/bash\n"
+                        'if [[ "$1 $2 $3 $4" == "-m pip --isolated install" ]]; then\n'
+                        f'  printf "%s\\n" "$@" > "{calls}"\n  {action}\nfi\n'
+                        f'exec "{sys.executable}" "$@"\n')
+                    python.chmod(0o700)
+                    result = subprocess.run(command, cwd=temp, env=env, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 73 if failure == "installer" else 1,
+                                     result.stdout + result.stderr)
+                    argv = calls.read_text().splitlines()
+                    self.assertEqual(argv[:4], ["-m", "pip", "--isolated", "install"])
+                    self.assertIn("--require-hashes", argv)
+                    self.assertIn("--only-binary=:all:", argv)
+                    if failure == "hash":
+                        self.assertIn("THESE PACKAGES DO NOT MATCH THE HASHES", result.stderr)
+                        self.assertIn(hashlib.sha256(wheel.read_bytes()).hexdigest(), result.stderr)
+                    self.assertFalse(marker.exists())
+                    calls.unlink()
+
+    def test_cached_interpreter_abi_and_tags(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts/.cache-ci") as temp:
+            temp = Path(temp)
+            shutil.copytree(ROOT / "tools", temp / "tools")
+            shutil.copy(ROOT / "requirements-ci.txt", temp)
+            bin_ = temp / "artifacts/.venv-ci/bin"
+            bin_.mkdir(parents=True)
+            for tool in ("python3", "ansible-playbook", "ansible-lint"):
+                path = bin_ / tool
+                path.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+                path.chmod(0o700)
+            marker = temp / "artifacts/.venv-ci/lock.sha256"
+            digest = hashlib.sha256((temp / "requirements-ci.txt").read_bytes()).hexdigest()
+            marker.write_text(digest)
+            calls = temp / "pip.calls"
+            for injection, message in (
+                    ("original = sysconfig.get_config_var\n"
+                     "sysconfig.get_config_var = lambda k: {'SOABI': 'cpython-313-i386-linux-gnu', "
+                     "'MULTIARCH': 'i386-linux-gnu', 'SIZEOF_VOID_P': 4}.get(k, original(k))",
+                     "Unsupported Python ABI"),
+                    ("original = sysconfig.get_config_var\n"
+                     "sysconfig.get_config_var = lambda k: 'wrong-linux-gnu' if k == 'MULTIARCH' else original(k)",
+                     "Unsupported Python ABI"),
+                    ("original = sysconfig.get_config_var\n"
+                     "sysconfig.get_config_var = lambda k: 'cpython-313-i386-linux-gnu' if k == 'SOABI' else original(k)",
+                     "Unsupported Python ABI"),
+                    ("original = sysconfig.get_config_var\n"
+                     "sysconfig.get_config_var = lambda k: 4 if k == 'SIZEOF_VOID_P' else original(k)",
+                     "Unsupported Python ABI"),
+                    ("struct.calcsize = lambda fmt: 4", "Unsupported Python ABI"),
+                    ("from pip._vendor.packaging import tags\n"
+                     "tags.sys_tags = lambda: iter(())", "Unsupported Python wheel tags")):
+                for stage in ("bootstrap", "cached-venv"):
+                    wrong = temp / "synthetic-python"
+                    wrong.write_text(f"#!{sys.executable}\nimport sys, sysconfig, struct\n"
+                        f"if sys.argv[1] == '-':\n    " +
+                        injection.replace("\n", "\n    ") +
+                        "\n    sys.argv = sys.argv[1:]\n    exec(sys.stdin.read())\n"
+                        f"else:\n    open({str(calls)!r}, 'a').write(repr(sys.argv[1:]))\n"
+                        f"    import os\n    os.execv({sys.executable!r}, [{sys.executable!r}] + sys.argv[1:])\n")
+                    wrong.chmod(0o700)
+                    python = bin_ / "python"
+                    python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+                    python.chmod(0o700)
+                    env = dict(os.environ, CI_PYTHON=sys.executable)
+                    if stage == "bootstrap":
+                        env["CI_PYTHON"] = str(wrong)
+                    else:
+                        shutil.copy(wrong, python)
+                    result = subprocess.run(["bash", "tools/bootstrap-ci.sh"], cwd=temp,
+                                            env=env, capture_output=True, text=True)
+                    with self.subTest(stage=stage, injection=injection):
+                        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                        self.assertIn(message, result.stderr)
+                        self.assertFalse(calls.exists())
+                        self.assertEqual(marker.read_text(), digest)
 
 
 if __name__ == "__main__":
