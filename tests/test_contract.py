@@ -77,7 +77,15 @@ def workflow_valid(workflow):
     assert workflow["permissions"] == {"contents": "read"}
     assert set(workflow["jobs"]) == {"ci"}
     job = workflow["jobs"]["ci"]
-    assert set(job) == {"runs-on", "steps"}
+    assert set(job) == {"runs-on", "env", "steps"}
+    assert job["runs-on"] == ["self-hosted", "Linux", "X64", "chaldea-fleet-config"]
+    assert job["env"] == {
+        "CI_PYTHON": "/usr/bin/python3.13", "ANSIBLE_FORKS": "1",
+        "GOMAXPROCS": "1", "GOFLAGS": "-p=1", "MAKEFLAGS": "-j1",
+        "CARGO_BUILD_JOBS": "1"}
+    assert job["steps"][0] == {
+        "uses": "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"}
+    assert len(job["steps"]) == 3
     steps = job["steps"]
     assert [s["run"] for s in steps if "run" in s] == [
         "bash tools/with-ci-env.sh python3 -m unittest discover -s tests -v",
@@ -311,7 +319,18 @@ class Contract(unittest.TestCase):
         for s in steps:
             if "uses" in s:
                 self.assertRegex(s["uses"], r"^actions/(checkout|setup-python)@[0-9a-f]{40}$")
-        self.assertEqual(steps[1]["with"]["python-version"], "3.13.5")
+        self.assertEqual(workflow["jobs"]["ci"]["env"]["CI_PYTHON"], "/usr/bin/python3.13")
+        for key, value in [("runs-on", ["self-hosted", "upkeeper"]),
+                           ("runs-on", ["self-hosted", "Linux", "X64"]),
+                           ("env", {"CI_PYTHON": "/usr/bin/python3"})]:
+            bad = copy.deepcopy(workflow)
+            bad["jobs"]["ci"][key] = value
+            with self.subTest(job_key=key, value=value), self.assertRaises(AssertionError):
+                workflow_valid(bad)
+        bad = copy.deepcopy(workflow)
+        bad["jobs"]["ci"]["env"]["GOMAXPROCS"] = "4"
+        with self.assertRaises(AssertionError):
+            workflow_valid(bad)
         plays = read("fleet.yml")
         self.assertEqual(plays[0]["hosts"], "all")
         self.assertTrue(plays[0]["any_errors_fatal"])
