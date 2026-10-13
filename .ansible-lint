@@ -1,0 +1,12 @@
+---
+offline: true
+exclude_paths:
+  - .t3/
+  - artifacts/
+  - .venv-ci/
+  - .cache-ci/
+skip_list:
+  - yaml[line-length]
+kinds:
+  - playbook: fleet.yml
+  - tasks: roles/*/tasks/*.yml

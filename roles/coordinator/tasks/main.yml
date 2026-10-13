@@ -1,0 +1,5 @@
+---
+- name: Refuse unfinished coordinator role including check mode
+  ansible.builtin.fail:
+    msg: Unfinished coordinator role; not converged
+  delegate_to: localhost

@@ -1,0 +1,9 @@
+---
+pull_timer_enabled: false
+live_preflight_enabled: false
+config_revision: fetched-git-head
+catalog_reference: inventory-observed-bindings
+credential_references: []
+reference_schema:
+  kinds: [encrypted, local_file]
+  fields: [kind, path]

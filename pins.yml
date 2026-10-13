@@ -1,0 +1,10 @@
+---
+steward:
+  repository: iryzhkov/t3-steward
+  version: 0.11.0-rc.126
+  tag: v0.11.0-rc.126
+  source: 80195df4cbccdd794ab3c8701756fccd7f3ec1f5
+  machine_arch: {x86_64: amd64, aarch64: arm64}
+  assets:
+    - {os: linux, arch: amd64, name: t3-steward_0.11.0-rc.126_linux_amd64.tar.gz, sha256: 15427a99cac409196a42f73db759727c7b64151d7c7f0c17adf403cd71debe2a}
+    - {os: linux, arch: arm64, name: t3-steward_0.11.0-rc.126_linux_arm64.tar.gz, sha256: e209bc8d68584dbf1329226625019fd13d501b1819af8182a2587cc5a4c8c255}
