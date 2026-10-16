@@ -1,0 +1,6 @@
+---
+# Called by other roles with the git URLs they are about to use. Each private
+# repository is read with its own deploy key behind a Host alias in the SSH
+# config; the keys and the config are set up by hand, never by this play.
+ssh_alias_urls: []
+ssh_alias_config: "{{ fleet_home }}/.ssh/config"

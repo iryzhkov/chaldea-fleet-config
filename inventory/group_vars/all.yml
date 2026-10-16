@@ -5,11 +5,16 @@ ansible_connection: local
 ansible_python_interpreter: "{{ ansible_playbook_python }}"
 fleet_home: "{{ ansible_facts.user_dir }}"
 
+# Private repositories are read over SSH with a read-only deploy key per host
+# and repository, each behind a Host alias in ~/.ssh/config. The play checks
+# that the aliases exist; the keys and aliases are set up by hand. This
+# repository's own URL is pull_timer_repo in roles/pull_timer.
+agent_tools_homelab_cli_repo: git@github-homelab-cli:iryzhkov/homelab-cli.git
+
 # Agent tools, each at an exact commit: none of them publishes releases yet.
-# homelab-cli is private, so the host's git needs GitHub read access to it.
 agent_tools_sources:
   - name: homelab-cli
-    repo: https://github.com/iryzhkov/homelab-cli.git
+    repo: "{{ agent_tools_homelab_cli_repo }}"
     ref: eefa9f68f469bdb7e97554fee47b416c01fa765a
   - name: ov-memory
     repo: https://github.com/iryzhkov/ov-mcp.git

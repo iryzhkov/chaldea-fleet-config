@@ -1,4 +1,10 @@
 ---
+- name: Check the SSH aliases of the tool repositories
+  ansible.builtin.include_role:
+    name: ssh_alias
+  vars:
+    ssh_alias_urls: "{{ agent_tools_sources | map(attribute='repo') | list }}"
+
 - name: Check whether the pinned release is already built
   ansible.builtin.stat:
     path: "{{ agent_tools_release }}/.complete"

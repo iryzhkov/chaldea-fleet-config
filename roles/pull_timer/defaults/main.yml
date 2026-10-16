@@ -1,6 +1,8 @@
 ---
 pull_timer_enabled: false
-pull_timer_repo: https://github.com/iryzhkov/chaldea-fleet-config.git
+# Read with this host's deploy key through the github-chaldea-fleet-config
+# Host alias in ~/.ssh/config.
+pull_timer_repo: git@github-chaldea-fleet-config:iryzhkov/chaldea-fleet-config.git
 pull_timer_branch: main
 pull_timer_schedule: "*-*-* 00/4:00:00"
 # 2.19 is the last ansible-core series that runs on homelab's Python 3.11.

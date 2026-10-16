@@ -9,8 +9,9 @@ agent_tools_credential_files: []
 
 # A release is named after everything that shapes its contents, so changing a
 # pin builds a new release beside the old one and switches current to it.
+# Where a source is fetched from does not change its contents.
 agent_tools_version: >-
-  {{ (agent_tools_sources | to_json
+  {{ (agent_tools_sources | map(attribute='name') | zip(agent_tools_sources | map(attribute='ref')) | list | to_json
       ~ lookup('ansible.builtin.file', 'ov-memory-requirements.lock')
       ~ lookup('ansible.builtin.file', 'ov-memory-run')) | hash('sha256') }}
 agent_tools_release: "{{ agent_tools_root }}/{{ agent_tools_version }}"

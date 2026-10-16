@@ -1,0 +1,24 @@
+---
+# A Host alias has no dot; git@github.com: URLs need no alias and are skipped.
+- name: Resolve the SSH host aliases the repositories use
+  ansible.builtin.command:
+    argv: [ssh, -F, "{{ ssh_alias_config }}", -G, "{{ item }}"]
+  loop: >-
+    {{ ssh_alias_urls | map('regex_search', '^[^@/]+@([^:./]+):', '\1') | select | map('first') | unique }}
+  register: ssh_alias_resolved
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert each alias is defined in the SSH config
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+      - ("hostname " ~ item.item) not in item.stdout_lines
+    fail_msg: >-
+      {{ ssh_alias_config }} defines no Host {{ item.item }}; add the alias and
+      its read-only deploy key for this host (see README), then rerun.
+    quiet: true
+  loop: "{{ ssh_alias_resolved.results }}"
+  loop_control:
+    label: "{{ item.item }}"

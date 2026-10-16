@@ -18,6 +18,8 @@ all:
           data_disk_require_mount: false
           agent_tools_credential_files:
             - {name: Synthetic token, path: .config/synthetic/token}
+          # tools/ci.sh writes the deploy key aliases to the scratch SSH config.
+          ssh_alias_config: "{{ playbook_dir }}/.ci-home/.ssh/config"
           mise_agents_install: false
           t3_enabled: false
           pull_timer_enabled: false
