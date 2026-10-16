@@ -13,7 +13,9 @@ all:
         synthetic:
           fleet_home: "{{ playbook_dir }}/.ci-home"
           expected_hostname: "{{ ansible_facts.hostname }}"
+          # The scratch data directory is not a mount point.
           data_disk_root: "{{ playbook_dir }}/.ci-home/data"
+          data_disk_require_mount: false
           agent_tools_credential_files:
             - {name: Synthetic token, path: .config/synthetic/token}
           mise_pins_install: false

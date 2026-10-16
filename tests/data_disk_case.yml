@@ -1,0 +1,54 @@
+---
+# One unsafe case of tests/data_disk.yml: set it up, run the role, and record
+# the case as refused when the role fails with the expected message and
+# without having created the link target directories.
+- name: Start from an empty home for case {{ case.name }}
+  ansible.builtin.file:
+    path: "{{ fleet_home }}"
+    state: absent
+
+- name: Create the data disk directory and the cache parent
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ data_disk_root }}"
+    - "{{ fleet_home }}/.cache"
+
+- name: Put a regular file where the tmp link belongs
+  ansible.builtin.copy:
+    content: "keep me\n"
+    dest: "{{ fleet_home }}/.cache/tmp"
+    mode: "0644"
+  when: case.file | default(false)
+
+- name: Put a foreign link where the tmp link belongs
+  ansible.builtin.file:
+    src: "{{ case.link }}"
+    dest: "{{ fleet_home }}/.cache/tmp"
+    state: link
+    force: true
+  when: case.link is defined
+
+- name: Run the role for case {{ case.name }}
+  block:
+    - name: Converge the data disk
+      ansible.builtin.include_role:
+        name: data_disk
+      vars:
+        data_disk_require_mount: "{{ case.require_mount | default(false) }}"
+        data_disk_root: "{{ case.root | default(fleet_home ~ '/data') }}"
+        data_disk_fstype: "{{ case.fstype | default('') }}"
+  rescue:
+    - name: Check nothing was created on the data disk
+      ansible.builtin.stat:
+        path: "{{ data_disk_root }}/{{ ansible_facts.user_id }}"
+      register: created
+
+    - name: Record as refused the case {{ case.name }}
+      ansible.builtin.set_fact:
+        refused: "{{ (refused | default([])) + [case.name] }}"
+      when: not created.stat.exists and case.expect in failure
+      vars:
+        failure: "{{ ansible_failed_result.msg | default('') ~ ansible_failed_result.results | default([]) | map(attribute='msg', default='') | join(' ') }}"
