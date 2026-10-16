@@ -1,0 +1,52 @@
+---
+- name: Create the mise drop-in directory
+  ansible.builtin.file:
+    path: "{{ mise_pins_dropin | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Write the agent provider pins
+  ansible.builtin.template:
+    src: agents.toml.j2
+    dest: "{{ mise_pins_dropin }}"
+    mode: "0644"
+
+# The pinned version must be installed for the pin to resolve; an explicit
+# pin is the review, so the minimum release age does not apply to it.
+- name: Install each pinned version
+  ansible.builtin.command:
+    argv: [mise, install, "{{ item.key }}@{{ item.value }}"]
+    creates: "{{ mise_pins_installs }}/{{ item.key | replace(':', '-') | replace('@', '') | replace('/', '-') }}/{{ item.value }}"
+  environment:
+    MISE_MINIMUM_RELEASE_AGE: "0"
+  loop: "{{ mise_pins_tools | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}@{{ item.value }}"
+  when: mise_pins_install | bool
+
+- name: Read the version mise selects for each pinned tool
+  ansible.builtin.command:
+    argv: [mise, ls, --current, --json, "{{ item.key }}"]
+    chdir: "{{ fleet_home }}"
+  loop: "{{ mise_pins_tools | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: mise_pins_selected
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Report tools whose pin another mise config overrides
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.key }} resolves to
+      {{ (item.stdout | from_json | first).version }} from
+      {{ (item.stdout | from_json | first).source.path }}, not the pinned
+      {{ item.item.value }} from {{ mise_pins_dropin }}
+  loop: "{{ mise_pins_selected.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  when:
+    - item.rc == 0
+    - item.stdout | from_json | length > 0
+    - (item.stdout | from_json | first).source.path | default('') != mise_pins_dropin

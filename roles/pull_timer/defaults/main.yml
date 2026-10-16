@@ -1,0 +1,10 @@
+---
+pull_timer_enabled: false
+pull_timer_repo: https://github.com/iryzhkov/chaldea-fleet-config.git
+pull_timer_branch: main
+pull_timer_schedule: "*-*-* 00/4:00:00"
+# 2.19 is the last ansible-core series that runs on homelab's Python 3.11.
+pull_timer_ansible_core: 2.19.14
+pull_timer_python: /usr/bin/python3
+pull_timer_venv: "{{ fleet_home }}/.local/share/chaldea/ansible-core-{{ pull_timer_ansible_core }}"
+pull_timer_checkout: "{{ fleet_home }}/.local/share/chaldea/fleet-config"

@@ -1,12 +1,12 @@
 ---
+profile: production
 offline: true
 exclude_paths:
-  - .t3/
-  - artifacts/
   - .venv-ci/
-  - .cache-ci/
+  - .ci-home/
+  - .github/
 skip_list:
   - yaml[line-length]
 kinds:
-  - playbook: fleet.yml
-  - tasks: roles/*/tasks/*.yml
+  - playbook: site.yml
+  - yaml: tests/synthetic-inventory.yml

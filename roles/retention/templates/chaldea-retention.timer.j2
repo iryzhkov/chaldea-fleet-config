@@ -1,0 +1,11 @@
+# Managed by chaldea-fleet-config (roles/retention).
+[Unit]
+Description=Daily bounded cleanup of T3 worktrees and agent caches
+
+[Timer]
+OnCalendar={{ retention_schedule }}
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

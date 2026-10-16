@@ -1,0 +1,5 @@
+#!/bin/bash
+# OpenCode 2 ships as the npm package @opencode/cli; the old "opencode" mise tool is 1.x.
+export MISE_MINIMUM_RELEASE_AGE=0
+mise use -g --quiet "npm:@opencode/cli" || exit 1
+exec mise x "npm:@opencode/cli" -- opencode "$@"

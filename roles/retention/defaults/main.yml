@@ -1,0 +1,16 @@
+---
+retention_timer_enabled: false
+retention_schedule: "*-*-* 03:30:00"
+# Bounds, matching the rebuild plan: 20G for T3 worktrees per host, and
+# anything touched within the protection window is kept.
+retention_protect_hours: 24
+retention_worktree_root: "{{ fleet_home }}/.t3/worktrees"
+retention_worktree_max_age_days: 14
+retention_worktree_budget_gb: 20
+# Over budget, clean worktrees untouched this long are removed as well.
+retention_worktree_pressure_age_days: 3
+retention_tmp_dir: "{{ fleet_home }}/.cache/tmp"
+retention_tmp_max_age_days: 3
+retention_go_cache_max_gb: 10
+retention_mise_prune: true
+retention_script: "{{ fleet_home }}/.local/bin/chaldea-retention"

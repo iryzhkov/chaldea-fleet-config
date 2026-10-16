@@ -1,98 +1,84 @@
 # chaldea-fleet-config
 
-Fleet configuration for the Chaldea hosts: inventory, roles and pinned releases. Hosts converge from this repository (decision D21, roadmap r18 item 1.15).
+Ansible configuration for the Chaldea hosts. Each host converges itself with
+`ansible-pull` from this repository on a systemd user timer: there is no
+controller and no SSH between hosts. Nothing here adds a step to an agent
+session; it only keeps the tools and shared files those sessions use in place.
 
-Secrets appear only as SOPS+age references. Unit p1-1-15a-fleet-config-repo supplies CI, inventory, guarded roles and binary pins.
+`site.yml` applies these roles to the host it runs on:
 
-Bootstrap is offline preparation only. Every inventory adoption flag and the pull
-timer are disabled. The controller validates locally and refuses unfinished
-worker, coordinator, timer or live-preflight intent in normal and check mode,
-before gathering remote facts or opening SSH. The first inventory-wide play uses
-only connection-free controller assertions, so missing/empty runners still refuse
-under --limit all for nonempty target inventories. A wholly hostless inventory has
-no Ansible execution context. Disabled validation reports
-"not converged"; it proves no runtime adoption.
+- `agent_tools`: homelab-cli and the ov-memory MCP server, built into
+  `~/.local/share/agent-tools/<release>` with a `current` symlink and links in
+  `~/.local/bin`. Neither tool publishes releases, so each is pinned to an exact
+  commit and the release name is a hash of the pins.
+- `agent_config`: the shared instruction files (`~/.claude/omarchy-setup/CLAUDE.md`,
+  `~/.codex/AGENTS.md`, `~/.config/agents/*.md`), the fleet's own skills under
+  `~/.claude/skills` and `~/.agents/skills`, and the OpenCode wrapper. Per-host
+  files such as `~/.claude/CLAUDE.md` and `~/.claude.json` are not managed.
+- `mise_pins`: a drop-in, `~/.config/mise/conf.d/agents.toml`, pinning claude,
+  codex and OpenCode. The user's `~/.config/mise/config.toml` is never written,
+  and a tool also listed there takes that file's version; the play reports it.
+- `t3`: asserts that T3 runs the pinned version and its user service is active.
+  It upgrades only when `t3_allow_upgrade=true` is passed, because `t3 update`
+  restarts the service and interrupts running sessions.
+- `data_disk`: on hosts with `data_disk_root`, keeps T3 worktrees, `~/.cache/tmp`
+  and the Go build cache on the data disk.
+- `retention`: the `chaldea-retention` script and its daily timer, with explicit
+  bounds: T3 worktrees within 20G (clean worktrees untouched for 14 days go, and
+  3 days when over budget), `~/.cache/tmp` entries older than 3 days, the Go
+  build cache within 10G, and `mise prune`. Anything a process holds or that
+  changed in the last 24 hours is kept, and so is any worktree with uncommitted
+  changes or commits no branch contains.
+- `pull_timer`: the `chaldea-fleet-pull` timer that runs `ansible-pull` every
+  four hours with a pinned ansible-core.
 
-Clone this repository using the existing repository identity, then from its root:
+Hosts and their switches are in `inventory/hosts.yml`; pins shared by every host
+are in `inventory/group_vars/all.yml`. No secret is stored here: credential files
+are listed by path, and the play only checks that each exists and is private.
 
-```sh
-env -u VIRTUAL_ENV -u PYTHONPATH bash tools/bootstrap-ci.sh
-env -u VIRTUAL_ENV -u PYTHONPATH bash tools/with-ci-env.sh python3 -m unittest discover -s tests -v
-env -u VIRTUAL_ENV -u PYTHONPATH bash tools/with-ci-env.sh ansible-lint
-```
+## Enrolling a host
 
-The exact gates are `bash tools/with-ci-env.sh python3 -m unittest discover -s tests -v`
-and `bash tools/with-ci-env.sh ansible-lint`. Workflow and job are both
-`ci`, on every PR and main push, with read-only contents permission.
-Bootstrap uses exact ordinary-GIL CPython 3.13.5 on Linux x86_64/aarch64 with
-glibc >=2.34. All 29 versions stay pinned; seven verified extra wheel hashes cover
-ARM64, including Black's portable wheel. The lock installs ansible-core 2.19.14,
-ansible-lint 26.10.0 and PyYAML 6.0.3; fleet runtime interpreters are separate.
+1. Add the host to `inventory/hosts.yml` under `agent_hosts` or `servers`, with
+   `expected_hostname` set to the output of `hostname` on it (the play refuses to
+   apply an entry to any other machine) and `data_disk_root` if it has one.
+2. On the host, give git read access to this repository and to homelab-cli,
+   which are private: `gh auth login`, then `gh auth setup-git`.
+3. Install the pinned ansible-core:
 
-Each independent wrapper shell rediscovers artifacts/.cache-ci/python-3.13.5.
-An explicit CI_PYTHON is authoritative and fails for missing/wrong interpreters.
-Otherwise an exact setup interpreter may be used; absent Python triggers the fixed
-official CPython source download, SHA256 verification and task-local build.
-Prerequisites are Linux/glibc, C11 compiler, GNU make, pkg-config, HTTPS curl,
-sha256sum, tar/xz, 1 GiB free storage, OpenSSL >=1.1.1, libffi, zlib, bzip2, lzma,
-sqlite headers/libraries and ARM libatomic. Missing prerequisites stop bootstrap;
-resolve host prerequisites separately. No global installation is performed.
+   ```sh
+   python3 -m venv ~/.local/share/chaldea/ansible-core-2.19.14
+   ~/.local/share/chaldea/ansible-core-2.19.14/bin/pip install ansible-core==2.19.14
+   ```
 
-Builds preserve incoming MAKEFLAGS (default one job); install explicitly uses
-COMPILEALL_OPTS=-j1 and a separate bounded compileall must pass before the receipt.
-The receipt binds source digest, exact version, architecture and configuration.
-Partial/mismatched receipts, ABI, modules and existing venv versions fail closed.
-Source identity does not promise identical binaries across compilers.
-Dependencies, caches and temporary files stay under artifacts/.venv-ci and
-artifacts/.cache-ci. Bootstrap may fetch pinned inputs; both core gates are offline.
-The wrapper clears inherited Python state, verifies all versions/executables and
-pip dependency consistency, and preserves caller CPU caps (safe-one defaults).
-Installation or verification failure stops the command.
+4. Run in check mode and read the diff. This clones the repository into
+   `~/.local/share/chaldea/fleet-config` but changes nothing else:
 
-Safe local check/diff uses synthetic temporary inventory only:
+   ```sh
+   ~/.local/share/chaldea/ansible-core-2.19.14/bin/ansible-pull \
+     --url https://github.com/iryzhkov/chaldea-fleet-config.git --checkout main \
+     --directory ~/.local/share/chaldea/fleet-config \
+     --limit HOST --check --diff site.yml
+   ```
 
-```sh
-mkdir -p artifacts/.cache-ci
-cat > artifacts/.cache-ci/synthetic.yml <<'YAML'
-all:
-  children:
-    pull_runner:
-      hosts:
-        synthetic_runner: {ansible_connection: local}
-    fleet_targets:
-      hosts:
-        synthetic_runner:
-          ansible_connection: local
-          adopted: false
-          desired_role: worker
-          desired_order: 1
-YAML
-bash tools/with-ci-env.sh ansible-playbook -i artifacts/.cache-ci/synthetic.yml fleet.yml --check --diff
-```
+5. Run the same command without `--check --diff` to converge.
 
-Do not execute the production inventory during bootstrap. Later, the sole
-pull_runner must use ansible-pull's `--limit all`: its default local-host
-limit excludes remote fleet plays. One runner plus inventory ordering and serial
-worker/coordinator plays provides fleet ordering; independent local timers do not.
-No timer or active service is created here.
+From a clone of this repository, `ansible-playbook site.yml --limit HOST --check
+--diff` does the same check against your working tree.
 
-All host facts and identity literals belong to inventory/hosts.yml. Historical
-observations retain source digest/provenance and probe limitations; runner SSH
-resolution is distinct from probe aliases and persistent-SSH catalog addresses.
-Observed backlog acceptance stays true even for the desired coordinator-only
-target; resolving that policy is live-adoption work. Logical state candidates and
-open database descriptors are separate evidence, including empty descriptor lists.
+## Enabling the timers
 
-pins.yml describes the binary release and source only. Configuration revision is
-the fetched fleet-config Git HEAD, never the binary source SHA. Until Renovate
-2.12c the orchestrator opens pin PRs and Igor merges them. Later exact-CI must bind
-both revisions independently. Source CI availability does not prove exact main
-push verification or deployed runtime.
+Both timers are installed disabled. To enable them for a host, set
+`pull_timer_enabled: true` (and, after reviewing `chaldea-retention --dry-run` on
+that host, `retention_timer_enabled: true`) under the host in
+`inventory/hosts.yml`, merge, and converge once by hand. Setting a variable back
+to false disables and stops its timer on the next run.
 
-Unit b supplies pinned exact-CI, worker activation and runner timer/locking;
-unit c activates the coordinator after Litestream; unit d handles onboarding.
-Before live use, confirm service-user/systemd access, protected file permissions,
-OS/interpreter compatibility, observation freshness, runner fetch/decrypt access,
-read-only Actions/release API access, age recovery and credential reference mapping.
-The required ci merge check is an operator step after landing. Existing deployment
-and backup operations remain until attended cut-over and D21 prerequisites.
+## CI
+
+`bash tools/ci.sh` runs every gate locally and in CI: it builds a virtualenv from
+the hashed lock `requirements-ci.txt`, then runs the unit tests, `ansible-lint`,
+a syntax check and a `--check --diff` run for the synthetic host in
+`tests/synthetic-inventory.yml`, whose home is a scratch directory in the
+checkout. To change a CI dependency,
+edit `requirements-ci.in` and regenerate the lock with the command at the top of
+`requirements-ci.txt`.

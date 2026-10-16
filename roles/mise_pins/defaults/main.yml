@@ -1,0 +1,7 @@
+---
+# Tool name to exact version, written to a drop-in beside the user's own
+# config. The user's ~/.config/mise/config.toml is never rewritten.
+mise_pins_tools: {}
+mise_pins_dropin: "{{ fleet_home }}/.config/mise/conf.d/agents.toml"
+mise_pins_install: true
+mise_pins_installs: "{{ fleet_home }}/.local/share/mise/installs"

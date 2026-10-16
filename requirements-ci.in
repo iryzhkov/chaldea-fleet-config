@@ -1,0 +1,7 @@
+# Direct CI dependencies. requirements-ci.txt is the hashed lock generated from
+# this file; regenerate it with the command at the top of that file.
+# ansible-core stays on 2.19 because it is the last series that runs on the
+# Python 3.11 that homelab ships.
+ansible-core==2.19.14
+ansible-lint==26.10.1
+pytest==9.1.1

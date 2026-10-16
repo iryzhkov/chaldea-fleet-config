@@ -1,5 +1,0 @@
----
-- name: Refuse unfinished worker role including check mode
-  ansible.builtin.fail:
-    msg: Unfinished worker role; not converged
-  delegate_to: localhost

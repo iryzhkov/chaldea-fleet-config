@@ -1,4 +1,4 @@
 .venv-ci/
-.cache-ci/
+.ci-home/
 __pycache__/
 *.pyc

@@ -1,0 +1,8 @@
+---
+# Called by other roles with a unit name, the rendered unit contents and
+# whether the timer should run. Disabling a timer that is enabled stops it.
+user_timer_name: ""
+user_timer_service: ""
+user_timer_timer: ""
+user_timer_enabled: false
+user_timer_unit_dir: "{{ fleet_home }}/.config/systemd/user"

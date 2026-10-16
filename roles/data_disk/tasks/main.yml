@@ -1,0 +1,71 @@
+---
+- name: Check the data disk is present
+  ansible.builtin.stat:
+    path: "{{ data_disk_root }}"
+    get_checksum: false
+  register: data_disk_mount
+
+- name: Assert the data disk is present
+  ansible.builtin.assert:
+    that:
+      - data_disk_mount.stat.isdir | default(false)
+    fail_msg: "{{ data_disk_root }} is missing; mount the data disk first"
+    quiet: true
+
+- name: Create the data disk directories
+  ansible.builtin.file:
+    path: "{{ data_disk_user_dir }}/{{ item.target }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop: "{{ data_disk_links }}"
+  loop_control:
+    label: "{{ item.target }}"
+
+- name: Inspect the paths that should point at the data disk
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item.path }}"
+    get_checksum: false
+  loop: "{{ data_disk_links }}"
+  loop_control:
+    label: "~/{{ item.path }}"
+  register: data_disk_paths
+
+# Moving existing data is a judgement call, so a real directory stops the play.
+- name: Refuse to replace a real directory
+  ansible.builtin.assert:
+    that:
+      - not (item.stat.isdir | default(false))
+    fail_msg: >-
+      ~/{{ item.item.path }} is a real directory; move its contents to
+      {{ data_disk_user_dir }}/{{ item.item.target }} and remove it, then rerun.
+    quiet: true
+  loop: "{{ data_disk_paths.results }}"
+  loop_control:
+    label: "~/{{ item.item.path }}"
+
+- name: Create the parents of the paths that point at the data disk
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/{{ item.path | dirname }}"
+    state: directory
+    mode: u+rwx
+  loop: "{{ data_disk_links }}"
+  loop_control:
+    label: "~/{{ item.path | dirname }}"
+
+- name: Point each path at the data disk
+  ansible.builtin.file:
+    src: "{{ data_disk_user_dir }}/{{ item.target }}"
+    dest: "{{ fleet_home }}/{{ item.path }}"
+    state: link
+    force: true
+  loop: "{{ data_disk_links }}"
+  loop_control:
+    label: "~/{{ item.path }}"
+
+- name: Keep the Go build cache on the data disk
+  ansible.builtin.lineinfile:
+    path: "{{ fleet_home }}/.config/go/env"
+    regexp: "^GOCACHE="
+    line: "GOCACHE={{ data_disk_gocache }}"
+    create: true
+    mode: "0644"

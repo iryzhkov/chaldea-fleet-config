@@ -12,11 +12,6 @@ jobs:
     env:
       CI_PYTHON: /usr/bin/python3.13
       ANSIBLE_FORKS: "1"
-      GOMAXPROCS: "1"
-      GOFLAGS: -p=1
-      MAKEFLAGS: -j1
-      CARGO_BUILD_JOBS: "1"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - run: bash tools/with-ci-env.sh python3 -m unittest discover -s tests -v
-      - run: bash tools/with-ci-env.sh ansible-lint
+      - run: bash tools/ci.sh

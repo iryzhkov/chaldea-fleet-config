@@ -1,0 +1,21 @@
+---
+- name: Install the pinned ansible-core that the pull timer runs
+  ansible.builtin.pip:
+    name: "ansible-core=={{ pull_timer_ansible_core }}"
+    virtualenv: "{{ pull_timer_venv }}"
+    virtualenv_command: "{{ pull_timer_python }} -m venv"
+  when: pull_timer_enabled | bool
+
+- name: Render the pull units
+  ansible.builtin.set_fact:
+    pull_timer_service_unit: "{{ lookup('ansible.builtin.template', 'chaldea-fleet-pull.service.j2') }}"
+    pull_timer_timer_unit: "{{ lookup('ansible.builtin.template', 'chaldea-fleet-pull.timer.j2') }}"
+
+- name: Install the pull timer
+  ansible.builtin.include_role:
+    name: user_timer
+  vars:
+    user_timer_name: chaldea-fleet-pull
+    user_timer_service: "{{ pull_timer_service_unit }}"
+    user_timer_timer: "{{ pull_timer_timer_unit }}"
+    user_timer_enabled: "{{ pull_timer_enabled }}"
