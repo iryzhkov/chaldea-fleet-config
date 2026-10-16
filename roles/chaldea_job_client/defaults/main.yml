@@ -1,0 +1,5 @@
+---
+chaldea_job_client_enabled: false
+chaldea_job_client_key: "{{ fleet_home }}/.ssh/chaldea-job_ed25519"
+chaldea_job_client_targets: []
+# Entries: {name: agent-a, address: 192.0.2.2, port: 2222}

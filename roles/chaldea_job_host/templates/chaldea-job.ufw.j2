@@ -1,0 +1,4 @@
+{% for source in chaldea_job_host_sources if (':' in source.ip) == item.ipv6 %}
+-A {{ item.chain }} -p tcp -s {{ source.ip }} --dport {{ chaldea_job_host_port }} -j ACCEPT
+{% endfor %}
+-A {{ item.chain }} -p tcp --dport {{ chaldea_job_host_port }} -j DROP

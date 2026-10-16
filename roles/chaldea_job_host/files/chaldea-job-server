@@ -1,0 +1,430 @@
+#!/usr/bin/python3
+"""Chaldea SSH job protocol 1. Standard library only; no client shell."""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import resource
+import selectors
+import shutil
+import signal
+import stat
+import struct
+import subprocess
+import sys
+import time
+
+VERSION = 1
+MAX_FRAME = 1024 * 1024
+MAX_SNAPSHOT = 64 * 1024 * 1024
+MAX_ARTIFACT = 64 * 1024 * 1024
+MAX_OUTPUT = 64 * 1024 * 1024
+CAP = 20 * 1024 ** 3
+RESERVE = 256 * 1024 * 1024
+CHUNK = 64 * 1024
+
+
+def safe_path(name):
+    if (not isinstance(name, str) or not name or len(name.encode()) > 4096
+            or "\\" in name or "\0" in name
+            or any(p in ("", ".", "..", ".git", ".chaldea") for p in name.split("/"))):
+        raise ValueError("unsafe relative path")
+    return name
+
+
+def encode(value):
+    return json.dumps(value, separators=(",", ":")).encode()
+
+
+def send(kind, data=b""):
+    if len(data) > MAX_FRAME:
+        raise ValueError("frame too large")
+    sys.stdout.buffer.write(kind.encode() + struct.pack("!I", len(data)) + data)
+    sys.stdout.buffer.flush()
+
+
+def exact(size):
+    data = bytearray()
+    while len(data) < size:
+        part = os.read(0, size - len(data))
+        if not part:
+            raise ConnectionError("connection dropped during upload")
+        data.extend(part)
+    return bytes(data)
+
+
+def receive():
+    header = exact(5)
+    size = struct.unpack("!I", header[1:])[0]
+    if size > MAX_FRAME or not 65 <= header[0] <= 90:
+        raise ValueError("invalid frame")
+    return chr(header[0]), exact(size)
+
+
+def validate(request):
+    if not isinstance(request, dict) or request.get("version") != VERSION:
+        raise ValueError("unsupported job protocol")
+    if not re.fullmatch(r"[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}", request.get("jobId", "")):
+        raise ValueError("invalid job id")
+    argv = request.get("argv")
+    if (not isinstance(argv, list) or not 1 <= len(argv) <= 256
+            or any(not isinstance(a, str) or "\0" in a for a in argv)
+            or not argv[0] or len(encode(argv)) > 16384):
+        raise ValueError("invalid command argv")
+    if request.get("cwd") != "":
+        safe_path(request.get("cwd"))
+    if not isinstance(request.get("gpu"), bool):
+        raise ValueError("invalid GPU flag")
+    artifacts = request.get("artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) > 32:
+        raise ValueError("invalid artifact list")
+    for name in artifacts:
+        safe_path(name)
+    if len(set(artifacts)) != len(artifacts):
+        raise ValueError("duplicate artifact")
+    files = request.get("files")
+    if not isinstance(files, list) or len(files) > 10000:
+        raise ValueError("invalid manifest")
+    names = set()
+    total = 0
+    for entry in files:
+        if not isinstance(entry, dict):
+            raise ValueError("invalid manifest entry")
+        name = safe_path(entry.get("path"))
+        size = entry.get("size")
+        if (name in names or type(size) is not int or size < 0
+                or entry.get("mode") not in (0o644, 0o755)
+                or not re.fullmatch("[0-9a-f]{64}", entry.get("sha256", ""))):
+            raise ValueError("invalid manifest entry")
+        if any(p.startswith(".chaldea-") for p in name.split("/")):
+            raise ValueError("reserved workspace path")
+        names.add(name)
+        total += size
+    if total > MAX_SNAPSHOT:
+        raise ValueError("snapshot exceeds 64 MiB")
+    return request
+
+
+def idle_policy(config):
+    if config.get("policy", "always") == "always":
+        return
+    if config.get("policy") != "idle":
+        raise ValueError("unknown host acceptance policy")
+    user = config["desktop_user"]
+    sessions = json.loads(subprocess.check_output(
+        ["loginctl", "list-sessions", "--json=short"], timeout=2))
+    graphical = []
+    for row in sessions:
+        props = subprocess.check_output(
+            ["loginctl", "show-session", str(row["session"]), "-p", "Name",
+             "-p", "Type", "-p", "LockedHint"], text=True, timeout=2)
+        values = dict(line.split("=", 1) for line in props.splitlines() if "=" in line)
+        if values.get("Name") == user and values.get("Type") in ("wayland", "x11"):
+            graphical.append(values.get("LockedHint") == "yes")
+    if not graphical or not all(graphical):
+        raise ValueError("host busy: desktop session must be locked")
+    # A denylist cannot prove that no arbitrary game is running. Fail closed on
+    # every process outside the operator-reviewed desktop baseline instead.
+    names = subprocess.check_output(["ps", "-u", user, "-o", "comm="], text=True, timeout=2).splitlines()
+    allowed = set(config.get("idle_allowed_processes", []))
+    blocked = [name.strip() for name in names if name.strip() not in allowed
+               or re.search(r"sunshine|steam|wine|proton|lutris|heroic|gamescope", name, re.I)]
+    if not names or blocked:
+        raise ValueError("host busy: gaming, Sunshine, or a process outside the idle baseline is running")
+
+
+def remove_tree(path):
+    # A command may chmod its output directories to 000; restore the owner's
+    # traversal rights without following symlinks before deleting the tree.
+    path.chmod(0o700)
+    for directory, names, _ in os.walk(path, topdown=True, followlinks=False):
+        for name in names:
+            child = Path(directory) / name
+            if not child.is_symlink():
+                child.chmod(0o700)
+    shutil.rmtree(path)
+
+
+def cleanup(root):
+    # One admission lock protects all active state. After its owner has died,
+    # bwrap's parent-death/PID namespace boundary has killed the job.
+    for path in root.iterdir():
+        if path.name == "admission.lock":
+            continue
+        if path.is_dir() and not path.is_symlink():
+            remove_tree(path)
+        else:
+            path.unlink()
+
+
+def used_bytes(root):
+    total = 0
+    for directory, _, names in os.walk(root, followlinks=False):
+        for name in names:
+            st = (Path(directory) / name).lstat()
+            total += max(st.st_size, st.st_blocks * 512)
+    return total
+
+
+def admission(root, config):
+    cap = min(int(config.get("state_cap_bytes", CAP)), CAP)
+    reserve = max(int(config.get("min_free_bytes", RESERVE)), 0)
+    # The kernel user quota also bounds running writes. No persistent caches
+    # or logs are stored in this directory.
+    if used_bytes(root) + MAX_SNAPSHOT >= cap:
+        raise ValueError("host state over cap; new jobs refused")
+    if shutil.disk_usage(root).free < reserve + MAX_SNAPSHOT:
+        raise ValueError("host disk full or below free-space reserve; new jobs refused")
+
+
+def unpack(request, workspace):
+    for entry in request["files"]:
+        path = workspace / entry["path"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        remaining = entry["size"]
+        digest = hashlib.sha256()
+        with path.open("xb") as out:
+            while remaining:
+                kind, data = receive()
+                if kind != "B" or not data or len(data) > min(CHUNK, remaining):
+                    raise ValueError("invalid snapshot data")
+                out.write(data)
+                digest.update(data)
+                remaining -= len(data)
+        if digest.hexdigest() != entry["sha256"]:
+            raise ValueError("snapshot digest mismatch")
+        path.chmod(entry["mode"])
+    if receive() != ("E", b""):
+        raise ValueError("missing upload end")
+
+
+def sandbox(request, workspace, config):
+    home = workspace / ".chaldea-home"
+    temp = workspace / ".chaldea-tmp"
+    home.mkdir(mode=0o700)
+    temp.mkdir(mode=0o700)
+    cmd = ["/usr/bin/bwrap", "--unshare-all", "--share-net", "--die-with-parent",
+           "--new-session", "--cap-drop", "ALL", "--ro-bind", "/usr", "/usr"]
+    for name in ("bin", "sbin", "lib", "lib64"):
+        path = Path("/") / name
+        if path.is_symlink():
+            cmd += ["--symlink", os.readlink(path), str(path)]
+        elif path.exists():
+            cmd += ["--ro-bind", str(path), str(path)]
+    for name in ("/etc/resolv.conf", "/etc/hosts", "/etc/nsswitch.conf",
+                 "/etc/ssl/certs", "/etc/ca-certificates", "/etc/localtime",
+                 "/etc/ld.so.cache"):
+        if Path(name).exists():
+            cmd += ["--ro-bind", name, name]
+    cmd += ["--proc", "/proc", "--dev", "/dev", "--dir", "/run",
+            "--bind", str(workspace), "/work", "--bind", str(home), "/home/job",
+            "--bind", str(temp), "/tmp", "--chdir", "/work/" + request["cwd"]]
+    env = {"HOME": "/home/job", "USER": "chaldea-job", "LOGNAME": "chaldea-job",
+           "PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "TERM": "dumb",
+           "TMPDIR": "/tmp", "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0",
+           "XDG_CONFIG_HOME": "/home/job/.config", "XDG_CACHE_HOME": "/home/job/.cache",
+           "XDG_DATA_HOME": "/home/job/.local/share", "XDG_STATE_HOME": "/home/job/.local/state"}
+    if request["gpu"]:
+        devices = config.get("gpu_devices", [])
+        icd = config.get("nvidia_icd", "")
+        if not devices or not icd or not Path(icd).is_file():
+            raise ValueError("GPU unavailable: NVIDIA device paths and ICD must be configured")
+        for name in devices:
+            path = Path(name).resolve(strict=True)
+            if not str(path).startswith("/dev/") or not stat.S_ISCHR(path.stat().st_mode):
+                raise ValueError("invalid GPU device")
+            cmd += ["--dev-bind", str(path), str(path)]
+        if not icd.startswith("/usr/"):
+            cmd += ["--ro-bind", icd, icd]
+        env.update(VK_DRIVER_FILES=icd, VK_ICD_FILENAMES=icd, CUDA_VISIBLE_DEVICES="0")
+    cmd += ["--remount-ro", "/", "--", *request["argv"]]
+    return cmd, env
+
+
+def kill_group(process):
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=5)
+
+
+def quota_seccomp():
+    """Prevent nested Btrfs subvolumes from escaping the root qgroup limit.
+
+    Native 64-bit Linux ABI only. Other ABIs fail closed. This is a narrow quota
+    guard, not a general syscall allowlist; NVIDIA ioctls remain available.
+    """
+    import platform
+    architectures = {"x86_64": (0xc000003e, 16), "aarch64": (0xc00000b7, 29)}
+    if platform.machine() not in architectures:
+        raise ValueError("unsupported sandbox seccomp architecture")
+    arch, ioctl = architectures[platform.machine()]
+    # BPF: load arch; reject foreign ABI; load syscall and reject x32;
+    # for ioctl load request's low word and deny create/snapshot/setflags.
+    denied = (0x50009401, 0x5000940e, 0x50009417, 0x50009418, 0x4008941a)
+    instructions = [
+        (0x20, 0, 0, 4), (0x15, 1, 0, arch), (0x06, 0, 0, 0x00050001),
+        (0x20, 0, 0, 0), (0x45, 0, 1, 0x40000000),
+        (0x06, 0, 0, 0x00050001),
+        (0x15, 0, len(denied) + 1, ioctl), (0x20, 0, 0, 24),
+    ]
+    for index, request in enumerate(denied):
+        instructions.append((0x15, len(denied) - index, 0, request))
+    instructions += [(0x06, 0, 0, 0x7fff0000), (0x06, 0, 0, 0x00050001)]
+    fd = os.memfd_create("chaldea-quota-filter", flags=os.MFD_CLOEXEC)
+    os.write(fd, b"".join(struct.pack("HBBI", *item) for item in instructions))
+    os.lseek(fd, 0, os.SEEK_SET)
+    return fd
+
+
+def execute(request, workspace, config):
+    command, env = sandbox(request, workspace, config)
+    seccomp = quota_seccomp()
+    # Insert before bwrap's command separator, not the client's argv.
+    command[command.index("--"):command.index("--")] = ["--seccomp", str(seccomp)]
+    try:
+        process = subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   start_new_session=True, close_fds=True,
+                                   pass_fds=(seccomp,))
+    finally:
+        os.close(seccomp)
+    try:
+        with selectors.DefaultSelector() as selector:
+            selector.register(0, selectors.EVENT_READ, "input")
+            selector.register(process.stdout, selectors.EVENT_READ, "O")
+            selector.register(process.stderr, selectors.EVENT_READ, "S")
+            pipes = 2
+            output = 0
+            deadline = time.monotonic() + min(int(config.get("max_seconds", 21600)), 21600)
+            while pipes:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ValueError("job exceeded six-hour runtime bound")
+                events = selector.select(remaining)
+                if not events:
+                    raise ValueError("job exceeded runtime bound")
+                for key, _ in events:
+                    if key.data == "input":
+                        # No more client input is permitted. EOF kills the group
+                        # even if it never writes another output byte.
+                        os.read(0, 1)
+                        raise ConnectionError("client disconnected or sent unexpected input")
+                    data = os.read(key.fd, CHUNK)
+                    if not data:
+                        selector.unregister(key.fileobj)
+                        pipes -= 1
+                    else:
+                        output += len(data)
+                        if output > MAX_OUTPUT:
+                            raise ValueError("job exceeded 64 MiB output bound")
+                        send(key.data, data)
+            code = process.wait(timeout=max(.001, deadline - time.monotonic()))
+            return code if code >= 0 else min(255, 128 - code)
+    finally:
+        kill_group(process)
+        process.stdout.close()
+        process.stderr.close()
+
+
+def artifact_file(workspace, name):
+    # Job is dead, including descendants, before artifact traversal begins.
+    path = workspace
+    for part in safe_path(name).split("/"):
+        path = path / part
+        if path.is_symlink():
+            raise ValueError("artifact symlinks are forbidden")
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    file = os.fdopen(fd, "rb")
+    if not stat.S_ISREG(os.fstat(fd).st_mode):
+        file.close()
+        raise ValueError("artifacts must be regular files")
+    return file
+
+
+def artifacts(request, workspace):
+    total = 0
+    for name in request["artifacts"]:
+        with artifact_file(workspace, name) as file:
+            size = os.fstat(file.fileno()).st_size
+            total += size
+            if total > MAX_ARTIFACT:
+                raise ValueError("artifacts exceed 64 MiB aggregate cap")
+            send("A", encode({"path": name, "size": size}))
+            while data := file.read(CHUNK):
+                send("B", data)
+
+
+def interrupted(_signum, _frame):
+    raise ConnectionError("job connection terminated")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="/etc/chaldea-job.json")
+    args = parser.parse_args()
+    if os.environ.get("SSH_ORIGINAL_COMMAND") != "chaldea-exec-v0":
+        raise ValueError("only chaldea-exec-v0 protocol requests are allowed; no shell")
+    if os.environ.get("SSH_AUTH_SOCK"):
+        raise ValueError("forwarded SSH agents are forbidden")
+    os.umask(0o077)
+    signal.signal(signal.SIGTERM, interrupted)
+    signal.signal(signal.SIGHUP, interrupted)
+    signal.signal(signal.SIGINT, interrupted)
+    signal.signal(signal.SIGALRM, interrupted)
+    # Bounds cover upload, post-exit artifact transfer and blocked output writes.
+    signal.alarm(21720)
+    config = json.loads(Path(args.config).read_text())
+    root = Path(config["state_root"])
+    if not root.is_absolute() or root.is_symlink():
+        raise ValueError("invalid state root")
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (root / "admission.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ValueError("host busy: one job already running; retry explicitly") from exc
+        send("H", encode({"version": VERSION}))
+        signal.alarm(120)
+        kind, body = receive()
+        if kind != "Q":
+            raise ValueError("expected job request")
+        request = validate(json.loads(body))
+        cleanup(root)
+        idle_policy(config)
+        admission(root, config)
+        workspace = root / request["jobId"]
+        workspace.mkdir(mode=0o700)
+        try:
+            unpack(request, workspace)
+            if request["cwd"] and not (workspace / request["cwd"]).is_dir():
+                raise ValueError("command working directory missing from snapshot")
+            # Hard aggregate disk cap comes from the Unix user's filesystem
+            # quota installed by the role. This is an additional per-file guard.
+            resource.setrlimit(resource.RLIMIT_FSIZE, (CAP, CAP))
+            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            signal.alarm(21720)
+            code = execute(request, workspace, config)
+            artifacts(request, workspace)
+        finally:
+            remove_tree(workspace)
+            cleanup(root)
+        # Result is confirmed only AFTER workspace cleanup.
+        send("X", encode({"exitCode": code}))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (Exception, KeyboardInterrupt) as exc:
+        try:
+            # Never log argv, environment, snapshot bytes, or raw OS exceptions.
+            message = str(exc) if isinstance(exc, (ValueError, ConnectionError)) else type(exc).__name__
+            send("R", encode({"message": message[:1024]}))
+        except (BrokenPipeError, OSError):
+            pass
+        sys.exit(125)

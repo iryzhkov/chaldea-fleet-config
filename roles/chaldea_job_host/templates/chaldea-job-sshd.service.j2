@@ -1,0 +1,15 @@
+[Unit]
+Description=Chaldea restricted compute SSH
+After=network.target
+[Service]
+Type=simple
+ExecStartPre={{ chaldea_job_host_sshd_binary }} -t -f /etc/ssh/chaldea-job-sshd.conf
+ExecStart={{ chaldea_job_host_sshd_binary }} -D -e -f /etc/ssh/chaldea-job-sshd.conf
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+LogNamespace=chaldea-job
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=20
+[Install]
+WantedBy=multi-user.target

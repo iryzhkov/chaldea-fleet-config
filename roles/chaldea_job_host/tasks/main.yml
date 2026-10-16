@@ -1,0 +1,287 @@
+---
+- name: Validate the job host's restricted enrollment
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_host_user == 'chaldea-job'
+      - chaldea_job_host_port | int > 1024
+      - chaldea_job_host_port | int < 65536
+      - chaldea_job_host_port | int != 22
+      - chaldea_job_host_sources | length > 0
+      - chaldea_job_host_policy in ['always', 'idle']
+      - chaldea_job_host_quota_blocks | int == 20971520
+      - chaldea_job_host_state_root is match('^/(srv/agent/chaldea-job|home/chaldea-job/jobs)$')
+    quiet: true
+
+- name: Validate every source key and exact source address
+  ansible.builtin.assert:
+    that:
+      - item.name is match('^[a-zA-Z0-9-]+$')
+      - item.ip is match('^[0-9.]+$|^[0-9a-fA-F:]+$')
+      - item.public_key is match('^ssh-ed25519 [A-Za-z0-9+/]{68,}={0,2}( .*)?$')
+      - "'PLACEHOLDER' not in item.public_key"
+    fail_msg: Replace the inventory placeholders with each session host's public key and fixed IP.
+    quiet: true
+  loop: "{{ chaldea_job_host_sources }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Install sandbox and quota tools
+  become: true
+  ansible.builtin.package:
+    name: "{{ ['bubblewrap', 'openssh', 'ufw', 'quota-tools', 'btrfs-progs'] if ansible_facts.os_family == 'Archlinux' else ['bubblewrap', 'openssh-server', 'ufw', 'quota', 'btrfs-progs'] }}"
+    state: present
+
+- name: Require an active firewall before opening the compute path
+  become: true
+  ansible.builtin.command:
+    argv: [ufw, status]
+  register: chaldea_job_host_firewall
+  changed_when: false
+  check_mode: false
+  failed_when: "'Status: active' not in chaldea_job_host_firewall.stdout"
+
+- name: Create the dedicated job account without a usable password
+  become: true
+  ansible.builtin.user:
+    name: "{{ chaldea_job_host_user }}"
+    home: /home/chaldea-job
+    shell: /bin/sh
+    password: "*"
+    groups: "{{ chaldea_job_host_gpu_groups | join(',') }}"
+    append: false
+    create_home: true
+
+- name: Create private job directories
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ chaldea_job_host_user }}"
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0700"
+  loop:
+    - /home/chaldea-job
+    - /home/chaldea-job/.ssh
+
+- name: Find the filesystem that must enforce the hard quota
+  ansible.builtin.command:
+    argv: [findmnt, -n, -o, "FSTYPE,TARGET", --target, "{{ '/srv/agent' if chaldea_job_host_state_root is match('^/srv/agent/') else '/home' }}"]
+  register: chaldea_job_host_filesystem
+  changed_when: false
+  check_mode: false
+
+- name: Require the configured data disk to be mounted
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_host_filesystem.stdout.split()[1] == '/srv/agent'
+    fail_msg: The job data disk must be mounted at /srv/agent before enrollment.
+    quiet: true
+  when: chaldea_job_host_state_root is match('^/srv/agent/')
+
+- name: Create a dedicated Btrfs job subvolume
+  become: true
+  ansible.builtin.command:
+    argv: [btrfs, subvolume, create, "{{ chaldea_job_host_state_root }}"]
+    creates: "{{ chaldea_job_host_state_root }}"
+  when: chaldea_job_host_filesystem.stdout.split()[0] == 'btrfs'
+
+- name: Require the Btrfs job root to be its own subvolume
+  become: true
+  ansible.builtin.command:
+    argv: [btrfs, subvolume, show, "{{ chaldea_job_host_state_root }}"]
+  changed_when: false
+  when:
+    - chaldea_job_host_filesystem.stdout.split()[0] == 'btrfs'
+    - not ansible_check_mode
+
+- name: Require Btrfs quotas already enabled and consistent by the operator
+  become: true
+  ansible.builtin.command:
+    argv: [btrfs, qgroup, show, --raw, "{{ chaldea_job_host_state_root }}"]
+  register: chaldea_job_host_qgroup
+  changed_when: false
+  failed_when: chaldea_job_host_qgroup.rc != 0 or 'inconsistent' in chaldea_job_host_qgroup.stderr
+  when:
+    - chaldea_job_host_filesystem.stdout.split()[0] == 'btrfs'
+    - not ansible_check_mode
+
+- name: Assign the absolute 20 GiB referenced-byte Btrfs quota
+  become: true
+  ansible.builtin.command:
+    argv: [btrfs, qgroup, limit, "21474836480", "{{ chaldea_job_host_state_root }}"]
+  changed_when: false
+  when:
+    - chaldea_job_host_filesystem.stdout.split()[0] == 'btrfs'
+    - not ansible_check_mode
+
+- name: Create or secure the private job root
+  become: true
+  ansible.builtin.file:
+    path: "{{ chaldea_job_host_state_root }}"
+    state: directory
+    owner: "{{ chaldea_job_host_user }}"
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0700"
+
+- name: Require filesystem user quotas already enabled by the operator
+  become: true
+  ansible.builtin.command:
+    argv: [quotaon, -p, -u, "{{ chaldea_job_host_filesystem.stdout.split()[1] }}"]
+  register: chaldea_job_host_quota_on
+  changed_when: false
+  failed_when: chaldea_job_host_quota_on.rc != 0 or 'is on' not in chaldea_job_host_quota_on.stdout
+  when:
+    - chaldea_job_host_filesystem.stdout.split()[0] != 'btrfs'
+    - not ansible_check_mode
+
+- name: Assign the absolute 20 GiB hard user quota on other filesystems
+  become: true
+  ansible.builtin.command:
+    argv: [setquota, -u, "{{ chaldea_job_host_user }}", "0", "{{ chaldea_job_host_quota_blocks | string }}", "0", "0", "{{ chaldea_job_host_filesystem.stdout.split()[1] }}"]
+  # Quota setters assign an absolute limit and have no changed/no-change output.
+  changed_when: false
+  when:
+    - chaldea_job_host_filesystem.stdout.split()[0] != 'btrfs'
+    - not ansible_check_mode
+
+- name: Create the root-owned server directory
+  become: true
+  ansible.builtin.file:
+    path: /usr/local/libexec
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the self-contained protocol version one server
+  become: true
+  ansible.builtin.copy:
+    src: chaldea-job-server
+    dest: "{{ chaldea_job_host_server }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the job host configuration
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job.json.j2
+    dest: /etc/chaldea-job.json
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install only forced source-bound keys
+  become: true
+  ansible.builtin.template:
+    src: authorized_keys.j2
+    dest: /home/chaldea-job/.ssh/authorized_keys
+    owner: root
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0640"
+
+- name: Create the operator SSH drop-in directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deny the job user on the ordinary operator SSH daemon
+  become: true
+  ansible.builtin.template:
+    src: 90-chaldea-job.conf.j2
+    dest: /etc/ssh/sshd_config.d/90-chaldea-job.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "{{ chaldea_job_host_sshd_binary }} -t -f %s"
+  notify: Validate and reload operator sshd
+
+- name: Install the isolated job SSH daemon configuration
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job-sshd.conf.j2
+    dest: /etc/ssh/chaldea-job-sshd.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "{{ chaldea_job_host_sshd_binary }} -t -f %s"
+  notify: Restart job sshd
+
+- name: Install the job SSH daemon unit
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job-sshd.service.j2
+    dest: /etc/systemd/system/chaldea-job-sshd.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart job sshd
+
+- name: Create the bounded journal namespace directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/journald@chaldea-job.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Bound SSH authentication logs separately
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald@chaldea-job.conf.d/limits.conf
+    content: |
+      [Journal]
+      Storage=persistent
+      SystemMaxUse=16M
+      RuntimeMaxUse=16M
+      MaxRetentionSec=14day
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart job journal
+
+# UFW's before chains precede ordinary allow rules. Replacing one managed block
+# also revokes removed sources; IPv6 cannot bypass the IPv4 source policy.
+- name: Restrict the compute port before ordinary UFW rules
+  become: true
+  ansible.builtin.blockinfile:
+    path: "{{ item.path }}"
+    marker: "# {mark} CHALDEA JOB V0"
+    insertbefore: "^-A {{ item.chain }} -i lo -j ACCEPT$"
+    block: "{{ lookup('ansible.builtin.template', 'chaldea-job.ufw.j2') }}"
+    validate: "{{ item.restore }} --test %s"
+  loop:
+    - path: /etc/ufw/before.rules
+      chain: ufw-before-input
+      ipv6: false
+      restore: "{{ '/usr/bin/iptables-restore' if ansible_facts.os_family == 'Archlinux' else '/usr/sbin/iptables-restore' }}"
+    - path: /etc/ufw/before6.rules
+      chain: ufw6-before-input
+      ipv6: true
+      restore: "{{ '/usr/bin/ip6tables-restore' if ansible_facts.os_family == 'Archlinux' else '/usr/sbin/ip6tables-restore' }}"
+  loop_control:
+    label: "{{ item.path }}"
+  notify: Reload job firewall
+
+- name: Apply validated firewall and SSH changes before admitting jobs
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify ordinary SSH still denies the job account on every apply
+  become: true
+  ansible.builtin.command:
+    argv: ["{{ chaldea_job_host_sshd_binary }}", -T, -C, "user=chaldea-job,host=localhost,addr=127.0.0.1"]
+  register: chaldea_job_host_effective_ordinary_sshd
+  changed_when: false
+  failed_when: not (chaldea_job_host_effective_ordinary_sshd.stdout is search('(?m)^denyusers (.* )?chaldea-job( |$)'))
+  when: not ansible_check_mode
+
+- name: Start the restricted job SSH daemon
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-job-sshd.service
+    enabled: true
+    state: started
+    daemon_reload: true

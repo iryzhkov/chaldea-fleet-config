@@ -1,0 +1,18 @@
+---
+# Off until the reviewed inventory contains real public keys and quota support.
+chaldea_job_host_enabled: false
+chaldea_job_host_user: chaldea-job
+chaldea_job_host_port: 2222
+chaldea_job_host_state_root: "{{ (data_disk_root | default('')) ~ '/chaldea-job' if data_disk_root | default('') | length > 0 else '/home/chaldea-job/jobs' }}"
+chaldea_job_host_server: /usr/local/libexec/chaldea-job-server-v1
+chaldea_job_host_policy: always
+chaldea_job_host_desktop_user: igor
+chaldea_job_host_idle_allowed_processes: []
+chaldea_job_host_sources: []
+# Entries: {name: laptop, ip: 192.0.2.1, public_key: 'ssh-ed25519 AAAA...'}
+chaldea_job_host_gpu_devices: []
+chaldea_job_host_nvidia_icd: ""
+chaldea_job_host_gpu_groups: []
+chaldea_job_host_sshd_binary: "{{ '/usr/bin/sshd' if ansible_facts.os_family == 'Archlinux' else '/usr/sbin/sshd' }}"
+chaldea_job_host_sshd_service: "{{ 'sshd' if ansible_facts.os_family == 'Archlinux' else 'ssh' }}"
+chaldea_job_host_quota_blocks: 20971520

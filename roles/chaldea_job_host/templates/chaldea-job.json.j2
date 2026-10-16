@@ -1,0 +1,8 @@
+{{ {
+  'state_root': chaldea_job_host_state_root,
+  'policy': chaldea_job_host_policy,
+  'desktop_user': chaldea_job_host_desktop_user,
+  'idle_allowed_processes': chaldea_job_host_idle_allowed_processes,
+  'gpu_devices': chaldea_job_host_gpu_devices,
+  'nvidia_icd': chaldea_job_host_nvidia_icd
+} | to_nice_json }}

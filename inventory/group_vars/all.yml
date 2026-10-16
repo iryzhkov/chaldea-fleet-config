@@ -25,6 +25,21 @@ agent_tools_sources:
 agent_tools_credential_files:
   - {name: Jocasta token, path: .config/jocasta/token}
 
+# Fleet compute is explicitly enrolled per host after review. Public-key entries
+# are placeholders here; never put a private key in inventory.
+chaldea_job_host_enabled: false
+chaldea_job_client_enabled: false
+chaldea_job_host_sources:
+  - {name: omarchy-pc, ip: 192.0.2.10, public_key: 'ssh-ed25519 PLACEHOLDER-omarchy-pc'}
+  - {name: laptop, ip: 192.0.2.11, public_key: 'ssh-ed25519 PLACEHOLDER-laptop'}
+  - {name: agent-a, ip: 192.0.2.12, public_key: 'ssh-ed25519 PLACEHOLDER-agent-a'}
+  - {name: agent-b, ip: 192.0.2.13, public_key: 'ssh-ed25519 PLACEHOLDER-agent-b'}
+chaldea_job_client_targets:
+  - {name: omarchy-pc, address: 192.0.2.10, port: 2222}
+  - {name: laptop, address: 192.0.2.11, port: 2222}
+  - {name: agent-a, address: 192.0.2.12, port: 2222}
+  - {name: agent-b, address: 192.0.2.13, port: 2222}
+
 t3_enabled: true
 t3_version: 0.1.0
 # Set true for one run to move T3 to t3_version. t3 update restarts the
