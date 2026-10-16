@@ -14,6 +14,6 @@ ExecStart={{ retention_script }} \
   --disposable-ignored {{ retention_disposable_ignored | join(',') }} \
   --tmp-dir {{ retention_tmp_dir }} \
   --tmp-max-age-days {{ retention_tmp_max_age_days }} \
-  --go-cache-max-gb {{ retention_go_cache_max_gb }}{% if not retention_mise_prune | bool %} --no-mise-prune{% endif %}
+  --go-cache-max-gb {{ retention_go_cache_max_gb }}{{ '' if retention_mise_prune | bool else ' --no-mise-prune' }}
 Nice=19
 IOSchedulingClass=idle
