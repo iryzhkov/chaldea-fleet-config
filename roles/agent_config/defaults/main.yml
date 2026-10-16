@@ -17,6 +17,7 @@ agent_config_skills:
   - implementation-session
   - ov-memory
   - ov-memory-curation
+  - review-delegation
 agent_config_skill_dirs:
   - .claude/skills
   - .agents/skills
