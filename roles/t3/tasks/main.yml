@@ -1,0 +1,55 @@
+---
+- name: Read the active T3 version
+  ansible.builtin.slurp:
+    src: "{{ t3_home }}/runtime/service-state.json"
+  register: t3_state
+
+- name: Record the active T3 version
+  ansible.builtin.set_fact:
+    t3_active_version: "{{ (t3_state.content | b64decode | from_json).activeVersion }}"
+
+- name: Move T3 to the pinned version when an upgrade is explicitly allowed
+  when: t3_allow_upgrade | bool and t3_active_version != t3_version
+  block:
+    - name: Run t3 update for the pinned version
+      ansible.builtin.command:
+        argv:
+          - "{{ t3_home }}/runtime/versions/{{ t3_active_version }}/t3"
+          - update
+          - "{{ t3_version }}"
+          - --yes
+      changed_when: true
+
+    - name: Re-read the active T3 version after the upgrade
+      ansible.builtin.slurp:
+        src: "{{ t3_home }}/runtime/service-state.json"
+      register: t3_state_upgraded
+      when: not ansible_check_mode
+
+    - name: Record the upgraded T3 version
+      ansible.builtin.set_fact:
+        t3_active_version: "{{ (t3_state_upgraded.content | b64decode | from_json).activeVersion }}"
+      when: not ansible_check_mode
+
+- name: Assert T3 runs the pinned version
+  ansible.builtin.assert:
+    that:
+      - t3_active_version == t3_version or (ansible_check_mode and t3_allow_upgrade | bool)
+    fail_msg: >-
+      T3 is {{ t3_active_version }} but the pin is {{ t3_version }}. Run once with
+      -e t3_allow_upgrade=true to move it; t3 update restarts the service and
+      interrupts running sessions.
+    quiet: true
+
+- name: Read the T3 service state
+  ansible.builtin.systemd_service:
+    name: "{{ t3_service }}"
+    scope: user
+  register: t3_service_state
+
+- name: Assert the T3 service is active
+  ansible.builtin.assert:
+    that:
+      - t3_service_state.status.ActiveState == 'active'
+    fail_msg: "{{ t3_service }} is {{ t3_service_state.status.ActiveState }}"
+    quiet: true

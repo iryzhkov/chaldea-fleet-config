@@ -1,0 +1,20 @@
+---
+- name: Install the retention script
+  ansible.builtin.copy:
+    src: chaldea-retention
+    dest: "{{ retention_script }}"
+    mode: "0755"
+
+- name: Render the retention units
+  ansible.builtin.set_fact:
+    retention_service_unit: "{{ lookup('ansible.builtin.template', 'chaldea-retention.service.j2') }}"
+    retention_timer_unit: "{{ lookup('ansible.builtin.template', 'chaldea-retention.timer.j2') }}"
+
+- name: Install the retention timer
+  ansible.builtin.include_role:
+    name: user_timer
+  vars:
+    user_timer_name: chaldea-retention
+    user_timer_service: "{{ retention_service_unit }}"
+    user_timer_timer: "{{ retention_timer_unit }}"
+    user_timer_enabled: "{{ retention_timer_enabled }}"

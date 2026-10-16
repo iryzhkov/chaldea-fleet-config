@@ -1,0 +1,41 @@
+---
+# Converges the host it runs on. Every inventory entry uses a local connection,
+# so always limit a run to this host's entry (ansible-pull does it with --limit).
+- name: Converge this host
+  hosts: all
+  gather_facts: true
+  gather_subset: [min]
+  pre_tasks:
+    - name: Refuse to apply another host's configuration
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.hostname == expected_hostname
+        fail_msg: >-
+          This machine is {{ ansible_facts.hostname }} but the inventory entry
+          {{ inventory_hostname }} is for {{ expected_hostname }}; limit the run
+          to this machine's entry.
+        quiet: true
+  # Each role is tagged with its name, so a run can skip one with --skip-tags.
+  roles:
+    - role: agent_tools
+      tags: [agent_tools]
+    - role: agent_config
+      tags: [agent_config]
+      when: "'agent_hosts' in group_names"
+    - role: mise_agents
+      tags: [mise_agents]
+      when: "'agent_hosts' in group_names"
+    - role: mcp_registrations
+      tags: [mcp_registrations]
+      when: "'agent_hosts' in group_names"
+    - role: t3
+      tags: [t3]
+      when: "'agent_hosts' in group_names and t3_enabled | bool"
+    - role: data_disk
+      tags: [data_disk]
+      when: data_disk_root | default('') | length > 0
+    - role: retention
+      tags: [retention]
+      when: "'agent_hosts' in group_names"
+    - role: pull_timer
+      tags: [pull_timer]

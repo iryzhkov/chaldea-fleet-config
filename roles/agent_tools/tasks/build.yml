@@ -1,0 +1,40 @@
+---
+- name: Create the release directory
+  ansible.builtin.file:
+    path: "{{ agent_tools_release }}"
+    state: directory
+    mode: "0700"
+
+- name: Fetch each tool at its pinned commit
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    version: "{{ item.ref }}"
+    dest: "{{ agent_tools_release }}/{{ item.name }}"
+  loop: "{{ agent_tools_sources }}"
+  loop_control:
+    label: "{{ item.name }}@{{ item.ref[:7] }}"
+
+# ov-mcp does not ship a lock, so the one UpKeeper installed lives here.
+- name: Install the ov-memory dependency lock
+  ansible.builtin.copy:
+    src: ov-memory-requirements.lock
+    dest: "{{ agent_tools_release }}/ov-memory/requirements.lock"
+    mode: "0644"
+
+- name: Install ov-memory dependencies into its own virtualenv
+  ansible.builtin.pip:
+    requirements: "{{ agent_tools_release }}/ov-memory/requirements.lock"
+    virtualenv: "{{ agent_tools_release }}/ov-memory/venv"
+    virtualenv_command: "{{ agent_tools_python }} -m venv"
+
+- name: Install the ov-memory MCP server launcher
+  ansible.builtin.copy:
+    src: ov-memory-run
+    dest: "{{ agent_tools_release }}/ov-memory/run"
+    mode: "0755"
+
+- name: Mark the release complete
+  ansible.builtin.copy:
+    content: "{{ agent_tools_sources | to_nice_json }}\n"
+    dest: "{{ agent_tools_release }}/.complete"
+    mode: "0644"

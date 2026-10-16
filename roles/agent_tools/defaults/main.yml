@@ -1,0 +1,41 @@
+---
+agent_tools_root: "{{ fleet_home }}/.local/share/agent-tools"
+agent_tools_bin_dir: "{{ fleet_home }}/.local/bin"
+agent_tools_python: /usr/bin/python3
+# Releases kept on disk, the current one included.
+agent_tools_keep: 2
+agent_tools_sources: []
+agent_tools_credential_files: []
+
+# A release is named after everything that shapes its contents, so changing a
+# pin builds a new release beside the old one and switches current to it.
+# Where a source is fetched from does not change its contents.
+agent_tools_version: >-
+  {{ (agent_tools_sources | map(attribute='name') | zip(agent_tools_sources | map(attribute='ref')) | list | to_json
+      ~ lookup('ansible.builtin.file', 'ov-memory-requirements.lock')
+      ~ lookup('ansible.builtin.file', 'ov-memory-run')) | hash('sha256') }}
+agent_tools_release: "{{ agent_tools_root }}/{{ agent_tools_version }}"
+
+agent_tools_homelab_cli_commands:
+  - claude-md-sync
+  - docker-update
+  - docker-update-sweep
+  - feed
+  - ha
+  - homelab
+  - homelab-health
+  - ov-retarget
+  - phone-notify
+  - phone-open
+  - pve
+  - sleep-gaming-pc
+  - t3-job
+  - t3-run
+  - toolfeedback
+  - unifi
+  - wake-gaming-pc
+agent_tools_mcp_launchers:
+  ov-memory-mcp: ov-memory/run
+# Commands of retired tools, removed from the user's bin directory.
+agent_tools_retired_commands:
+  - local-file-llm-mcp

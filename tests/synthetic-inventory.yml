@@ -1,0 +1,29 @@
+---
+# One synthetic agent host on whatever machine runs CI. Load it together with
+# the real inventory, so the shared pins in inventory/group_vars apply, and
+# limit the run to it:
+#   ansible-playbook -i inventory -i tests/synthetic-inventory.yml --limit synthetic site.yml
+# Its home is a scratch directory inside the checkout, so a run sees an empty
+# host and never reads or writes the runner's own configuration. Host variables
+# here take precedence over the group variables of the real inventory.
+all:
+  children:
+    agent_hosts:
+      hosts:
+        synthetic:
+          fleet_home: "{{ playbook_dir }}/.ci-home"
+          expected_hostname: "{{ ansible_facts.hostname }}"
+          # The scratch data directory is not a mount point.
+          data_disk_root: "{{ playbook_dir }}/.ci-home/data"
+          data_disk_require_mount: false
+          agent_tools_credential_files:
+            - {name: Synthetic token, path: .config/synthetic/token}
+          # tools/ci.sh writes the deploy key aliases to the scratch SSH config.
+          ssh_alias_config: "{{ playbook_dir }}/.ci-home/.ssh/config"
+          mise_agents_install: false
+          mcp_registrations_claude:
+            - "{{ playbook_dir }}/tests/fake-claude"
+            - "{{ playbook_dir }}/.ci-home/claude-mcp.json"
+          t3_enabled: false
+          pull_timer_enabled: false
+          retention_timer_enabled: false

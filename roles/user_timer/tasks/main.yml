@@ -1,0 +1,72 @@
+---
+- name: Create the systemd user unit directory
+  ansible.builtin.file:
+    path: "{{ user_timer_unit_dir }}"
+    state: directory
+    mode: u+rwx
+
+- name: Install the units of timer {{ user_timer_name }}
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ user_timer_unit_dir }}/{{ user_timer_name }}.{{ item.kind }}"
+    mode: "0644"
+  loop:
+    - {kind: service, content: "{{ user_timer_service }}"}
+    - {kind: timer, content: "{{ user_timer_timer }}"}
+  loop_control:
+    label: "{{ user_timer_name }}.{{ item.kind }}"
+  register: user_timer_units
+
+- name: Check whether this timer is enabled, {{ user_timer_name }}
+  ansible.builtin.stat:
+    path: "{{ user_timer_unit_dir }}/timers.target.wants/{{ user_timer_name }}.timer"
+    get_checksum: false
+  register: user_timer_wanted
+
+# A timer can run without being enabled (systemctl --user start), so the
+# runtime state decides whether a disabled timer still needs stopping. A unit
+# the user manager never loaded reads as inactive; no user manager at all, as
+# on a CI runner, reads as an error and means nothing is running.
+- name: Check whether this timer is running, {{ user_timer_name }}
+  ansible.builtin.command:
+    argv: [systemctl, --user, is-active, "{{ user_timer_name }}.timer"]
+  register: user_timer_active
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not user_timer_enabled | bool
+
+- name: Record whether this timer needs stopping, {{ user_timer_name }}
+  ansible.builtin.set_fact:
+    user_timer_running: >-
+      {{ not user_timer_enabled | bool and user_timer_active.stdout | default('') | trim in ['active', 'activating', 'reloading', 'deactivating'] }}
+
+# A disabled timer that is neither enabled nor running needs no reload: its
+# files are inert.
+- name: Reload the user manager after a unit change
+  ansible.builtin.systemd_service:
+    scope: user
+    daemon_reload: true
+  when: user_timer_units is changed and (user_timer_enabled | bool or user_timer_wanted.stat.exists or user_timer_running)
+
+- name: Report the timer a real run would enable
+  ansible.builtin.debug:
+    msg: "Would enable and start {{ user_timer_name }}.timer"
+  changed_when: true
+  when: user_timer_enabled | bool and ansible_check_mode and user_timer_units is changed
+
+- name: Enable and start timer {{ user_timer_name }}
+  ansible.builtin.systemd_service:
+    name: "{{ user_timer_name }}.timer"
+    scope: user
+    enabled: true
+    state: started
+  when: user_timer_enabled | bool and not (ansible_check_mode and user_timer_units is changed)
+
+- name: Disable timer {{ user_timer_name }}
+  ansible.builtin.systemd_service:
+    name: "{{ user_timer_name }}.timer"
+    scope: user
+    enabled: false
+    state: stopped
+  when: not user_timer_enabled | bool and (user_timer_wanted.stat.exists or user_timer_running)

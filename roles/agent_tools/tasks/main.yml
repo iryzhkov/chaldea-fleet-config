@@ -1,0 +1,100 @@
+---
+- name: Check the SSH aliases of the tool repositories
+  ansible.builtin.include_role:
+    name: ssh_alias
+  vars:
+    ssh_alias_urls: "{{ agent_tools_sources | map(attribute='repo') | list }}"
+
+- name: Check whether the pinned release is already built
+  ansible.builtin.stat:
+    path: "{{ agent_tools_release }}/.complete"
+    get_checksum: false
+  register: agent_tools_complete
+
+# Building clones, venvs and npm installs cannot be simulated meaningfully, so a
+# check run reports the build instead of attempting it.
+- name: Report the release a real run would build
+  ansible.builtin.debug:
+    msg: >-
+      Would build agent tools release {{ agent_tools_version[:12] }} from
+      {{ agent_tools_sources | map(attribute='name') | zip(agent_tools_sources | map(attribute='ref')) | map('join', '@') | join(', ') }}
+  changed_when: true
+  when: not agent_tools_complete.stat.exists and ansible_check_mode
+
+- name: Build the pinned release
+  ansible.builtin.include_tasks: build.yml
+  when: not agent_tools_complete.stat.exists and not ansible_check_mode
+
+- name: Point current at the pinned release
+  ansible.builtin.file:
+    src: "{{ agent_tools_version }}"
+    dest: "{{ agent_tools_root }}/current"
+    state: link
+    force: true
+
+# u+rwx leaves the group and other bits of an existing directory alone.
+- name: Create the user's bin directory
+  ansible.builtin.file:
+    path: "{{ agent_tools_bin_dir }}"
+    state: directory
+    mode: u+rwx
+
+- name: Link homelab-cli commands into the user's bin directory
+  ansible.builtin.file:
+    src: "{{ agent_tools_root }}/current/homelab-cli/bin/{{ item }}"
+    dest: "{{ agent_tools_bin_dir }}/{{ item }}"
+    state: link
+    force: true
+  loop: "{{ agent_tools_homelab_cli_commands }}"
+
+- name: Link MCP server launchers into the user's bin directory
+  ansible.builtin.file:
+    src: "{{ agent_tools_root }}/current/{{ item.value }}"
+    dest: "{{ agent_tools_bin_dir }}/{{ item.key }}"
+    state: link
+    force: true
+  loop: "{{ agent_tools_mcp_launchers | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Remove commands of retired tools
+  ansible.builtin.file:
+    path: "{{ agent_tools_bin_dir }}/{{ item }}"
+    state: absent
+  loop: "{{ agent_tools_retired_commands }}"
+
+- name: Find agent tools releases
+  ansible.builtin.find:
+    paths: "{{ agent_tools_root }}"
+    file_type: directory
+  register: agent_tools_releases
+
+- name: Remove releases beyond the newest kept ones
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: >-
+    {{ (agent_tools_releases.files
+        | rejectattr('path', 'equalto', agent_tools_release)
+        | sort(attribute='mtime', reverse=true))[agent_tools_keep - 1:] }}
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Check the credential files the tools read
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item.path }}"
+    get_checksum: false
+  loop: "{{ agent_tools_credential_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: agent_tools_credentials
+
+- name: Report credential files that are missing or readable by others
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.name }} at ~/{{ item.item.path }} is
+      {{ 'missing' if not item.stat.exists else 'mode ' ~ item.stat.mode ~ ', readable by others' }}
+  loop: "{{ agent_tools_credentials.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: not item.stat.exists or item.stat.mode[-2:] != '00'

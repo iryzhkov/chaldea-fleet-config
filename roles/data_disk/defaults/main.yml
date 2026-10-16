@@ -1,0 +1,14 @@
+---
+# Set data_disk_root per host to enable the role. The play refuses to run
+# unless a filesystem is mounted exactly there, optionally of this type and
+# UUID (findmnt --output FSTYPE,UUID --mountpoint ROOT shows both).
+data_disk_require_mount: true
+data_disk_fstype: ""
+data_disk_uuid: ""
+data_disk_user_dir: "{{ data_disk_root }}/{{ ansible_facts.user_id }}"
+# Paths under the home directory that live on the data disk instead, with the
+# directory under data_disk_user_dir each one points at.
+data_disk_links:
+  - {path: .t3/worktrees, target: t3-worktrees, mode: "0755"}
+  - {path: .cache/tmp, target: tmp, mode: "0700"}
+data_disk_gocache: "{{ data_disk_root }}/cache/go-build"

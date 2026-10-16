@@ -1,0 +1,104 @@
+---
+# A missing mount leaves an empty directory at data_disk_root, and writing
+# there would fill the root filesystem, so nothing happens until the data disk
+# is mounted exactly at data_disk_root.
+- name: Read the filesystem mounted at the data disk root
+  ansible.builtin.command:
+    argv: [findmnt, --json, --output, "TARGET,FSTYPE,UUID", --mountpoint, "{{ data_disk_root }}"]
+  register: data_disk_findmnt
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: data_disk_require_mount | bool
+
+- name: Assert the data disk is mounted at its root
+  ansible.builtin.assert:
+    that:
+      - data_disk_findmnt.rc == 0
+      - data_disk_fstype | length == 0 or data_disk_fs.fstype | default('') == data_disk_fstype
+      - data_disk_uuid | length == 0 or data_disk_fs.uuid | default('') == data_disk_uuid
+    fail_msg: >-
+      Nothing matching is mounted at {{ data_disk_root }} (expected
+      {{ data_disk_fstype or 'any filesystem' }}{{ ' with UUID ' ~ data_disk_uuid if data_disk_uuid else '' }},
+      found {{ data_disk_fs.fstype | default('no mount') }}); mount the data disk first.
+    quiet: true
+  vars:
+    data_disk_fs: "{{ ((data_disk_findmnt.stdout | from_json).filesystems | first) if data_disk_findmnt.rc == 0 else {} }}"
+  when: data_disk_require_mount | bool
+
+- name: Check the data disk root is a directory
+  ansible.builtin.stat:
+    path: "{{ data_disk_root }}"
+    get_checksum: false
+  register: data_disk_mount
+
+- name: Assert the data disk root is a directory
+  ansible.builtin.assert:
+    that:
+      - data_disk_mount.stat.isdir | default(false)
+    fail_msg: "{{ data_disk_root }} is missing; mount the data disk first"
+    quiet: true
+
+- name: Inspect the paths that should point at the data disk
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item.path }}"
+    get_checksum: false
+  loop: "{{ data_disk_links }}"
+  loop_control:
+    label: "~/{{ item.path }}"
+  register: data_disk_paths
+
+# Moving existing data is a judgement call, so anything but the expected link,
+# including a file or a dangling link, stops the play.
+- name: Refuse to replace anything but the expected link
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (item.stat.islnk and item.stat.lnk_target == data_disk_link_target)
+    fail_msg: >-
+      ~/{{ item.item.path }} is
+      {{ 'a link to ' ~ item.stat.lnk_target if item.stat.islnk | default(false) else ('a real directory' if item.stat.isdir | default(false) else 'a file') }};
+      move its contents to {{ data_disk_link_target }} and remove it, then rerun.
+    quiet: true
+  vars:
+    data_disk_link_target: "{{ data_disk_user_dir }}/{{ item.item.target }}"
+  loop: "{{ data_disk_paths.results }}"
+  loop_control:
+    label: "~/{{ item.item.path }}"
+
+- name: Create the data disk directories
+  ansible.builtin.file:
+    path: "{{ data_disk_user_dir }}/{{ item.target }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop: "{{ data_disk_links }}"
+  loop_control:
+    label: "{{ item.target }}"
+
+- name: Create the parents of the paths that point at the data disk
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/{{ item.path | dirname }}"
+    state: directory
+    mode: u+rwx
+  loop: "{{ data_disk_links }}"
+  loop_control:
+    label: "~/{{ item.path | dirname }}"
+
+# The assertion above leaves only a missing path or the correct link here;
+# force lets check mode link to a directory it has not created.
+- name: Point each path at the data disk
+  ansible.builtin.file:
+    src: "{{ data_disk_user_dir }}/{{ item.target }}"
+    dest: "{{ fleet_home }}/{{ item.path }}"
+    state: link
+    force: true
+  loop: "{{ data_disk_links }}"
+  loop_control:
+    label: "~/{{ item.path }}"
+
+- name: Keep the Go build cache on the data disk
+  ansible.builtin.lineinfile:
+    path: "{{ fleet_home }}/.config/go/env"
+    regexp: "^GOCACHE="
+    line: "GOCACHE={{ data_disk_gocache }}"
+    create: true
+    mode: "0644"

@@ -1,9 +1,36 @@
 ---
+# Every host converges itself with ansible-pull, so every connection is local
+# and modules run under the same Python as Ansible.
+ansible_connection: local
+ansible_python_interpreter: "{{ ansible_playbook_python }}"
+fleet_home: "{{ ansible_facts.user_dir }}"
+
+# Private repositories are read over SSH with a read-only deploy key per host
+# and repository, each behind a Host alias in ~/.ssh/config. The play checks
+# that the aliases exist; the keys and aliases are set up by hand. This
+# repository's own URL is pull_timer_repo in roles/pull_timer.
+agent_tools_homelab_cli_repo: git@github-homelab-cli:iryzhkov/homelab-cli.git
+
+# Agent tools, each at an exact commit: none of them publishes releases yet.
+agent_tools_sources:
+  - name: homelab-cli
+    repo: "{{ agent_tools_homelab_cli_repo }}"
+    ref: eefa9f68f469bdb7e97554fee47b416c01fa765a
+  - name: ov-memory
+    repo: https://github.com/iryzhkov/ov-mcp.git
+    ref: efac1c8f04662a3512da84aa6559a26061e97832
+
+# Credentials are referenced by path only (relative to the home directory);
+# the play checks that each file exists and is private, never reads it.
+agent_tools_credential_files:
+  - {name: Jocasta token, path: .config/jocasta/token}
+
+t3_enabled: true
+t3_version: 0.1.0
+# Set true for one run to move T3 to t3_version. t3 update restarts the
+# service, which interrupts running sessions, so it never happens implicitly.
+t3_allow_upgrade: false
+
+# Both timers stay off until enabled per host after a reviewed check run.
 pull_timer_enabled: false
-live_preflight_enabled: false
-config_revision: fetched-git-head
-catalog_reference: inventory-observed-bindings
-credential_references: []
-reference_schema:
-  kinds: [encrypted, local_file]
-  fields: [kind, path]
+retention_timer_enabled: false

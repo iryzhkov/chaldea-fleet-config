@@ -1,0 +1,19 @@
+# Managed by chaldea-fleet-config (roles/pull_timer).
+# ansible-pull reads the inventory from the checkout's ansible.cfg.
+[Unit]
+Description=Converge this host from chaldea-fleet-config
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart={{ pull_timer_venv }}/bin/ansible-pull \
+  --url {{ pull_timer_repo }} \
+  --checkout {{ pull_timer_branch }} \
+  --directory {{ pull_timer_checkout }} \
+  --limit {{ inventory_hostname }} \
+  site.yml
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=1h

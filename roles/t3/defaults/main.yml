@@ -1,0 +1,5 @@
+---
+t3_version: ""
+t3_allow_upgrade: false
+t3_home: "{{ fleet_home }}/.t3"
+t3_service: t3code.service

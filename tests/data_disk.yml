@@ -1,0 +1,61 @@
+---
+# The data_disk role refuses to touch the home directory unless the data disk
+# is mounted and every managed path is absent or already the right link:
+#   ansible-playbook -i localhost, tests/data_disk.yml
+- name: Refuse unsafe data disk states
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  gather_subset: [min]
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    fleet_home: "{{ playbook_dir }}/../.ci-home/data-disk"
+    data_disk_root: "{{ fleet_home }}/data"
+    data_disk_require_mount: false
+    cases:
+      - {name: not a mount point, require_mount: true, expect: found no mount}
+      - {name: wrong filesystem type, require_mount: true, root: /, fstype: no-such-fs, expect: expected no-such-fs}
+      - {name: a regular file, file: true, expect: ~/.cache/tmp is a file}
+      - {name: a dangling link, link: /nonexistent, expect: ~/.cache/tmp is a link to /nonexistent}
+      - {name: a link elsewhere, link: /tmp, expect: ~/.cache/tmp is a link to /tmp}
+  tasks:
+    - name: Run each unsafe case and record whether the role refused it
+      ansible.builtin.include_tasks: data_disk_case.yml
+      loop: "{{ cases }}"
+      loop_control:
+        loop_var: case
+
+    - name: Assert every unsafe case was refused before anything changed
+      ansible.builtin.assert:
+        that:
+          - refused | length == cases | length
+        fail_msg: "refused only {{ refused }}"
+
+    - name: Start the safe case from an empty home
+      ansible.builtin.file:
+        path: "{{ fleet_home }}"
+        state: absent
+
+    - name: Create the data disk directory of the safe case
+      ansible.builtin.file:
+        path: "{{ data_disk_root }}"
+        state: directory
+        mode: "0755"
+
+    - name: Converge the safe case twice
+      ansible.builtin.include_role:
+        name: data_disk
+      loop: [1, 2]
+      loop_control:
+        loop_var: round
+
+    - name: Read the link the role created
+      ansible.builtin.stat:
+        path: "{{ fleet_home }}/.cache/tmp"
+      register: tmp_link
+
+    - name: Assert the safe case links into the data disk
+      ansible.builtin.assert:
+        that:
+          - tmp_link.stat.islnk
+          - tmp_link.stat.lnk_target == data_disk_root ~ '/' ~ ansible_facts.user_id ~ '/tmp'

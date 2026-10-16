@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+"""Stand-in for systemctl --user, for tests/user_timer.yml.
+
+Unit states live in the JSON file named by FAKE_SYSTEMCTL_STATE, as
+{"units": {NAME: {"active": bool, "enabled": bool}}, "calls": [[VERB, NAME]]}.
+A unit missing from "units" behaves like one the user manager never loaded.
+"""
+
+import json
+import os
+import sys
+
+state_path = os.environ["FAKE_SYSTEMCTL_STATE"]
+with open(state_path) as handle:
+    state = json.load(handle)
+words = [word for word in sys.argv[1:] if not word.startswith("-")]
+verb, names = (words[0], words[1:]) if words else ("", [])
+if "--version" in sys.argv:
+    print("systemd 257 (257)")
+    sys.exit(0)
+state["calls"].append([verb, *names])
+rc = 0
+for name in names:
+    unit = state["units"].get(name)
+    if verb == "show":
+        if unit is None:
+            print(f"Id={name}\nLoadState=not-found\nActiveState=inactive\nSubState=dead\nUnitFileState=")
+        else:
+            active = "active" if unit["active"] else "inactive"
+            enabled = "enabled" if unit["enabled"] else "disabled"
+            print(f"Id={name}\nLoadState=loaded\nActiveState={active}\nSubState={'waiting' if unit['active'] else 'dead'}\nUnitFileState={enabled}")
+    elif verb == "is-active":
+        print("active" if unit and unit["active"] else "inactive")
+        rc = 0 if unit and unit["active"] else 3
+    elif verb == "is-enabled":
+        print("enabled" if unit and unit["enabled"] else ("disabled" if unit else "not-found"))
+        rc = 0 if unit and unit["enabled"] else 1
+    elif unit is None and verb in ("start", "stop", "enable", "disable"):
+        print(f"Failed to {verb} {name}: Unit {name} not found.", file=sys.stderr)
+        rc = 5
+    elif verb in ("start", "stop"):
+        unit["active"] = verb == "start"
+    elif verb in ("enable", "disable"):
+        unit["enabled"] = verb == "enable"
+with open(state_path, "w") as handle:
+    json.dump(state, handle)
+sys.exit(rc)

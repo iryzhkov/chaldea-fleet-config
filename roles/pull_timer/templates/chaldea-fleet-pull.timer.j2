@@ -1,0 +1,11 @@
+# Managed by chaldea-fleet-config (roles/pull_timer).
+[Unit]
+Description=Converge this host from chaldea-fleet-config every few hours
+
+[Timer]
+OnCalendar={{ pull_timer_schedule }}
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
