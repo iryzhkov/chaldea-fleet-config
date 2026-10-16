@@ -1,6 +1,7 @@
 ---
 # Called by other roles with a unit name, the rendered unit contents and
-# whether the timer should run. Disabling a timer that is enabled stops it.
+# whether the timer should run. A timer that should not run is disabled and
+# stopped when it is enabled or running.
 user_timer_name: ""
 user_timer_service: ""
 user_timer_timer: ""

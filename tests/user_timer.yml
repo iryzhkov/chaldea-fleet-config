@@ -1,0 +1,72 @@
+---
+# A disabled timer is stopped whether it was enabled, only started by hand, or
+# never installed, against the fake systemctl in tests/fake-bin:
+#   ansible-playbook -i localhost, tests/user_timer.yml
+- name: Disable timers in every runtime state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    scratch: "{{ playbook_dir }}/../.ci-home/user-timer"
+    fake_state: "{{ scratch }}/systemctl.json"
+    unit_dir: "{{ scratch }}/units"
+  environment:
+    PATH: "{{ playbook_dir }}/fake-bin:{{ lookup('ansible.builtin.env', 'PATH') }}"
+    FAKE_SYSTEMCTL_STATE: "{{ fake_state }}"
+  tasks:
+    - name: Start from an empty scratch directory
+      ansible.builtin.file:
+        path: "{{ scratch }}"
+        state: absent
+
+    - name: Create the scratch unit directory
+      ansible.builtin.file:
+        path: "{{ unit_dir }}/timers.target.wants"
+        state: directory
+        mode: "0755"
+
+    - name: Record a timer started by hand and one enabled and running
+      ansible.builtin.copy:
+        content: >-
+          {{ {'units': {'started.timer': {'active': true, 'enabled': false},
+                        'enabled.timer': {'active': true, 'enabled': true}},
+              'calls': []} | to_json }}
+        dest: "{{ fake_state }}"
+        mode: "0644"
+
+    - name: Link the enabled timer into timers.target.wants
+      ansible.builtin.file:
+        src: ../enabled.timer
+        dest: "{{ unit_dir }}/timers.target.wants/enabled.timer"
+        state: link
+        force: true
+
+    - name: Converge each timer as disabled
+      ansible.builtin.include_role:
+        name: user_timer
+      vars:
+        user_timer_name: "{{ timer }}"
+        user_timer_service: "[Service]\nExecStart=/bin/true\n"
+        user_timer_timer: "[Timer]\nOnCalendar=daily\n"
+        user_timer_enabled: false
+        user_timer_unit_dir: "{{ unit_dir }}"
+      loop: [never-installed, started, enabled]
+      loop_control:
+        loop_var: timer
+
+    - name: Read the fake systemctl state
+      ansible.builtin.slurp:
+        src: "{{ fake_state }}"
+      register: fake
+
+    - name: Assert both running timers stopped and the unknown one was left alone
+      ansible.builtin.assert:
+        that:
+          - not state.units['started.timer'].active
+          - not state.units['enabled.timer'].active
+          - not state.units['enabled.timer'].enabled
+          - state.calls | selectattr('1', 'defined') | selectattr('1', 'equalto', 'never-installed.timer') | rejectattr('0', 'equalto', 'is-active') | list | length == 0
+        fail_msg: "{{ state | to_json }}"
+      vars:
+        state: "{{ fake.content | b64decode | from_json }}"
