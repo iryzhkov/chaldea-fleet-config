@@ -21,6 +21,9 @@ all:
           # tools/ci.sh writes the deploy key aliases to the scratch SSH config.
           ssh_alias_config: "{{ playbook_dir }}/.ci-home/.ssh/config"
           mise_agents_install: false
+          mcp_registrations_claude:
+            - "{{ playbook_dir }}/tests/fake-claude"
+            - "{{ playbook_dir }}/.ci-home/claude-mcp.json"
           t3_enabled: false
           pull_timer_enabled: false
           retention_timer_enabled: false

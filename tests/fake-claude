@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Stand-in for the claude CLI's mcp get, add-json and remove commands.
+
+The first argument is a JSON file holding the user-scope mcpServers object,
+so a test can point the mcp_registrations role at a scratch file with
+mcp_registrations_claude: [tests/fake-claude, STATE].
+"""
+
+import json
+import sys
+
+state_path, *argv = sys.argv[1:]
+try:
+    with open(state_path) as handle:
+        servers = json.load(handle)
+except FileNotFoundError:
+    servers = {}
+words = [word for word in argv if word not in ("-s", "user")]
+assert words[0] == "mcp", argv
+verb, name = words[1], words[2]
+if verb == "get":
+    server = servers.get(name)
+    if server is None:
+        print(f'No MCP server named "{name}". Configured servers: {", ".join(servers)}')
+        sys.exit(1)
+    print(f"{name}:\n  Scope: User config (available in all your projects)\n  Status: ✔ Connected")
+    print(f"  Type: {server['type']}\n  Command: {server['command']}\n  Args: {' '.join(server.get('args', []))}\n  Environment:")
+    for key, value in server.get("env", {}).items():
+        print(f"    {key}={value}")
+    print(f"\nTo remove this server, run: claude mcp remove {name} -s user")
+    sys.exit(0)
+if verb == "add-json":
+    if name in servers:
+        print(f"MCP server {name} already exists in user config", file=sys.stderr)
+        sys.exit(1)
+    servers[name] = json.loads(words[3])
+elif verb == "remove":
+    if servers.pop(name, None) is None:
+        print(f"No user-scoped MCP server found with name: {name}", file=sys.stderr)
+        sys.exit(1)
+with open(state_path, "w") as handle:
+    json.dump(servers, handle, indent=2)

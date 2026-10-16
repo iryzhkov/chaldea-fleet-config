@@ -1,0 +1,23 @@
+---
+# The MCP servers this fleet provides, registered with Claude Code (user
+# scope, through the claude CLI) and Codex ([mcp_servers.NAME] in
+# config.toml). Other registrations on a host are left alone. agent_env names
+# a variable set to PROVIDER-HOST, which tells OpenViking who wrote a note.
+mcp_registrations_servers:
+  - name: huyang
+    command: "{{ fleet_home }}/.local/share/huyang/bin/huyang"
+    args: [mcp, --profile, full]
+    claude: {alwaysLoad: true}
+    codex: {env_vars: [XDG_RUNTIME_DIR, HUYANG_SOCKET]}
+  - name: ov-memory
+    command: "{{ fleet_home }}/.local/bin/ov-memory-mcp"
+    env: {OV_BASE_URL: "https://ov.ryzhkov.dev"}
+    agent_env: OV_AGENT
+    codex: {default_tools_approval_mode: approve}
+# Registrations removed from both providers wherever they are found.
+mcp_registrations_retired:
+  - local-file-llm
+mcp_registrations_agent_host: "{{ inventory_hostname }}"
+mcp_registrations_providers: [claude, codex]
+mcp_registrations_claude: [claude]
+mcp_registrations_codex_config: "{{ fleet_home }}/.codex/config.toml"

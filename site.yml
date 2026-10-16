@@ -21,6 +21,8 @@
       when: "'agent_hosts' in group_names"
     - role: mise_agents
       when: "'agent_hosts' in group_names"
+    - role: mcp_registrations
+      when: "'agent_hosts' in group_names"
     - role: t3
       when: "'agent_hosts' in group_names and t3_enabled | bool"
     - role: data_disk
