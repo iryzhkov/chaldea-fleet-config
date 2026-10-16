@@ -1,0 +1,8 @@
+# Managed by chaldea-fleet-config (roles/mise_agents); local edits are overwritten.
+# chaldea-fleet-pull installs the newest release of each tool that is at least
+# {{ mise_agents_minimum_release_age }} old. Plain version strings only: tool options would need mise trust.
+# A tool also set in ~/.config/mise/config.toml takes that file's version.
+[tools]
+{% for tool in mise_agents_tools | sort(attribute='name') %}
+"{{ tool.name }}" = "latest"
+{% endfor %}

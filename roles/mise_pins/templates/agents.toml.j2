@@ -1,7 +1,0 @@
-# Managed by chaldea-fleet-config (roles/mise_pins); local edits are overwritten.
-# A tool also set in ~/.config/mise/config.toml takes that file's version, so
-# keep these tools out of it for the pins to apply.
-[tools]
-{% for tool, version in mise_pins_tools | dictsort %}
-"{{ tool }}" = "{{ version }}"
-{% endfor %}

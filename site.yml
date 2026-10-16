@@ -19,7 +19,7 @@
     - role: agent_tools
     - role: agent_config
       when: "'agent_hosts' in group_names"
-    - role: mise_pins
+    - role: mise_agents
       when: "'agent_hosts' in group_names"
     - role: t3
       when: "'agent_hosts' in group_names and t3_enabled | bool"

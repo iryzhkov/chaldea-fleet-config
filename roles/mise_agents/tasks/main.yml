@@ -1,0 +1,82 @@
+---
+- name: Create the mise drop-in directory
+  ansible.builtin.file:
+    path: "{{ mise_agents_dropin | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: List the agent CLIs in the mise drop-in
+  ansible.builtin.template:
+    src: agents.toml.j2
+    dest: "{{ mise_agents_dropin }}"
+    mode: "0644"
+
+- name: Find the newest release of each agent CLI old enough to install
+  ansible.builtin.command:
+    argv: [mise, latest, "{{ item.name }}"]
+    chdir: "{{ fleet_home }}"
+  environment:
+    MISE_MINIMUM_RELEASE_AGE: "{{ mise_agents_minimum_release_age }}"
+  loop: "{{ mise_agents_tools }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: mise_agents_latest
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: mise_agents_install | bool
+
+# An unreachable registry leaves the installed versions in place.
+- name: Report agent CLIs whose newest release could not be read
+  ansible.builtin.debug:
+    msg: "mise latest {{ item.item.name }} failed: {{ item.stderr | default('') | trim }}"
+  loop: "{{ mise_agents_latest.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.rc is defined
+    - item.rc != 0 or item.stdout | trim | length == 0
+
+- name: Install the newest release of each agent CLI old enough
+  ansible.builtin.command:
+    argv:
+      - mise
+      - install
+      - "{{ item.item.name }}{{ '[' ~ item.item.install_options ~ ']' if item.item.install_options is defined else '' }}@{{ item.stdout | trim }}"
+    chdir: "{{ fleet_home }}"
+    creates: "{{ mise_agents_installs }}/{{ item.item.name | replace(':', '-') | replace('@', '') | replace('/', '-') }}/{{ item.stdout | trim }}"
+  loop: "{{ mise_agents_latest.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}@{{ item.stdout | default('') | trim }}"
+  when:
+    - item.rc is defined
+    - item.rc == 0
+    - item.stdout | trim | length > 0
+
+- name: Read the version mise selects for each agent CLI
+  ansible.builtin.command:
+    argv: [mise, ls, --current, --json, "{{ item.name }}"]
+    chdir: "{{ fleet_home }}"
+  loop: "{{ mise_agents_tools }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: mise_agents_selected
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: mise_agents_install | bool
+
+- name: Report agent CLIs that another mise config sets
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.name }} is set to
+      {{ (item.stdout | from_json | first).requested_version | default('?') }} by
+      {{ (item.stdout | from_json | first).source.path }}, which takes precedence
+      over {{ mise_agents_dropin }}
+  loop: "{{ mise_agents_selected.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.rc | default(1) == 0
+    - item.stdout | from_json | length > 0
+    - (item.stdout | from_json | first).source.path | default('') != mise_agents_dropin

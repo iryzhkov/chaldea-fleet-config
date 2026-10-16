@@ -20,11 +20,6 @@ agent_tools_sources:
 agent_tools_credential_files:
   - {name: Jocasta token, path: .config/jocasta/token}
 
-mise_pins_tools:
-  claude: 2.1.301
-  codex: 0.162.1
-  "npm:@opencode/cli": 2.0.30
-
 t3_enabled: true
 t3_version: 0.1.0
 # Set true for one run to move T3 to t3_version. t3 update restarts the

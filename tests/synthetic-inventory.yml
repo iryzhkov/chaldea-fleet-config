@@ -18,7 +18,7 @@ all:
           data_disk_require_mount: false
           agent_tools_credential_files:
             - {name: Synthetic token, path: .config/synthetic/token}
-          mise_pins_install: false
+          mise_agents_install: false
           t3_enabled: false
           pull_timer_enabled: false
           retention_timer_enabled: false
