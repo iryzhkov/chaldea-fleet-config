@@ -9,6 +9,21 @@ retention_worktree_max_age_days: 14
 retention_worktree_budget_gb: 20
 # Over budget, clean worktrees untouched this long are removed as well.
 retention_worktree_pressure_age_days: 3
+# A worktree holding ignored files is kept unless every ignored path is named
+# one of these: directories of regenerable output.
+retention_disposable_ignored:
+  - node_modules
+  - target
+  - .venv
+  - __pycache__
+  - dist
+  - build
+  - .cache
+  - .gradle
+  - .pytest_cache
+  - .mypy_cache
+  - .ruff_cache
+  - .tox
 retention_tmp_dir: "{{ fleet_home }}/.cache/tmp"
 retention_tmp_max_age_days: 3
 retention_go_cache_max_gb: 10

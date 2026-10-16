@@ -73,6 +73,13 @@ def run(root, *extra):
     return retention.prune_worktrees(root, args, set(), time.time())
 
 
+@pytest.fixture(autouse=True)
+def nothing_held(monkeypatch):
+    # The test runner's own processes must not count as sessions.
+    monkeypatch.setattr(retention, "held_paths", set)
+    monkeypatch.setattr(retention, "problems", [])
+
+
 def test_removes_only_clean_worktrees_untouched_past_the_age_limit(repo, tmp_path):
     root = tmp_path / "worktrees"
     old = add_worktree(repo, root, "old", days=20)
@@ -132,6 +139,124 @@ def test_budget_pressure_lowers_the_age_limit_but_not_the_protection_window(repo
     assert not five_days.exists()
     assert today.exists()
     assert status == 1
+
+
+def test_keeps_worktrees_with_ignored_output_outside_the_disposable_list(repo, tmp_path):
+    (repo / ".gitignore").write_text("out/\nnode_modules/\n")
+    git("add", ".gitignore", cwd=repo)
+    git("commit", "-q", "-m", "ignore", cwd=repo)
+    root = tmp_path / "worktrees"
+    output = add_worktree(repo, root, "output", days=20)
+    (output / "out").mkdir()
+    (output / "out" / "result.bin").write_text("only copy\n")
+    age(output, 20)
+    deps = add_worktree(repo, root, "deps", days=20)
+    (deps / "node_modules" / "pkg").mkdir(parents=True)
+    (deps / "node_modules" / "pkg" / "index.js").write_text("x\n")
+    age(deps, 20)
+
+    run(root)
+
+    assert (output / "out" / "result.bin").read_text() == "only copy\n"
+    assert not deps.exists()
+
+
+def test_disposable_list_is_configurable(repo, tmp_path):
+    (repo / ".gitignore").write_text("out/\n")
+    git("add", ".gitignore", cwd=repo)
+    git("commit", "-q", "-m", "ignore", cwd=repo)
+    root = tmp_path / "worktrees"
+    output = add_worktree(repo, root, "output", days=20)
+    (output / "out").mkdir()
+    (output / "out" / "result.bin").write_text("x\n")
+    age(output, 20)
+
+    run(root, "--disposable-ignored", "out")
+
+    assert not output.exists()
+
+
+def in_trash(root):
+    return [slot / "worktree" for slot in (root / retention.TRASH).iterdir()]
+
+
+def test_a_worktree_taken_into_use_during_removal_goes_back(repo, tmp_path, monkeypatch):
+    root = tmp_path / "worktrees"
+    wt = add_worktree(repo, root, "late", days=20)
+    # A session opens the worktree after the first check, so it shows up only
+    # when the quarantined copy is checked again.
+    monkeypatch.setattr(retention, "held_paths", lambda: {str(moved / "README") for moved in in_trash(root.resolve())})
+
+    run(root)
+
+    assert (wt / "README").exists()
+    assert git_ok("status", cwd=wt)
+    assert not any((root / retention.TRASH).iterdir())
+
+
+def test_a_worktree_written_during_removal_goes_back(repo, tmp_path, monkeypatch):
+    root = tmp_path / "worktrees"
+    wt = add_worktree(repo, root, "written", days=20)
+
+    def write_then_report_nothing_held():
+        for moved in in_trash(root.resolve()):
+            (moved / "README").write_text("new work\n")
+        return set()
+
+    monkeypatch.setattr(retention, "held_paths", write_then_report_nothing_held)
+
+    run(root)
+
+    assert (wt / "README").read_text() == "new work\n"
+
+
+def test_an_interrupted_run_is_restored(repo, tmp_path):
+    root = tmp_path / "worktrees"
+    wt = add_worktree(repo, root, "interrupted", days=1)
+    slot = root / retention.TRASH / "wt-crashed"
+    slot.mkdir(parents=True)
+    (slot / "origin").write_text(f"{wt.resolve()}\n")
+    git("worktree", "move", str(wt), str(slot / "worktree"), cwd=repo)
+
+    run(root)
+
+    assert (wt / "README").exists()
+    assert not slot.exists()
+
+
+def git_ok(*args, cwd):
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True).returncode == 0
+
+
+PRUNE_PLAN = """\
+mise claude@2.1.296 is prunable: claude is required at 2.1.273 by ~/.config/mise/conf.d/agents.toml
+mise claude@2.1.296 [dryrun]  uninstall
+mise claude@2.1.296 [dryrun]  remove {installs}/claude/2.1.296, ~/.cache/mise/claude/2.1.296
+mise claude@2.1.296 [dryrun]  ✓ done
+mise claude@2.1.200 is prunable: claude is required at 2.1.273 by ~/.config/mise/conf.d/agents.toml
+mise claude@2.1.200 [dryrun]  remove {installs}/claude/2.1.200, ~/.cache/mise/claude/2.1.200
+mise codex@0.150.0 is prunable: no tracked config or tool stub requires codex
+mise codex@0.150.0 [dryrun]  remove {installs}/codex/0.150.0, ~/.cache/mise/codex/0.150.0
+mise node@24.0.0 is prunable: no tracked config or tool stub requires node
+"""
+
+
+def test_mise_prune_keeps_the_latest_link_target_and_versions_in_use(tmp_path):
+    installs = tmp_path / "installs"
+    for version in ("claude/2.1.296", "claude/2.1.200", "codex/0.150.0"):
+        (installs / version).mkdir(parents=True)
+    (installs / "claude" / "latest").symlink_to("./2.1.296")
+    held = {str(installs / "codex" / "0.150.0" / "bin" / "codex")}
+
+    plan = retention.parse_prune_plan(PRUNE_PLAN.format(installs=installs))
+    reasons = {f"{tool}@{version}": retention.prune_reason(path, held) for tool, version, path in plan}
+
+    assert reasons == {
+        "claude@2.1.296": "the latest link points at it",
+        "claude@2.1.200": None,
+        "codex@0.150.0": "a process uses it",
+        "node@24.0.0": "install path not known",
+    }
 
 
 def test_tmp_removes_old_entries_and_keeps_recent_ones(tmp_path):

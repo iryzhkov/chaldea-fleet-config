@@ -11,6 +11,7 @@ ExecStart={{ retention_script }} \
   --worktree-max-age-days {{ retention_worktree_max_age_days }} \
   --worktree-budget-gb {{ retention_worktree_budget_gb }} \
   --worktree-pressure-age-days {{ retention_worktree_pressure_age_days }} \
+  --disposable-ignored {{ retention_disposable_ignored | join(',') }} \
   --tmp-dir {{ retention_tmp_dir }} \
   --tmp-max-age-days {{ retention_tmp_max_age_days }} \
   --go-cache-max-gb {{ retention_go_cache_max_gb }}{% if not retention_mise_prune | bool %} --no-mise-prune{% endif %}
