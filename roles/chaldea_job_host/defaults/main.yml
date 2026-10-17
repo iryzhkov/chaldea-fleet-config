@@ -3,6 +3,7 @@
 chaldea_job_host_enabled: false
 chaldea_job_host_user: chaldea-job
 chaldea_job_host_port: 2222
+chaldea_job_host_firewall: ufw
 chaldea_job_host_listen: ["0.0.0.0", "::"]
 chaldea_job_host_pid_file: "/run/chaldea-job-sshd.pid"
 chaldea_job_host_host_key: "/etc/ssh/ssh_host_ed25519_key"

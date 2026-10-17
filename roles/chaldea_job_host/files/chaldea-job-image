@@ -17,11 +17,16 @@ def create(image, size, owner):
         return False
     if shutil.disk_usage(image.parent).free < size:
         raise ValueError("backing filesystem lacks free space for the full job image; refusing creation")
+    filesystem = subprocess.check_output(
+        ["findmnt", "-n", "-o", "FSTYPE", "--target", str(image.parent)], text=True, timeout=2).strip()
     temporary = image.with_name(image.name + ".new")
     uid, gid = owner
     # One crash leftover is bounded by the same image size; never clobber it.
     fd = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
+        if filesystem == "btrfs":
+            # Set No_COW while the new file is empty, before ext4 writes extents.
+            subprocess.run(["chattr", "+C", str(temporary)], check=True)
         os.ftruncate(fd, size)
         subprocess.run(["mkfs.ext4", "-q", "-F", "-m", "0", "-E",
                         "root_owner=" + str(uid) + ":" + str(gid), str(temporary)], check=True)

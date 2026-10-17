@@ -1,9 +1,20 @@
 ---
+- name: Reload job nft firewall
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-job-firewall.service
+    daemon_reload: true
+    state: reloaded
+  when:
+    - chaldea_job_host_firewall == 'nft'
+    - not ansible_check_mode
+
 - name: Reload job firewall
   become: true
   ansible.builtin.command:
     argv: [ufw, reload]
   changed_when: true
+  when: chaldea_job_host_firewall == 'ufw'
 
 - name: Restart job sshd
   become: true

@@ -1,0 +1,30 @@
+---
+- name: Install and validate only the compute-port nft table
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job.nft.j2
+    dest: /etc/chaldea-job.nft
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/nft -c -f %s
+  notify: Reload job nft firewall
+
+- name: Install the dedicated persistent compute firewall unit
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job-firewall.service.j2
+    dest: /etc/systemd/system/chaldea-job-firewall.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload job nft firewall
+
+- name: Enable and load the compute firewall without the distro nftables service
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-job-firewall.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode
