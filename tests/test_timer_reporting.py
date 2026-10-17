@@ -64,20 +64,22 @@ def test_each_run_has_one_safe_record_and_no_credential_never_calls_feed(home, c
     data = records(home)
     assert len(data) == 1 and data[0]["changed"] == changed
     assert "SECRET_ENV_VALUE" not in result.stdout + result.stderr + json.dumps(data)
-    assert data[0]["delivery"] == ("quiet" if status == 0 and changed == 0 else "no-credential")
+    assert data[0]["delivery"] == ("quiet" if status == 0 and changed == 0 else "queued")
     assert not (home / "feed-calls").exists()
     assert (home / ".local/state/chaldea/fleet-status.json").stat().st_mode & 0o777 == 0o600
 
 
-@pytest.mark.parametrize("feed_status", ["0", "1"])
-def test_one_feed_attempt_and_preserved_job_exit(home, monkeypatch, feed_status):
+def test_changed_timer_queues_locally_even_with_a_shared_key_present(home, monkeypatch):
     monkeypatch.setenv("FEED_TOKEN", "test-only")
-    monkeypatch.setenv("FAKE_FEED_STATUS", feed_status)
     result = run_job(home, changed=2)
     assert result.returncode == 0
-    calls = (home / "feed-calls").read_text().splitlines()
-    assert len(calls) == 1 and "--source chaldea-retention" in calls[0]
-    assert records(home)[0]["delivery"] == ("posted" if feed_status == "0" else "feed-failed")
+    assert not (home / "feed-calls").exists()
+    assert records(home)[0]["delivery"] == "queued"
+    queued = list((home / ".local/state/chaldea/timer-spool").glob("*.jsonl"))
+    assert len(queued) == 1
+    value = json.loads(queued[0].read_text())
+    assert value["job"] == "chaldea-retention" and value["invocation"] == "a" * 32
+    assert queued[0].stat().st_mode & 0o777 == 0o600
 
 
 def test_quiet_success_does_not_post_even_with_credential(home, monkeypatch):
@@ -125,20 +127,30 @@ def test_ring_is_bounded_and_recovers_corrupt_status(home, monkeypatch):
     assert (reporter.STATE / "fleet-status.json").stat().st_size < reporter.MAX_BYTES
 
 
-def test_feed_timeout_kills_descendants_and_does_not_fail_job(home, monkeypatch):
+def test_delivery_never_starts_feed_and_failure_handler_keeps_the_same_queue_key(home, monkeypatch):
     reporter = load_reporter()
     monkeypatch.setenv("FEED_TOKEN", "test-only")
-    monkeypatch.setattr(reporter, "FEED_TIMEOUT", 0.2)
-    pidfile = home / "child-pid"
-    (home / "bin/feed").write_text(
-        "#!/bin/sh\nsleep 60 &\necho $! > \"$HOME/child-pid\"\nwait\n")
-    start = time.monotonic()
     reporter.record_outcome("chaldea-retention", "a" * 32, 2)
-    assert time.monotonic() - start < 3
-    assert records(home)[0]["delivery"] == "feed-timeout"
-    pid = int(pidfile.read_text())
-    proc = Path(f"/proc/{pid}/stat")
-    assert not proc.exists() or proc.read_text().split()[2] == "Z"
+    before = list((reporter.STATE / "timer-spool").glob("*.jsonl"))
+    payload = before[0].read_bytes()
+    # A crash after durable queue creation but before the status claim reuses
+    # immutable input, even if the status ring has no claim.
+    (reporter.STATE / "fleet-status.json").unlink()
+    reporter.record_outcome("chaldea-retention", "a" * 32, 2)
+    assert len(list((reporter.STATE / "timer-spool").glob("*.jsonl"))) == 1
+    assert before[0].read_bytes() == payload
+    assert not (home / "feed-calls").exists()
+
+
+def test_timer_spool_is_bounded_and_counted_without_changing_job_result(home):
+    reporter = load_reporter()
+    spool = reporter.STATE / "timer-spool"
+    spool.mkdir(parents=True)
+    (spool / "full").write_bytes(b"x" * (8 * 1024 * 1024))
+    assert run_job(home, changed=1).returncode == 0
+    assert records(home)[0]["delivery"] == "queue-full"
+    counter = json.loads((reporter.STATE / "timer-spool-count.json").read_text())
+    assert counter["dropped"] == 1
 
 
 @pytest.mark.parametrize("failed", [False, True, "rescued"])

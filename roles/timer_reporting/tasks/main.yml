@@ -1,4 +1,8 @@
 ---
+- name: Install the disabled-by-default host event collector
+  ansible.builtin.include_role:
+    name: akasha_collector
+
 - name: Create the timer reporting directories
   ansible.builtin.file:
     path: "{{ item }}"

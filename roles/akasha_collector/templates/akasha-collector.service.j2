@@ -1,0 +1,15 @@
+# Managed by chaldea-fleet-config. One collector owns host cursors.
+[Unit]
+Description=Deliver bounded local Chaldea event queues
+[Service]
+Type=oneshot
+UMask=0077
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment="AKASHA_URL={{ akasha_collector_url }}"
+Environment="AKASHA_TOKEN_HELPER={{ akasha_collector_token_helper }}"
+Environment="AKASHA_STATE_FILE=%h/.local/state/chaldea/events/collector.db"
+Environment="AKASHA_TIMER_SPOOL=%h/.local/state/chaldea/timer-spool"
+Environment="AKASHA_SPOOL=%h/.local/share/toolfeedback"
+UnsetEnvironment=FEED_TOKEN FEED_KEY_FILE FEED_CONFIG
+ExecStart=/usr/bin/flock --nonblock %h/.local/state/chaldea/events/collector.lock {{ akasha_collector_node }} {{ akasha_collector_script }}
+TimeoutStartSec=120s
