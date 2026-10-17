@@ -17,12 +17,19 @@ use the `review-delegation` skill for reviews.
 From inside a Git worktree, use:
 
 ```sh
-chaldea exec --host H [--artifact PATH] [--gpu] -- CMD ARG...
+chaldea exec [--host H] [--artifact PATH] [--gpu] -- CMD ARG...
 ```
 
-Use this for builds, tests and heavy runs on `agent-a`. Use `omarchy-pc` only
-when no Steam game or Minecraft is running; its idle policy can refuse or
-preempt a job. `--gpu` requests the job host's configured NVIDIA devices.
+Use `chaldea exec` for builds and test suites instead of running them on omarchy-pc,
+Igor's gaming PC. `--host` is optional: without it, `~/.config/chaldea/exec-hosts`
+tries agent-a, agent-b, omarchy-pc when its game gate allows, then laptop when awake.
+It moves on only after a refusal or an unreachable host before the request was sent.
+Hosts run several jobs concurrently: agent-a 3, omarchy-pc 2, agent-b 1 and laptop 1.
+
+`--gpu` requests the job host's configured NVIDIA devices. Tests must never
+write outside a scratch HOME. Assert that HOME is the intended scratch directory
+before writing; a test overwrote a real key on 2026-10-17. Keep TMPDIR on disk
+under `~/.cache/<task>/`, never `/tmp`.
 
 The client copies current tracked files and non-ignored untracked files,
 preserves the relative working directory, and streams output and the exit
@@ -95,7 +102,17 @@ Use a separate saved request key for each registration.
 
 ## Ask Igor, then keep working
 
-Use `chaldea_decision_ask` with your `threadId`, a saved `requestId`,
+Before asking Igor through native T3 user input, call
+`chaldea_decision_prepare({threadId, requestId, dependentAction, defaultAction, deadline})`
+with your own thread ID and saved retry key. Then ask in T3; the preparation binds
+the next native user-input request within ten minutes. For a known native request,
+use `chaldea_decision_track` with the same policy fields and `runtimeRequestId`.
+Read policy, binding and outcome through `chaldea_decision_status` with `id`.
+Native answers stay in T3 and add no Chaldea wake. Never track or answer permission
+or approval requests through these tools.
+
+For providers without native input, use the fallback `chaldea_decision_ask` with
+your `threadId`, a saved `requestId`,
 `question`, two to eight `options`, a concrete `dependentAction`,
 `defaultAction: "skip" | "defer"`, and a `deadline` in RFC3339 with an offset.
 Keep working on independent tasks; leave the dependent action pending until
@@ -103,8 +120,8 @@ Igor answers. Resolution sends one queued wake. No answer by the deadline only
 skips or defers the dependent action. A default never selects an option or
 grants approval, permission or extra autonomy.
 
-Never answer your own question, including through the CLI. Igor uses the
-answer page or `chaldea decision answer ID --answer TEXT`. For an authorized
+Never answer your own question, including through the CLI. For fallback questions,
+Igor uses the answer page or `chaldea decision answer ID --answer TEXT`. For an authorized
 answer from another local thread, `chaldea_decision_answer` takes `id`,
 `answer` and that thread's own `answeringThreadId`. Such an answer is recorded
 as `mcp:<thread>`, never as Igor's consent. Read state, answer source and the
