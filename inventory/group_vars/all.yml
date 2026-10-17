@@ -33,7 +33,7 @@ agent_tools_credential_files:
 chaldea_node_version: "26.10.0"
 
 # Reviewed candidate; confirm the immutable public release tag before rollout.
-chaldea_host_version: host-v0.1.0
+chaldea_host_version: host-v0.1.1
 chaldea_host_sha256: "f83769273ffe568c5748a0eccccf5a812d4f31c25be9e62ce00a9423ddc1d71e"
 
 # Canonical access filesystem contract, consumed by host-role defaults/templates.

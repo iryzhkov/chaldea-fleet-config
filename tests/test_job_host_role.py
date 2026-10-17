@@ -138,6 +138,9 @@ def test_slot_inventory_and_shared_limits_rendered():
     for host, slots in {"agent-a": 3, "omarchy-pc": 2, "agent-b": 1, "laptop": 1}.items():
         values = {**defaults, **hosts[host], "chaldea_job_host_cpu_quota": "400%"}
         assert values["chaldea_job_host_slots"] == slots
+        sshd = Template((role / "templates/chaldea-job-sshd.conf.j2").read_text()).render(**values)
+        assert f"MaxSessions {slots + 1}\n" in sshd
+        assert "MaxStartups" not in sshd  # retain the dedicated daemon's default
         budget = Template((role / "templates/chaldea.slice.j2").read_text()).render(**values)
         assert "MemoryMax=" + hosts[host]["chaldea_job_host_memory_max"] in budget
         assert "TasksMax=" + str(hosts[host]["chaldea_job_host_tasks_max"]) in budget

@@ -135,7 +135,11 @@ A pipe-based lifetime guard also kills the group if the supervisor is SIGKILLed.
 Smoke tests hold all slots (including retained locks from a larger count) and
 always kill their launch group before deleting temporary storage or
 releasing admission. Stale ControlMaster sockets are checked and removed before
-a new dispatch; flock needs no stale-lock cleanup.
+a new dispatch; flock needs no stale-lock cleanup. The dedicated sshd permits
+`slots + 1` sessions per connection: running slots plus a queued admission.
+Additional contenders can use OpenSSH's fresh-connection fallback; the client
+quietly handles the known mux refusal and socket-creation race diagnostics.
+MaxStartups and the remaining sshd restrictions are unchanged.
 
 ## Compute-port firewall modes and removal
 
