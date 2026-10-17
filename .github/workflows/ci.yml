@@ -12,7 +12,7 @@ jobs:
     env:
       CI_PYTHON: /usr/bin/python3.13
       ANSIBLE_FORKS: "1"
-      TMPDIR: /home/igor/.cache/chaldea-scratch/laneC/fleet-ci-${{ github.run_id }}
+      TMPDIR: ${{ github.workspace }}/../chaldea-fleet-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: mkdir -p "$TMPDIR"

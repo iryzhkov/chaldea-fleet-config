@@ -368,7 +368,7 @@ def network_child(path):
     if ctypes.CDLL(None, use_errno=True).prctl(1, signal.SIGKILL, 0, 0, 0) != 0:
         raise RuntimeError("cannot establish transport death signal")
     launch = json.loads(Path(path).read_text())
-    subprocess.run(["/usr/bin/nft", "-f", "-"],
+    subprocess.run(["/usr/sbin/nft", "-f", "-"],
                    input=network_rules(launch["addresses"], launch["subnets"]),
                    text=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     status = os.open(str(path) + ".status", os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o600)

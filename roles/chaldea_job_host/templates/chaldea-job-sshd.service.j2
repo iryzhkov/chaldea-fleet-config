@@ -10,7 +10,7 @@ After=network.target ufw.service
 Type=simple
 Slice=chaldea.slice
 {% if chaldea_job_host_firewall == 'nft' %}
-ExecStartPre=/usr/bin/nft list table inet chaldea_job
+ExecStartPre=/usr/sbin/nft list table inet chaldea_job
 {% endif %}
 ExecStartPre={{ chaldea_job_host_sshd_binary }} -t -f /etc/ssh/chaldea-job-sshd.conf
 ExecStart={{ chaldea_job_host_sshd_binary }} -D -e -f /etc/ssh/chaldea-job-sshd.conf

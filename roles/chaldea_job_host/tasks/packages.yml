@@ -3,6 +3,13 @@
   ansible.builtin.set_fact:
     chaldea_job_host_required_packages: "{{ ['bubblewrap', 'passt', 'nftables', 'e2fsprogs'] + (['openssh'] if ansible_facts.os_family == 'Archlinux' else ['openssh-server']) + (['ufw'] if chaldea_job_host_firewall == 'ufw' else []) }}"
 
+- name: Ensure Debian python3-apt before package facts
+  become: true
+  ansible.builtin.apt:
+    name: python3-apt
+    state: present
+  when: ansible_facts.os_family == 'Debian'
+
 - name: Read installed packages using ansible-core
   ansible.builtin.package_facts:
     manager: "{{ 'pacman' if ansible_facts.os_family == 'Archlinux' else 'apt' }}"

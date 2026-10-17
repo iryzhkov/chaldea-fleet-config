@@ -141,24 +141,69 @@ for server in servers: server.close()
         assert result.returncode == 0, result.stderr
 
 
-def test_nft_unit_is_persistent_bounded_and_validates_before_loading():
-    unit = render("chaldea-job-firewall.service")
+@pytest.mark.parametrize("family", ["Archlinux", "Debian"])
+def test_nft_unit_is_persistent_bounded_and_validates_before_loading(family):
+    unit = render("chaldea-job-firewall.service", ansible_facts={"os_family": family})
     assert "Type=oneshot" in unit and "RemainAfterExit=yes" in unit
     assert "DefaultDependencies=no" in unit and "WantedBy=multi-user.target" in unit
     assert "Before=multi-user.target" not in unit and "Before=network" not in unit
     assert "TimeoutStartSec=5" in unit
-    assert "ExecStartPre=/usr/bin/nft -c -f /etc/chaldea-job.nft" in unit
-    assert "ExecStart=/usr/bin/nft -f /etc/chaldea-job.nft" in unit
-    assert unit.index("ExecReload=/usr/bin/nft -c") < unit.index("ExecReload=/usr/bin/nft -f")
-    assert "flush" not in unit and "/etc/nftables.conf" not in unit and "nftables.service" not in unit
-    sshd = render("chaldea-job-sshd.service", chaldea_job_host_firewall="nft")
+    assert "ExecStartPre=/usr/sbin/nft -c -f /etc/chaldea-job.nft" in unit
+    assert "ExecStart=/usr/sbin/nft -f /etc/chaldea-job.nft" in unit
+    assert unit.index("ExecReload=/usr/sbin/nft -c") < unit.index("ExecReload=/usr/sbin/nft -f")
+    assert "flush" not in unit and "/etc/nftables.conf" not in unit
+    assert "After=local-fs.target nftables.service" in unit
+    assert "Requires=nftables.service" not in unit and "Wants=nftables.service" not in unit
+    sshd = render("chaldea-job-sshd.service", chaldea_job_host_firewall="nft",
+                  ansible_facts={"os_family": family})
     assert "Requires=chaldea-job-firewall.service" in sshd
     assert "After=network.target chaldea-job-firewall.service" in sshd
-    assert "ExecStartPre=/usr/bin/nft list table inet chaldea_job" in sshd
+    assert "ExecStartPre=/usr/sbin/nft list table inet chaldea_job" in sshd
     assert "ufw" not in sshd
     nft = tasks("nft")
-    assert nft[0]["ansible.builtin.template"]["validate"] == "/usr/bin/nft -c -f %s"
-    assert nft[2]["ansible.builtin.systemd_service"]["name"] == "chaldea-job-firewall.service"
+    config = next(t for t in nft if t.get("ansible.builtin.template", {}).get("src") == "chaldea-job.nft.j2")
+    assert config["ansible.builtin.template"]["validate"] == "/usr/sbin/nft -c -f %s"
+    start = next(t for t in nft if "ansible.builtin.systemd_service" in t)
+    assert start["ansible.builtin.systemd_service"]["name"] == "chaldea-job-firewall.service"
+
+
+@pytest.mark.parametrize("state,allowed", [
+    ("disabled", True), ("masked", True), ("masked-runtime", True), ("not-found", True),
+    ("enabled", False), ("enabled-runtime", False), ("linked", False), ("alias", False), ("", False),
+])
+def test_nft_mode_refuses_enabled_or_unknown_global_loader_before_changes(state, allowed):
+    nft = tasks("nft")
+    probe, guard = nft[:2]
+    assert probe["ansible.builtin.command"]["argv"] == ["systemctl", "is-enabled", "nftables.service"]
+    assert probe["check_mode"] is False and probe["changed_when"] is False
+    condition = guard["ansible.builtin.assert"]["that"][0]
+    assert environment().compile_expression(condition)(
+        chaldea_job_host_nftables_enabled={"stdout": state + "\n"}) == allowed
+    message = guard["ansible.builtin.assert"]["fail_msg"]
+    assert "disabled" in message and "flush" in message and "will not change" in message
+    assert "ansible.builtin.template" in nft[2]
+
+
+def test_debian_bootstraps_python_apt_before_package_facts():
+    package_tasks = tasks("packages")
+    bootstrap = next(t for t in package_tasks if "python3-apt before" in t["name"])
+    assert bootstrap["ansible.builtin.apt"] == {"name": "python3-apt", "state": "present"}
+    facts = next(t for t in package_tasks if "ansible.builtin.package_facts" in t)
+    assert package_tasks.index(bootstrap) < package_tasks.index(facts)
+    assert enabled(bootstrap, ansible_facts={"os_family": "Debian"})
+    assert not enabled(bootstrap, ansible_facts={"os_family": "Archlinux"})
+
+
+def test_ci_scratch_is_runner_neutral_under_work_directory_and_cleaned():
+    workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+    job = workflow["jobs"]["ci"]
+    scratch = job["env"]["TMPDIR"]
+    assert scratch.startswith("${{ github.workspace }}/../chaldea-fleet-ci-")
+    assert "${{ github.run_id }}" in scratch and "${{ github.run_attempt }}" in scratch
+    assert "/tmp" not in scratch and "/home/" not in scratch
+    steps = job["steps"]
+    assert any(t.get("run") == 'mkdir -p "$TMPDIR"' for t in steps)
+    assert any(t.get("run") == 'rm -rf -- "$TMPDIR"' and t.get("if") == "always()" for t in steps)
 
 
 def test_ufw_tasks_and_handlers_are_skipped_in_nft_mode_and_selector_is_not_overwritten():
@@ -175,7 +220,7 @@ def test_ufw_tasks_and_handlers_are_skipped_in_nft_mode_and_selector_is_not_over
     assert not enabled(ufw, chaldea_job_host_firewall="nft")
     assert handlers[0]["name"] == "Reload job nft firewall"  # before sshd restart
     check = next(task for task in main if "nft table before starting" in task["name"])
-    assert check["ansible.builtin.command"]["argv"] == ["/usr/bin/nft", "list", "table", "inet", "chaldea_job"]
+    assert check["ansible.builtin.command"]["argv"] == ["/usr/sbin/nft", "list", "table", "inet", "chaldea_job"]
     start = next(t for t in main if t["name"] == "Start the restricted job SSH daemon")
     assert main.index(check) < main.index(start)
     assert not enabled(start, ansible_check_mode=True)

@@ -1,16 +1,16 @@
 [Unit]
 Description=Chaldea compute-port firewall only
 DefaultDependencies=no
-After=local-fs.target
+After=local-fs.target nftables.service
 Before=chaldea-job-sshd.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 TimeoutStartSec=5
 TimeoutStopSec=5
-ExecStartPre=/usr/bin/nft -c -f /etc/chaldea-job.nft
-ExecStart=/usr/bin/nft -f /etc/chaldea-job.nft
-ExecReload=/usr/bin/nft -c -f /etc/chaldea-job.nft
-ExecReload=/usr/bin/nft -f /etc/chaldea-job.nft
+ExecStartPre=/usr/sbin/nft -c -f /etc/chaldea-job.nft
+ExecStart=/usr/sbin/nft -f /etc/chaldea-job.nft
+ExecReload=/usr/sbin/nft -c -f /etc/chaldea-job.nft
+ExecReload=/usr/sbin/nft -f /etc/chaldea-job.nft
 [Install]
 WantedBy=multi-user.target

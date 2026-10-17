@@ -383,7 +383,7 @@
 - name: Require the compute-port nft table before starting job SSH
   become: true
   ansible.builtin.command:
-    argv: [/usr/bin/nft, list, table, inet, chaldea_job]
+    argv: [/usr/sbin/nft, list, table, inet, chaldea_job]
   changed_when: false
   when:
     - chaldea_job_host_firewall == 'nft'

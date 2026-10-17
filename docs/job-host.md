@@ -121,20 +121,24 @@ agent-a; this does not change policy for its operator SSH, T3 ports or Docker.
   The input chain accepts other traffic without overriding any other firewall's
   decision. It has no forwarding, output or Docker rules. One atomic nft -f
   transaction adds/deletes/recreates only chaldea_job, validated first with
-  nft -c -f. It never flushes the global ruleset or modifies another table.
+  nft -c -f. Commands use /usr/sbin/nft on Debian and Arch (Arch's merged
+  /usr/sbin points into /usr/bin). It never flushes the global ruleset or modifies
+  another table.
 - chaldea-job-firewall.service is an enabled oneshot with RemainAfterExit, no
   default boot ordering and a five-second timeout. It runs only the dedicated
   file, validates on start/reload, and has no dependency on peers or networking
   being online. Boot continues if it fails. Job SSH requires/starts after this
   unit and checks that the table is loaded before listening, including on reboot.
-  Never enable the distro nftables.service for this role: Debian's global
-  /etc/nftables.conf loader can flush Docker's rules.
+  Apply refuses if the distro nftables.service is enabled, without changing it:
+  Debian's global /etc/nftables.conf loader can flush the compute table and
+  Docker's rules. Never enable it alongside this role. The dedicated unit orders
+  after nftables.service if both are started, without pulling that service in.
 - Stopping the dedicated firewall unit leaves its table installed. To remove nft
   enrollment, set chaldea_job_host_enabled=false in inventory, then as operator:
   ```sh
   sudo systemctl disable --now chaldea-job-sshd.service
   sudo systemctl disable --now chaldea-job-firewall.service
-  sudo nft delete table inet chaldea_job
+  sudo /usr/sbin/nft delete table inet chaldea_job
   sudo rm /etc/chaldea-job.nft /etc/systemd/system/chaldea-job-firewall.service
   sudo systemctl daemon-reload
   ```
@@ -145,7 +149,8 @@ agent-a; this does not change policy for its operator SSH, T3 ports or Docker.
   Switching backends does not automatically remove old backend rules; coordinate
   that removal with jobs stopped.
 
-Packages use ansible-core only: Debian uses apt; Arch reads package_facts through
+Packages use ansible-core only: Debian ensures python3-apt before collecting
+package facts and uses apt; Arch reads package_facts through
 pacman and runs pacman -S --needed --noconfirm only for missing packages, with
 English transaction output determining changed status. No community.general
 collection is required. Arch check mode reports missing packages and skips the
