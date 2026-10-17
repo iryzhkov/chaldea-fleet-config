@@ -23,4 +23,8 @@ chaldea_client_waits_socket: "/run/user/{{ ansible_facts.user_uid }}/chaldea-wai
 chaldea_client_codex_home: ""
 chaldea_client_codex_providers: [codex]
 chaldea_client_codex_command: "{{ fleet_home }}/.local/share/mise/shims/codex"
+# Trust the binding above when T3 publishes no runtime home for Codex. The
+# balance is then shown as operator-asserted; the worst case is displaying
+# another account's balance, and nothing spends or acts on it.
+chaldea_client_codex_assert_runtime_home: false
 chaldea_client_low_headroom_percent: 10

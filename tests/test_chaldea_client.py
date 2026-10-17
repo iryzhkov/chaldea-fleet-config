@@ -119,7 +119,8 @@ def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
     quota = json.loads((home / ".config/chaldea/quota.json").read_text())
     assert quota["contexts"][0] == {"providers": ["codex"], "home": str(home),
                                    "codexHome": str(home / ".codex"),
-                                   "command": str(home / ".local/share/mise/shims/codex")}
+                                   "command": str(home / ".local/share/mise/shims/codex"),
+                                   "assertRuntimeHome": False}
     waits = json.loads((home / ".config/chaldea/waits.json").read_text())
     assert waits["environment"] == "fixture-environment"
     assert waits["tokenFile"] == str(home / ".config/chaldea/waits-t3-token")
