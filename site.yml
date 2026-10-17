@@ -50,3 +50,11 @@
       when: chaldea_access_trust_enabled | default(false) | bool
     - role: pull_timer
       tags: [pull_timer]
+  # Discover after installers (including the Chaldea wrapper) have converged.
+  post_tasks:
+    - name: Generate installed custom tool discovery
+      ansible.builtin.import_role:
+        name: agent_config
+        tasks_from: fleet-tools
+      tags: [agent_config, fleet_tools]
+      when: "'agent_hosts' in group_names"

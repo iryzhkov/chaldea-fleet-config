@@ -1,0 +1,55 @@
+---
+- name: Create the renderer directory
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.config/agents"
+    state: directory
+    mode: u+rwx
+
+- name: Install the fleet tools renderer
+  ansible.builtin.copy:
+    src: fleet_tools.py
+    dest: "{{ fleet_home }}/.config/agents/fleet_tools.py"
+    mode: "0644"
+
+- name: Render installed tools for the selected profile
+  ansible.builtin.command:
+    argv: >-
+      {{ ['/usr/bin/python3', fleet_home ~ '/.config/agents/fleet_tools.py',
+          '--profile-json', agent_config_fleet_tools_profile | to_json]
+         + (['--directory'] | product(agent_config_fleet_tools_directories) | map('list') | flatten)
+         + (['--executable'] | product(agent_config_fleet_tools_executables) | map('list') | flatten) }}
+  register: agent_config_fleet_tools_rendered
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Inspect generated skill destinations
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item }}/fleet-tools"
+    get_checksum: false
+  loop: "{{ agent_config_fleet_tools_skill_dirs }}"
+  register: agent_config_fleet_tools_paths
+
+- name: Refuse generated skills through symlinks
+  ansible.builtin.assert:
+    that:
+      - not (item.stat.islnk | default(false))
+    quiet: true
+  loop: "{{ agent_config_fleet_tools_paths.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Create generated skill directories
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/{{ item }}/fleet-tools"
+    state: directory
+    mode: "0755"
+  loop: "{{ agent_config_fleet_tools_skill_dirs }}"
+
+- name: Install the generated fleet tools skill
+  ansible.builtin.copy:
+    content: "{{ agent_config_fleet_tools_rendered.stdout }}\n"
+    dest: "{{ fleet_home }}/{{ item }}/fleet-tools/SKILL.md"
+    mode: "0644"
+  loop: "{{ agent_config_fleet_tools_skill_dirs }}"
+  when: not ansible_check_mode
