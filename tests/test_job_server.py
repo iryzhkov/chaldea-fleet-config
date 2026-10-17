@@ -173,6 +173,36 @@ def test_sandbox_is_allowlisted_no_gpu_without_explicit_request():
                 server.sandbox(request(gpu=True), Path(tmp), {})
 
 
+def test_toolchains_are_mounted_readonly_with_private_caches(tmp_path):
+    root = tmp_path / "tools"
+    defaults = {"node": "26.12.0", "go": "1.27.0", "rust": "1.99.0", "uv": "0.12.10"}
+    for tool, version in defaults.items():
+        (root / tool / version / "bin").mkdir(parents=True)
+    workspace = tmp_path / "job"
+    workspace.mkdir()
+    config = {"toolchain_root": str(root), "toolchain_defaults": defaults}
+    with patch.object(server.subprocess, "check_output", return_value="--disable-userns"):
+        cmd, env = server.sandbox(request(), workspace, config)
+    offset = cmd.index(str(root))
+    assert cmd[offset - 1:offset + 2] == ["--ro-bind", str(root), str(root)]
+    assert env["PATH"].split(":")[:4] == [str(root / t / v / "bin") for t, v in defaults.items()]
+    assert env["TAR_OPTIONS"] == "--no-same-owner"
+    assert env["GOTOOLCHAIN"] == "local"
+    for key in ("npm_config_cache", "CARGO_HOME", "GOPATH", "GOMODCACHE", "GOCACHE",
+                "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR"):
+        assert env[key].startswith("/home/job/")
+    server.cleanup(tmp_path)
+    assert not workspace.exists()
+
+
+def test_missing_or_unpinned_toolchain_fails_closed(tmp_path):
+    defaults = {t: "1.2.3" for t in ("node", "go", "rust", "uv")}
+    with pytest.raises(ValueError, match="not installed"):
+        server.toolchain_environment({"toolchain_root": str(tmp_path), "toolchain_defaults": defaults})
+    with pytest.raises(ValueError, match="pinned"):
+        server.toolchain_environment({"toolchain_root": str(tmp_path), "toolchain_defaults": {**defaults, "node": "../escape"}})
+
+
 def test_artifact_symlink_and_fifo_rejected_without_blocking():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)

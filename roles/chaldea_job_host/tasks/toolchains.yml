@@ -1,0 +1,67 @@
+---
+- name: Validate the managed toolchain location and architecture
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_host_toolchain_root == '/opt/chaldea-tools'
+      - ansible_facts.architecture in ['x86_64', 'aarch64']
+    quiet: true
+
+- name: Install the verified toolchain manager
+  become: true
+  ansible.builtin.copy:
+    src: chaldea-job-toolchains
+    dest: /usr/local/libexec/chaldea-job-toolchains
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Secure the dedicated toolchain parent directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ chaldea_job_host_toolchain_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create the job-owned admission lock before provisioning
+  become: true
+  ansible.builtin.file:
+    path: "{{ chaldea_job_host_state_root }}/admission.lock"
+    state: touch
+    owner: "{{ chaldea_job_host_user }}"
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0600"
+    access_time: preserve
+    modification_time: preserve
+  when:
+    - not ansible_check_mode
+    - chaldea_job_host_mount_ready.rc == 0
+
+- name: Install missing verified versions and prune all but one previous per tool
+  become: true
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -I
+      - /usr/local/libexec/chaldea-job-toolchains
+      - --root
+      - "{{ chaldea_job_host_toolchain_root }}"
+      - --architecture
+      - "{{ ansible_facts.architecture }}"
+      - --versions
+      - "{{ chaldea_job_host_toolchain_versions | to_json }}"
+      - --active-config
+      - /etc/chaldea-job.json
+      - --admission-lock
+      - "{{ chaldea_job_host_state_root }}/admission.lock"
+  register: chaldea_job_host_toolchain_install
+  changed_when: (chaldea_job_host_toolchain_install.stdout | from_json).changed
+  when:
+    - not ansible_check_mode
+    - chaldea_job_host_mount_ready.rc == 0
+
+- name: Explain toolchain provisioning in check mode
+  ansible.builtin.debug:
+    msg: "Would verify/install {{ chaldea_job_host_toolchain_versions | to_json }} in {{ chaldea_job_host_toolchain_root }} and keep at most one unconfigured previous release per tool."
+  when: ansible_check_mode

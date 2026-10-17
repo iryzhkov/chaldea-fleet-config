@@ -1,0 +1,247 @@
+#!/usr/bin/python3
+"""Install verified, immutable job toolchains; no host user's mise/rustup state."""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tarfile
+import tempfile
+import urllib.request
+
+TOOLS = ("node", "go", "rust", "uv")
+ARCHES = {"x86_64": ("x64", "amd64", "x86_64"),
+          "aarch64": ("arm64", "arm64", "aarch64")}
+VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+MARKER = ".chaldea-toolchain.json"
+
+
+def validate(versions, architecture):
+    if architecture not in ARCHES:
+        raise ValueError("unsupported toolchain architecture: " + architecture)
+    if set(versions) != set(TOOLS):
+        raise ValueError("configure node, go, rust and uv")
+    for values in versions.values():
+        if (not isinstance(values, list) or not values
+                or len(values) != len(set(values))
+                or any(not isinstance(v, str) or not VERSION.fullmatch(v) for v in values)):
+            raise ValueError("versions must be nonempty lists of exact X.Y.Z releases")
+
+
+def release(tool, version, architecture):
+    node, go, rust = ARCHES[architecture]
+    triple = rust + "-unknown-linux-gnu"
+    if tool == "node":
+        name = f"node-v{version}-linux-{node}.tar.xz"
+        base = f"https://nodejs.org/dist/v{version}/"
+        return [(base + name, base + "SHASUMS256.txt", name)]
+    if tool == "go":
+        name = f"go{version}.linux-{go}.tar.gz"
+        base = "https://dl.google.com/go/"
+        return [(base + name, base + name + ".sha256", name)]
+    if tool == "uv":
+        name = f"uv-{triple}.tar.gz"
+        base = f"https://github.com/astral-sh/uv/releases/download/{version}/"
+        return [(base + name, base + name + ".sha256", name)]
+    result = []
+    for component in ("rustc", "cargo", "rust-std"):
+        name = f"{component}-{version}-{triple}.tar.xz"
+        url = "https://static.rust-lang.org/dist/" + name
+        result.append((url, url + ".sha256", name))
+    return result
+
+
+def fetch(url, destination):
+    # Only release() supplies URLs. HTTPS certificate verification stays enabled.
+    with urllib.request.urlopen(url, timeout=120) as response:
+        with destination.open("wb") as output:
+            shutil.copyfileobj(response, output)
+
+
+def checksum(text, filename):
+    for line in text.splitlines():
+        parts = line.split()
+        if (len(parts) == 1 or (len(parts) == 2 and parts[1].lstrip("*") == filename)):
+            if re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
+                return parts[0].lower()
+    raise ValueError("no published SHA256 for " + filename)
+
+
+def download(url, checksum_url, filename, scratch):
+    archive, sums = scratch / filename, scratch / (filename + ".sha256")
+    fetch(checksum_url, sums)
+    expected = checksum(sums.read_text(), filename)
+    fetch(url, archive)
+    with archive.open("rb") as stream:
+        actual = hashlib.file_digest(stream, "sha256").hexdigest()
+    if actual != expected:
+        raise ValueError("SHA256 mismatch for " + filename)
+    return archive, expected
+
+
+def writable_remove(path):
+    if path.is_symlink():
+        raise ValueError("refusing symlink in managed toolchain tree: " + str(path))
+    for parent, dirs, _files in os.walk(path, followlinks=False):
+        os.chmod(parent, 0o755)
+    shutil.rmtree(path)
+
+
+def seal(path):
+    for parent, dirs, files in os.walk(path, followlinks=False):
+        for name in files:
+            item = Path(parent) / name
+            if not item.is_symlink():
+                item.chmod(0o555 if item.stat().st_mode & 0o111 else 0o444)
+        os.chmod(parent, 0o555)
+
+
+def installed(path, tool, version, architecture):
+    if path.is_symlink():
+        raise ValueError("refusing symlink in managed toolchain tree: " + str(path))
+    if not path.exists():
+        return False
+    manifest = json.loads((path / MARKER).read_text())
+    if any(manifest.get(k) != v for k, v in
+           {"tool": tool, "version": version, "architecture": architecture}.items()):
+        raise ValueError("existing toolchain does not match requested release: " + str(path))
+    return True
+
+
+def install(root, tool, version, architecture):
+    parent = root / tool
+    if parent.is_symlink():
+        raise ValueError("refusing symlink tool directory")
+    parent.mkdir(exist_ok=True)
+    parent.chmod(0o755)
+    destination = parent / version
+    if installed(destination, tool, version, architecture):
+        return False
+    # Staging/downloads stay on this filesystem, are cleaned on failure, and
+    # never use /tmp. Rename publishes only a completely installed version.
+    with tempfile.TemporaryDirectory(prefix=".stage-", dir=root) as temporary:
+        scratch = Path(temporary)
+        payload = scratch / "payload"
+        payload.mkdir()
+        verified = {}
+        # Verify ALL components before executing any standalone installer.
+        archives = []
+        for url, sums, name in release(tool, version, architecture):
+            archive, digest = download(url, sums, name, scratch)
+            archives.append(archive)
+            verified[name] = digest
+        for index, archive in enumerate(archives):
+            unpacked = scratch / str(index)
+            unpacked.mkdir()
+            with tarfile.open(archive) as bundle:
+                bundle.extractall(unpacked, filter="data")
+            entries = list(unpacked.iterdir())
+            if len(entries) != 1 or not entries[0].is_dir():
+                raise ValueError("release must contain one top-level directory")
+            source = entries[0]
+            if tool == "rust":
+                subprocess.run(["/bin/sh", str(source / "install.sh"),
+                                "--prefix=" + str(payload), "--disable-ldconfig"],
+                               check=True, env={"PATH": "/usr/bin:/bin", "HOME": str(scratch),
+                                                "TMPDIR": str(scratch)}, cwd=scratch)
+            elif tool == "uv":
+                (payload / "bin").mkdir()
+                for name in ("uv", "uvx"):
+                    shutil.copy2(source / name, payload / "bin" / name)
+            else:
+                shutil.copytree(source, payload, dirs_exist_ok=True, symlinks=True)
+        (payload / MARKER).write_text(json.dumps(
+            {"tool": tool, "version": version, "architecture": architecture,
+             "sha256": verified}, sort_keys=True) + "\n")
+        seal(payload)
+        # Moving a directory between parents needs owner write permission to
+        # update ".." even when both parents are writable (rootless tests).
+        payload.chmod(0o755)
+        payload.rename(destination)
+        destination.chmod(0o555)
+    return True
+
+
+def prune(root, tool, configured, previous=None, dry_run=False):
+    parent = root / tool
+    if not parent.exists():
+        return []
+    if parent.is_symlink():
+        raise ValueError("refusing symlink tool directory")
+    others = []
+    for path in parent.iterdir():
+        if path.is_symlink() or not path.is_dir() or not VERSION.fullmatch(path.name):
+            raise ValueError("unexpected entry in managed toolchain tree: " + str(path))
+        if path.name not in configured:
+            others.append(path)
+    # Prefer the formerly selected default, then the most recently installed
+    # unconfigured release. Keep at most one previous version, per tool.
+    others.sort(key=lambda p: (p.name == previous, p.stat().st_mtime_ns, p.name), reverse=True)
+    removed = others[1:]
+    if not dry_run:
+        for path in removed:
+            writable_remove(path)
+    return [str(path) for path in removed]
+
+
+def reconcile(root, versions, architecture, previous=None, dry_run=False):
+    validate(versions, architecture)
+    if root.is_symlink():
+        raise ValueError("refusing symlink toolchain root")
+    changes = []
+    if not dry_run:
+        root.mkdir(parents=True, exist_ok=True, mode=0o755)
+        root.chmod(0o755)
+        for abandoned in root.glob(".stage-*"):
+            writable_remove(abandoned)
+            changes.append("remove abandoned staging " + str(abandoned))
+    for tool, values in versions.items():
+        for version in values:
+            if dry_run:
+                if not installed(root / tool / version, tool, version, architecture):
+                    changes.append("install " + tool + "@" + version)
+            elif install(root, tool, version, architecture):
+                changes.append("install " + tool + "@" + version)
+        changes.extend("prune " + p for p in prune(root, tool, values,
+                       (previous or {}).get(tool), dry_run=dry_run))
+    return changes
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", required=True, type=Path)
+    parser.add_argument("--architecture", required=True)
+    parser.add_argument("--versions", required=True, type=json.loads)
+    parser.add_argument("--admission-lock", type=Path)
+    parser.add_argument("--active-config", type=Path)
+    parser.add_argument("--plan", action="store_true")
+    args = parser.parse_args()
+    previous = {}
+    if args.active_config and args.active_config.exists():
+        previous = json.loads(args.active_config.read_text()).get("toolchain_defaults", {})
+    # Role supplies the existing job-owned admission lock: no pruning while a
+    # job is running; fail promptly so the next orchestrator apply can retry.
+    lock = None
+    if args.admission_lock and not args.plan:
+        lock = args.admission_lock.open("r+")
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        if not args.plan:
+            args.root.mkdir(parents=True, exist_ok=True)
+            with (args.root / ".install.lock").open("a") as install_lock:
+                fcntl.flock(install_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                changes = reconcile(args.root, args.versions, args.architecture, previous)
+        else:
+            changes = reconcile(args.root, args.versions, args.architecture, previous, dry_run=True)
+        print(json.dumps({"changed": bool(changes), "changes": changes}))
+    finally:
+        if lock:
+            lock.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -268,6 +268,95 @@ Run these on agent-a, agent-b, laptop and omarchy-pc, one host at a time:
 Stopping chaldea-job-sshd.service revokes admission immediately. An enrollment
 switch false merely skips future applies and does not revoke an installed daemon.
 
+
+## Pinned job toolchains
+
+The role installs an independent, root-owned tree at /opt/chaldea-tools, mounted
+read-only into jobs. It never mounts the operator's mise directory or home.
+chaldea_job_host_toolchain_versions is an inventory mapping of node, go, rust
+and uv to nonempty lists of exact X.Y.Z releases. The first version in each list
+is the default; every configured version is retained. Architecture comes from
+ansible_facts.architecture: x86_64 maps to Node x64 / Go amd64 / Rust x86_64;
+aarch64 maps to arm64 / arm64 / aarch64. Other architectures fail before download.
+
+The read-only omarchy-pc baseline for this change was:
+mise ls --current selected Node 26.12.0 and Rust stable, resolved by rustc and
+cargo to 1.99.0. Go and uv were absent from mise's current list; the installed
+/usr/bin tools reported go1.27.0-X:nodwarf5 and uv 0.12.10. The defaults therefore
+pin upstream Node 26.12.0, Go 1.27.0, Rust 1.99.0 and uv 0.12.10. The upstream Go
+build does not include the distro's X:nodwarf5 experiment suffix.
+
+Installation downloads only missing versions over verified HTTPS, checks each
+archive's SHA256 against the publisher's release metadata, then extracts into
+private staging inside the toolchain root and publishes by rename. Node uses
+nodejs.org/dist/vVERSION/SHASUMS256.txt; Go uses dl.google.com/go's archive.sha256
+(the official Go download CDN); uv uses the matching GitHub release
+archive.sha256 asset. Rust uses static.rust-lang.org/dist's versioned rustc,
+cargo and rust-std standalone component archives and their .sha256 files.
+All three Rust components are verified before their install.sh scripts run,
+with a private prefix and --disable-ldconfig. This gives a minimal compiler,
+Cargo and native standard library without rustup, mutable channels, global
+state, or documentation downloads. Cargo writes only to the job's own home and
+workspace. Rust components require distro C/linker tools, already exposed under
+/usr; cross compilation, rustfmt and clippy are outside this initial toolchain.
+
+The installed manifest records tool, version, architecture and verified digests.
+An existing completed version is left untouched and causes no network request;
+an incompatible/incomplete destination is refused rather than overwritten.
+Installed directories and executable files are 0555; other files are 0444.
+Ansible runs the manager as root; the parent directories are root-owned 0755.
+Check mode reports intended versions without downloads or installation.
+Apply holds the existing job admission lock while installing and pruning; a
+busy host refuses promptly and can be retried by the orchestrator. A separate
+installer lock prevents competing applies. Abandoned staging is removed on
+the next apply. No provisioning runs in a job or on the client.
+
+After installation, each tool keeps all configured versions plus at most one
+unconfigured previous version. The formerly selected default is preferred;
+otherwise the most recently installed unconfigured version is kept. Further
+versions are pruned on apply. Jobs cannot change the tree. To select an installed
+non-default version for one job, prepend its directory explicitly, for example:
+
+    chaldea exec --host agent-a -- sh -c 'export PATH=/opt/chaldea-tools/node/26.10.0/bin:$PATH; node --version; npm ci'
+
+No new client option is needed. Removing a configured version makes it eligible
+for pruning, so jobs should normally use inventory defaults.
+
+The server puts the four selected bin directories before /usr/bin:/bin and
+sets TAR_OPTIONS=--no-same-owner for GNU tar in the job user namespace. npm's
+cache, CARGO_HOME, GOPATH, GOMODCACHE, GOCACHE, UV_CACHE_DIR and uv's Python
+installation directory live under /home/job, backed by that job's workspace.
+GOTOOLCHAIN=local prevents Go from silently downloading another compiler.
+The fresh home, caches, build outputs and temporary files are removed with the
+workspace. There are no shared writable caches.
+
+The measured x86_64 tree for these defaults occupies 1,194,176,512 allocated
+bytes (1.12 GiB; apparent size 1,138,084,486 bytes). Budget **6 GiB per host for
+the toolchain tree, one previous set and installation staging**, in addition
+to the default 20 GiB job image and 16 MiB journal: about 26 GiB total.
+The /opt tree uses the root filesystem even when the job image uses /srv/agent;
+check capacity on both. This is a planning allowance for the default version
+count, not a quota: additional inventory versions require a larger allowance.
+Snapshot retention can retain old toolchain blocks after live-tree pruning.
+
+Run the role unit tests through tools/ci.sh. For real toolchain acceptance,
+install the tree under the disk-backed scratch directory as an unprivileged
+user, then run (from the fleet-config checkout, after CI creates its venv):
+
+    export TMPDIR=/home/igor/.cache/chaldea-scratch/toolchains
+    python3 -I roles/chaldea_job_host/files/chaldea-job-toolchains --root "$TMPDIR/tree" --architecture x86_64 --versions '{"node":["26.12.0"],"go":["1.27.0"],"rust":["1.99.0"],"uv":["0.12.10"]}'
+    .venv-ci/bin/python tests/job_toolchains_e2e.py --chaldea "$TMPDIR/chaldea" --tree "$TMPDIR/tree"
+
+The chaldea argument must name a clone of iryzhkov/chaldea with npm ci completed.
+The test starts an ephemeral rootless SSH daemon using this role's shipped
+templates and server, invokes chaldea exec, checks all tool versions, runs npm ci
+and a tiny npm build, compiles/runs Go and Cargo programs, creates a uv venv, and
+extracts a tar with unmapped owner IDs without a command-line ownership flag.
+It also checks that extraction fails with TAR_OPTIONS unset and verifies
+workspace/cache removal. No real host is enrolled or changed. The existing
+chaldea exec:e2e suite can also run against CHALDEA_JOB_SERVER pointing at this
+role, with CHALDEA_TEST_PYTHON pointing at .venv-ci/bin/python.
+
 ## Validation boundary
 
 Local: CI_PYTHON=$(uv python find 3.13) bash tools/ci.sh; companion exec:check,
