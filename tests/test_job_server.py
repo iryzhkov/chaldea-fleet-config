@@ -730,3 +730,87 @@ def test_connected_subnets_excludes_link_scope_so_ipv6_gateway_is_usable():
     rules = server.network_rules(["fe80::123"], networks)
     assert "fe80::123/128" in rules  # the host's own address is still blocked
     assert "fe80::/64" not in rules
+
+
+def test_two_slots_run_independently_third_refused_and_smoke_defers(tmp_path):
+    # Exercise real interprocess flock ownership, not a mocked lock.
+    import os
+    import select
+    import subprocess
+    import sys
+    assert tmp_path.is_relative_to(Path(tempfile.gettempdir()))
+    driver = """
+import importlib.machinery,importlib.util,json,os,sys
+from pathlib import Path
+loader=importlib.machinery.SourceFileLoader("slots",sys.argv[1])
+spec=importlib.util.spec_from_loader(loader.name,loader)
+server=importlib.util.module_from_spec(spec);loader.exec_module(server)
+with server.admission_lock(Path(sys.argv[2]),2) as root:
+    server.cleanup(root)
+    workspace=root / sys.argv[3];workspace.mkdir()
+    (workspace / "keep").write_text("running")
+    print(str(workspace),flush=True)
+    sys.stdin.readline()
+    server.cleanup(root)
+"""
+    children = []
+    workspaces = []
+    try:
+        for name in ("first", "second"):
+            child = subprocess.Popen([sys.executable, "-I", "-c", driver, str(PATH), str(tmp_path), name],
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            children.append(child)
+            assert select.select([child.stdout], [], [], 5)[0], "slot did not start"
+            workspaces.append(Path(child.stdout.readline().strip()))
+        assert workspaces[0].parent != workspaces[1].parent
+        assert all((p / "keep").read_text() == "running" for p in workspaces)
+        with pytest.raises(server.Busy, match="all job slots"):
+            with server.admission_lock(tmp_path, 2):
+                pytest.fail("third job admitted")
+        with patch.object(server, "prepare_launch") as prepare:
+            with pytest.raises(server.Busy):
+                server.smoke_test({"state_root": str(tmp_path), "require_mount": False, "slots": 2})
+            prepare.assert_not_called()
+        children[0].communicate("\n", timeout=5)
+        assert not workspaces[0].exists()
+        assert (workspaces[1] / "keep").read_text() == "running"
+        # Free slot zero is acquired first, then released when slot one is busy.
+        with pytest.raises(server.Busy):
+            with server.admission_lock(tmp_path, 2, all_slots=True):
+                pytest.fail("smoke admitted with slot one busy")
+        with server.admission_lock(tmp_path, 2) as available:
+            assert available == workspaces[0].parent
+        children[1].communicate("\n", timeout=5)
+        with server.admission_lock(tmp_path, 2, all_slots=True):
+            with pytest.raises(server.Busy):
+                with server.admission_lock(tmp_path, 2):
+                    pytest.fail("maintenance failed to exclude jobs")
+        assert all(not p.exists() for p in workspaces)
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
+
+
+@pytest.mark.parametrize("slots", [0, -1, 65, "2", True])
+def test_slot_count_rejects_invalid_configuration(slots):
+    with pytest.raises(ValueError, match="slots"):
+        server.slot_count({"slots": slots})
+
+
+def test_slot_inventory_and_shared_limits_rendered():
+    import yaml
+    from jinja2 import Template
+    role = PATH.parents[1]
+    defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
+    hosts = yaml.safe_load((role.parents[1] / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
+    assert defaults["chaldea_job_host_slots"] == 1
+    for host, slots in {"agent-a": 3, "omarchy-pc": 2, "agent-b": 1, "laptop": 1}.items():
+        values = {**defaults, **hosts[host], "chaldea_job_host_cpu_quota": "400%"}
+        assert values["chaldea_job_host_slots"] == slots
+        budget = Template((role / "templates/chaldea.slice.j2").read_text()).render(**values)
+        assert "MemoryMax=" + hosts[host]["chaldea_job_host_memory_max"] in budget
+        assert "TasksMax=" + str(hosts[host]["chaldea_job_host_tasks_max"]) in budget
+        assert "MemorySwapMax=0" in budget
+        assert "CPUQuota=400%" in budget

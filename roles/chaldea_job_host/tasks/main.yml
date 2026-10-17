@@ -8,6 +8,8 @@
       - chaldea_job_host_port | int != 22
       - chaldea_job_host_sources | length > 0
       - chaldea_job_host_policy in ['always', 'idle']
+      - chaldea_job_host_slots | string is match('^[1-9][0-9]*$')
+      - chaldea_job_host_slots | int <= 64
       - chaldea_job_host_firewall in ['ufw', 'nft']
       - chaldea_job_host_image_bytes | int >= 536870912
       - chaldea_job_host_state_root is match('^/(srv/agent/chaldea-job|home/chaldea-job/jobs)$')
