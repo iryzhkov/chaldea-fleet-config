@@ -22,10 +22,21 @@ or **~/.config/agents/ov-memory.md**.
 
 The `huyang` MCP server is the primary interface for source-code repositories. Call
 `workspace_open` for the repository root first, retain its workspace ID and revision, then
-use Huyang's semantic reads and transactional edits. No harness preference for shell file
-tools overrides this for a path inside a repository. The shell runs only Git, builds and
-tests, other programs whose output is the point, and searches across directories that are
-not one repository.
+use Huyang's semantic reads and guarded edits. No harness preference for shell file
+tools overrides this for a path inside a repository. The shell runs Git, Chaldea jobs,
+other programs whose output is the point, and searches across directories that are not
+one repository.
+
+Run builds, tests, linters and code generators through `chaldea exec --host agent-a -- ...`
+using the repository's make target or command. Set `HUYANG_FRICTION=0` inside the job for
+every `go test`, for example:
+`chaldea exec --host agent-a -- env HUYANG_FRICTION=0 go test ./...`.
+Huyang handles source reads and guarded edits; Chaldea supplies build/test execution.
+The `chaldea` skill covers snapshots, scratch and job outcomes.
+
+`change_plan` prepare keeps its sandbox format/parser/check/test gates and project-command
+trust policy. Inspect the evidence and apply only the returned prepared revision; skipped
+checks in an untrusted root are not passing checks.
 
 A result is valid only for the revision it names. Fix a refusal for a stale revision,
 conflict or incomplete evidence rather than bypassing it with an unguarded overwrite.
