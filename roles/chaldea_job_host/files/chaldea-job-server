@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -I
 """Chaldea SSH job protocol 1. Standard library only; no client shell."""
 import argparse
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import fcntl
 import hashlib
 import ipaddress
@@ -206,7 +206,8 @@ def cleanup(root):
         if time.monotonic() > deadline:
             print("chaldea: cleanup budget exhausted; leftovers remain bounded", file=sys.stderr)
             break
-        if path.name in ("admission.lock", "lost+found"):
+        if (path.name in ("admission.lock", "lost+found")
+                or re.fullmatch(r"admission-[0-9]+\.lock|slot-[0-9]+", path.name)):
             continue
         try:
             if path.is_dir() and not path.is_symlink():
@@ -223,9 +224,10 @@ def admission(root, config):
     cap = int(config.get("state_cap_bytes", CAP))
     reserve = max(int(config.get("min_free_bytes", RESERVE)), 0)
     usage = shutil.disk_usage(root)
-    if cap < MAX_SNAPSHOT or (config.get('require_mount', True) and usage.total - usage.free + MAX_SNAPSHOT >= cap):
+    pending_inputs = MAX_SNAPSHOT * slot_count(config)
+    if cap < MAX_SNAPSHOT or (config.get('require_mount', True) and usage.total - usage.free + pending_inputs >= cap):
         raise Refused("host state over cap; new jobs refused")
-    if usage.free < reserve + MAX_SNAPSHOT:
+    if usage.free < reserve + pending_inputs:
         raise Refused("job image full or below free-space reserve; new jobs refused")
 
 
@@ -537,21 +539,49 @@ def prepare_launch(request, workspace, config):
             "--network-supervisor", str(launch)], launch
 
 
+def slot_count(config):
+    slots = config.get("slots", 1)
+    if type(slots) is not int or not 1 <= slots <= 64:
+        raise ValueError("slots must be an integer from 1 to 64")
+    return slots
+
+
 @contextmanager
-def admission_lock(root):
-    with (root / "admission.lock").open("a") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise Busy("host busy: one job already running; retry explicitly") from exc
-        yield
+def admission_lock(root, slots=1, all_slots=False):
+    # Keep slot zero's existing name so maintenance still excludes old servers.
+    # Lock files are permanent: unlinking one would create a second lock domain.
+    if all_slots:
+        # Old slot locks remain permanent across count reductions.
+        slots = max([slots] + [int(match[1]) + 1 for path in root.iterdir()
+                               if (match := re.fullmatch(r"admission-([0-9]+)\.lock", path.name))])
+    with ExitStack() as held:
+        for slot in range(slots):
+            path = root / ("admission.lock" if slot == 0 else f"admission-{slot}.lock")
+            lock = path.open("a")
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                lock.close()
+                if all_slots:
+                    raise Busy("host busy: a job slot is in use; retry explicitly") from None
+                continue
+            held.enter_context(lock)
+            if not all_slots:
+                # Single-slot hosts retain their existing on-disk layout.
+                directory = root if slots == 1 else root / f"slot-{slot}"
+                directory.mkdir(mode=0o700, exist_ok=True)
+                yield directory
+                return
+        if not all_slots:
+            raise Busy("host busy: all job slots are in use; retry explicitly")
+        yield root
 
 
 def smoke_test(config):
     """Run the same trusted launch path as jobs, as the actual job account."""
     root = Path(config["state_root"])
     admission(root, config)
-    with admission_lock(root), tempfile.TemporaryDirectory(prefix="smoke-", dir=root) as temporary:
+    with admission_lock(root, slot_count(config), all_slots=True), tempfile.TemporaryDirectory(prefix="smoke-", dir=root) as temporary:
         workspace = Path(temporary) / "work"
         workspace.mkdir()
         request = {"jobId": str(uuid.uuid4()), "argv": ["/usr/bin/python3", "-c",
@@ -730,8 +760,8 @@ def main():
     if config.get("require_mount", True) and not os.path.ismount(root):
         raise Refused("job storage unavailable: image is not mounted; host remains available")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with admission_lock(root):
-        cleanup(root)
+    with admission_lock(root, slot_count(config)) as slot_root:
+        cleanup(slot_root)
         send("H", encode({"version": VERSION}))
         signal.alarm(120)
         kind, body = receive()
@@ -740,7 +770,7 @@ def main():
         request = validate(json.loads(body))
         idle_policy(config)
         admission(root, config)
-        workspace = root / request["jobId"]
+        workspace = slot_root / request["jobId"]
         workspace.mkdir(mode=0o700)
         try:
             unpack(request, workspace)
@@ -753,7 +783,7 @@ def main():
             code = execute(request, workspace, config)
             artifacts(request, workspace)
         finally:
-            cleanup(root)
+            cleanup(slot_root)
         # Result follows bounded cleanup; unremovable leftovers stay image-bounded.
         send("X", encode({"exitCode": code}))
 

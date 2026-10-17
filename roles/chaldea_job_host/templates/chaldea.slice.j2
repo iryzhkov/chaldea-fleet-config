@@ -1,6 +1,9 @@
 [Unit]
 Description=Chaldea shared-host compute budget
 [Slice]
+MemoryMax={{ chaldea_job_host_memory_max }}
+MemorySwapMax=0
+TasksMax={{ chaldea_job_host_tasks_max }}
 CPUWeight={{ chaldea_job_host_cpu_weight }}
 CPUQuota={{ chaldea_job_host_cpu_quota }}
 IOWeight={{ chaldea_job_host_io_weight }}

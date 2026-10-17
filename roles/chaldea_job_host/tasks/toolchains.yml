@@ -50,6 +50,8 @@
       - "{{ chaldea_job_host_toolchain_checksums | to_json }}"
       - --active-config
       - /etc/chaldea-job.json
+      - --slots
+      - "{{ chaldea_job_host_slots | string }}"
       - --admission-lock
       - "{{ chaldea_job_host_state_root }}/admission.lock"
   register: chaldea_job_host_toolchain_install

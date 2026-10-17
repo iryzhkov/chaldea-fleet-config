@@ -18,7 +18,12 @@ reviewed pair and the concrete public-key inventory are approved.
   A five-second check runs only during an idle-policy job. Gaming appearance
   sends SIGTERM to the job group, followed by SIGKILL after ten seconds if
   necessary. Client journal/status says preempted; it never retries.
-- One job per host; six-hour runtime, two-minute upload, 64 MiB snapshot,
+- Bounded concurrent slots, with no scheduler or queue: chaldea_job_host_slots
+  defaults to 1; inventory uses agent-a 3, omarchy-pc 2, agent-b 1, laptop 1.
+  Each request tries slot locks with non-blocking flock and refuses only when
+  none is free (or another pre-launch check fails). Gaming still gates every
+  desktop job and preempts every running desktop job.
+- Per job: six-hour runtime, two-minute upload, 64 MiB snapshot,
   64 MiB combined output, 32 regular-file artifacts / 64 MiB aggregate.
 - Every job has its own network namespace, connected outward by pasta.
   Host-loopback/gateway mapping, automatic port forwarding and socket splicing
@@ -41,7 +46,16 @@ reviewed pair and the concrete public-key inventory are approved.
   The root-owned forced command uses python3 -I.
 - GPU devices are absent unless --gpu. Enroll verified RTX 4090 device nodes and
   its NVIDIA ICD, never the AMD iGPU (normally Vulkan device 0).
-- The job sshd cgroup applies MemoryMax, MemorySwapMax=0 and TasksMax.
+- One chaldea.slice shares MemoryMax, MemorySwapMax=0, TasksMax and CPUQuota
+  across all jobs on the host; the sshd service retains the same hard memory and
+  task ceilings. The values below are host totals, never multiplied by slots.
+  There are no per-job systemd units: SSH sessions inherit the daemon's cgroup.
+  We deliberately retain this shared budget instead of dividing memory/tasks by
+  N: creating enforceable child cgroups would require delegated cgroup access
+  or a privileged launcher, expanding the job account's authority. RLIMITs
+  cannot enforce a process-tree memory budget. The existing shared cgroup is the
+  safer small change; one job may use spare budget, and an aggregate OOM can
+  terminate all jobs. Slots provide concurrency, not equal resource guarantees.
   Defaults: agent-a 8G/512 tasks, agent-b 4G/512, desktop 4G/256, laptop 2G/128.
   The generic default is the smaller of 4 GiB and half the detected RAM; apply
   refuses any inventory MemoryMax above half RAM. Recheck this after VM resizing.
@@ -63,7 +77,15 @@ reviewed pair and the concrete public-key inventory are approved.
   given new attributes. On omarchy-pc, /home is the @home subvolume outside
   snapper's root configuration; the default image lives there. Put images outside snapshot
   coverage (or explicitly exclude them) if the containing filesystem has snapshots.
-  Admission checks free space on the image filesystem, reserving 256 MiB + input.
+  Admission checks free space on the image filesystem, conservatively reserving
+  256 MiB + N maximum snapshots (64 MiB each) for concurrent uploads. All slots
+  write to the same image: the 20 GiB bound is aggregate, including crash leftovers,
+  caches and artifacts; no per-slot image or space guarantee is added.
+- Each held slot owns its workspace and transport metadata. Multi-slot hosts
+  use slot-N subdirectories; single-slot hosts retain the legacy layout.
+  Only the held slot is cleaned, so another job's files cannot be deleted.
+  Slot locks (admission.lock for zero, admission-N.lock for the others) are
+  permanent and never unlinked. Change slot counts only on a quiescent host.
 - Normal/failed workspaces are deleted immediately. fd-relative cleanup handles
   paths beyond PATH_MAX and chmod-000 directories. Startup/end cleanup has a
   one-second budget, logs bounded leftover warnings and continues after failures.
@@ -110,7 +132,8 @@ no reconnect/replay path. A trusted supervisor outside pasta owns the parent-dea
 signal and kills the transport group if the forced server dies; this also covers
 older Debian pasta versions that clear their own inherited parent-death signal.
 A pipe-based lifetime guard also kills the group if the supervisor is SIGKILLed.
-Smoke tests always kill their launch group before deleting temporary storage or
+Smoke tests hold all slots (including retained locks from a larger count) and
+always kill their launch group before deleting temporary storage or
 releasing admission. Stale ControlMaster sockets are checked and removed before
 a new dispatch; flock needs no stale-lock cleanup.
 
@@ -204,7 +227,7 @@ baseline packages exist.
    bubblewrap >= 0.9 (size-limited tmpfs), checks required networking options, and
    runs the exact pasta+bwrap launch as chaldea-job against mounted job storage.
    A failed smoke test fails apply clearly before enabling new SSH access. A
-   busy admission lock defers the smoke to the next apply without touching the
+   busy slot defers the smoke to the next apply without touching the
    running job. An absent mount skips this storage-dependent smoke and jobs
    refuse until mounted.
    Repeat apply once mounted; do not accept enrollment without a passing smoke.
@@ -321,10 +344,11 @@ Installed directories and executable files are 0555; other files are 0444.
 Ansible runs the manager as root; the parent directories are root-owned 0755.
 Check mode reports intended versions without downloads or installation.
 Installation is additive and does not take the job admission lock: private
-staging is published by rename. Only pruning takes the existing admission lock,
-opened read-only with O_NOFOLLOW | O_NONBLOCK; fstat must confirm a regular file
-before flock. The role never touches or chowns a path in the job-owned directory.
-If the lock is busy or absent before the server first runs, pruning is logged
+staging is published by rename. Only pruning takes every configured slot lock
+(including the previous configuration's slot count during a reduction), opened
+read-only with O_NOFOLLOW | O_NONBLOCK; fstat must confirm a regular file before
+flock. The role never touches or chowns a path in the job-owned directory.
+If any lock is busy or absent before the server first runs, pruning is logged
 as deferred to the next apply; missing versions are still installed and apply
 succeeds. Changed status reflects only installations or removals. A separate
 installer lock prevents competing applies. Abandoned staging is removed on

@@ -12,6 +12,7 @@ chaldea_job_host_log_level: "ERROR"
 chaldea_job_host_state_root: "{{ (data_disk_root | default('')) ~ '/chaldea-job' if data_disk_root | default('') | length > 0 else '/home/chaldea-job/jobs' }}"
 chaldea_job_host_server: /usr/local/libexec/chaldea-job-server-v1
 chaldea_job_host_policy: always
+chaldea_job_host_slots: 1
 chaldea_job_host_desktop_user: igor
 chaldea_job_host_steam_game_pattern: '(^|/)reaper(\s|$).*SteamLaunch\s+AppId=\d+'
 chaldea_job_host_minecraft_pattern: '(net\.minecraft(\.|/)|net\.fabricmc\.loader.*[Kk]not|[/.]minecraft(-modded)?(/|\s|$))'

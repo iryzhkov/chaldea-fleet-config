@@ -6,6 +6,16 @@
 set -euo pipefail
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
+# All test programs inherit an isolated home, even when invoked by a real runner.
+: "${TMPDIR:?set TMPDIR to disk-backed scratch}"
+case "$TMPDIR" in /*) ;; *) echo 'ci: scratch must be absolute' >&2; exit 1;; esac
+case "$TMPDIR" in /tmp|/tmp/*|/|/home/igor) echo 'ci: unsafe scratch path' >&2; exit 1;; esac
+export HOME="$TMPDIR/fleet-test-home"
+test "$HOME" = "$TMPDIR/fleet-test-home"
+mkdir -p "$HOME"
+export XDG_CONFIG_HOME="$HOME/.config" XDG_STATE_HOME="$HOME/.local/state"
+export XDG_CACHE_HOME="$HOME/.cache" XDG_DATA_HOME="$HOME/.local/share"
+
 python=${CI_PYTHON:-python3}
 venv=.venv-ci
 if ! cmp -s requirements-ci.txt "$venv/requirements-ci.txt"; then
@@ -27,7 +37,8 @@ reset_home() {
 }
 
 python -m pytest -q -p no:cacheprovider tests
-ansible-lint
+# Scratch may be inside an isolated job workspace; generated fixture plays are not source.
+ansible-lint --exclude "$TMPDIR"
 synthetic=(-i inventory -i tests/synthetic-inventory.yml --limit synthetic)
 ansible-playbook "${synthetic[@]}" site.yml --syntax-check
 reset_home

@@ -372,3 +372,28 @@ def test_role_passes_pins_and_never_touches_job_owned_lock_path():
     main = (ROLE / "tasks/main.yml").read_text()
     assert main.index("Secure the mounted filesystem") < main.index("Provision pinned job toolchains")
     assert main.index("Provision pinned job toolchains") < main.index("Install the job host configuration")
+
+
+def test_prune_requires_every_slot_and_releases_partial_acquisition(tmp_path, capsys):
+    import fcntl
+    zero = tmp_path / "admission.lock"
+    one = tmp_path / "admission-1.lock"
+    zero.touch()
+    one.touch()
+    with one.open("r") as held:
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with patch.object(manager, "install", return_value=False), patch.object(manager, "prune") as prune:
+            assert manager.reconcile(tmp_path / "tools", DEFAULTS, "x86_64", PINS,
+                                     admission_lock_path=zero, slots=2) == []
+            prune.assert_not_called()
+        assert "pruning deferred" in capsys.readouterr().err
+        descriptor = manager.admission_lock(zero)
+        assert descriptor is not None, "partial acquisition leaked slot zero"
+        os.close(descriptor)
+    def check_locked(*args, **kwargs):
+        assert manager.admission_lock(zero) is None
+        assert manager.admission_lock(one) is None
+        return []
+    with patch.object(manager, "install", return_value=False), patch.object(manager, "prune", side_effect=check_locked):
+        manager.reconcile(tmp_path / "tools", DEFAULTS, "x86_64", PINS,
+                          admission_lock_path=zero, slots=2)
