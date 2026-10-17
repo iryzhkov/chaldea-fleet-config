@@ -9,6 +9,23 @@ The `agent_config` role owns installed shared instructions and fleet skills. Edi
 `roles/agent_config/files/`, not installed files. Its defaults map source paths to
 destinations; its tasks copy those reviewed bytes directly.
 
+Fleet skills are registered in `agent_config_skills` and installed in
+`~/.claude/skills` and `~/.agents/skills` for Claude, Codex and OpenCode.
+Supporting files travel with each skill. Keep ordinary sessions free of extra
+startup ceremony; roadmap execution and audit workflows load on demand.
+
+The role retires only these exact real directories: find-skills,
+improve-codebase-architecture, domain-modeling, prototype, code-review and
+implementation-session. Symlinks, regular files and unrelated skills stay.
+`synced` is an unmanaged sync store, not a skill.
+
+Only safety-critical-code and unslop may migrate from existing symlinks.
+Before unlinking either, the host-side role requires a directory target and a
+recursive match with the managed source, including supporting files and extra
+entries. A mismatch or any other managed-skill symlink stops installation.
+Every candidate is validated before any link is removed; check mode compares
+without unlinking. The target is preserved when the link becomes a managed copy.
+
 For Huyang, keep these role inputs consistent:
 
 - `agents/AGENTS.md` contains the resident summary.

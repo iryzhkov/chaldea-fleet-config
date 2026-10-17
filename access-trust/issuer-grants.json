@@ -1,1 +1,58 @@
-[]
+[
+  {
+    "issuer": "chaldea:agent-a",
+    "kid": "agent-a-2026-10",
+    "public_key": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "1LEmYnODsGqzGLbE_F5uqOx1VoY5I2EmJSbLAKMJtCM"
+    },
+    "not_before": 1792195200,
+    "issue_until": 1794787200,
+    "verify_until": 1794788010,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "daily-health",
+        "project": "homelab",
+        "source": "chaldea.daily-health.agent-a",
+        "grants": [
+          {
+            "resource": "chaldea.daily-health.agent-a",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-timers",
+        "project": "chaldea",
+        "source": "agent-a.fleet",
+        "grants": [
+          {
+            "resource": "agent-a.fleet",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "agent-a.toolfeedback",
+        "grants": [
+          {
+            "resource": "agent-a.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -10,7 +10,7 @@ mcp_registrations_servers:
     enabled: "{{ mcp_registrations_chaldea_waits_enabled }}"
     command: "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
     args:
-      - "{{ fleet_home }}/.local/share/chaldea/app/src/cli.ts"
+      - "{{ fleet_home }}/.local/share/chaldea/{{ 'current/bin/chaldea' if chaldea_client_enabled | default(false) else 'app/src/cli.ts' }}"
       - mcp
       - --config
       - "{{ fleet_home }}/.config/chaldea/waits.json"

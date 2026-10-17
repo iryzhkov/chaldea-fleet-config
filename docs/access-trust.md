@@ -1,189 +1,178 @@
-# Chaldea access trust (package F, trust slice)
+# Chaldea access trust
 
-Source-only packaging. Inventory is disabled everywhere; grants are empty.
-No signed bundle, real keys or host changes are included. Run-profile UID, T3,
-proxy and nft work remains separate. Authority: chaldea docs/access-v1.md at
-76aecaa plus PR #10's 24h age, and
-jocasta:14ce7ddae80badf228ca6ef0779e3f2e@1 sections 2/6 package F.
-Homelab-infra PR #11's old 600s maximum age is superseded by **86400s**.
-Its 120s fetch and healthy clock offset <=30s requirements remain.
+Source-only packaging. Fleet trust enrollment remains disabled. The issuer is
+agent-a-2026-10; the new deployment anchor will be deployment-2026-10b, generated
+by the orchestrator only on Normandy. No private key, signed bundle or host
+action is part of this change.
 
-## Static publisher choice
+## Publisher and renewal
 
-Reuse this private GitHub repository. access-trust/issuer-grants.json contains
-operator-reviewed public keys/ceilings; access-trust/bundle.jws will contain only
-the operator-signed compact envelope. No new listener or publication credential
-on a run host. Hosts already use read-only per-repository deploy credentials for
-ansible-pull; this root updater gets its own read-only key for the same scope.
-The existing 4h ansible-pull timer is too slow, so fetch is independent.
+**omarchy-normandy** is the always-on Omarchy/Arch x86_64 publisher, using
+systemd-timesyncd. It runs no agent workloads. It replaces omarchy-pc, the gaming
+PC, which is not always on. Homelab-infra's existing inventory host **normandy**
+is the same VM at 192.168.70.234; omarchy-normandy scopes only the publisher play.
 
-Git-over-SSH pins the transport host key, then package C verifies a separate,
-operator-compared Ed25519 deployment anchor. Its public pin is committed in this
-same repository; repo-write protection and the existing root ansible-pull channel
-are therefore part of the trust base. The signature does not defend against an
-attacker who can rewrite root fleet configuration. The bare cache never checks out
-or executes repository code. Only bundle.jws goes to the installer.
+The homelab-infra signer playbook installs a locked system UID
+chaldea-publisher, no login or sudo, with 0700 home /var/lib/chaldea-publisher,
+keys/ and state/. Root installs the program and its independent anchor config.
+The new deployment key stays on Normandy and is never transferred. Its unique
+SSH deploy key at keys/trust-deploy-key is 0600 with write access ONLY to the
+private data-only iryzhkov/chaldea-trust repository. A separate 0600
+keys/fleet-read-key has read-only access here for access-trust/issuer-grants.json.
+Homelab's different read-only key grants access only to chaldea-trust.
 
-Requests use local cached trust. Any single fleet host may be down without an
-online trust dependency for others. Publisher/Git loss is tolerated until the
-existing signed expiry, at most 24h after publication. It does not add a day at
-outage detection. Renew well inside the lease and alert before expiry.
-Disconnected issuer-key revocation can take the remaining 24h lease; bearer
-expiry and ordinary cancellation retain their <15m bound.
+Fleet main runs as root on every agent through ansible-pull, and the current
+GitHub plan cannot branch-protect it. A fleet-config write credential on Normandy
+would let a compromised publisher execute root code across the fleet. The earlier
+fleet-config write key was deleted unused. Never recreate that permission.
+Only README.md and root bundle.jws belong in chaldea-trust main; nothing executes
+code, configuration or workflows from that repository. This repository retains
+issuer-grants.json and has no published bundle path.
 
-## Future deployment procedure (not performed; requires rollout approval)
+The systemd publisher timer runs every 6 hours, with manual renewal through
+systemctl start chaldea-publisher.service. Each run locks durable state, fetches
+chaldea-trust main into trust.git and fleet main into a separate read-only fleet.git
+bare cache, takes a fresh healthy timesyncd sample,
+and signs the next sequence with main's access-trust/issuer-grants.json.
+The signer's durable SQLite high water and published sequence must both increase.
+A separate durable verification state authenticates the envelope against the
+root-installed pin before Git commit construction. Git plumbing changes only
+chaldea-trust's root bundle.jws from the exact fetched trust parent. A final path/parent guard
+precedes an ordinary fast-forward push. Repository code/hooks are never run.
+Unhealthy clock, invalid signature, same/lower sequence, unrelated paths and
+concurrent main changes stop publication. Previous confirmed public bytes remain.
 
-Host list: **omarchy-pc** holds the deployment anchor and publishes; **homelab**
-runs Akasha's verifier updater and clock adapter. **agent-a** is the first future
-issuer and needs its own key, clock and trust state before minting. agent-b,
-laptop, normandy and public-api/public-api-b have no action in this slice.
-Later enrollment needs an explicit host list. No broad fleet apply.
+Lifetime stays 24 hours. Six-hour renewal leaves 18 hours of tolerance after a
+missed renewal. Publisher/Git loss adds no time to the signed expiry. An hourly
+independent timer alerts when published_at is older than 12 hours or the bundle
+is absent, once per stale episode. Failures emit one alert per failed invocation.
+Both use existing feed post if available and usable by the publisher UID, else
+journal only. No feed credential is introduced. The orchestrator records and
+tests the actual route on Normandy before verifier activation.
 
-1. Freeze reviewed Chaldea/fleet commits and successful CI. Install the public
-   host release through chaldea_host_artifact using the inventory version and
-   SHA-256; see [host installation](host-artifact.md). The bundled maintenance
-   entry point is /opt/chaldea-host/releases/VERSION/host/access-maintenance.mjs.
-   It includes production dependencies; do not separately stage a source tree or
-   run npm on the deployment host. Separately install pinned Node 26.10.0 at
-   /opt/chaldea/node/bin/node on homelab and omarchy-pc (later agent-a).
-   The node, bundled runtime and ancestors must be real, root-owned paths without
-   group/other write; updater and clock ExecStartPre check this on every start.
-   ProtectHome requires runtime outside /home. Use the rendered role values:
+The transport pins GitHub's public Ed25519 host key and uses BatchMode,
+IdentitiesOnly, no agent, strict host checking and no operator SSH config.
+The write key can modify all of chaldea-trust if stolen. The single-path guard
+is a program invariant, not a GitHub path restriction. The separate repository
+keeps that credential away from root-executed fleet configuration. Independent
+root-installed pins and signed-expiry checks remain necessary.
 
-       CHALDEA_HOST_VERSION=<inventory-chaldea_host_version>
-       CHALDEA_ACCESS_NODE=/opt/chaldea/node/bin/node
-       CHALDEA_ACCESS_RUNTIME=/opt/chaldea-host/releases/$CHALDEA_HOST_VERSION/host/access-maintenance.mjs
+## Public pin flow and ordered deployment
 
-   CHALDEA_ACCESS_NODE must equal the reviewed chaldea_access_trust_node setting.
-   Bundle, clock-health, updater and verifier state paths below come from the
-   single inventory chaldea_access_paths mapping; override examples with its
-   rendered values if an approved configuration changes them.
-   Provision git, openssh-client, python3 and chrony on these approved hosts.
-   omarchy-pc currently uses timesyncd; this requires an explicitly approved time
-   service migration and healthy chrony before signing. No such migration occurs
-   in this task. Require independent
-   external time sources and the root-protected /run/chrony/chronyd.sock socket;
-   no UDP fallback, chrony local/orphan mode or single fleet NTP host.
-   This role does not install or change time services.
-2. Igor, as igor on **omarchy-pc only**, creates
-   /home/igor/.local/share/chaldea-access-publisher/keys (owner igor, 0700).
-   With umask 077, run openssl genpkey -algorithm ED25519 -out
-   <keys-dir>/deployment-2026-10.pem. The PKCS8 file is igor-owned 0600,
-   single-link. Protect ancestors. Igor holds its protected offline backup;
-   omarchy-pc holds the sole live deployment key. Never copy it to a run host,
-   sandbox, repository, env or transcript. omarchy-pc also hosts compute jobs:
-   provision the live key only after canaries prove those sandboxes and restricted
-   UIDs cannot read Igor's publisher directory or use sudo. Interactive full-access
-   operator agents running as igor/root remain trusted and can read it; 0700/0600
-   does not isolate it from that operator identity. If that trust is unacceptable,
-   use a separately reviewed publisher UID or protected signer before creating it.
-   Independently compare its public
-   fingerprint/JWK before pinning chaldea_access_trust_anchors in approved
-   inventory and Akasha config.
-3. For each approved issuer (first agent-a), the operator separately provisions
-   locked service identity chaldea-issuer, distinct from the run UID, without
-   login, sudo or operator groups. Create /var/lib/chaldea-issuer/keys and
-   /var/lib/chaldea-issuer/state as chaldea-issuer:chaldea-issuer 0700.
-   As that UID, umask 077; openssl genpkey -algorithm ED25519 -out
-   /var/lib/chaldea-issuer/keys/agent-a-2026-10.pem. Owner chaldea-issuer,
-   mode 0600, single regular file. HostIssuer's loadHostSigningKey reads it.
-   Private material stays on its issuer host, outside all sandbox mounts,
-   env and FDs. This task/role generates no key or identity.
-4. Extract the public JWK on each key's owning machine with trusted Node:
+Follow the exact ordered operator commands in
+[homelab-infra's Normandy publisher runbook](https://github.com/iryzhkov/homelab-infra/blob/main/docs/normandy-publisher.md).
+The orchestrator performs every host action and key creation:
 
-       node --input-type=module -e 'import {readFileSync} from "node:fs"; import {createPublicKey} from "node:crypto"; const {kty,crv,x}=createPublicKey(readFileSync(process.argv[1])).export({format:"jwk"}); console.log(JSON.stringify({kty,crv,x}));' <absolute-private-path>
+1. Stage playbooks/chaldea-signer.yml only on omarchy-normandy, leaving timers off.
+2. As chaldea-publisher, generate a NEW Ed25519 PKCS8 file with umask 077 and
+   exclusive noclobber creation using openssl genpkey. Never reuse or transfer
+   the retired omarchy-pc key. Extract only the public JWK using createPublicKey,
+   and public SPKI DER SHA-256 using openssl pkey -pubout -outform DER.
+3. Insert the public values in inventory/group_vars/all.yml here and
+   homelab-infra vars/chaldea-runtime.yml. Set chaldea_deployment_anchor_kid to
+   deployment-2026-10b, chaldea_deployment_anchor_public_jwk to {kty, crv, x},
+   and chaldea_deployment_anchor_spki_sha256 to lowercase public SPKI digest.
+   Keep chaldea_access_trust_anchors referencing those variables in both files.
+   The source placeholders deliberately cannot pass activation checks.
+4. Review and merge public pins in both repos, confirm CI and run infra's
+   scripts/check-trust-pins.py FLEET INFRA. It compares runtime version/digest,
+   canonical chaldea_access_paths, data-only repository/path, anchor flow and public pin values,
+   rejects placeholders and recomputes the SPKI digest from JWK.
+   Akasha's /etc/akasha/config.json anchors come from the same resolved variable
+   via infra roles/akasha/templates/config.json.j2. Publisher config is separate
+   root-installed data, never derived from untrusted fetched main.
+5. Generate the unique publisher SSH deploy key as that locked UID. Fetch only
+   its public half to controller scratch and register with
+   gh repo deploy-key add --allow-write -R iryzhkov/chaldea-trust.
+   Register the distinct grants key read-only on fleet-config, without --allow-write.
+   Check chaldea-trust permits this principal's guarded direct main push.
+6. Explicitly initialize publisher.sqlite and verify.sqlite ONCE as the locked
+   UID using the bundled access-maintenance initialize-state command. Never
+   reinitialize existing state. Start the publisher service manually; it takes
+   clock-health, signs and verifies, commits only the public envelope and pushes.
+7. Inspect published kid/sequence/24h expiry, key/state ownership, actual alert
+   route, second renewal and timer deadlines. Enable publisher and age timers
+   only after the first push succeeds. Keep fleet enrollment false.
+8. Once the new anchor is live, stop old publishing on omarchy-pc and delete
+   the retired deployment-2026-10 key file after comparing its public fingerprint.
+   Igor removes the retired anchor from his password manager. The new key stays
+   solely on Normandy.
 
-   Transfer **only** public output to Igor. Add the issuer's public record to
-   access-trust/issuer-grants.json: issuer chaldea:agent-a, unique kid,
-   public_key, integer not_before/issue_until/verify_until and exact ceilings.
-   Require not_before < issue_until <= verify_until, difference <=810s.
-   Choose issuance lifetime deliberately; bundle freshness is separate.
-   Akasha ceilings include audience akasha, profile/project/source and exact
-   resource/actions from its reviewed registry. Never guess broad grants.
-5. On omarchy-pc, create private publisher state directory 0700. Initialize once:
+No tokens have verifiers yet, so this initial repin is safe before activation.
+Later loss or compromise follows the runbook's Re-issue the deployment anchor
+procedure, preserving global high water and replacing pins over independent SSH.
+There is no automatic new-kid epoch reset. For compromise, publish an explicit
+empty-grants bundle first and keep normal timers off until new issuer identities
+and key material are enrolled. The initial agent-a issuer key is unchanged.
 
-       "$CHALDEA_ACCESS_NODE" "$CHALDEA_ACCESS_RUNTIME" initialize-state --state-file <publisher-state-dir>/publisher.sqlite
-       sudo install -d -o root -g root -m 0755 /run/chaldea-access-trust
-       sudo "$CHALDEA_ACCESS_NODE" "$CHALDEA_ACCESS_RUNTIME" clock-health --output /run/chaldea-access-trust/clock-health.json
-       "$CHALDEA_ACCESS_NODE" "$CHALDEA_ACCESS_RUNTIME" sign-bundle --state-file <publisher-state-dir>/publisher.sqlite --clock-health-file /run/chaldea-access-trust/clock-health.json --key-file <deployment-private-path> --kid deployment-2026-10 --grants-file <fleet-checkout>/access-trust/issuer-grants.json --sequence <increasing-N> --output <private-publisher-dir>/bundle.jws
+## Verifier deployment and recovery
 
-   Commit/review/push only the signed output as access-trust/bundle.jws with
-   reviewed public grants. Retain the same durable publisher state and use
-   increasing sequences; serialize signing. If signing fails after committing state
-   but before output, re-sign with a higher sequence instead of resetting state. Empty [] grants revoke all issuers;
-   never accidentally publish the initial template.
-   Igor owns renewal automation on omarchy-pc: establish and verify it before
-   activation, recommended every 6h plus immediate changes. It refreshes clock
-   evidence immediately before signing and alerts before expiry. Only Igor's
-   publisher process may read the anchor. The root health command reads only chrony's
-   protected socket; it does not read the anchor. Install the same pinned runtime on
-   omarchy-pc for this command. Automate health through the reviewed root oneshot
-   or a narrowly approved invocation, never a general sandbox sudo rule. A 6h cadence leaves 18–24h remaining
-   outage tolerance; a full 24h is the maximum from publication.
-6. Before enabling homelab's role, provision root:root files
-   /etc/chaldea-access-trust/deploy-key (0600, unique read-only GitHub deploy key)
-   and known_hosts (0644, independently verified GitHub host key).
-   Never use unverified ssh-keyscan output or the operator's private key.
-   Create /var/lib/chaldea-access-trust root:root 0700 and initialize once as root:
+Homelab is managed by homelab-infra, never fleet-config. Continue its
+[Akasha rollout](https://github.com/iryzhkov/homelab-infra/blob/main/docs/akasha-v1-deployment.md)
+at step 4 only after publisher checks succeed. No broad fleet apply.
 
-       sudo "$CHALDEA_ACCESS_NODE" "$CHALDEA_ACCESS_RUNTIME" initialize-state --state-file /var/lib/chaldea-access-trust/updater.sqlite
+Homelab's existing read-only deploy key 166781554 is moved by the orchestrator
+from fleet-config to chaldea-trust. GitHub requires deleting its old registration
+before registering the same public key on the new repository. The private key
+never leaves homelab. Exact ordered commands, failure handling and the existing-state
+migration are in the Normandy runbook's Move an already-staged transport section.
+No fleet-config access is needed by homelab for trust.
 
-   Initialization is exclusive. Convergence never creates/resets the DB.
-   Preserve state through backup/reinstall; missing/corrupt state parks access.
-7. Set chaldea_access_trust_enabled=true and independently pinned public anchors
-   only in homelab's approved inventory. Check then apply only
-   --limit homelab --tags chaldea_access_trust through local ansible-pull.
-   Bootstrap key/known_hosts/state ownership and modes are checked before timers
-   start; state must already be initialized. The fixed runtime directory is
-   /run/chaldea-access-trust. chronyc needs /run/chrony writable for its private
-   reply socket, so only the clock unit allows that directory through ProtectSystem.
-   Units: chaldea-clock-health.service/.timer (10s) and
-   chaldea-access-trust.service/.timer (120s). Verify status/journal, first
-   successful install sequence/expiry, ownership/modes and second-apply
-   idempotence. No issuer key is touched.
-8. Akasha config on homelab uses bundle_file and akasha_trust_bundle =
-   /var/lib/chaldea-access-trust-public/bundle.jws; clock_health_file and
-   akasha_clock_health = /run/chaldea-access-trust/clock-health.json.
-   Directories root:root 0755, files root:root 0644. If mount isolation is used,
-   bind the **directories** read-only so atomic replacements stay visible.
-   Config anchors must match the independently pinned keys.
-   Initialize Akasha's separate access_state once as its service UID with the
-   same bundled initialize-state command and chaldea_access_paths.verifier_state
-   (/var/lib/akasha/access-state.db). Its parent is service-owned 0700 and the DB
-   is 0600; the path is inside the unit's ReadWritePaths=/var/lib/akasha.
-   Never share the root updater SQLite or restore older high-water state.
-   Start Akasha only after current trust and health exist. Requests check
-   clock/expiry immediately; Akasha reloads the public file every 120s.
-   Apply equivalent private-state/clock requirements to the future agent-a
-   issuer, inaccessible to sandbox UIDs.
-9. Before akasha_interfaces_verified, run approved canaries: tamper, same/lower
-   sequence, removal, overlap rotation, restart, stale health, offset >30s,
-   clock rollback and publisher loss through signed expiry, plus Akasha's
-   runtime/ACL/backup gates. This PR sets no activation flag or schedule.
+The trust role installs its reviewed byte-only downloader from this repository,
+superseding the old URL hard-coded in host-v0.2.0's bundled downloader. It fetches
+only chaldea-trust main:bundle.jws and calls the pinned maintenance runtime for
+authentication and atomic publication. The independently compared variables
+chaldea_access_trust_repository and chaldea_access_trust_bundle_path pin that
+transport in both inventories. The local chaldea_access_paths map is unchanged.
 
-## Rotation and recovery
+Pinned host-v0.2.0 supplies the maintenance and Akasha bundles, installed
+root-owned under /opt/chaldea-host/releases/VERSION/host, with Node 26.10.0
+at /opt/chaldea/node/bin/node. Runtime version/SHA-256 must match independently
+in fleet and infra. Do not run source builds on the deployment host.
 
-Publish new public key/kid/material, confirm required updater sequence/expiry
-receipts and Akasha reload, then activate new issuance. Stop old issuance,
-publish shorter issue_until and verify_until <=cutoff+810, retain verification
-for outstanding tokens, then remove. Removed identities/material cannot return;
-deadlines cannot extend under an existing ID. Emergency removal overrides overlap.
-A higher-sequence empty-keys bundle revokes all. Anchor rotation is explicit
-operator-pinned deployment with overlap and verification, never self-authenticated.
+The canonical chaldea_access_paths map remains unchanged. Root updater state
+is /var/lib/chaldea-access-trust/updater.sqlite, public envelope is
+/var/lib/chaldea-access-trust-public/bundle.jws and clock evidence is
+/run/chaldea-access-trust/clock-health.json. Public directories/files are
+root-owned 0755/0644. Akasha's separate verifier state is
+/var/lib/akasha/access-state.db, service-owned 0600 under a 0700 directory.
+Bind directories read-only where isolation is used so atomic replacement remains
+visible. Root clock timer runs every 10s; updater fetch runs every 120s.
+Freshness is <=30s and the conservative clock offset bound is <=30s.
+Homelab and agent-a retain timesyncd; chrony remains supported without migration.
 
-The installer commits TrustStore high-water/key history before replacing public
-bytes atomically. Interrupted replacement retries identical bytes. Failed
-fetch/signature/clock checks preserve signed expiry. Missing state needs diagnosis,
-never automatic reinitialization or old DB restore. Disk-full parks access.
-The bare Git cache is transport data and may be deleted while timers are stopped;
-never delete updater/verifier SQLite to clear a failure. Units serialize updates;
-manual updates use systemctl start rather than a competing process.
+Never share publisher, updater or verifier SQLite. Preserve high-water and key
+history through restart; missing/corrupt state parks access. No automatic
+initialization, rollback or old-state restore. Failed verification and fetch
+preserve previous signed expiry. A failed/ambiguous push may have advanced the
+remote, so fetch before diagnosis; the next publication exceeds both high waters.
+The bare transport cache may be rebuilt with timers stopped. Durable state may
+not be deleted to clear a failure.
+
+Issuer rotation keeps explicit issue_until/verify_until ceilings and tombstones.
+A higher-sequence empty-keys bundle revokes all issuers, published by an explicit
+operator procedure. The renewal job refuses empty grants to prevent accidental
+mass revocation. Ordinary disconnected issuer revocation can take the remaining
+24h lease; 13-minute bearers plus skew retain the <15-minute cancellation bound.
+
+## First issuer
+
+agent-a-2026-10 is append-only, audience akasha, with exact source resources:
+
+- daily-health / homelab / chaldea.daily-health.agent-a, report.
+- fleet-timers / chaldea / agent-a.fleet, job_finished.
+- toolfeedback / chaldea / agent-a.toolfeedback, tool_call.
+
+The issuance window is 2026-10-17T00:00:00Z <= iat < 2026-11-16T00:00:00Z.
+verify_until is 2026-11-16T00:13:30Z, exactly 810 seconds later. Rotate before
+cutoff; never extend deadlines under an existing kid. This window is separate
+from the 24h trust lease.
 
 ## Checks
 
-TMPDIR=<absolute disk scratch> bash tools/ci.sh establishes synthetic HOME and
-fleet_home before tests. New pytest covers byte-only fetch arguments, preserved
-public bytes on transport/verification failure, size/key permissions, disabled
-inventory and rendered units. Chaldea tests exercise real signature/history/time
-checks with disposable generated fixture keys. No real homes, system managers
-or hosts are used. Live canaries remain a later approved rollout.
+Run tools/ci.sh through Chaldea with disk TMPDIR and scratch HOME. Infra's
+scripts/test-chaldea-publisher.py tests real Git path/parent guards and synthetic
+maintenance responses for increasing sequences, unhealthy clocks, verification
+failure, failed pushes and deduplicated age alerts. Its check-mode inventory is
+local and synthetic. Tests never SSH to Normandy/homelab or create private keys.
+Source-only results are distinct from deployment and live timer verification.

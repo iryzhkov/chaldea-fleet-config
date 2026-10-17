@@ -1,4 +1,7 @@
 ---
+- name: Retire explicitly removed skills
+  ansible.builtin.import_tasks: retire-skills.yml
+
 - name: Distribute the owned OpenCode Huyang plugin
   ansible.builtin.import_tasks: opencode-huyang.yml
 
@@ -19,33 +22,5 @@
   loop_control:
     label: "~/{{ item.dest }}"
 
-- name: Inspect the skill directories this role writes
-  ansible.builtin.stat:
-    path: "{{ fleet_home }}/{{ item.0 }}/{{ item.1 }}"
-    get_checksum: false
-  loop: "{{ agent_config_skill_dirs | product(agent_config_skills) | list }}"
-  loop_control:
-    label: "~/{{ item.0 }}/{{ item.1 }}"
-  register: agent_config_skill_paths
-
-- name: Refuse to write a skill through a symlink
-  ansible.builtin.assert:
-    that:
-      - not (item.stat.islnk | default(false))
-    fail_msg: >-
-      ~/{{ item.item | join('/') }} is a symlink; remove it or drop the skill
-      from agent_config_skills for this host.
-    quiet: true
-  loop: "{{ agent_config_skill_paths.results }}"
-  loop_control:
-    label: "~/{{ item.item | join('/') }}"
-
-- name: Install shared skills
-  ansible.builtin.copy:
-    src: "skills/{{ item.1 }}/"
-    dest: "{{ fleet_home }}/{{ item.0 }}/{{ item.1 }}/"
-    mode: "0644"
-    directory_mode: "0755"
-  loop: "{{ agent_config_skill_dirs | product(agent_config_skills) | list }}"
-  loop_control:
-    label: "~/{{ item.0 }}/{{ item.1 }}"
+- name: Install shared skills with guarded link migration
+  ansible.builtin.import_tasks: install-skills.yml

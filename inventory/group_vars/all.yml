@@ -32,9 +32,19 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Reviewed candidate; confirm the immutable public release tag before rollout.
-chaldea_host_version: host-v0.1.1
-chaldea_host_sha256: "f83769273ffe568c5748a0eccccf5a812d4f31c25be9e62ce00a9423ddc1d71e"
+# Client activation waits for the first main-only client release. In one pin
+# update, set enabled=true, version and the manifest's reviewed SHA-256.
+chaldea_client_enabled: true
+chaldea_client_version: client-v0.2.0
+chaldea_client_sha256: "6803a80d05968928c77f028084a28490e805a5eaf775c771fa13324498744810"
+
+# Released from main (63d2c3d) through the main-only release gate.
+chaldea_host_version: host-v0.2.0
+chaldea_host_sha256: "2e9a8d3cfd859516539aff8b494d66a397e6581a350ef9ecda80fd272ef9b4c6"
+
+# Signed data lives apart from root-executed fleet configuration.
+chaldea_access_trust_repository: ssh://git@github.com/iryzhkov/chaldea-trust.git
+chaldea_access_trust_bundle_path: bundle.jws
 
 # Canonical access filesystem contract, consumed by host-role defaults/templates.
 chaldea_access_paths:
@@ -55,7 +65,17 @@ chaldea_access_paths:
 # changes, its from= restriction refuses it until this entry is updated.
 # Trust and clock packaging is source-only; enroll verifiers explicitly after bootstrap.
 chaldea_access_trust_enabled: false
-chaldea_access_trust_anchors: []
+# New Normandy anchor. The orchestrator replaces both public placeholders in
+# this file and homelab-infra vars/chaldea-runtime.yml before activation.
+chaldea_deployment_anchor_kid: deployment-2026-10b
+chaldea_deployment_anchor_public_jwk:
+  kty: OKP
+  crv: Ed25519
+  x: LdKCbSgPcgsIzAoeo-ArvcdLSPItYhUVp71qjjTRkis
+chaldea_deployment_anchor_spki_sha256: 951ded14daf520a7cc5b4717069e2133f505f3f993f7e7f2c83fc57d3bc5302d
+chaldea_access_trust_anchors:
+  - kid: "{{ chaldea_deployment_anchor_kid }}"
+    public_key: "{{ chaldea_deployment_anchor_public_jwk }}"
 chaldea_job_host_enabled: false
 chaldea_job_client_enabled: false
 chaldea_job_host_sources:

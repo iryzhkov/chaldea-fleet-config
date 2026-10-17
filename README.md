@@ -1,5 +1,7 @@
 # chaldea-fleet-config
 
+The [Chaldea client role](docs/chaldea-client.md) manages pinned client releases, migration, quota and waits user services, and the explicit Codex balance binding. Activation waits for the first published client release.
+
 Restricted fleet compute roles are opt-in. See [job-host enrollment, policy, quotas and exact apply steps](docs/job-host.md).
 
 Ansible configuration for the Chaldea hosts. Each host converges itself with
@@ -191,7 +193,9 @@ does not deploy it or enable timers.
 
 ## CI
 
-The self-hosted workflow stages Node 26.12.0 for Linux x64 from the official Node
+CI runs on GitHub-hosted `ubuntu-24.04` runners, because this repository is public
+and a self-hosted runner would execute pull requests from forks on a fleet host.
+Python 3.13 comes from a pinned `actions/setup-python`. The workflow stages Node 26.12.0 for Linux x64 from the official Node
 archive, verifies its pinned SHA-256 before extraction or execution, and adds its
 absolute bin path to the job PATH. The archive pin matches the reviewed job-toolchain
 pin in `inventory/group_vars/all.yml`; update both deliberately when changing it.

@@ -84,10 +84,12 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
     environment = {**os.environ, "ANSIBLE_ROLES_PATH": str(ROOT / "roles"),
                    "ANSIBLE_LOCAL_TEMP": str(tmp_path / "ansible")}
 
-    def run(enabled=None, check=False):
+    def run(enabled=None, check=False, managed=False):
         argv = ["ansible-playbook", "-i", "localhost,", str(play)]
         if enabled is not None:
             argv += ["-e", json.dumps({"mcp_registrations_chaldea_waits_enabled": enabled})]
+        if managed:
+            argv += ["-e", "chaldea_client_enabled=true"]
         if check:
             argv += ["--check"]
         result = subprocess.run(argv, cwd=ROOT, env=environment, capture_output=True, text=True)
@@ -116,3 +118,7 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
     assert a["other"]["command"] == b["other"]["command"] == "/keep"
     assert tomllib.loads(codex.read_text())["model"] == "personal"
     assert re.search(r"changed=0\s", run())
+    run(True, managed=True)
+    for servers in definitions():
+        assert servers["chaldea"]["args"][0] == str(home / ".local/share/chaldea/current/bin/chaldea")
+    assert re.search(r"changed=0\s", run(True, managed=True))
