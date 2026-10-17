@@ -46,9 +46,10 @@ scratch path and output destination. Cover these lenses (combine for small scope
    (vendor/generated separate), test ratios, PR/fix rounds, flakes, real use,
    interactive latency/polling, retention and any-host-down recovery.
 
-Assign heavy measurement once, normally to lens 5: line counts, test suites
-and bounded flake reruns go through `chaldea exec` without `--host`.
-Other lenses reuse those results. Follow the chaldea skill for scratch HOME,
+Assign heavy measurement only to lens 5 (or one named combined lens): line
+counts, test suites and bounded flake reruns use `chaldea exec` without `--host`.
+Other parallel lenses use the previous audit's numbers or name evidence gaps;
+the synthesis incorporates the measurement lens's new results. Follow the chaldea skill for scratch HOME,
 snapshot limits and uncertain jobs. Completion notifications wake the lead;
 never poll. Recorded decisions are checked for drift, not re-argued.
 

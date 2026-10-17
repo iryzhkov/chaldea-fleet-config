@@ -27,9 +27,7 @@ sessions. Continue routine work inside Igor's agreement without asking again.
 ## Delegate and follow work
 
 - Use `orchestrator_capabilities` for live IDs. Delegate builds/implementation
-  with T3 `delegate_task`; follow the shared model roles: Sol 6.1 or Opus 5.5
-  at high for planning/execution, Luna 6 or Sonnet/Haiku 5.5 for bulk reading,
-  Astra or Fable 5.1 at medium for critical review. Never max effort or above.
+  with T3 `delegate_task`; follow the shared model roles and effort limits.
   Prefer Codex for builds and bulk reads to conserve Claude quota.
 - Load review-delegation for self-contained worker briefs, worktree isolation
   and review rules. Builders may run their own compliant T3 reviews; reuse
@@ -53,13 +51,12 @@ sessions. Continue routine work inside Igor's agreement without asking again.
 - Ask Igor before changes to multiple hosts, credentials, homelab or Normandy
   deployments, or UDM/NAS work, unless that exact scope is already authorized.
   Source implementation is not deployment authority. Never expose secrets.
-- For an authorized fleet-config rollout, pin the merged revision and target
-  hosts. On each host run check mode with diff, then a real converge, then a
-  second real converge that must report `changed=0`. Verify installed
-  versions/services and report evidence per host; do not infer distribution.
-- Background long converges and follow their completion with Chaldea waits.
-  Preserve the command, target, log and outcome for the next wake. A disconnect
-  or reboot is not success; reconcile uncertain work before any retry.
+- Load fleet-rollout for authorized deployments: pinned host-side ansible-pull,
+  check, real, second real `changed=0`, and before/after unit/timer snapshots.
+  It owns the converge procedure; report verification evidence per host.
+- Background long converges in delegated threads, using their completion wake
+  or one Chaldea thread wait for a non-child thread. Preserve command, target,
+  log and outcome; reconcile a disconnect or reboot before any retry.
 - Any host may reboot without breaking the rest. Do not reboot as a routine
   recovery action. Restart T3 only with `chaldea t3 restart` once that command
   exists, within explicit authorization; until then defer and ask Igor.
@@ -86,3 +83,26 @@ sessions. Continue routine work inside Igor's agreement without asking again.
   "Load the roadmap-executor skill first." Include exact plan/checkpoint/audit
   references, active task/thread/run/wait IDs, repository branches and commits,
   PRs/CI/reviews, permissions, blockers and the next concrete action.
+
+## Focused handoff / kickoff template
+
+Fill from verified evidence, remove unused clauses and unresolved placeholders,
+and link detailed logs. Preparing a prompt does not authorize its execution.
+Keep the first milestone end to end; investigate an uncertain seam before a
+broad build. Preserve successful checks and diagnose repeated failures rather
+than retrying the same repair or weakening verification.
+
+```text
+Load the roadmap-executor skill first.
+Execute <plan@revision> toward <authorized outcome>; checkpoint: <reference>.
+First milestone: <observable outcome and acceptance>; then <next step>.
+Source: <repo/worktree, branch, exact commit>; map: <verified paths/symbols>.
+Inputs/prerequisites: <briefs, artifacts, dependencies and current state>.
+Allowed edits/invariants: <scope>; external actions: <existing permissions>.
+Checks: <exact commands and expected behavior>; evidence: <durable locations>.
+Reviews: <accepted commit, reviewer threads/models/verdicts, open findings>.
+In flight: <task/thread/run/wait IDs, PRs and CI>; blockers/risks: <facts>.
+Next action: <one concrete action>; budget/boundary: <agreed limit if any>.
+Continue inside authorization; checkpoint at milestones or a genuine stop.
+Report implemented/reviewed/merged/deployed/verified states separately.
+```

@@ -1,0 +1,29 @@
+---
+- name: Inspect the approved skill link target
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ agent_config_skill_link.item | join('/') }}"
+    follow: true
+    get_checksum: false
+  register: agent_config_skill_link_target
+
+- name: Require a directory target before comparing skill trees
+  ansible.builtin.assert:
+    that:
+      - agent_config_skill_link_target.stat.isdir | default(false)
+    fail_msg: "Skill link {{ agent_config_skill_link.item | join('/') }} has no directory target; stopping."
+    quiet: true
+
+# ansible-pull runs on the host itself, where role_path is available.
+# Read-only comparison runs in check mode too. Extra files and nested links count.
+- name: Require the full skill target tree to match the managed source
+  ansible.builtin.command:
+    argv:
+      - diff
+      - --brief
+      - --recursive
+      - --no-dereference
+      - --
+      - "{{ role_path }}/files/skills/{{ agent_config_skill_link.item.1 }}"
+      - "{{ agent_config_skill_link.stat.lnk_source }}"
+  changed_when: false
+  check_mode: false

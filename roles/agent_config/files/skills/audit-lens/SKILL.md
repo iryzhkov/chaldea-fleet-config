@@ -26,9 +26,10 @@ repository reads. Do not delegate further; return evidence to the audit lead.
 
 ## Measurements and evidence
 
-- Run heavy line counts, test suites and flake reruns from a clone through
-  `chaldea exec -- CMD ARG...`, without `--host`; reuse the lead's assigned
-  measurement results rather than running the same suite in every lens.
+- Only the assigned measurement lens runs heavy counts, suites and flake
+  reruns, through `chaldea exec -- CMD ARG...` without `--host`. Other parallel
+  lenses use the previous audit's numbers or report gaps; the synthesis joins
+  their findings with the measurement lens's new numbers.
 - Chaldea omits Git metadata: resolve commits and Git-dependent selection
   locally, then pass the selected files/packages and flags to the job.
   Keep the tested snapshot/commit identity, command, host, job ID and outcome.
