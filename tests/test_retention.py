@@ -1,24 +1,26 @@
-"""Behaviour of roles/retention/files/chaldea-retention against throwaway trees."""
+"""Behaviour of the rendered retention script against throwaway trees."""
 
-import importlib.machinery
-import importlib.util
+import types
 import os
 import subprocess
 import time
 from pathlib import Path
 
 import pytest
+import yaml
+from jinja2 import Environment, StrictUndefined
 
-SCRIPT = Path(__file__).resolve().parents[1] / "roles/retention/files/chaldea-retention"
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "roles/retention/templates/chaldea-retention.j2"
+NODE_VERSION = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())["chaldea_node_version"]
 DAY = 86400
 
 
-def load_script():
-    loader = importlib.machinery.SourceFileLoader("chaldea_retention", str(SCRIPT))
-    spec = importlib.util.spec_from_loader(loader.name, loader)
-    assert spec is not None
-    module = importlib.util.module_from_spec(spec)
-    loader.exec_module(module)
+def load_script(node_version=NODE_VERSION):
+    source = Environment(undefined=StrictUndefined).from_string(SCRIPT.read_text()).render(
+        chaldea_node_version=node_version)
+    module = types.ModuleType("chaldea_retention")
+    exec(compile(source, str(SCRIPT), "exec"), module.__dict__)
     return module
 
 
@@ -258,6 +260,31 @@ def test_mise_prune_keeps_the_latest_link_target_and_versions_in_use(tmp_path):
         "codex@0.150.0": "a process uses it",
         "node@24.0.0": "install path not known",
     }
+
+
+@pytest.mark.parametrize("node_version", [NODE_VERSION, "26.11.0"])
+def test_mise_keeps_pinned_chaldea_node_without_latest_or_process(tmp_path, monkeypatch, capsys, node_version):
+    script = load_script(node_version)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    installs = tmp_path / ".local/share/mise/installs/node"
+    for version in (node_version, "26.12.0", "24.0.0"):
+        (installs / version).mkdir(parents=True)
+    (installs / "latest").symlink_to("26.12.0")
+    plan = "\n".join(
+        f"mise node@{v} is prunable\nmise node@{v} [dryrun]  remove {installs / v}, cache"
+        for v in (node_version, "24.0.0"))
+    calls = []
+    def mise(argv, **kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout=plan, stderr="")
+    monkeypatch.setattr(script.shutil, "which", lambda name: "/fake/mise")
+    monkeypatch.setattr(script.subprocess, "run", mise)
+
+    script.prune_mise(script.parse_args([]), set())
+
+    assert calls == [["/fake/mise", "prune", "--tools", "--dry-run"],
+                     ["/fake/mise", "uninstall", "node@24.0.0"]]
+    assert f"keep node@{node_version}: the pinned Chaldea runtime" in capsys.readouterr().out
 
 
 def test_tmp_removes_old_entries_and_keeps_recent_ones(tmp_path):

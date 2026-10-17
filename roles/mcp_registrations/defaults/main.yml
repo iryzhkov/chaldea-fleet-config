@@ -8,7 +8,7 @@ mcp_registrations_chaldea_waits_enabled: false
 mcp_registrations_servers:
   - name: chaldea
     enabled: "{{ mcp_registrations_chaldea_waits_enabled }}"
-    command: "{{ fleet_home }}/.local/share/mise/installs/node/26.10.0/bin/node"
+    command: "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
     args:
       - "{{ fleet_home }}/.local/share/chaldea/app/src/cli.ts"
       - mcp

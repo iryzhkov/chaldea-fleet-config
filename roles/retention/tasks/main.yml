@@ -4,8 +4,8 @@
     name: timer_reporting
 
 - name: Install the retention script
-  ansible.builtin.copy:
-    src: chaldea-retention
+  ansible.builtin.template:
+    src: chaldea-retention.j2
     dest: "{{ retention_script }}"
     mode: "0755"
 

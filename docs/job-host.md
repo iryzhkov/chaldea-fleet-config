@@ -203,8 +203,10 @@ baseline packages exist.
    real apply should report changed=0. The role requires passt >= 2025-05-03 and
    bubblewrap >= 0.9 (size-limited tmpfs), checks required networking options, and
    runs the exact pasta+bwrap launch as chaldea-job against mounted job storage.
-   A failed smoke test fails apply clearly before enabling new SSH access. An
-   absent mount skips this storage-dependent smoke and jobs refuse until mounted.
+   A failed smoke test fails apply clearly before enabling new SSH access. A
+   busy admission lock defers the smoke to the next apply without touching the
+   running job. An absent mount skips this storage-dependent smoke and jobs
+   refuse until mounted.
    Repeat apply once mounted; do not accept enrollment without a passing smoke.
    Older distro pasta uses a PID namespace: the server translates bwrap's status
    PID through /proc within the transport's descendant tree. It does not require
@@ -307,6 +309,9 @@ executes as root during provisioning.** This gives a compiler, Cargo and native
 standard library without rustup or mutable channels. Cargo writes only to the
 job's own home and workspace. Rust requires the exposed distro C/linker tools;
 cross compilation, rustfmt and clippy are outside this initial toolchain.
+On Debian, /etc/alternatives is also mounted read-only when present so cc and
+other distro symlinks resolve. Its targets gain no additional mounts or writable
+host paths; host homes, credentials and sockets remain outside the sandbox.
 
 The installed manifest records tool, version, architecture and verified digests.
 An existing completed version is left untouched and causes no network request;
@@ -315,12 +320,13 @@ the reviewed inventory pins is refused rather than overwritten.
 Installed directories and executable files are 0555; other files are 0444.
 Ansible runs the manager as root; the parent directories are root-owned 0755.
 Check mode reports intended versions without downloads or installation.
-Apply holds the existing job admission lock while installing and pruning.
-The lock is opened read-only with O_NOFOLLOW | O_NONBLOCK; fstat must confirm
-a regular file before flock. The role never touches or chowns a path in the
-job-owned directory. A missing lock means no server has run and is skipped
-without creating it. **A busy host stops the apply; retry it after the job
-finishes**, including when convergence is driven by the orchestrator. A separate
+Installation is additive and does not take the job admission lock: private
+staging is published by rename. Only pruning takes the existing admission lock,
+opened read-only with O_NOFOLLOW | O_NONBLOCK; fstat must confirm a regular file
+before flock. The role never touches or chowns a path in the job-owned directory.
+If the lock is busy or absent before the server first runs, pruning is logged
+as deferred to the next apply; missing versions are still installed and apply
+succeeds. Changed status reflects only installations or removals. A separate
 installer lock prevents competing applies. Abandoned staging is removed on
 the next apply. No provisioning runs in a job or on the client.
 
@@ -333,7 +339,14 @@ non-default version for one job, prepend its directory explicitly, for example:
     chaldea exec --host agent-a -- sh -c 'export PATH=/opt/chaldea-tools/node/26.10.0/bin:$PATH; node --version; npm ci'
 
 No new client option is needed. Removing a configured version makes it eligible
-for pruning, so jobs should normally use inventory defaults.
+for pruning, so jobs should normally use inventory defaults. Versions are defined
+only in inventory alongside their checksum pins; the role refuses an unset list.
+
+The session-host Chaldea runtime is separately pinned by chaldea_node_version in
+inventory (still 26.10.0). The launcher, MCP registration and retention share
+that pin. Retention keeps it even when mise's latest link moves and no Chaldea
+process is running. Existing omarchy-pc Chaldea units reference that same version;
+these units are not managed by this repository.
 
 The server puts the four selected bin directories before /usr/bin:/bin and
 sets TAR_OPTIONS=--no-same-owner for GNU tar in the job user namespace. npm's
@@ -365,7 +378,9 @@ user, then run (from the fleet-config checkout, after CI creates its venv):
 The chaldea argument must name a clone of iryzhkov/chaldea with npm ci completed.
 The test starts an ephemeral rootless SSH daemon using this role's shipped
 templates and server, invokes chaldea exec, checks all tool versions, runs npm ci
-and a tiny npm build, compiles/runs Go and Cargo programs, creates a uv venv, and
+and a tiny npm build, checks cc --version and an offline cargo new/build,
+compiles/runs Go and Cargo programs, verifies read-only alternatives and hidden
+host credential paths, creates a uv venv, and
 extracts a tar with unmapped owner IDs without a command-line ownership flag.
 It also checks that extraction fails with TAR_OPTIONS unset and verifies
 workspace/cache removal. No real host is enrolled or changed. The existing

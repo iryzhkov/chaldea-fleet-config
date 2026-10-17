@@ -14,12 +14,13 @@ import yaml
 from test_mcp_registration import FAKE_CLAUDE, call
 
 ROOT = Path(__file__).resolve().parents[1]
+NODE_VERSION = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())["chaldea_node_version"]
 
 
 def chaldea(home):
     return {
         "name": "chaldea",
-        "command": f"{home}/.local/share/mise/installs/node/26.10.0/bin/node",
+        "command": f"{home}/.local/share/mise/installs/node/{NODE_VERSION}/bin/node",
         "args": [f"{home}/.local/share/chaldea/app/src/cli.ts", "mcp", "--config",
                  f"{home}/.config/chaldea/waits.json"],
     }
@@ -75,6 +76,7 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
             "ansible_connection": "local",
             "ansible_python_interpreter": sys.executable,
             "fleet_home": str(home),
+            "chaldea_node_version": NODE_VERSION,
             "mcp_registrations_claude": [FAKE_CLAUDE, str(claude)],
         },
         "roles": ["mcp_registrations"],
