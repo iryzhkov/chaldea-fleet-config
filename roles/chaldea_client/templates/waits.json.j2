@@ -1,0 +1,12 @@
+{{ {
+  'environment': chaldea_client_waits_environment,
+  't3BaseDir': chaldea_client_t3_home,
+  'tokenFile': chaldea_client_waits_token,
+  'answerTokenFile': chaldea_client_answer_token,
+  'database': fleet_home ~ '/.local/state/chaldea/waits.sqlite',
+  'socket': chaldea_client_waits_socket,
+  'listenAddress': chaldea_client_waits_listen,
+  'port': chaldea_client_waits_port,
+  'answerBaseUrl': chaldea_client_answer_url,
+  'logFile': fleet_home ~ '/.local/state/chaldea/waits.log'
+} | to_nice_json }}

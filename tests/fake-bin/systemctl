@@ -38,8 +38,8 @@ for name in names:
     elif unit is None and verb in ("start", "stop", "enable", "disable"):
         print(f"Failed to {verb} {name}: Unit {name} not found.", file=sys.stderr)
         rc = 5
-    elif verb in ("start", "stop"):
-        unit["active"] = verb == "start"
+    elif verb in ("start", "stop", "restart"):
+        unit["active"] = verb in ("start", "restart")
     elif verb in ("enable", "disable"):
         unit["enabled"] = verb == "enable"
 with open(state_path, "w") as handle:

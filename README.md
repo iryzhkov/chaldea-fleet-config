@@ -1,5 +1,7 @@
 # chaldea-fleet-config
 
+The [Chaldea client role](docs/chaldea-client.md) manages pinned client releases, migration, quota and waits user services, and the explicit Codex balance binding. Activation waits for the first published client release.
+
 Restricted fleet compute roles are opt-in. See [job-host enrollment, policy, quotas and exact apply steps](docs/job-host.md).
 
 Ansible configuration for the Chaldea hosts. Each host converges itself with
