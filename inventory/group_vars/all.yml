@@ -30,8 +30,9 @@ chaldea_node_version: "26.10.0"
 
 # Fleet compute is explicitly enrolled per host after review; hosts.yml turns
 # each role on. Only public halves of the job keys belong here, never a private
-# key. Enrolled 2026-10-17: job hosts agent-a and omarchy-pc, session hosts
-# omarchy-pc and the laptop. The laptop's address comes from DHCP on wlan0; if it
+# key. Enrolled 2026-10-17: job hosts agent-a, agent-b, omarchy-pc and the
+# laptop, session hosts omarchy-pc and the laptop. Targets are listed in Igor's
+# fallback order: agent-a, agent-b, omarchy-pc (when its game gate allows), laptop. The laptop's address comes from DHCP on wlan0; if it
 # changes, its from= restriction refuses it until this entry is updated.
 chaldea_job_host_enabled: false
 chaldea_job_client_enabled: false
@@ -40,7 +41,9 @@ chaldea_job_host_sources:
   - {name: laptop, ip: 192.168.90.163, public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPfzyHZ+qPdUaHXzwHyRXKGhvlPs/Fz+EoE0Jk57Mg8Z'}
 chaldea_job_client_targets:
   - {name: agent-a, address: 192.168.130.2, port: 2222}
+  - {name: agent-b, address: 192.168.130.3, port: 2222}
   - {name: omarchy-pc, address: 192.168.90.212, port: 2222}
+  - {name: laptop, address: 192.168.90.163, port: 2222}
 
 t3_enabled: true
 t3_version: 0.1.0
