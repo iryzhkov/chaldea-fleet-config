@@ -1,0 +1,33 @@
+---
+# Off until reviewed enrollment. Image creation/mounting is operator-approved only.
+chaldea_job_host_enabled: false
+chaldea_job_host_user: chaldea-job
+chaldea_job_host_port: 2222
+chaldea_job_host_listen: ["0.0.0.0", "::"]
+chaldea_job_host_pid_file: "/run/chaldea-job-sshd.pid"
+chaldea_job_host_host_key: "/etc/ssh/ssh_host_ed25519_key"
+chaldea_job_host_authorized_keys: "/home/chaldea-job/.ssh/authorized_keys"
+chaldea_job_host_log_level: "ERROR"
+chaldea_job_host_state_root: "{{ (data_disk_root | default('')) ~ '/chaldea-job' if data_disk_root | default('') | length > 0 else '/home/chaldea-job/jobs' }}"
+chaldea_job_host_server: /usr/local/libexec/chaldea-job-server-v1
+chaldea_job_host_policy: always
+chaldea_job_host_desktop_user: igor
+chaldea_job_host_steam_game_pattern: '(^|/)reaper(\s|$).*SteamLaunch\s+AppId=\d+'
+chaldea_job_host_minecraft_pattern: '(net\.minecraft(\.|/)|net\.fabricmc\.loader.*[Kk]not|[/.]minecraft(-modded)?(/|\s|$))'
+chaldea_job_host_sources: []
+# Entries: {name: laptop, ip: 192.0.2.1, public_key: 'ssh-ed25519 AAAA...'}
+chaldea_job_host_gpu_devices: []
+chaldea_job_host_nvidia_icd: ""
+chaldea_job_host_gpu_groups: []
+chaldea_job_host_sshd_binary: "{{ '/usr/bin/sshd' if ansible_facts.os_family == 'Archlinux' else '/usr/sbin/sshd' }}"
+chaldea_job_host_sshd_service: "{{ 'sshd' if ansible_facts.os_family == 'Archlinux' else 'ssh' }}"
+chaldea_job_host_command: "/usr/bin/python3 -I {{ chaldea_job_host_server }}"
+chaldea_job_host_image: "{{ '/srv/agent/chaldea-job.ext4' if data_disk_root | default('') | length > 0 else '/home/chaldea-job-state.ext4' }}"
+chaldea_job_host_image_bytes: 21474836480
+chaldea_job_host_memory_max: "{{ [4 * 1024**3, ansible_facts.memtotal_mb | int * 1024**2 // 2] | min }}"
+chaldea_job_host_tasks_max: 256
+chaldea_job_host_cpu_weight: 10
+chaldea_job_host_io_weight: 10
+# systemd percentages are of one CPU: 50% of every logical core by default.
+chaldea_job_host_cpu_quota: "{{ (ansible_facts.processor_vcpus | int * 50) }}%"
+chaldea_job_host_shm_bytes: 67108864

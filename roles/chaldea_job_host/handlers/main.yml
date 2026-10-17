@@ -1,0 +1,24 @@
+---
+- name: Reload job firewall
+  become: true
+  ansible.builtin.command:
+    argv: [ufw, reload]
+  changed_when: true
+
+- name: Restart job sshd
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-job-sshd.service
+    daemon_reload: true
+    state: restarted
+
+- name: Restart job journal
+  become: true
+  ansible.builtin.systemd_service:
+    name: systemd-journald@chaldea-job.service
+    state: restarted
+
+- name: Reload job units
+  become: true
+  ansible.builtin.systemd_service:
+    daemon_reload: true

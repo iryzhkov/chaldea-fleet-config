@@ -1,0 +1,68 @@
+---
+# Rootless role test. The dummy file is deliberately not a usable private key.
+- name: Exercise session-host SSH configuration with metadata-only enrollment
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  gather_subset: [min]
+  vars:
+    fleet_home: "{{ playbook_dir }}/../.ci-home/job-client"
+    chaldea_job_client_targets:
+      - {name: fixture, address: 192.0.2.123, port: 2222}
+  tasks:
+    - name: Create fixture SSH directory
+      ansible.builtin.file:
+        path: "{{ fleet_home }}/.ssh"
+        state: directory
+        mode: "0700"
+
+    - name: Create a metadata-only dummy key
+      ansible.builtin.copy:
+        dest: "{{ fleet_home }}/.ssh/chaldea-job_ed25519"
+        content: "metadata fixture, never a usable private key\n"
+        mode: "0600"
+
+    - name: Configure isolated compute SSH
+      ansible.builtin.include_role:
+        name: chaldea_job_client
+
+    - name: Resolve the managed alias without connecting
+      ansible.builtin.command:
+        argv: [ssh, -G, -F, "{{ fleet_home }}/.ssh/chaldea-job.conf", chaldea-job-fixture]
+      register: fixture_ssh
+      changed_when: false
+
+    - name: Assert every client-side restriction and multiplex setting
+      ansible.builtin.assert:
+        that:
+          - "'hostname 192.0.2.123' in fixture_ssh.stdout_lines"
+          - "'user chaldea-job' in fixture_ssh.stdout_lines"
+          - "'port 2222' in fixture_ssh.stdout_lines"
+          - "'identityagent none' in fixture_ssh.stdout_lines"
+          - "'identitiesonly yes' in fixture_ssh.stdout_lines"
+          - "'forwardagent no' in fixture_ssh.stdout_lines"
+          - "'clearallforwardings yes' in fixture_ssh.stdout_lines"
+          - "'controlmaster auto' in fixture_ssh.stdout_lines"
+          - "'controlpersist 60' in fixture_ssh.stdout_lines"
+          - "'stricthostkeychecking true' in fixture_ssh.stdout_lines"
+        quiet: true
+
+    - name: Make the dummy key too permissive
+      ansible.builtin.file:
+        path: "{{ fleet_home }}/.ssh/chaldea-job_ed25519"
+        mode: "0644"
+
+    - name: Require bad key metadata to fail enrollment
+      block:
+        - name: Try unsafe enrollment
+          ansible.builtin.include_role:
+            name: chaldea_job_client
+        - name: Reject an incorrectly accepted key
+          ansible.builtin.fail:
+            msg: unsafe key was accepted
+      rescue:
+        - name: Verify rejection came from the key assertion
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == 'Require a private key owned by the session user'
+            quiet: true

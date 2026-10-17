@@ -1,5 +1,7 @@
 # chaldea-fleet-config
 
+Restricted fleet compute roles are opt-in. See [job-host enrollment, policy, quotas and exact apply steps](docs/job-host.md).
+
 Ansible configuration for the Chaldea hosts. Each host converges itself with
 `ansible-pull` from this repository on a systemd user timer: there is no
 controller and no SSH between hosts. Nothing here adds a step to an agent

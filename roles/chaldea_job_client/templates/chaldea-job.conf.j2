@@ -1,0 +1,25 @@
+{% for target in chaldea_job_client_targets %}
+Host chaldea-job-{{ target.name }}
+    HostName {{ target.address }}
+    Port {{ target.port | default(2222) }}
+{% endfor %}
+Host *
+    User chaldea-job
+    IdentityFile {{ chaldea_job_client_key }}
+    IdentityAgent none
+    IdentitiesOnly yes
+    BatchMode yes
+    PreferredAuthentications publickey
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    ForwardAgent no
+    ForwardX11 no
+    ClearAllForwardings yes
+    RequestTTY no
+    ControlMaster auto
+    ControlPersist 60
+    ControlPath {{ fleet_home }}/.local/state/chaldea/exec/ssh/%C
+    StrictHostKeyChecking yes
+    UserKnownHostsFile {{ fleet_home }}/.ssh/chaldea-job_known_hosts
+    ServerAliveInterval 15
+    ServerAliveCountMax 2

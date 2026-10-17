@@ -46,3 +46,4 @@ fi
 
 ansible-playbook -i localhost, tests/user_timer.yml
 ansible-playbook -i localhost, tests/data_disk.yml
+ansible-playbook -i localhost, tests/job_client.yml

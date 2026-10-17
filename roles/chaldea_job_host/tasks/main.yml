@@ -1,0 +1,380 @@
+---
+- name: Validate the job host's restricted enrollment
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_host_user == 'chaldea-job'
+      - chaldea_job_host_port | int > 1024
+      - chaldea_job_host_port | int < 65536
+      - chaldea_job_host_port | int != 22
+      - chaldea_job_host_sources | length > 0
+      - chaldea_job_host_policy in ['always', 'idle']
+      - chaldea_job_host_image_bytes | int >= 536870912
+      - chaldea_job_host_state_root is match('^/(srv/agent/chaldea-job|home/chaldea-job/jobs)$')
+    quiet: true
+
+- name: Validate every source key and exact source address
+  ansible.builtin.assert:
+    that:
+      - item.name is match('^[a-zA-Z0-9-]+$')
+      - item.ip is match('^[0-9.]+$|^[0-9a-fA-F:]+$')
+      - item.public_key is match('^ssh-ed25519 [A-Za-z0-9+/]{68,}={0,2}( .*)?$')
+      - "'PLACEHOLDER' not in item.public_key"
+    fail_msg: Replace the inventory placeholders with each session host's public key and fixed IP.
+    quiet: true
+  loop: "{{ chaldea_job_host_sources }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Read local CPU and RAM facts for shared-host limits
+  ansible.builtin.setup:
+    gather_subset: ["!all", "!min", hardware]
+    filter: [ansible_memtotal_mb, ansible_processor_vcpus]
+
+- name: Bound job memory to at most half of the host RAM
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_host_memory_max | human_to_bytes <= ansible_facts.memtotal_mb | int * 1024**2 // 2
+    fail_msg: chaldea_job_host_memory_max must be at most half of this host's RAM.
+    quiet: true
+
+- name: Install sandbox, isolated networking and image tools
+  become: true
+  ansible.builtin.package:
+    name: "{{ ['bubblewrap', 'openssh', 'ufw', 'passt', 'nftables', 'e2fsprogs'] if ansible_facts.os_family == 'Archlinux' else ['bubblewrap', 'openssh-server', 'ufw', 'passt', 'nftables', 'e2fsprogs'] }}"
+    state: present
+
+- name: Read installed package versions
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Require the supported distro sandbox baseline
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.packages['bubblewrap'][0].version is version('0.9', '>=')
+      - (ansible_facts.packages['passt'][0].version | regex_search('[0-9]{4}[_]?[0-9]{2}[_]?[0-9]{2}') | replace('_', '') | int) >= 20250503
+    fail_msg: Jobs require bubblewrap >= 0.9 and passt >= 2025-05-03; update the distro packages before enrollment.
+    quiet: true
+
+- name: Require an active firewall before opening the compute path
+  become: true
+  ansible.builtin.command:
+    argv: [ufw, status]
+  register: chaldea_job_host_firewall
+  changed_when: false
+  check_mode: false
+  failed_when: "'Status: active' not in chaldea_job_host_firewall.stdout"
+
+- name: Create the dedicated job account without a usable password
+  become: true
+  ansible.builtin.user:
+    name: "{{ chaldea_job_host_user }}"
+    home: /home/chaldea-job
+    shell: /bin/sh
+    password: "*"
+    groups: "{{ chaldea_job_host_gpu_groups | join(',') }}"
+    append: false
+    create_home: true
+
+- name: Secure the job account home
+  become: true
+  ansible.builtin.file:
+    path: /home/chaldea-job
+    state: directory
+    owner: "{{ chaldea_job_host_user }}"
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0700"
+
+- name: Make authorized-key administration root-owned
+  become: true
+  ansible.builtin.file:
+    path: /home/chaldea-job/.ssh
+    state: directory
+    owner: root
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0750"
+
+- name: Require the data disk for image creation on data-disk hosts
+  ansible.builtin.command:
+    argv: [findmnt, -n, -o, TARGET, --target, /srv/agent]
+  register: chaldea_job_host_data_mount
+  changed_when: false
+  check_mode: false
+  failed_when: chaldea_job_host_data_mount.stdout != '/srv/agent'
+  when: chaldea_job_host_state_root is match('^/srv/agent/')
+
+- name: Inspect the optional image mount before creating its mountpoint
+  ansible.builtin.command:
+    argv: [mountpoint, -q, "{{ chaldea_job_host_state_root }}"]
+  register: chaldea_job_host_was_mounted
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Create the underlying mountpoint without granting job writes
+  become: true
+  ansible.builtin.file:
+    path: "{{ chaldea_job_host_state_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: chaldea_job_host_was_mounted.rc != 0
+
+- name: Derive the correct systemd path mount unit name
+  ansible.builtin.command:
+    argv: [systemd-escape, --path, --suffix=mount, "{{ chaldea_job_host_state_root }}"]
+  register: chaldea_job_host_mount_name
+  changed_when: false
+  check_mode: false
+
+- name: Create the fixed-size ext4 image without formatting existing state
+  become: true
+  ansible.builtin.script:
+    cmd: "chaldea-job-image --image {{ chaldea_job_host_image }} --bytes {{ chaldea_job_host_image_bytes }}"
+    executable: /usr/bin/python3 -I
+  register: chaldea_job_host_image_created
+  changed_when: "'created' in chaldea_job_host_image_created.stdout"
+  when: not ansible_check_mode
+
+- name: Install the low-priority bounded compute slice
+  become: true
+  ansible.builtin.template:
+    src: chaldea.slice.j2
+    dest: /etc/systemd/system/chaldea.slice
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload job units
+
+- name: Install the optional boot-safe image mount
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job.mount.j2
+    dest: "/etc/systemd/system/{{ chaldea_job_host_mount_name.stdout }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload job units
+
+- name: Enable and attempt the optional mount without making it a boot dependency
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ chaldea_job_host_mount_name.stdout }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  register: chaldea_job_host_mount_started
+  failed_when: false
+
+- name: Check whether job storage is actually mounted
+  ansible.builtin.command:
+    argv: [mountpoint, -q, "{{ chaldea_job_host_state_root }}"]
+  register: chaldea_job_host_mount_ready
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Secure the mounted filesystem for jobs
+  become: true
+  ansible.builtin.file:
+    path: "{{ chaldea_job_host_state_root }}"
+    state: directory
+    owner: "{{ chaldea_job_host_user }}"
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0700"
+  when: chaldea_job_host_mount_ready.rc == 0
+
+- name: Create the root-owned server directory
+  become: true
+  ansible.builtin.file:
+    path: /usr/local/libexec
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the self-contained protocol version one server
+  become: true
+  ansible.builtin.copy:
+    src: chaldea-job-server
+    dest: "{{ chaldea_job_host_server }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the job host configuration
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job.json.j2
+    dest: /etc/chaldea-job.json
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Verify the installed sandbox option baseline
+  ansible.builtin.command:
+    argv: [/usr/bin/python3, -I, "{{ chaldea_job_host_server }}", --check-tools]
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Smoke test the exact installed pasta and bubblewrap launch as the job user
+  become: true
+  # Drop from root after Ansible starts its module; no cross-user temp-file ACLs.
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/setpriv
+      - "--reuid={{ chaldea_job_host_user }}"
+      - "--regid={{ chaldea_job_host_user }}"
+      - --init-groups
+      - --
+      - /usr/bin/python3
+      - -I
+      - "{{ chaldea_job_host_server }}"
+      - --smoke-test
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - chaldea_job_host_mount_ready.rc == 0
+
+- name: Install only forced source-bound keys
+  become: true
+  ansible.builtin.template:
+    src: authorized_keys.j2
+    dest: /home/chaldea-job/.ssh/authorized_keys
+    owner: root
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0640"
+
+- name: Create the operator SSH drop-in directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install and validate operator SSH policy with rollback
+  become: true
+  block:
+    - name: Deny the job user on the ordinary operator SSH daemon
+      ansible.builtin.template:
+        src: 90-chaldea-job.conf.j2
+        dest: /etc/ssh/sshd_config.d/90-chaldea-job.conf
+        owner: root
+        group: root
+        mode: "0644"
+        validate: "{{ chaldea_job_host_sshd_binary }} -t -f %s"
+      register: chaldea_job_host_operator_dropin
+
+    - name: Validate the complete operator SSH configuration
+      ansible.builtin.command:
+        argv: ["{{ chaldea_job_host_sshd_binary }}", -t]
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Require the effective ordinary SSH deny rule case-insensitively
+      ansible.builtin.command:
+        argv: ["{{ chaldea_job_host_sshd_binary }}", -T, -C, "user=chaldea-job,host=localhost,addr=127.0.0.1"]
+      register: chaldea_job_host_effective_sshd
+      changed_when: false
+      failed_when: not (chaldea_job_host_effective_sshd.stdout is search('(?im)^denyusers (.* )?chaldea-job( |$)'))
+      when: not ansible_check_mode
+
+    - name: Reload only the validated operator daemon  # noqa: no-handler -- keep reload inside rollback block
+      ansible.builtin.systemd_service:
+        name: "{{ chaldea_job_host_sshd_service }}"
+        state: reloaded
+      when: chaldea_job_host_operator_dropin.changed
+  rescue:
+    - name: Remove the rejected drop-in
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d/90-chaldea-job.conf
+        state: absent
+    - name: Stop this apply after rollback without reloading invalid SSH config
+      ansible.builtin.fail:
+        msg: Operator SSH validation failed; the Chaldea drop-in was removed and no invalid config was reloaded.
+
+- name: Install the isolated job SSH daemon configuration
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job-sshd.conf.j2
+    dest: /etc/ssh/chaldea-job-sshd.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "{{ chaldea_job_host_sshd_binary }} -t -f %s"
+  notify: Restart job sshd
+
+- name: Install the job SSH daemon unit
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job-sshd.service.j2
+    dest: /etc/systemd/system/chaldea-job-sshd.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart job sshd
+
+- name: Create the bounded journal namespace directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/journald@chaldea-job.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Bound SSH authentication logs separately
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald@chaldea-job.conf.d/limits.conf
+    content: |
+      [Journal]
+      Storage=persistent
+      SystemMaxUse=16M
+      RuntimeMaxUse=16M
+      MaxRetentionSec=14day
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart job journal
+
+# UFW's before chains precede ordinary allow rules. Replacing one managed block
+# also revokes removed sources; IPv6 cannot bypass the IPv4 source policy.
+- name: Restrict the compute port before ordinary UFW rules
+  become: true
+  ansible.builtin.blockinfile:
+    path: "{{ item.path }}"
+    marker: "# {mark} CHALDEA JOB V0"
+    insertbefore: "^-A {{ item.chain }} -i lo -j ACCEPT$"
+    block: "{{ lookup('ansible.builtin.template', 'chaldea-job.ufw.j2') }}"
+    validate: "{{ item.restore }} --test %s"
+  loop:
+    - path: /etc/ufw/before.rules
+      chain: ufw-before-input
+      ipv6: false
+      restore: "{{ '/usr/bin/iptables-restore' if ansible_facts.os_family == 'Archlinux' else '/usr/sbin/iptables-restore' }}"
+    - path: /etc/ufw/before6.rules
+      chain: ufw6-before-input
+      ipv6: true
+      restore: "{{ '/usr/bin/ip6tables-restore' if ansible_facts.os_family == 'Archlinux' else '/usr/sbin/ip6tables-restore' }}"
+  loop_control:
+    label: "{{ item.path }}"
+  notify: Reload job firewall
+
+- name: Apply validated firewall and SSH changes before admitting jobs
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable persistent UFW enforcement at boot
+  become: true
+  ansible.builtin.systemd_service:
+    name: ufw.service
+    enabled: true
+    state: started
+
+- name: Start the restricted job SSH daemon
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-job-sshd.service
+    enabled: true
+    state: started
+    daemon_reload: true
