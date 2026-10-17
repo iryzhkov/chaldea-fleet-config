@@ -169,7 +169,7 @@ def test_disabled_units_need_no_secrets_and_upgrade_retains_one_previous(tmp_pat
         success(run(tmp_path, variables))
     root = Path.home() / ".local/share/chaldea"
     assert sorted(p.name for p in (root / "releases").iterdir()) == ["client-v9.0.1", "client-v9.0.2"]
-    assert (root / "previous").resolve() == root / "releases/client-v9.0.1"
+    assert (root / "previous").resolve() == (root / "releases/client-v9.0.1").resolve()
     cache = Path.home() / ".cache/chaldea-client"
     assert sorted(p.name for p in cache.iterdir()) == [
         "client-v9.0.1.json", "client-v9.0.1.tar.gz", "client-v9.0.2.json", "client-v9.0.2.tar.gz"]
