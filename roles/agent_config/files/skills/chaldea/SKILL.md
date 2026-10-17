@@ -12,6 +12,8 @@ Chaldea adds fleet compute, durable waits and a decision inbox to T3. Keep using
 T3's native delegation completion and `watch_pull_request` for child tasks and CI;
 use the `review-delegation` skill for reviews.
 
+`chaldea quota status` (or `--json`) reads the observer’s cached included-usage windows, aggregate Codex credits and advisory manual-reset inventory with per-metric freshness; it never spends credits or redeems resets.
+
 ## Run work on a job host
 
 From inside a Git worktree, use:
