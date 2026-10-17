@@ -68,10 +68,13 @@ Later enrollment needs an explicit host list. No broad fleet apply.
    Unknown/unsynchronised status fails closed; the conservative 30s offset bound
    and fresh 30s evidence apply to both. Use independent external time sources.
    This role does not install or change time services.
-2. Igor, as igor on **omarchy-pc only**, creates
+2. **First-time enrollment of a new kid only. Skip this step for the already
+   pinned deployment-2026-10 key; use its existing protected path.**
+   Igor, as igor on **omarchy-pc only**, creates
    /home/igor/.local/share/chaldea-access-publisher/keys (owner igor, 0700).
-   With umask 077, run openssl genpkey -algorithm ED25519 -out
-   <keys-dir>/deployment-2026-10.pem. The PKCS8 file is igor-owned 0600,
+   For a genuinely new key, use a subshell with umask 077 and set -C
+   (noclobber), then openssl genpkey -algorithm ED25519 > <new-key-path>.
+   Shell exclusive creation refuses an existing path; do not use -out on a live key. The PKCS8 file is igor-owned 0600,
    single-link. Protect ancestors. Igor holds its protected offline backup;
    omarchy-pc holds the sole live deployment key. Never copy it to a run host,
    sandbox, repository, env or transcript. omarchy-pc also hosts compute jobs:
@@ -83,12 +86,14 @@ Later enrollment needs an explicit host list. No broad fleet apply.
    Independently compare its public
    fingerprint/JWK before pinning chaldea_access_trust_anchors in approved
    inventory and Akasha config.
-3. For each approved issuer (first agent-a), the operator separately provisions
+3. **First-time issuer enrollment only. Skip key creation for the already
+   pinned agent-a-2026-10 key.** For each new approved issuer, the operator separately provisions
    locked service identity chaldea-issuer, distinct from the run UID, without
    login, sudo or operator groups. Create /var/lib/chaldea-issuer/keys and
    /var/lib/chaldea-issuer/state as chaldea-issuer:chaldea-issuer 0700.
-   As that UID, umask 077; openssl genpkey -algorithm ED25519 -out
-   /var/lib/chaldea-issuer/keys/agent-a-2026-10.pem. Owner chaldea-issuer,
+   As that UID, use a subshell with umask 077 and set -C, then
+   openssl genpkey -algorithm ED25519 > <new-issuer-key-path>.
+   Noclobber refuses existing files; never target the live issuer key. Owner chaldea-issuer,
    mode 0600, single regular file. HostIssuer's loadHostSigningKey reads it.
    Private material stays on its issuer host, outside all sandbox mounts,
    env and FDs. This task/role generates no key or identity.
@@ -136,7 +141,7 @@ Later enrollment needs an explicit host list. No broad fleet apply.
 7. Homelab is managed by homelab-infra, with playbooks run from omarchy-pc.
    Keep fleet inventory chaldea_access_trust_enabled=false. Use homelab-infra's
    targeted playbook and the exact ordered commands in its
-   [Akasha rollout runbook](https://github.com/iryzhkov/homelab-infra/blob/trust-rollout/docs/akasha-v1-deployment.md).
+   [Akasha rollout runbook](https://github.com/iryzhkov/homelab-infra/blob/main/docs/akasha-v1-deployment.md).
    It ports these roles/templates and imports the single path convention.
    Bootstrap key/known_hosts/state ownership and modes are checked before timers
    start; state must already be initialized. The fixed runtime directory is
