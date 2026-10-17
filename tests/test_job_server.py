@@ -380,9 +380,34 @@ peer,_=allowed.accept(); peer.close(); client.close()
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.parametrize("resolv,expected", [
+    ("nameserver 127.0.0.53\n", ["1.1.1.1", "9.9.9.9"]),
+    ("# no nameserver configured\n", ["1.1.1.1", "9.9.9.9"]),
+    ("nameserver 192.0.2.1\nnameserver 10.42.0.5\nnameserver 8.8.8.8\n", ["8.8.8.8"]),
+])
+def test_pasta_skips_dns_discovery_and_guest_keeps_sanitized_resolvers(resolv, expected):
+    read_text = Path.read_text
+    def read(path, *args, **kwargs):
+        return resolv if path == Path("/etc/resolv.conf") else read_text(path, *args, **kwargs)
+    with tempfile.TemporaryDirectory() as tmp:
+        workspace = Path(tmp) / "work"
+        workspace.mkdir()
+        with (patch.object(Path, "read_text", read),
+              patch.object(server, "host_addresses", return_value=["192.0.2.1"]),
+              patch.object(server, "connected_subnets", return_value=["10.42.0.0/24"]),
+              patch.object(server, "check_tools", return_value=""),
+              patch.object(server.subprocess, "check_output", return_value="--disable-userns")):
+            wrapped, launch = server.prepare_launch(request(), workspace, {})
+        assert "--network-supervisor" in wrapped
+        transport = json.loads(launch.read_text())["transport"]
+        assert "--foreground" in transport
+        assert [transport[i + 1] for i, arg in enumerate(transport) if arg == "--dns"] == ["none"]
+        assert (workspace / ".chaldea-resolv").read_text() == "".join("nameserver " + address + "\n" for address in expected)
+
+
 def test_package_baseline_rejects_old_bwrap_and_missing_pasta_options():
     from types import SimpleNamespace
-    required = "--foreground --config-net --no-map-gw --map-host-loopback --no-splice"
+    required = "--foreground --dns --config-net --no-map-gw --map-host-loopback --no-splice"
     with patch.object(server.subprocess, "check_output", return_value="bubblewrap 0.8.0"):
         with pytest.raises(server.Refused, match="bubblewrap >= 0.9"):
             server.check_tools()

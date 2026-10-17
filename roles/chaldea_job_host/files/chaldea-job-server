@@ -455,7 +455,7 @@ def check_tools(pasta="/usr/bin/pasta"):
     # An intentionally unknown option prints complete usage to unbuffered stderr.
     help_text = subprocess.run([pasta, "--chaldea-option-probe"], capture_output=True, text=True, timeout=2)
     help_text = help_text.stdout + help_text.stderr
-    for option in ("--foreground", "--config-net", "--no-map-gw", "--map-host-loopback", "--no-splice"):
+    for option in ("--foreground", "--dns", "--config-net", "--no-map-gw", "--map-host-loopback", "--no-splice"):
         if option not in help_text:
             raise Refused("installed pasta lacks required option " + option)
     return help_text
@@ -469,8 +469,10 @@ def prepare_launch(request, workspace, config):
     # Older distro pasta creates an extra PID namespace. Translate bwrap's
     # status PID on the host instead of requiring the newer --no-pidns option.
     wrapped = [pasta, "--foreground", "--quiet", "--config-net", "--no-map-gw",
-               "--map-host-loopback", "none", "--no-splice",
+               "--map-host-loopback", "none", "--no-splice", "--dns", "none",
                "-t", "none", "-u", "none", "-T", "none", "-U", "none"]
+    # The guest already has a sanitized resolv.conf; do not auto-discover DNS
+    # for unused DHCP/NDP metadata (which warns on loopback-only host stubs).
     if "--conf-path" in check_tools(pasta):
         wrapped += ["-c", str(workspace.parent / ".pasta.sock")]
     wrapped += ["--", "/usr/bin/python3", "-I", str(Path(__file__).resolve()),
