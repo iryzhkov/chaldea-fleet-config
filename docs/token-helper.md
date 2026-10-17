@@ -1,10 +1,11 @@
 # Service token helper enrollment
 
-Both the helper and access-trust updater stay disabled on every host here.
-Agent-a trust enrollment is a separate follow-up PR, held until host-v0.2.1 is
-pinned and the orchestrator provisions transport, private state and root-pinned
-Node, then verifies check mode, a real apply and a second apply with changed=0.
-The live pull timer follows main, so merging enrollment is an activation step.
+This activation follow-up enrolls the access-trust updater on agent-a only.
+The helper remains disabled everywhere. Hold this PR until host-v0.2.1 is pinned
+and the orchestrator provisions transport, private state and root-pinned Node,
+then verifies check mode, a real apply and a second apply with changed=0 on
+agent-a. The live pull timer follows main, so merging enrollment is activation.
+The orchestrator owns that merge; do not arm auto-merge for this follow-up.
 
 After Akasha step 9, the orchestrator can set chaldea_token_helper_enabled on one
 host, with a reviewed client release version and SHA-256, producer grants and
