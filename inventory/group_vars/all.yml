@@ -32,9 +32,9 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Reviewed candidate; confirm the immutable public release tag before rollout.
-chaldea_host_version: host-v0.1.1
-chaldea_host_sha256: "f83769273ffe568c5748a0eccccf5a812d4f31c25be9e62ce00a9423ddc1d71e"
+# Released from main (63d2c3d) through the main-only release gate.
+chaldea_host_version: host-v0.2.0
+chaldea_host_sha256: "2e9a8d3cfd859516539aff8b494d66a397e6581a350ef9ecda80fd272ef9b4c6"
 
 # Canonical access filesystem contract, consumed by host-role defaults/templates.
 chaldea_access_paths:
