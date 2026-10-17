@@ -90,6 +90,7 @@ event to knowledge is a decision, not a sync.
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
 making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta and carry it
 out in the session; do not ask again for routine work inside that agreement.
+When carrying out an agreed roadmap, load the roadmap-executor skill first.
 
 Delegate through T3's own tools rather than a separate scheduler:
 

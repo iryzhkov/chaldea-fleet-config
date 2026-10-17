@@ -14,12 +14,15 @@ agent_config_files:
 # Skills written for this fleet. Skills installed by the skills CLI (with
 # ~/.agents/.skill-lock.json) and the Omarchy-provided symlinks stay with them.
 agent_config_skills:
+  - audit-lens
   - chaldea
+  - chaldea-audit
   - huyang
   - implementation-session
   - ov-memory
   - ov-memory-curation
   - review-delegation
+  - roadmap-executor
 agent_config_skill_dirs:
   - .claude/skills
   - .agents/skills
