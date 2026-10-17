@@ -34,9 +34,9 @@ chaldea_node_version: "26.10.0"
 
 # Client activation waits for the first main-only client release. In one pin
 # update, set enabled=true, version and the manifest's reviewed SHA-256.
-chaldea_client_enabled: false
-chaldea_client_version: ""
-chaldea_client_sha256: ""
+chaldea_client_enabled: true
+chaldea_client_version: client-v0.1.0
+chaldea_client_sha256: "a180c5ea7321be26cec55c51dc48104e66d6f85d7ae0cb439ab21ba3d7949df0"
 
 # Released from main (63d2c3d) through the main-only release gate.
 chaldea_host_version: host-v0.2.0
