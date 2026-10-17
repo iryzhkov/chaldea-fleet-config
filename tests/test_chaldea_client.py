@@ -221,6 +221,11 @@ def test_interrupted_unit_reload_retries_before_retiring_checkout(tmp_path, monk
     home = Path.home()
     app = home / ".local/share/chaldea/app"
     (app / ".git").mkdir(parents=True)
+    manager = tmp_path / "systemctl.json"
+    state = json.loads(manager.read_text())
+    for unit in state["units"].values():
+        unit.update(active=True, enabled=True)  # Hand-made services are already running.
+    manager.write_text(json.dumps(state))
     failure = home / "fail-once"
     failure.touch()
     monkeypatch.setenv("FAKE_SYSTEMCTL_FAIL_ONCE", str(failure))
