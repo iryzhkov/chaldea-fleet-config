@@ -25,6 +25,9 @@ agent_tools_sources:
 agent_tools_credential_files:
   - {name: Jocasta token, path: .config/jocasta/token}
 
+# Chaldea runtime, independent of job toolchains; retention keeps this install.
+chaldea_node_version: "26.10.0"
+
 # Fleet compute is explicitly enrolled per host after review; hosts.yml turns
 # each role on. Only public halves of the job keys belong here, never a private
 # key. Enrolled 2026-10-17: job hosts agent-a and omarchy-pc, session hosts
@@ -33,7 +36,7 @@ agent_tools_credential_files:
 chaldea_job_host_enabled: false
 chaldea_job_client_enabled: false
 chaldea_job_host_sources:
-  - {name: omarchy-pc, ip: 192.168.90.212, public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMlQCBZyK/lzWoPK345dpeI9iIBCfDIS6BGAs8heMcDo'}
+  - {name: omarchy-pc, ip: 192.168.90.212, public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICTi+TR2Q70AdX2L40cVSEFichmJEVmkrCFUgSkH9ne5'}
   - {name: laptop, ip: 192.168.90.163, public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPfzyHZ+qPdUaHXzwHyRXKGhvlPs/Fz+EoE0Jk57Mg8Z'}
 chaldea_job_client_targets:
   - {name: agent-a, address: 192.168.130.2, port: 2222}

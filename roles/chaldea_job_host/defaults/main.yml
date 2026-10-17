@@ -33,15 +33,8 @@ chaldea_job_host_io_weight: 10
 chaldea_job_host_cpu_quota: "{{ (ansible_facts.processor_vcpus | int * 50) }}%"
 chaldea_job_host_shm_bytes: 67108864
 
-# Official exact releases. First entry per tool is the job's default; additional
-# entries stay available for explicit PATH selection. Go/uv are distro tools on
-# omarchy-pc, absent from mise ls --current (read-only baseline 2026-10-16).
+# Exact releases are required from inventory, next to their reviewed pins.
 chaldea_job_host_toolchain_root: /opt/chaldea-tools
-chaldea_job_host_toolchain_versions:
-  node: ["26.12.0"]
-  go: ["1.27.0"]
-  rust: ["1.99.0"]
-  uv: ["0.12.10"]
 
 # Every selected archive needs a reviewed inventory pin; no online checksum lookup.
 chaldea_job_host_toolchain_checksums: {}

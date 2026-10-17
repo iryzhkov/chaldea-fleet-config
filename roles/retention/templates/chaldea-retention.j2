@@ -21,6 +21,7 @@ from pathlib import Path
 
 DAY = 86400
 GIB = 1024**3
+CHALDEA_NODE_VERSION = "{{ chaldea_node_version }}"
 # Worktrees are moved here, on the same filesystem, before they are deleted.
 TRASH = ".chaldea-retention-trash"
 # Ignored directories that only hold regenerable output. A worktree whose
@@ -403,6 +404,9 @@ def prune_reason(path, held):
     if path is None:
         return "install path not known"
     real = os.path.realpath(path)
+    chaldea_node = Path.home() / ".local/share/mise/installs/node" / CHALDEA_NODE_VERSION
+    if real == os.path.realpath(chaldea_node):
+        return "the pinned Chaldea runtime"
     latest = os.path.join(os.path.dirname(path), "latest")
     # T3 launches providers through installs/<tool>/latest, whatever the
     # configured version resolves to.

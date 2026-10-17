@@ -156,6 +156,29 @@ def test_admission_and_stale_workspace_cleanup():
             server.admission(root, {"min_free_bytes": 2 ** 63, "require_mount": False})
 
 
+def test_apply_smoke_defers_on_busy_lock_without_launching_or_cleaning_jobs(tmp_path):
+    import fcntl
+    import subprocess
+    import sys
+
+    lock = tmp_path / "admission.lock"
+    sentinel = tmp_path / "running-job"
+    sentinel.mkdir()
+    (sentinel / "output").write_text("keep")
+    config = tmp_path / "server.json"
+    config.write_text(json.dumps({"state_root": str(tmp_path), "require_mount": False}))
+    with lock.open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        with pytest.raises(server.Busy):
+            with server.admission_lock(tmp_path):
+                pytest.fail("busy lock admitted another job")
+        result = subprocess.run([sys.executable, "-I", str(PATH), "--config", str(config),
+                                 "--smoke-test"], capture_output=True, text=True, timeout=5)
+    assert result.returncode == 0, result.stderr
+    assert "sandbox smoke test deferred to the next run: host busy" in result.stderr
+    assert (sentinel / "output").read_text() == "keep"
+
+
 def test_sandbox_is_allowlisted_no_gpu_without_explicit_request():
     with tempfile.TemporaryDirectory() as tmp:
         with patch.object(server.subprocess, "check_output", return_value="--disable-userns"):
@@ -171,6 +194,23 @@ def test_sandbox_is_allowlisted_no_gpu_without_explicit_request():
         with patch.object(server.subprocess, "check_output", return_value="--disable-userns"):
             with pytest.raises(ValueError, match="GPU unavailable"):
                 server.sandbox(request(gpu=True), Path(tmp), {})
+
+
+@pytest.mark.parametrize("alternatives_present", [True, False])
+def test_alternatives_mount_is_optional_readonly_and_adds_no_writable_host_paths(tmp_path, alternatives_present):
+    exists = Path.exists
+    def present(path):
+        return alternatives_present if str(path) == "/etc/alternatives" else exists(path)
+    with patch.object(Path, "exists", present):
+        with patch.object(server.subprocess, "check_output", return_value="--disable-userns"):
+            cmd, _env = server.sandbox(request(), tmp_path, {})
+    mounts = [cmd[i:i + 3] for i, value in enumerate(cmd) if value in ("--ro-bind", "--bind")]
+    assert (["--ro-bind", "/etc/alternatives", "/etc/alternatives"] in mounts) == alternatives_present
+    assert [mount for mount in mounts if mount[0] == "--bind"] == [
+        ["--bind", str(tmp_path), "/work"],
+        ["--bind", str(tmp_path / ".chaldea-home"), "/home/job"],
+        ["--bind", str(tmp_path / ".chaldea-tmp"), "/tmp"]]
+    assert not any(mount[1] in ("/etc", "/etc/shadow", "/home", "/root", "/run") for mount in mounts)
 
 
 def test_toolchains_are_mounted_readonly_with_private_caches(tmp_path):
