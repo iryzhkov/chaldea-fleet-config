@@ -14,7 +14,7 @@ def test_inventory_disabled_and_units_use_isolated_state():
     inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
     assert defaults["chaldea_access_trust_enabled"] is False
     assert inventory["chaldea_access_trust_enabled"] is False
-    assert inventory["chaldea_access_trust_anchors"] == []
+    assert inventory["chaldea_access_trust_anchors"][0]["kid"] == "deployment-2026-10"
     variables = defaults | {
         "chaldea_access_paths": {"clock_health": "/scratch/run/clock-health.json"},
         "chaldea_access_trust_fetcher": "/scratch/fetch",
@@ -37,11 +37,24 @@ def test_inventory_disabled_and_units_use_isolated_state():
     clock = units["chaldea-clock-health.service.j2"]
     assert "clock-health --output /scratch/run/clock-health.json" in clock
     assert "RuntimeDirectoryPreserve=yes" in clock
-    assert "ReadWritePaths=/scratch/run /run/chrony" in clock
+    assert "ReadWritePaths=/scratch/run -/run/chrony" in clock
     assert "--check-runtime" in clock
     tasks = (ROLE / "tasks/main.yml").read_text()
     assert "initialize-state" not in tasks and "genpkey" not in tasks
-    assert json.loads((ROOT / "access-trust/issuer-grants.json").read_text()) == []
+    keys = json.loads((ROOT / "access-trust/issuer-grants.json").read_text())
+    assert len(keys) == 1
+    key = keys[0]
+    assert (key["issuer"], key["kid"]) == ("chaldea:agent-a", "agent-a-2026-10")
+    assert key["issue_until"] - key["not_before"] == 30 * 86400
+    assert key["verify_until"] - key["issue_until"] == 810
+    assert {(c["profile"], c["project"], c["source"]) for c in key["ceilings"]} == {
+        ("daily-health", "homelab", "chaldea.daily-health.agent-a"),
+        ("fleet-timers", "chaldea", "agent-a.fleet"),
+        ("toolfeedback", "chaldea", "agent-a.toolfeedback"),
+    }
+    for ceiling in key["ceilings"]:
+        assert ceiling["audience"] == "akasha"
+        assert ceiling["grants"] == [{"resource": ceiling["source"], "actions": ["append"]}]
 
 
 def test_updater_paths_are_one_consistent_fetch_and_unit_contract():

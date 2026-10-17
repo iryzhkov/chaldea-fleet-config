@@ -55,7 +55,10 @@ chaldea_access_paths:
 # changes, its from= restriction refuses it until this entry is updated.
 # Trust and clock packaging is source-only; enroll verifiers explicitly after bootstrap.
 chaldea_access_trust_enabled: false
-chaldea_access_trust_anchors: []
+# SPKI SHA-256: 222450438cdcae5bda6c498f5e39baee5e2479923389c28e518ccf9138aee296
+chaldea_access_trust_anchors:
+  - kid: deployment-2026-10
+    public_key: {kty: OKP, crv: Ed25519, x: re7EPlrspBhs_OHsN7z1VqDZ8HkVib4glgZCczaKjRc}
 chaldea_job_host_enabled: false
 chaldea_job_client_enabled: false
 chaldea_job_host_sources:

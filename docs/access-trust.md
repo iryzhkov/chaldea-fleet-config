@@ -1,7 +1,8 @@
 # Chaldea access trust (package F, trust slice)
 
-Source-only packaging. Inventory is disabled everywhere; grants are empty.
-No signed bundle, real keys or host changes are included. Run-profile UID, T3,
+Source-only packaging. Fleet enrollment remains disabled. The first public issuer
+and deployment anchor are pinned; no signed bundle, private keys or host changes
+are included. Run-profile UID, T3,
 proxy and nft work remains separate. Authority: chaldea docs/access-v1.md at
 76aecaa plus PR #10's 24h age, and
 jocasta:14ce7ddae80badf228ca6ef0779e3f2e@1 sections 2/6 package F.
@@ -58,12 +59,14 @@ Later enrollment needs an explicit host list. No broad fleet apply.
    Bundle, clock-health, updater and verifier state paths below come from the
    single inventory chaldea_access_paths mapping; override examples with its
    rendered values if an approved configuration changes them.
-   Provision git, openssh-client, python3 and chrony on these approved hosts.
-   omarchy-pc currently uses timesyncd; this requires an explicitly approved time
-   service migration and healthy chrony before signing. No such migration occurs
-   in this task. Require independent
-   external time sources and the root-protected /run/chrony/chronyd.sock socket;
-   no UDP fallback, chrony local/orphan mode or single fleet NTP host.
+   Provision git, openssh-client and python3 on these approved hosts. The clock
+   adapter supports systemd-timesyncd and chrony. Homelab, omarchy-pc and agent-a
+   keep timesyncd; there is no time-service migration. On active timesyncd the
+   adapter requires NTPSynchronized plus valid, recent NTPMessage timestamps via
+   the system D-Bus. With timesyncd inactive, chrony uses the root-protected
+   /run/chrony/chronyd.sock socket, with no UDP fallback or local/orphan mode.
+   Unknown/unsynchronised status fails closed; the conservative 30s offset bound
+   and fresh 30s evidence apply to both. Use independent external time sources.
    This role does not install or change time services.
 2. Igor, as igor on **omarchy-pc only**, creates
    /home/igor/.local/share/chaldea-access-publisher/keys (owner igor, 0700).
@@ -115,8 +118,8 @@ Later enrollment needs an explicit host list. No broad fleet apply.
    Igor owns renewal automation on omarchy-pc: establish and verify it before
    activation, recommended every 6h plus immediate changes. It refreshes clock
    evidence immediately before signing and alerts before expiry. Only Igor's
-   publisher process may read the anchor. The root health command reads only chrony's
-   protected socket; it does not read the anchor. Install the same pinned runtime on
+   publisher process may read the anchor. The root health command reads only time
+   service status; it does not read the anchor. Install the same pinned runtime on
    omarchy-pc for this command. Automate health through the reviewed root oneshot
    or a narrowly approved invocation, never a general sandbox sudo rule. A 6h cadence leaves 18–24h remaining
    outage tolerance; a full 24h is the maximum from publication.
@@ -130,13 +133,16 @@ Later enrollment needs an explicit host list. No broad fleet apply.
 
    Initialization is exclusive. Convergence never creates/resets the DB.
    Preserve state through backup/reinstall; missing/corrupt state parks access.
-7. Set chaldea_access_trust_enabled=true and independently pinned public anchors
-   only in homelab's approved inventory. Check then apply only
-   --limit homelab --tags chaldea_access_trust through local ansible-pull.
+7. Homelab is managed by homelab-infra, with playbooks run from omarchy-pc.
+   Keep fleet inventory chaldea_access_trust_enabled=false. Use homelab-infra's
+   targeted playbook and the exact ordered commands in its
+   [Akasha rollout runbook](https://github.com/iryzhkov/homelab-infra/blob/trust-rollout/docs/akasha-v1-deployment.md).
+   It ports these roles/templates and imports the single path convention.
    Bootstrap key/known_hosts/state ownership and modes are checked before timers
    start; state must already be initialized. The fixed runtime directory is
    /run/chaldea-access-trust. chronyc needs /run/chrony writable for its private
-   reply socket, so only the clock unit allows that directory through ProtectSystem.
+   reply socket, so only the clock unit allows that optional directory through ProtectSystem.
+   The -/run/chrony entry permits a timesyncd host where that directory is absent.
    Units: chaldea-clock-health.service/.timer (10s) and
    chaldea-access-trust.service/.timer (120s). Verify status/journal, first
    successful install sequence/expiry, ownership/modes and second-apply
@@ -187,3 +193,25 @@ public bytes on transport/verification failure, size/key permissions, disabled
 inventory and rendered units. Chaldea tests exercise real signature/history/time
 checks with disposable generated fixture keys. No real homes, system managers
 or hosts are used. Live canaries remain a later approved rollout.
+
+## First public enrollment (2026-10-17)
+
+The deployment anchor is kid deployment-2026-10, SPKI SHA-256
+222450438cdcae5bda6c498f5e39baee5e2479923389c28e518ccf9138aee296.
+The agent-a-2026-10 issuer ceilings match homelab-infra's rendered source registry:
+daily-health / homelab / chaldea.daily-health.agent-a (report),
+fleet-timers / chaldea / agent-a.fleet (job_finished), and
+toolfeedback / chaldea / agent-a.toolfeedback (tool_call). All are audience akasha,
+append only, with exact source resources. No read or other service grants.
+The issuance window is deliberately 30 days: 2026-10-17T00:00:00Z through
+2026-11-16T00:00:00Z (exclusive); verify_until is 2026-11-16T00:13:30Z,
+exactly 810 seconds later. Renew/rotate before the cutoff; do not extend an
+existing kid's deadlines. Bundle freshness remains a separate 24h lease.
+
+The current inventory host-v0.1.1 pin is preserved. It predates timesyncd and the
+bundled Akasha service, so it is not a deployment-ready artifact for this rollout.
+After Chaldea merges, the orchestrator tags a release from main, verifies CI and
+updates version/SHA-256 identically in both inventories before signing/deploying.
+No release is cut by this implementation task. Existing deployment/issuer private
+keys are operator-provisioned; do not regenerate them by following generic key
+creation examples above. The homelab-infra runbook is the ordered rollout procedure.
