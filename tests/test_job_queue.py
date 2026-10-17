@@ -12,10 +12,12 @@ import time
 SERVER = Path(__file__).resolve().parents[1] / "roles/chaldea_job_host/files/chaldea-job-server"
 DRIVER = """
 import importlib.machinery,importlib.util,json,sys
+from pathlib import Path
 loader=importlib.machinery.SourceFileLoader("server",sys.argv[1])
 spec=importlib.util.spec_from_loader(loader.name,loader)
 s=importlib.util.module_from_spec(spec);loader.exec_module(s)
 s.admission=lambda *args: None
+s.gaming=lambda config: Path(config["gate_file"]).exists()
 def execute(request,workspace,config):
     with open(config["launch_log"],"a") as log: log.write(request["jobId"]+"\\n")
     return 0
@@ -50,13 +52,13 @@ def receive(child, timeout=3):
     return chr(header[0]), json.loads(body) if body else None
 
 
-def start(tmp_path, slots=1, seconds=3, queued=True):
+def start(tmp_path, slots=1, seconds=3, queued=True, version=1):
     home = tmp_path / "home"
     assert home.parent == tmp_path and tmp_path.is_absolute()
     home.mkdir(exist_ok=True)
     config = tmp_path / "config.json"
     config.write_text(json.dumps({"state_root": str(tmp_path / "jobs"), "require_mount": False,
-                                  "slots": slots, "launch_log": str(tmp_path / "launches")}))
+                                  "slots": slots, "policy": "idle", "gate_file": str(tmp_path / "game"), "launch_log": str(tmp_path / "launches")}))
     (tmp_path / "jobs").mkdir(exist_ok=True)
     child = subprocess.Popen([sys.executable, "-I", "-c", DRIVER, str(SERVER), str(config)],
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -65,7 +67,7 @@ def start(tmp_path, slots=1, seconds=3, queued=True):
                              bufsize=0)
     if queued:
         assert receive(child) == ("H", {"version": 1, "queueVersion": 1})
-        send(child, "W", {"version": 1, "timeoutSeconds": seconds})
+        send(child, "W", {"version": version, "timeoutSeconds": seconds})
     return child
 
 
@@ -141,3 +143,37 @@ def test_old_client_still_runs(tmp_path):
     send(child, "E")
     assert receive(child) == ("X", {"exitCode": 0})
     close(child)
+
+
+def test_invalid_queue_version_is_definite_refusal(tmp_path):
+    child = start(tmp_path, version=2)
+    assert receive(child) == ("R", {"outcome": "refused", "message": "unsupported queue request"})
+    close(child)
+    assert not (tmp_path / "launches").exists()
+
+
+def test_game_gate_waits_at_five_second_cadence_and_is_rechecked_before_go(tmp_path):
+    game = tmp_path / "game"
+    game.touch()
+    child = start(tmp_path, seconds=10)
+    try:
+        assert not select.select([child.stdout], [], [], .15)[0]
+        game.unlink()
+        assert receive(child, timeout=6)[0] == "Y"
+        game.touch()
+        send(child, "G")
+        assert receive(child)[0] == "R"
+        assert not (tmp_path / "launches").exists()
+    finally:
+        close(child)
+
+
+def test_killed_server_releases_ready_slot_and_launches_nothing(tmp_path):
+    child = start(tmp_path)
+    assert receive(child)[0] == "Y"
+    child.kill()
+    close(child)
+    # Blocking flock, bounded by subprocess timeout: detects orphaned holders.
+    subprocess.run(["flock", "-x", str(tmp_path / "jobs/admission.lock"), "true"],
+                   check=True, timeout=3)
+    assert not (tmp_path / "launches").exists()
