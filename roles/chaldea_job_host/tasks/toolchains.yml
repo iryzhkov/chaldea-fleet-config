@@ -18,11 +18,13 @@
 - name: Install the verified toolchain manager
   become: true
   ansible.builtin.copy:
-    src: chaldea-job-toolchains
+    src: "{{ chaldea_host_artifact_root }}/chaldea-job-toolchains"
+    remote_src: true
     dest: /usr/local/libexec/chaldea-job-toolchains
     owner: root
     group: root
     mode: "0755"
+  when: chaldea_host_artifact_ready | bool
 
 - name: Secure the dedicated toolchain parent directory
   become: true

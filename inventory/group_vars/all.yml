@@ -20,6 +20,10 @@ agent_tools_sources:
     repo: https://github.com/iryzhkov/ov-mcp.git
     ref: efac1c8f04662a3512da84aa6559a26061e97832
 
+# Source-owned OpenCode plugin: exact public omarchy-setup bytes, verified via gh API.
+agent_config_huyang_plugin_ref: ebec80bca66d684d6fe47c5c57c7cf212b6558b2
+agent_config_huyang_plugin_sha256: e46883992727741758115492030f75bb26dbea14dccd3a4b4c3459cc5547f6c4
+
 # Credentials are referenced by path only (relative to the home directory);
 # the play checks that each file exists and is private, never reads it.
 agent_tools_credential_files:
@@ -27,6 +31,21 @@ agent_tools_credential_files:
 
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
+
+# Reviewed candidate; confirm the immutable public release tag before rollout.
+chaldea_host_version: host-v0.1.0
+chaldea_host_sha256: "f83769273ffe568c5748a0eccccf5a812d4f31c25be9e62ce00a9423ddc1d71e"
+
+# Canonical access filesystem contract, consumed by host-role defaults/templates.
+chaldea_access_paths:
+  root: /etc/chaldea-access-trust
+  state: /var/lib/chaldea-access-trust
+  public: /var/lib/chaldea-access-trust-public
+  run: /run/chaldea-access-trust
+  bundle: /var/lib/chaldea-access-trust-public/bundle.jws
+  clock_health: /run/chaldea-access-trust/clock-health.json
+  updater_state: /var/lib/chaldea-access-trust/updater.sqlite
+  verifier_state: /var/lib/akasha/access-state.db
 
 # Fleet compute is explicitly enrolled per host after review; hosts.yml turns
 # each role on. Only public halves of the job keys belong here, never a private

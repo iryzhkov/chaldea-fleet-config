@@ -1,4 +1,9 @@
 ---
+- name: Install the pinned host runtime artifact
+  ansible.builtin.include_role:
+    name: chaldea_host_artifact
+    public: true
+
 - name: Validate the job host's restricted enrollment
   ansible.builtin.assert:
     that:
@@ -139,11 +144,30 @@
   changed_when: false
   check_mode: false
 
+- name: Create the root-owned server directory
+  become: true
+  ansible.builtin.file:
+    path: /usr/local/libexec
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the image creation command
+  become: true
+  ansible.builtin.copy:
+    src: "{{ chaldea_host_artifact_root }}/chaldea-job-image"
+    remote_src: true
+    dest: /usr/local/libexec/chaldea-job-image
+    owner: root
+    group: root
+    mode: "0755"
+  when: chaldea_host_artifact_ready | bool
+
 - name: Create the fixed-size ext4 image without formatting existing state
   become: true
-  ansible.builtin.script:
-    cmd: "chaldea-job-image --image {{ chaldea_job_host_image }} --bytes {{ chaldea_job_host_image_bytes }}"
-    executable: /usr/bin/python3 -I
+  ansible.builtin.command:
+    argv: [/usr/bin/python3, -I, /usr/local/libexec/chaldea-job-image, --image, "{{ chaldea_job_host_image }}", --bytes, "{{ chaldea_job_host_image_bytes }}"]
   register: chaldea_job_host_image_created
   changed_when: "'created' in chaldea_job_host_image_created.stdout"
   when: not ansible_check_mode
@@ -197,23 +221,27 @@
     mode: "0700"
   when: chaldea_job_host_mount_ready.rc == 0
 
-- name: Create the root-owned server directory
-  become: true
-  ansible.builtin.file:
-    path: /usr/local/libexec
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
 - name: Install the self-contained protocol version one server
   become: true
   ansible.builtin.copy:
-    src: chaldea-job-server
+    src: "{{ chaldea_host_artifact_root }}/chaldea-job-server"
+    remote_src: true
     dest: "{{ chaldea_job_host_server }}"
     owner: root
     group: root
     mode: "0755"
+  when: chaldea_host_artifact_ready | bool
+
+- name: Install the server's protocol definition alongside the server
+  become: true
+  ansible.builtin.copy:
+    src: "{{ chaldea_host_artifact_root }}/exec-protocol.json"
+    remote_src: true
+    dest: /usr/local/libexec/exec-protocol.json
+    owner: root
+    group: root
+    mode: "0644"
+  when: chaldea_host_artifact_ready | bool
 
 - name: Provision pinned job toolchains
   ansible.builtin.import_tasks: toolchains.yml

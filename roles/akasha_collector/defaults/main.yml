@@ -3,5 +3,5 @@
 akasha_collector_enabled: false
 akasha_collector_url: ""
 akasha_collector_token_helper: ""
-akasha_collector_node: "{{ fleet_home }}/.local/share/mise/installs/node/26.10.0/bin/node"
-akasha_collector_script: "{{ fleet_home }}/.local/share/agent-tools/current/chaldea/src/events/collector.ts"
+akasha_collector_node: "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
+akasha_collector_script: "{{ chaldea_host_artifact_root }}/akasha-collector.mjs"

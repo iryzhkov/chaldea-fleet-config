@@ -5,6 +5,7 @@ Description=Bounded cleanup of T3 worktrees and agent caches
 
 [Service]
 Type=oneshot
+Environment=CHALDEA_NODE_VERSION={{ chaldea_node_version }}
 Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=%h/.local/bin/chaldea-timer-report run --job chaldea-retention -- {{ retention_script }} \
   --protect-hours {{ retention_protect_hours }} \
