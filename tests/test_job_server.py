@@ -14,6 +14,65 @@ server = importlib.util.module_from_spec(spec)
 loader.exec_module(server)
 
 
+def test_supervisor_kills_transport_that_clears_parent_death_signal():
+    import os
+    import select
+    import signal
+    import subprocess
+    import sys
+    import time
+    transport = """
+import ctypes,json,os,subprocess,sys
+assert ctypes.CDLL(None).prctl(1,0,0,0,0) == 0
+child = subprocess.Popen([sys.executable,'-I','-c','import time; time.sleep(100)'])
+print(json.dumps([os.getppid(),os.getpid(),child.pid]), flush=True)
+child.wait()
+"""
+    driver = """
+import json,os,subprocess,sys
+from pathlib import Path
+server,launch = sys.argv[1:]
+value=json.loads(Path(launch).read_text())
+value['parent_pid']=os.getpid()
+Path(launch).write_text(json.dumps(value))
+child=subprocess.Popen([sys.executable,'-I',server,'--network-supervisor',launch],start_new_session=True)
+sys.exit(child.wait())
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        launch = Path(tmp) / "launch.json"
+        launch.write_text(json.dumps({"transport": [sys.executable, "-I", "-c", transport]}))
+        parent = subprocess.Popen([sys.executable, "-I", "-c", driver, str(PATH), str(launch)],
+                                  stdout=subprocess.PIPE)
+        assert parent.stdout is not None
+        group = None
+        descriptors = []
+        try:
+            assert select.select([parent.stdout], [], [], 5)[0], "transport did not start"
+            pids = json.loads(parent.stdout.readline())
+            group = pids[0]
+            descriptors = [os.pidfd_open(pid) for pid in pids]
+            parent.kill()
+            parent.wait(timeout=5)
+            pending = set(descriptors)
+            deadline = time.monotonic() + 5
+            while pending:
+                ready, _, _ = select.select(list(pending), [], [], max(0, deadline - time.monotonic()))
+                assert ready, "supervisor/transport/worker survived parent crash"
+                pending.difference_update(ready)
+        finally:
+            if parent.poll() is None:
+                parent.kill()
+                parent.wait(timeout=5)
+            if group:
+                try:
+                    os.killpg(group, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            for descriptor in descriptors:
+                os.close(descriptor)
+            parent.stdout.close()
+
+
 def test_network_child_uses_nft_path_available_on_debian_and_arch():
     with tempfile.TemporaryDirectory() as tmp:
         launch = Path(tmp) / "launch.json"
@@ -323,7 +382,7 @@ peer,_=allowed.accept(); peer.close(); client.close()
 
 def test_package_baseline_rejects_old_bwrap_and_missing_pasta_options():
     from types import SimpleNamespace
-    required = "--config-net --no-map-gw --map-host-loopback --no-splice"
+    required = "--foreground --config-net --no-map-gw --map-host-loopback --no-splice"
     with patch.object(server.subprocess, "check_output", return_value="bubblewrap 0.8.0"):
         with pytest.raises(server.Refused, match="bubblewrap >= 0.9"):
             server.check_tools()

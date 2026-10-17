@@ -103,7 +103,9 @@ managed UFW block or dedicated nft table.
 Neither role connects to peers at boot. Session hosts only get static SSH config
 and metadata checks. Job hosts only need local disk, firewall and sshd.
 Source/target reboot during dispatch leaves durable intent uncertain. There is
-no reconnect/replay path. Stale ControlMaster sockets are checked and removed
+no reconnect/replay path. A trusted supervisor outside pasta owns the parent-death
+signal and kills the transport group if the forced server dies; this also covers
+older Debian pasta versions that clear their own inherited parent-death signal. Stale ControlMaster sockets are checked and removed
 before a new dispatch; flock needs no stale-lock cleanup.
 
 ## Compute-port firewall modes and removal
