@@ -118,14 +118,14 @@ never leaves homelab. Exact ordered commands, failure handling and the existing-
 migration are in the Normandy runbook's Move an already-staged transport section.
 No fleet-config access is needed by homelab for trust.
 
-The trust role installs its reviewed byte-only downloader from this repository,
-superseding the old URL hard-coded in host-v0.2.0's bundled downloader. It fetches
+The trust role installs the byte-only downloader from the pinned host-v0.2.1
+artifact. Chaldea host/ is the only source for the fetcher and its behaviour tests. It fetches
 only chaldea-trust main:bundle.jws and calls the pinned maintenance runtime for
 authentication and atomic publication. The independently compared variables
 chaldea_access_trust_repository and chaldea_access_trust_bundle_path pin that
 transport in both inventories. The local chaldea_access_paths map is unchanged.
 
-Pinned host-v0.2.0 supplies the maintenance and Akasha bundles, installed
+Pinned host-v0.2.1 supplies the fetcher, maintenance and Akasha bundles, installed
 root-owned under /opt/chaldea-host/releases/VERSION/host, with Node 26.10.0
 at /opt/chaldea/node/bin/node. Runtime version/SHA-256 must match independently
 in fleet and infra. Do not run source builds on the deployment host.
