@@ -21,8 +21,9 @@ def test_inventory_disabled_and_units_use_isolated_state():
     assert not (ROOT / "access-trust/bundle.jws").exists()
     fetch_copy = next(t["ansible.builtin.copy"] for t in yaml.safe_load(
         (ROLE / "tasks/main.yml").read_text()) if t["name"] == "Install byte-only Git downloader")
-    assert fetch_copy["src"] == "chaldea-access-trust-fetch"
-    assert "remote_src" not in fetch_copy
+    assert fetch_copy["src"] == "{{ chaldea_host_artifact_root }}/chaldea-access-trust-fetch"
+    assert fetch_copy["remote_src"] is True
+    assert not (ROLE / "files/chaldea-access-trust-fetch").exists()
     env = Environment(undefined=StrictUndefined)
     env.filters["to_nice_json"] = json.dumps
     config_vars = inventory | defaults | {

@@ -38,9 +38,10 @@ chaldea_client_enabled: true
 chaldea_client_version: client-v0.2.0
 chaldea_client_sha256: "6803a80d05968928c77f028084a28490e805a5eaf775c771fa13324498744810"
 
-# Released from main (63d2c3d) through the main-only release gate.
-chaldea_host_version: host-v0.2.0
-chaldea_host_sha256: "2e9a8d3cfd859516539aff8b494d66a397e6581a350ef9ecda80fd272ef9b4c6"
+# TODO: orchestrator must publish host-v0.2.1 from reviewed main and fill the
+# SHA-256 from its chaldea-host.tar.gz release asset before merging this PR.
+chaldea_host_version: host-v0.2.1
+chaldea_host_sha256: "TODO_HOST_V0_2_1_RELEASE_ASSET_SHA256"
 
 # Signed data lives apart from root-executed fleet configuration.
 chaldea_access_trust_repository: ssh://git@github.com/iryzhkov/chaldea-trust.git
