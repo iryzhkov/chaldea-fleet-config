@@ -3,6 +3,7 @@
   mcp_registration:
     provider: "{{ item.0 }}"
     name: "{{ item.1.name }}"
+    state: "{{ 'present' if item.1.enabled | default(true) | bool else 'absent' }}"
     command: "{{ item.1.command }}"
     args: "{{ item.1.args | default([]) }}"
     env: >-

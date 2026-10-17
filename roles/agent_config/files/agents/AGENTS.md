@@ -1,8 +1,8 @@
 # Global agent instructions
 
-The shared instructions for the harnesses that do not read ~/.claude/CLAUDE.md. Generated
-by `agents-instructions-gen` from omarchy-setup's config/bin/agents-instructions-gen; edit
-it there and regenerate rather than editing an installed copy.
+The shared instructions for harnesses that do not read ~/.claude/CLAUDE.md, including
+OpenCode. Managed by chaldea-fleet-config's agent_config role; edit the repository copy
+rather than an installed file.
 
 Each section below is a summary. The full guidance lives in a skill, loaded on demand from
 ~/.claude/skills, and in the generated reference files under ~/.config/agents/, which are
@@ -53,10 +53,7 @@ Delegate through T3's own tools rather than a separate scheduler:
 - `delegate_task` runs child work on any provider and model that `orchestrator_capabilities`
   lists (Claude, Codex, OpenCode). Use `isolation: "worktree"` for code changes in a
   registered repository project. A finished child wakes the parent; do not poll.
-- Independent review goes to a different provider from the one that wrote the change. Start
-  each review round as a new `delegate_task` carrying the brief, prior findings and the
-  responses to them. Only findings that cite a defect, regression, safety problem or unmet
-  requirement block; other notes become follow-ups.
+- Use the `review-delegation` skill for independent reviews, review rounds and worker briefs.
 - `t3_thread_launch` is for separate top-level threads when Igor asks for them,
   `schedule_task` for recurring work, and `watch_pull_request` for following CI.
 - Native same-provider subagents are for quick bounded reading and searching.
@@ -71,6 +68,17 @@ directly.
 
 Ask first when the estimated cost is large, the work needs operator-level access, or it
 changes more than one host.
+
+## Chaldea and scratch
+
+Use the `chaldea` skill for builds and heavy runs on job hosts, durable waits and the
+decision inbox. Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
+On a quota stop, the session needs to do nothing: T3 resumes at reset; when enabled,
+Chaldea's provider switch continues the same thread on an equivalent model. Never tell
+Igor to resume manually.
+
+Keep scratch on disk under `~/.cache/<task>/`, set `TMPDIR` there and tell workers the
+path. Do not use host `/tmp`: it is RAM tmpfs with a quota.
 
 ## Shared working documents
 

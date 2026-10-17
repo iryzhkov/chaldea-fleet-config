@@ -13,6 +13,7 @@ agent_config_files:
 # Skills written for this fleet. Skills installed by the skills CLI (with
 # ~/.agents/.skill-lock.json) and the Omarchy-provided symlinks stay with them.
 agent_config_skills:
+  - chaldea
   - huyang
   - implementation-session
   - ov-memory
