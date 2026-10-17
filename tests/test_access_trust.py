@@ -16,11 +16,19 @@ def test_inventory_disabled_and_units_use_isolated_state():
     inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
     assert defaults["chaldea_access_trust_enabled"] is False
     assert inventory["chaldea_access_trust_enabled"] is False
-    anchor = inventory["chaldea_access_trust_anchors"][0]
-    assert anchor == {"kid": "deployment-2026-10", "public_key": {
-        "kty": "OKP", "crv": "Ed25519", "x": "re7EPlrspBhs_OHsN7z1VqDZ8HkVib4glgZCczaKjRc"}}
-    spki = bytes.fromhex("302a300506032b6570032100") + base64.urlsafe_b64decode(anchor["public_key"]["x"] + "=")
-    assert hashlib.sha256(spki).hexdigest() == "222450438cdcae5bda6c498f5e39baee5e2479923389c28e518ccf9138aee296"
+    # A source placeholder cannot become a valid public pin by accident.
+    assert inventory["chaldea_deployment_anchor_kid"] == "deployment-2026-10b"
+    key = inventory["chaldea_deployment_anchor_public_jwk"]
+    assert key["kty"] == "OKP" and key["crv"] == "Ed25519"
+    if key["x"].startswith("REPLACE_"):
+        assert key["x"] == "REPLACE_WITH_NORMANDY_PUBLIC_JWK_X"
+        assert inventory["chaldea_deployment_anchor_spki_sha256"] == "REPLACE_WITH_NORMANDY_SPKI_SHA256"
+    else:
+        spki = bytes.fromhex("302a300506032b6570032100") + base64.urlsafe_b64decode(key["x"] + "=")
+        assert hashlib.sha256(spki).hexdigest() == inventory["chaldea_deployment_anchor_spki_sha256"]
+    assert inventory["chaldea_access_trust_anchors"] == [{
+        "kid": "{{ chaldea_deployment_anchor_kid }}",
+        "public_key": "{{ chaldea_deployment_anchor_public_jwk }}"}]
     variables = defaults | {
         "chaldea_access_paths": {"clock_health": "/scratch/run/clock-health.json"},
         "chaldea_access_trust_fetcher": "/scratch/fetch",
