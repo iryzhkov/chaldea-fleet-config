@@ -90,14 +90,15 @@ def test_role_converges_same_filtered_skill_for_all_providers(tmp_path):
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     executable(fake_bin, "feed", metadata("feed"))
+    executable(fake_bin, "pve", metadata("pve"))  # Not selected for installation.
     play = tmp_path / "play.yml"
     # Include only the renderer tasks: no real host services or config touched.
     play.write_text(json.dumps([{
         "name": "Fixture fleet tools", "hosts": "all", "gather_facts": False,
         "vars": {"fleet_home": str(home),
-                 "agent_config_fleet_tools_profile": profile({"feed": ["read"]}),
-                 "agent_config_fleet_tools_directories": [str(fake_bin)],
-                 "agent_config_fleet_tools_executables": []},
+                 "agent_config_fleet_tools_profile": profile({"*": ["read"]}),
+                 "agent_tools_homelab_cli_commands": ["feed"],
+                 "agent_tools_bin_dir": str(fake_bin)},
         "tasks": [{"name": "Render tools", "ansible.builtin.include_role":
                    {"name": "agent_config", "tasks_from": "fleet-tools"}}],
     }]))
@@ -113,3 +114,13 @@ def test_role_converges_same_filtered_skill_for_all_providers(tmp_path):
                for directory in (".claude/skills", ".agents/skills", ".codex/skills")]
     assert len(set(outputs)) == 1
     assert "inspect" in outputs[0] and "mutate" not in outputs[0]
+    assert "`pve`" not in outputs[0]
+    invalid = json.loads(play.read_text())
+    invalid[0]["vars"]["agent_config_fleet_tools_profile"] = profile({"feed": ["execute"]})
+    play.write_text(json.dumps(invalid))
+    result = subprocess.run(command, text=True, capture_output=True, env=env, timeout=60)
+    assert result.returncode != 0
+    for directory in (".claude/skills", ".agents/skills", ".codex/skills"):
+        content = (home / directory / "fleet-tools/SKILL.md").read_text()
+        assert "No tool descriptions: profile unavailable." in content
+        assert "inspect" not in content and "mutate" not in content

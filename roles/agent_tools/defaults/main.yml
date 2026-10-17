@@ -29,6 +29,7 @@ agent_tools_homelab_cli_commands:
   - phone-open
   - pve
   - sleep-gaming-pc
+  - speed-audit
   - t3-job
   - t3-run
   - toolfeedback

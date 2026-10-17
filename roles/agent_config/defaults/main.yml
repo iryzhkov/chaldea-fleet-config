@@ -7,11 +7,12 @@ agent_config_fleet_tools_profile:
   name: interactive-operator
   tools: {"*": [read, write]}
   mcp: [ov-memory]
-agent_config_fleet_tools_directories:
-  - "{{ fleet_home }}/.local/share/agent-tools/current/homelab-cli/bin"
-agent_config_fleet_tools_executables:
-  - "{{ fleet_home }}/.local/bin/jocasta"
-  - "{{ fleet_home }}/.local/bin/chaldea"
+agent_config_fleet_tools_directories: []
+# The same command list that agent_tools installs, checked for actual executability.
+agent_config_fleet_tools_executables: >-
+  {{ (agent_tools_homelab_cli_commands | default([])
+      | map('regex_replace', '^', (agent_tools_bin_dir | default(fleet_home ~ '/.local/bin')) ~ '/') | list)
+     + [fleet_home ~ '/.local/bin/jocasta', fleet_home ~ '/.local/bin/chaldea'] }}
 # .agents/skills is shared by Codex and OpenCode; Claude uses .claude/skills.
 agent_config_fleet_tools_skill_dirs:
   - .claude/skills

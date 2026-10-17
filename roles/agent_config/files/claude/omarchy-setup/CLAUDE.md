@@ -74,14 +74,17 @@ Namespaces, document shape, the tool-by-tool procedure and curation passes: the 
 
 # Fleet feed
 
+The fleet feed runs on homelab, port 1934.
+
 Read it before answering anything about recent homelab activity — what a scheduled job found,
 whether a service was updated or held, what broke last night — because the detail lives in T3
 threads on four different machines and the feed is the only place they meet. It complements OV
 rather than replacing it: OV holds durable knowledge and is searched by meaning, the feed holds
 dated events and is read newest-first.
 
-Record an event when an unattended run produced something a later session would want to know. Never copy feed entries into OV as if they were established facts; promoting an
-event to knowledge is a decision, not a sync.
+Record an event when an unattended run produced something a later session would want to know.
+Never copy feed entries into OV as if they were established facts; promoting an event to
+knowledge is a decision, not a sync.
 
 # Interactive work and delegation
 

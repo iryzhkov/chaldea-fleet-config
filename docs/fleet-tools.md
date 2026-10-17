@@ -2,8 +2,8 @@
 
 Converge renders `fleet-tools/SKILL.md` after all installers finish. Claude reads
 `~/.claude/skills`, OpenCode and Codex share `~/.agents/skills`, and Codex also
-gets `~/.codex/skills`. The renderer scans executable files in the installed
-homelab-cli bin directory and explicitly installed Jocasta and Chaldea paths;
+gets `~/.codex/skills`. The renderer checks the homelab-cli launchers selected
+by the agent_tools install list, plus installed Jocasta and Chaldea paths;
 override `agent_config_fleet_tools_directories` and
 `agent_config_fleet_tools_executables` for additional custom tools. No PATH scan
 or service command is used. Each included tool receives only `--describe`, with
@@ -33,7 +33,8 @@ agent_config_fleet_tools_profile:
 
 Unlisted tools and access classes are hidden. An explicit empty grant overrides
 a wildcard. `tools: {}` and `mcp: []` produce an empty index. Invalid profiles
-fail closed. These grants filter instructions; actual command authorization
+fail closed: an empty index replaces previous instructions before converge fails.
+These grants filter instructions; actual command authorization
 remains the session/runtime's responsibility. This is a converge-time profile,
 not automatic T3 session-profile detection. A future session launcher must pass
 its grants and use an isolated skill destination when profiles run concurrently.
@@ -48,9 +49,11 @@ installers may only be simulated.
 
 No release or host converge is part of this change. Merge the homelab-cli,
 Jocasta and Chaldea source PRs after accepted review and CI. Publish the normal
-agent-tools release/source pins containing the new homelab-cli and Jocasta
-commits, update `agent_tools_sources` in `inventory/group_vars/all.yml`, and
-pin the reviewed Chaldea app commit via its owning deployment workflow. Do not
+agent-tools release/source pin containing the new homelab-cli commit in
+`agent_tools_sources` in `inventory/group_vars/all.yml`. Jocasta is not built by
+that role: publish/install its reviewed CLI through its owning deployment workflow
+(currently documented as UpKeeper). Pin the reviewed Chaldea app commit via its
+owning deployment workflow. Do not
 point hosts at a development checkout or copy individual scripts: homelab-cli's
 bin and shared library must travel together. Then merge/converge this renderer
 on one approved host, inspect its generated skill and compare a second
