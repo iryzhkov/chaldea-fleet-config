@@ -90,8 +90,9 @@ def test_sandbox_is_allowlisted_no_gpu_without_explicit_request():
         assert env["HOME"] == "/home/job"
         assert cmd[-2:] == ["printf", "$HOME"]
     with tempfile.TemporaryDirectory() as tmp:
-        with pytest.raises(ValueError, match="GPU unavailable"):
-            server.sandbox(request(gpu=True), Path(tmp), {})
+        with patch.object(server.subprocess, "check_output", return_value="--disable-userns"):
+            with pytest.raises(ValueError, match="GPU unavailable"):
+                server.sandbox(request(gpu=True), Path(tmp), {})
 
 
 def test_artifact_symlink_and_fifo_rejected_without_blocking():
