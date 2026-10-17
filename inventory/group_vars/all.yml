@@ -34,6 +34,9 @@ chaldea_node_version: "26.10.0"
 # laptop, session hosts omarchy-pc and the laptop. Targets are listed in Igor's
 # fallback order: agent-a, agent-b, omarchy-pc (when its game gate allows), laptop. The laptop's address comes from DHCP on wlan0; if it
 # changes, its from= restriction refuses it until this entry is updated.
+# Trust and clock packaging is source-only; enroll verifiers explicitly after bootstrap.
+chaldea_access_trust_enabled: false
+chaldea_access_trust_anchors: []
 chaldea_job_host_enabled: false
 chaldea_job_client_enabled: false
 chaldea_job_host_sources:

@@ -1,0 +1,15 @@
+---
+chaldea_access_trust_enabled: false
+# Install trusted, reviewed source separately; no pull of executable code in updater.
+chaldea_access_trust_node: /opt/chaldea/node/bin/node
+chaldea_access_trust_runtime: /opt/chaldea/app/src/access/maintenance.ts
+chaldea_access_trust_root: /etc/chaldea-access-trust
+chaldea_access_trust_state: /var/lib/chaldea-access-trust
+chaldea_access_trust_public: /var/lib/chaldea-access-trust-public
+chaldea_access_trust_run: /run/chaldea-access-trust
+chaldea_access_trust_unit_dir: /etc/systemd/system
+chaldea_access_trust_fetcher: /usr/local/libexec/chaldea-access-trust-fetch
+chaldea_access_trust_anchors: []
+# Separately provision a root-owned 0600, read-only deploy key and pinned known_hosts.
+chaldea_access_trust_ssh_key: "{{ chaldea_access_trust_root }}/deploy-key"
+chaldea_access_trust_known_hosts: "{{ chaldea_access_trust_root }}/known_hosts"

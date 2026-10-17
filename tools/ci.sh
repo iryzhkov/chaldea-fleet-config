@@ -8,8 +8,10 @@ cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
 # All test programs inherit an isolated home, even when invoked by a real runner.
 : "${TMPDIR:?set TMPDIR to disk-backed scratch}"
+export TMPDIR="$(realpath -m -- "$TMPDIR")"
 case "$TMPDIR" in /*) ;; *) echo 'ci: scratch must be absolute' >&2; exit 1;; esac
 case "$TMPDIR" in /tmp|/tmp/*|/|/home/igor) echo 'ci: unsafe scratch path' >&2; exit 1;; esac
+case "$PWD/" in "$TMPDIR/"*) echo 'ci: scratch must not equal or contain the source root' >&2; exit 1;; esac
 export HOME="$TMPDIR/fleet-test-home"
 test "$HOME" = "$TMPDIR/fleet-test-home"
 mkdir -p "$HOME"
@@ -38,7 +40,7 @@ reset_home() {
 
 python -m pytest -q -p no:cacheprovider tests
 # Scratch may be inside an isolated job workspace; generated fixture plays are not source.
-ansible-lint --exclude "$TMPDIR"
+ansible-lint --exclude "$TMPDIR" --exclude "${TMPDIR#"$PWD"/}"
 synthetic=(-i inventory -i tests/synthetic-inventory.yml --limit synthetic)
 ansible-playbook "${synthetic[@]}" site.yml --syntax-check
 reset_home

@@ -45,5 +45,8 @@
     - role: retention
       tags: [retention]
       when: "'agent_hosts' in group_names"
+    - role: chaldea_access_trust
+      tags: [chaldea_access_trust]
+      when: chaldea_access_trust_enabled | default(false) | bool
     - role: pull_timer
       tags: [pull_timer]
