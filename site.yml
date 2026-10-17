@@ -39,7 +39,9 @@
       when: chaldea_job_host_enabled | default(false) | bool
     - role: chaldea_job_client
       tags: [chaldea_job_client]
-      when: chaldea_job_client_enabled | default(false) | bool
+      when: >-
+        chaldea_job_client_enabled | default(false) | bool
+        or mcp_registrations_chaldea_waits_enabled | default(false) | bool
     - role: retention
       tags: [retention]
       when: "'agent_hosts' in group_names"

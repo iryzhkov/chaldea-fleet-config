@@ -28,10 +28,16 @@ The client copies current tracked files and non-ignored untracked files,
 preserves the relative working directory, and streams output and the exit
 status back. Git metadata and ignored untracked files are not copied, and the
 session host's installed toolchains and caches are not imported. Symlinks and
-submodules are refused. Repeat `--artifact PATH` for
-each required output, relative to the worktree root; returned files live under
+submodules are refused. Repeat `--artifact PATH` for each required output,
+relative to the worktree root; returned files live under
 `.chaldea/artifacts/<job-id>/`. Arguments are literal; use `-- sh -c '...'`
 when the command needs a shell.
+
+The job host provides pinned Node, Go, Rust and uv read-only on PATH, with
+versions selected by inventory, plus distro tools. Download anything else into
+the workspace. Jobs run as uid 0 inside their own user namespace, so archive
+tools must not try to restore ownership. `TAR_OPTIONS=--no-same-owner` is set;
+other archive tools may need an equivalent flag.
 
 Jobs have open outbound networking, but host services and host sockets are
 unreachable. There are no credentials inside jobs. Keep secrets out of tracked

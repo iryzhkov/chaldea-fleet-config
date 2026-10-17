@@ -7,6 +7,7 @@
   gather_subset: [min]
   vars:
     fleet_home: "{{ playbook_dir }}/../.ci-home/job-client"
+    chaldea_job_client_enabled: true
     chaldea_job_client_targets:
       - {name: fixture, address: 192.0.2.123, port: 2222}
   tasks:
@@ -66,3 +67,42 @@
             that:
               - ansible_failed_task.name == 'Require a private key owned by the session user'
             quiet: true
+
+- name: Exercise a waits-only host without a compute key
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    fleet_home: "{{ playbook_dir }}/../.ci-home/waits-only"
+    chaldea_job_client_enabled: false
+    mcp_registrations_chaldea_waits_enabled: true
+  tasks:
+    - name: Configure the launcher on a waits-only host
+      ansible.builtin.include_role:
+        name: chaldea_job_client
+
+    - name: Inspect the installed client and waits-only launchers
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../.ci-home/{{ item }}/.local/bin/chaldea"
+      loop: [job-client, waits-only]
+      register: fixture_launchers
+
+    - name: Require executable launchers for compute clients and waits-only hosts
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg
+          - item.stat.mode == '0755'
+        quiet: true
+      loop: "{{ fixture_launchers.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Inspect SSH state on the waits-only host
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../.ci-home/waits-only/.ssh"
+      register: fixture_waits_ssh
+
+    - name: Require waits-only setup to leave compute SSH unconfigured
+      ansible.builtin.assert:
+        that: not fixture_waits_ssh.stat.exists
+        quiet: true

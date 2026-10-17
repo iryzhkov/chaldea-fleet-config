@@ -1,0 +1,47 @@
+---
+- name: Check only client key metadata
+  ansible.builtin.stat:
+    path: "{{ chaldea_job_client_key }}"
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+    follow: false
+  register: chaldea_job_client_key_stat
+
+- name: Require a private key owned by the session user
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_client_key_stat.stat.exists
+      - chaldea_job_client_key_stat.stat.isreg | default(false)
+      - not chaldea_job_client_key_stat.stat.islnk | default(false)
+      - chaldea_job_client_key_stat.stat.uid | default(-1) == ansible_facts.user_uid
+      - chaldea_job_client_key_stat.stat.mode | default('') == '0600'
+      - chaldea_job_client_targets | length > 0
+    fail_msg: Generate the dedicated key as this session user with mode 0600, and enroll its public half on the job hosts.
+    quiet: true
+
+- name: Validate SSH target aliases
+  ansible.builtin.assert:
+    that:
+      - item.name is match('^[a-zA-Z0-9][a-zA-Z0-9-]{0,62}$')
+      - item.address is match('^[a-zA-Z0-9.:-]+$')
+      - item.port | default(2222) | int > 1024
+    quiet: true
+  loop: "{{ chaldea_job_client_targets }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create private SSH and multiplex directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ fleet_home }}/.ssh"
+    - "{{ fleet_home }}/.local/state/chaldea/exec/ssh"
+
+- name: Install the isolated compute SSH config without importing user config
+  ansible.builtin.template:
+    src: chaldea-job.conf.j2
+    dest: "{{ fleet_home }}/.ssh/chaldea-job.conf"
+    mode: "0600"
