@@ -1,0 +1,25 @@
+# Managed by chaldea-fleet-config. Tokens are read privately by the program.
+[Unit]
+Description=Chaldea quota observer
+After=t3code.service
+StartLimitIntervalSec=10min
+StartLimitBurst=10
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node %h/.local/share/chaldea/current/bin/chaldea quota observe --t3-base-dir {{ chaldea_client_t3_home | replace(fleet_home, '%h') }} --token-file {{ chaldea_client_quota_token | replace(fleet_home, '%h') }} --state-file %h/.local/state/chaldea/quota-observer.json --feed-command %h/.local/bin/feed --quota-config %h/.config/chaldea/quota.json
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=TMPDIR=%h/.cache/chaldea
+StateDirectory=chaldea
+CacheDirectory=chaldea
+UMask=0077
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=10s
+RestartPreventExitStatus=78
+MemoryMax=256M
+LogRateLimitIntervalSec=60s
+LogRateLimitBurst=200
+
+[Install]
+WantedBy=default.target

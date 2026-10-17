@@ -9,6 +9,7 @@ A unit missing from "units" behaves like one the user manager never loaded.
 import json
 import os
 import sys
+from pathlib import Path
 
 state_path = os.environ["FAKE_SYSTEMCTL_STATE"]
 with open(state_path) as handle:
@@ -19,13 +20,27 @@ if "--version" in sys.argv:
     print("systemd 257 (257)")
     sys.exit(0)
 state["calls"].append([verb, *names])
+failure = os.environ.get("FAKE_SYSTEMCTL_FAIL_ONCE")
+if verb == "daemon-reload" and failure and Path(failure).exists():
+    Path(failure).unlink()
+    with open(state_path, "w") as handle:
+        json.dump(state, handle)
+    print("injected user-manager failure", file=sys.stderr)
+    sys.exit(1)
 rc = 0
 for name in names:
     unit = state["units"].get(name)
+    definition = Path(os.environ.get("FAKE_SYSTEMCTL_UNIT_HOME", os.environ["HOME"])) / ".config/systemd/user" / name
+    if unit is None and definition.is_file():
+        unit = state["units"][name] = {"active": False, "enabled": False}
     if verb == "show":
         if unit is None:
             print(f"Id={name}\nLoadState=not-found\nActiveState=inactive\nSubState=dead\nUnitFileState=")
         else:
+            if definition.is_file():
+                command = next((line.split("=", 1)[1] for line in definition.read_text().splitlines()
+                                if line.startswith("ExecStart=")), "")
+                print("ExecStart=" + command)
             active = "active" if unit["active"] else "inactive"
             enabled = "enabled" if unit["enabled"] else "disabled"
             print(f"Id={name}\nLoadState=loaded\nActiveState={active}\nSubState={'waiting' if unit['active'] else 'dead'}\nUnitFileState={enabled}")
@@ -35,12 +50,12 @@ for name in names:
     elif verb == "is-enabled":
         print("enabled" if unit and unit["enabled"] else ("disabled" if unit else "not-found"))
         rc = 0 if unit and unit["enabled"] else 1
-    elif unit is None and verb in ("start", "stop", "enable", "disable"):
+    elif unit is None and verb in ("start", "stop", "restart", "enable", "disable"):
         print(f"Failed to {verb} {name}: Unit {name} not found.", file=sys.stderr)
         rc = 5
-    elif verb in ("start", "stop"):
-        unit["active"] = verb == "start"
-    elif verb in ("enable", "disable"):
+    elif verb in ("start", "stop", "restart") and unit is not None:
+        unit["active"] = verb in ("start", "restart")
+    elif verb in ("enable", "disable") and unit is not None:
         unit["enabled"] = verb == "enable"
 with open(state_path, "w") as handle:
     json.dump(state, handle)
