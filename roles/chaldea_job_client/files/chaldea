@@ -1,0 +1,13 @@
+#!/bin/sh
+# bin/chaldea dispatches both fleet compute and the waits/decision CLI.
+chaldea_entry="$HOME/.local/share/chaldea/app/bin/chaldea"
+chaldea_node="$HOME/.local/share/mise/installs/node/26.10.0/bin/node"
+if [ ! -f "$chaldea_entry" ]; then
+    printf '%s\n' "chaldea: app checkout is missing at $HOME/.local/share/chaldea/app; provision it before running chaldea." >&2
+    exit 69
+fi
+if [ ! -x "$chaldea_node" ]; then
+    printf '%s\n' "chaldea: pinned Node 26.10.0 is missing at $chaldea_node." >&2
+    exit 69
+fi
+exec "$chaldea_node" "$chaldea_entry" "$@"

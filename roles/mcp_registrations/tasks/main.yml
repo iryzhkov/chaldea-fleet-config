@@ -1,8 +1,11 @@
 ---
+# A disabled host actively removes its Chaldea registration. This intentionally
+# enforces the host opt-in rather than leaving a previously registered server active.
 - name: Register the fleet's MCP servers
   mcp_registration:
     provider: "{{ item.0 }}"
     name: "{{ item.1.name }}"
+    state: "{{ 'present' if item.1.enabled | default(true) | bool else 'absent' }}"
     command: "{{ item.1.command }}"
     args: "{{ item.1.args | default([]) }}"
     env: >-

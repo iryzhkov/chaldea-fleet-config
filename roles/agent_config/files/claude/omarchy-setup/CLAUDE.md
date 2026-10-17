@@ -96,10 +96,7 @@ Delegate through T3's own tools rather than a separate scheduler:
 - `delegate_task` runs child work on any provider and model that `orchestrator_capabilities`
   lists (Claude, Codex, OpenCode). Use `isolation: "worktree"` for code changes in a
   registered repository project. A finished child wakes the parent; do not poll.
-- Independent review goes to a different provider from the one that wrote the change. Start
-  each review round as a new `delegate_task` carrying the brief, prior findings and the
-  responses to them. Only findings that cite a defect, regression, safety problem or unmet
-  requirement block; other notes become follow-ups.
+- Use the `review-delegation` skill for independent reviews, review rounds and worker briefs.
 - `t3_thread_launch` is for separate top-level threads when Igor asks for them,
   `schedule_task` for recurring work, and `watch_pull_request` for following CI.
 - Native same-provider subagents are for quick bounded reading and searching.
@@ -115,17 +112,28 @@ directly.
 Ask first when the estimated cost is large, the work needs operator-level access, or it
 changes more than one host.
 
+# Chaldea and scratch
+
+Use the `chaldea` skill for builds and heavy runs on job hosts, durable waits and the
+decision inbox. Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
+On a quota stop, the session needs to do nothing: T3 resumes at reset; when enabled,
+Chaldea's provider switch continues the same thread on an equivalent model. Never tell
+Igor to resume manually.
+
+Keep scratch on disk under `~/.cache/<task>/`, set `TMPDIR` there and tell workers the
+path. Do not use host `/tmp`: it is RAM tmpfs with a quota.
+
 # Working documents: Jocasta
 
 Jocasta stores shared plans, handoffs, research and prompts. Use its CLI on any fleet host:
 `jocasta search 'rough plan name' --json`, then `jocasta get PROJECT/plans/FILE.md --output
-/tmp/plan.md --json`. Search is lexical, so a bounded search is not proof of absence. Use exact
-`jocasta:DOCUMENT_ID@REVISION` references in handoffs.
+~/.cache/jocasta/plan.md --json`. Search is lexical, so a bounded search is not proof of
+absence. Use exact `jocasta:DOCUMENT_ID@REVISION` references in handoffs.
 
-Create with `jocasta put PROJECT/handoffs/FILE.md --file /tmp/handoff.md --create`. For updates,
-fetch the full document, reconcile changes, and use `--if-revision N`. Never write back a
-partial line range, guess a mutation target from search, or retry a conflict by replacing the
-newer revision.
+Create with `jocasta put PROJECT/handoffs/FILE.md --file ~/.cache/jocasta/handoff.md --create`.
+For updates, fetch the full document, reconcile changes, and use `--if-revision N`.
+Never write back a partial line range, guess a mutation target from search, or retry a
+conflict by replacing the newer revision.
 
 Jocasta is the shared working-document store: repository source stays in Git and is read and
 edited through Huyang and OV stays curated long-term memory.

@@ -3,7 +3,17 @@
 # scope, through the claude CLI) and Codex ([mcp_servers.NAME] in
 # config.toml). Other registrations on a host are left alone. agent_env names
 # a variable set to PROVIDER-HOST, which tells OpenViking who wrote a note.
+# Waits are provisioned separately; opt in only on a host with the local service.
+mcp_registrations_chaldea_waits_enabled: false
 mcp_registrations_servers:
+  - name: chaldea
+    enabled: "{{ mcp_registrations_chaldea_waits_enabled }}"
+    command: "{{ fleet_home }}/.local/share/mise/installs/node/26.10.0/bin/node"
+    args:
+      - "{{ fleet_home }}/.local/share/chaldea/app/src/cli.ts"
+      - mcp
+      - --config
+      - "{{ fleet_home }}/.config/chaldea/waits.json"
   - name: huyang
     command: "{{ fleet_home }}/.local/share/huyang/bin/huyang"
     args: [mcp, --profile, full]
