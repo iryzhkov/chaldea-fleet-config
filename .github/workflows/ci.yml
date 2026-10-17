@@ -8,13 +8,20 @@ permissions:
   contents: read
 jobs:
   ci:
-    runs-on: [self-hosted, Linux, X64, chaldea-fleet-config]
+    # GitHub-hosted: the repository is public, and a self-hosted runner would
+    # run pull requests from forks on a fleet host.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     env:
-      CI_PYTHON: /usr/bin/python3.13
       ANSIBLE_FORKS: "1"
       TMPDIR: ${{ github.workspace }}/../chaldea-fleet-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - id: python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.13"
+      - run: echo "CI_PYTHON=${{ steps.python.outputs.python-path }}" >>"$GITHUB_ENV"
       - run: mkdir -p "$TMPDIR"
       # Same reviewed Linux x64 archive pin as inventory/group_vars/all.yml.
       # Keep Node in this run's scratch, independent of the isolated test HOME.
