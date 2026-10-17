@@ -1,9 +1,10 @@
 # Service token helper enrollment
 
-The helper role is off by default and no host enables it here. Agent-a enrolls
-only the existing access-trust updater. Its transport key, known_hosts and durable
-root updater state must be provisioned before that role converges. No convergence
-was performed by this change.
+Both the helper and access-trust updater stay disabled on every host here.
+Agent-a trust enrollment is a separate follow-up PR, held until host-v0.2.1 is
+pinned and the orchestrator provisions transport, private state and root-pinned
+Node, then verifies check mode, a real apply and a second apply with changed=0.
+The live pull timer follows main, so merging enrollment is an activation step.
 
 After Akasha step 9, the orchestrator can set chaldea_token_helper_enabled on one
 host, with a reviewed client release version and SHA-256, producer grants and

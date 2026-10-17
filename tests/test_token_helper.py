@@ -24,14 +24,14 @@ def render(name, variables):
     return env.from_string((ROLE / "templates" / name).read_text()).render(variables)
 
 
-def test_disabled_by_default_and_updater_only_on_agent_a():
+def test_both_roles_disabled_on_every_host_until_separate_activation():
     defaults = yaml.safe_load((ROLE / "defaults/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert defaults["chaldea_token_helper_enabled"] is False
     assert defaults["chaldea_token_helper_grants"] == []
     assert defaults["chaldea_token_helper_client_sha256"] == ""
     assert defaults["chaldea_token_helper_issuer"]["uid"] == 995
-    assert hosts["agent-a"]["chaldea_access_trust_enabled"] is True
+    assert all(not h.get("chaldea_access_trust_enabled", False) for h in hosts.values())
     assert all(not h.get("chaldea_token_helper_enabled", False) for h in hosts.values())
 
 
@@ -55,9 +55,9 @@ def test_templates_bind_config_and_allow_only_exact_selectors(tmp_path):
     assert "*" not in sudoers and "/bin/sh" not in sudoers and "/bin/node" not in sudoers
     path = tmp_path / "sudoers"
     path.write_text(sudoers)
-    visudo = shutil.which("visudo")
-    if visudo:
-        subprocess.run([visudo, "-cf", str(path)], check=True, capture_output=True)
+    visudo = shutil.which("visudo") or ("/usr/sbin/visudo" if Path("/usr/sbin/visudo").exists() else None)
+    assert visudo, "visudo is required to validate the privileged sudo boundary"
+    subprocess.run([visudo, "-cf", str(path)], check=True, capture_output=True)
     wrapper = render("issuer-command.j2", variables)
     assert '/usr/bin/env -i PATH=/usr/bin:/bin SUDO_UID="${SUDO_UID-}"' in wrapper
     assert "/opt/helper/node/bin/node /opt/helper/releases/client-v0.2.1/bin/chaldea access token-helper" in wrapper
@@ -82,16 +82,17 @@ def test_issuer_wrapper_discards_caller_environment(tmp_path):
 
 
 @pytest.mark.parametrize("change", [{"source": "timer*"}, {"kind": "a,b"}, {"host": "other"},
-                                     {"source": "bad\\nroot ALL"}, {"uid": "1000"}])
+                                     {"source": "bad\nroot ALL"}, {"kind": "timer_run\n"}, {"uid": "1000"},
+                                     {"client_version": "client-v0.2.0"}, {"client_version": "client-v0.2.1\n"}])
 def test_inventory_injection_is_rejected_before_any_install(tmp_path, change):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).parent)
     inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
     grant = dict(uid=1000, audience="akasha", action="append", source="timer",
                  host="localhost", kind="timer_run", profile="timer-service", project="chaldea")
-    grant.update(change)
+    grant.update({key: value for key, value in change.items() if key != "client_version"})
     variables = inventory | yaml.safe_load((ROLE / "defaults/main.yml").read_text()) | {
         "chaldea_token_helper_enabled": True, "chaldea_access_trust_enabled": True,
-        "chaldea_token_helper_client_version": "client-v0.2.1",
+        "chaldea_token_helper_client_version": change.get("client_version", "client-v0.2.1"),
         "chaldea_token_helper_client_sha256": "a" * 64,
         "chaldea_token_helper_issuer": dict(uid=995, key_file="/private/key", name="chaldea:localhost", kid="key"),
         "chaldea_token_helper_grants": [grant],
@@ -107,7 +108,8 @@ def test_inventory_injection_is_rejected_before_any_install(tmp_path, change):
     result = subprocess.run(["ansible-playbook", "-i", "localhost,", str(play), "--check"],
                             env=environment, capture_output=True, text=True)
     assert result.returncode != 0
-    assert "Validate every exact sudo selector" in result.stdout
+    expected = "Validate helper enrollment" if "client_version" in change else "Validate every exact sudo selector"
+    assert expected in result.stdout
     assert "Inspect fixed launcher ancestors" not in result.stdout
 
 
@@ -130,7 +132,7 @@ def test_shared_verifier_checks_archive_before_install_and_rejects_drift(tmp_pat
     manifest.write_text(json.dumps(dict(version="client-v0.2.1", sha256=sha,
                                        files={n: hashlib.sha256(b).hexdigest() for n, b in files.items()})))
     params = dict(root=str(tmp_path / "root"), archive=str(archive), manifest=str(manifest),
-                  version="client-v0.2.1", sha256="0" * 64)
+                  version="client-v0.2.1", sha256="0" * 64, check_permissions=True)
     request = types.SimpleNamespace(params=params, check_mode=False)
     with pytest.raises(ValueError, match="SHA-256"):
         module.install(request)
@@ -142,6 +144,9 @@ def test_shared_verifier_checks_archive_before_install_and_rejects_drift(tmp_pat
     assert (installed / "bin/chaldea-token-helper").stat().st_mode & 0o777 == 0o755
     entry = installed / "bin/chaldea-token-helper"
     entry.chmod(0o777)
+    params["check_permissions"] = False
+    assert not module.install(request)  # Existing user-client behavior is unchanged.
+    params["check_permissions"] = True
     with pytest.raises(ValueError, match="unsafe ownership or write permissions"):
         module.install(request)
     entry.chmod(0o755)
