@@ -25,20 +25,19 @@ agent_tools_sources:
 agent_tools_credential_files:
   - {name: Jocasta token, path: .config/jocasta/token}
 
-# Fleet compute is explicitly enrolled per host after review. Public-key entries
-# are placeholders here; never put a private key in inventory.
+# Fleet compute is explicitly enrolled per host after review; hosts.yml turns
+# each role on. Only public halves of the job keys belong here, never a private
+# key. Enrolled 2026-10-17: job hosts agent-a and omarchy-pc, session hosts
+# omarchy-pc and the laptop. The laptop's address comes from DHCP on wlan0; if it
+# changes, its from= restriction refuses it until this entry is updated.
 chaldea_job_host_enabled: false
 chaldea_job_client_enabled: false
 chaldea_job_host_sources:
-  - {name: omarchy-pc, ip: 192.0.2.10, public_key: 'ssh-ed25519 PLACEHOLDER-omarchy-pc'}
-  - {name: laptop, ip: 192.0.2.11, public_key: 'ssh-ed25519 PLACEHOLDER-laptop'}
-  - {name: agent-a, ip: 192.0.2.12, public_key: 'ssh-ed25519 PLACEHOLDER-agent-a'}
-  - {name: agent-b, ip: 192.0.2.13, public_key: 'ssh-ed25519 PLACEHOLDER-agent-b'}
+  - {name: omarchy-pc, ip: 192.168.90.212, public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMlQCBZyK/lzWoPK345dpeI9iIBCfDIS6BGAs8heMcDo'}
+  - {name: laptop, ip: 192.168.90.163, public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPfzyHZ+qPdUaHXzwHyRXKGhvlPs/Fz+EoE0Jk57Mg8Z'}
 chaldea_job_client_targets:
-  - {name: omarchy-pc, address: 192.0.2.10, port: 2222}
-  - {name: laptop, address: 192.0.2.11, port: 2222}
-  - {name: agent-a, address: 192.0.2.12, port: 2222}
-  - {name: agent-b, address: 192.0.2.13, port: 2222}
+  - {name: agent-a, address: 192.168.130.2, port: 2222}
+  - {name: omarchy-pc, address: 192.168.90.212, port: 2222}
 
 t3_enabled: true
 t3_version: 0.1.0
