@@ -421,3 +421,65 @@ def test_resolver_on_blocked_connected_subnet_is_not_imported():
             server.sandbox(request(), Path(tmp), {"_blocked_subnets": ["172.17.0.0/16"]})
         value = (Path(tmp) / ".chaldea-resolv").read_text()
         assert "172.17.0.53" not in value and "1.1.1.1" in value
+
+
+def test_smoke_refuses_busy_lock_before_touching_a_jobs_workspace():
+    import fcntl
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        workspace = root / "running-job"
+        workspace.mkdir()
+        marker = workspace / "keep"
+        marker.write_text("still running")
+        with (root / "admission.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with patch.object(server, "prepare_launch") as prepare:
+                with pytest.raises(server.Refused, match="host busy"):
+                    server.smoke_test({"state_root": str(root), "require_mount": False})
+                prepare.assert_not_called()
+            assert marker.read_text() == "still running"
+            assert sorted(p.name for p in root.iterdir()) == ["admission.lock", "running-job"]
+
+
+def test_smoke_holds_admission_lock_through_launch_and_releases_after_cleanup():
+    from types import SimpleNamespace
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        workspaces = []
+        def check_locked():
+            with pytest.raises(server.Refused, match="host busy"):
+                with server.admission_lock(root):
+                    pytest.fail("smoke did not hold the job admission lock")
+        def prepare(_request, workspace, _config):
+            check_locked()
+            workspaces.append(workspace.parent)
+            return ["fake-pasta"], workspace.parent / "launch"
+        def run(*_args, **_kwargs):
+            check_locked()
+            return SimpleNamespace(returncode=0, stdout="sandbox-smoke-ok\n", stderr="")
+        with patch.object(server, "prepare_launch", side_effect=prepare), \
+             patch.object(server.subprocess, "run", side_effect=run), \
+             patch.object(server, "launched", return_value=True):
+            server.smoke_test({"state_root": str(root), "require_mount": False})
+        assert workspaces and not workspaces[0].exists()
+        with server.admission_lock(root):
+            assert list(root.iterdir()) == [root / "admission.lock"]
+
+
+def test_connected_subnets_excludes_link_scope_so_ipv6_gateway_is_usable():
+    rows = [
+        {"ifname": "eno1", "addr_info": [{"local": "192.168.90.212", "prefixlen": 24, "scope": "global"}]},
+        {"ifname": "docker0", "addr_info": [
+            {"local": "172.17.0.1", "prefixlen": 16, "scope": "global"},
+            {"local": "fe80::123", "prefixlen": 64, "scope": "link"},
+            {"local": "169.254.1.1", "prefixlen": 16, "scope": "link"}]},
+        {"ifname": "nebula1", "addr_info": [{"local": "fd42::6", "prefixlen": 64, "scope": "global"}]},
+    ]
+    networks = server.connected_subnets(rows, [{"dev": "eno1"}])
+    assert set(networks) == {"172.17.0.0/16", "fd42::/64"}
+    import ipaddress
+    gateway = ipaddress.ip_address("fe80::1")
+    assert not any(gateway in ipaddress.ip_network(network) for network in networks)
+    rules = server.network_rules(["fe80::123"], networks)
+    assert "fe80::123/128" in rules  # the host's own address is still blocked
+    assert "fe80::/64" not in rules
