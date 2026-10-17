@@ -26,7 +26,10 @@ reviewed pair and the concrete public-key inventory are approved.
   every non-loopback address assigned to the host and connected subnets of all
   interfaces outside the IPv4/IPv6 default routes (including Docker bridges and
   Nebula overlays). DNS resolvers in these blocked ranges are replaced by public
-  fallback resolvers. These addresses/subnets are captured at job start; dynamic
+  fallback resolvers. Pasta's unused DHCP/NDP DNS discovery is explicitly disabled
+  with --dns none, avoiding its cosmetic warning on loopback-stub hosts; the guest
+  still uses its sanitized resolv.conf for DNS.
+  These addresses/subnets are captured at job start; dynamic
   interface changes during a job remain follow-up N2. Guest loopback stays inside
   the guest and host abstract Unix sockets are absent. Outbound DNS/HTTPS works.
   This is host isolation, **not a general internet/LAN egress allowlist**.
@@ -103,8 +106,13 @@ managed UFW block or dedicated nft table.
 Neither role connects to peers at boot. Session hosts only get static SSH config
 and metadata checks. Job hosts only need local disk, firewall and sshd.
 Source/target reboot during dispatch leaves durable intent uncertain. There is
-no reconnect/replay path. Stale ControlMaster sockets are checked and removed
-before a new dispatch; flock needs no stale-lock cleanup.
+no reconnect/replay path. A trusted supervisor outside pasta owns the parent-death
+signal and kills the transport group if the forced server dies; this also covers
+older Debian pasta versions that clear their own inherited parent-death signal.
+A pipe-based lifetime guard also kills the group if the supervisor is SIGKILLed.
+Smoke tests always kill their launch group before deleting temporary storage or
+releasing admission. Stale ControlMaster sockets are checked and removed before
+a new dispatch; flock needs no stale-lock cleanup.
 
 ## Compute-port firewall modes and removal
 

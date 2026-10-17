@@ -14,6 +14,71 @@ server = importlib.util.module_from_spec(spec)
 loader.exec_module(server)
 
 
+@pytest.mark.parametrize("kill_supervisor", [False, True])
+def test_supervisor_kills_transport_that_clears_parent_death_signal(kill_supervisor):
+    import os
+    import select
+    import signal
+    import subprocess
+    import sys
+    import time
+    transport = """
+import ctypes,json,os,signal,subprocess,sys
+inherited=ctypes.c_int()
+assert ctypes.CDLL(None).prctl(2,ctypes.byref(inherited),0,0,0) == 0
+assert inherited.value == signal.SIGKILL
+assert ctypes.CDLL(None).prctl(1,0,0,0,0) == 0
+child = subprocess.Popen([sys.executable,'-I','-c','import time; time.sleep(100)'])
+print(json.dumps([os.getppid(),os.getpid(),child.pid]), flush=True)
+child.wait()
+"""
+    driver = """
+import json,os,subprocess,sys
+from pathlib import Path
+server,launch = sys.argv[1:]
+value=json.loads(Path(launch).read_text())
+value['parent_pid']=os.getpid()
+Path(launch).write_text(json.dumps(value))
+child=subprocess.Popen([sys.executable,'-I',server,'--network-supervisor',launch],start_new_session=True)
+sys.exit(child.wait())
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        launch = Path(tmp) / "launch.json"
+        launch.write_text(json.dumps({"transport": [sys.executable, "-I", "-c", transport]}))
+        parent = subprocess.Popen([sys.executable, "-I", "-c", driver, str(PATH), str(launch)],
+                                  stdout=subprocess.PIPE)
+        assert parent.stdout is not None
+        group = None
+        descriptors = []
+        try:
+            assert select.select([parent.stdout], [], [], 5)[0], "transport did not start"
+            pids = json.loads(parent.stdout.readline())
+            group = pids[0]
+            descriptors = [os.pidfd_open(pid) for pid in pids]
+            if kill_supervisor:
+                os.kill(group, signal.SIGKILL)
+            parent.kill()
+            parent.wait(timeout=5)
+            pending = set(descriptors)
+            deadline = time.monotonic() + 5
+            while pending:
+                ready, _, _ = select.select(list(pending), [], [], max(0, deadline - time.monotonic()))
+                assert ready, "supervisor/transport/worker survived parent crash"
+                pending.difference_update(ready)
+        finally:
+            if parent.poll() is None:
+                parent.kill()
+                parent.wait(timeout=5)
+            if group:
+                try:
+                    os.killpg(group, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            for descriptor in descriptors:
+                os.close(descriptor)
+            parent.stdout.close()
+
+
 def test_network_child_uses_nft_path_available_on_debian_and_arch():
     with tempfile.TemporaryDirectory() as tmp:
         launch = Path(tmp) / "launch.json"
@@ -321,9 +386,34 @@ peer,_=allowed.accept(); peer.close(); client.close()
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.parametrize("resolv,expected", [
+    ("nameserver 127.0.0.53\n", ["1.1.1.1", "9.9.9.9"]),
+    ("# no nameserver configured\n", ["1.1.1.1", "9.9.9.9"]),
+    ("nameserver 192.0.2.1\nnameserver 10.42.0.5\nnameserver 8.8.8.8\n", ["8.8.8.8"]),
+])
+def test_pasta_skips_dns_discovery_and_guest_keeps_sanitized_resolvers(resolv, expected):
+    read_text = Path.read_text
+    def read(path, *args, **kwargs):
+        return resolv if path == Path("/etc/resolv.conf") else read_text(path, *args, **kwargs)
+    with tempfile.TemporaryDirectory() as tmp:
+        workspace = Path(tmp) / "work"
+        workspace.mkdir()
+        with (patch.object(Path, "read_text", read),
+              patch.object(server, "host_addresses", return_value=["192.0.2.1"]),
+              patch.object(server, "connected_subnets", return_value=["10.42.0.0/24"]),
+              patch.object(server, "check_tools", return_value=""),
+              patch.object(server.subprocess, "check_output", return_value="--disable-userns")):
+            wrapped, launch = server.prepare_launch(request(), workspace, {})
+        assert "--network-supervisor" in wrapped
+        transport = json.loads(launch.read_text())["transport"]
+        assert "--foreground" in transport
+        assert [transport[i + 1] for i, arg in enumerate(transport) if arg == "--dns"] == ["none"]
+        assert (workspace / ".chaldea-resolv").read_text() == "".join("nameserver " + address + "\n" for address in expected)
+
+
 def test_package_baseline_rejects_old_bwrap_and_missing_pasta_options():
     from types import SimpleNamespace
-    required = "--config-net --no-map-gw --map-host-loopback --no-splice"
+    required = "--foreground --dns --config-net --no-map-gw --map-host-loopback --no-splice"
     with patch.object(server.subprocess, "check_output", return_value="bubblewrap 0.8.0"):
         with pytest.raises(server.Refused, match="bubblewrap >= 0.9"):
             server.check_tools()
@@ -455,6 +545,7 @@ def test_smoke_refuses_busy_lock_before_touching_a_jobs_workspace():
 
 
 def test_smoke_holds_admission_lock_through_launch_and_releases_after_cleanup():
+    import io
     from types import SimpleNamespace
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -467,16 +558,89 @@ def test_smoke_holds_admission_lock_through_launch_and_releases_after_cleanup():
             check_locked()
             workspaces.append(workspace.parent)
             return ["fake-pasta"], workspace.parent / "launch"
-        def run(*_args, **_kwargs):
+        def communicate(timeout):
             check_locked()
-            return SimpleNamespace(returncode=0, stdout="sandbox-smoke-ok\n", stderr="")
-        with patch.object(server, "prepare_launch", side_effect=prepare), \
-             patch.object(server.subprocess, "run", side_effect=run), \
-             patch.object(server, "launched", return_value=True):
+            assert timeout == 15
+            return "sandbox-smoke-ok\n", ""
+        process = SimpleNamespace(returncode=0, stdout=io.StringIO(), stderr=io.StringIO(),
+                                  communicate=communicate)
+        with (patch.object(server, "prepare_launch", side_effect=prepare),
+              patch.object(server.subprocess, "Popen", return_value=process) as popen,
+              patch.object(server, "kill_group", side_effect=lambda _process: check_locked()) as kill,
+              patch.object(server, "launched", return_value=True)):
             server.smoke_test({"state_root": str(root), "require_mount": False})
+        assert popen.call_args.kwargs["start_new_session"] is True
+        kill.assert_called_once_with(process)
         assert workspaces and not workspaces[0].exists()
         with server.admission_lock(root):
             assert list(root.iterdir()) == [root / "admission.lock"]
+
+
+def test_smoke_timeout_kills_tree_before_workspace_cleanup_and_unlock():
+    import os
+    import select
+    import signal
+    import subprocess
+    import sys
+    import time
+    popen = subprocess.Popen
+    kill_group = server.kill_group
+    descriptors = []
+    workspaces = []
+    group = None
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        transport = """
+import json,os,subprocess,sys
+child=subprocess.Popen([sys.executable,'-I','-c','import time; time.sleep(100)'])
+print(json.dumps([os.getppid(),os.getpid(),child.pid]),flush=True)
+child.wait()
+"""
+        def prepare(_request, workspace, _config):
+            workspaces.append(workspace.parent)
+            launch = workspace.parent / "launch"
+            launch.write_text(json.dumps({"parent_pid": os.getpid(),
+                                          "transport": [sys.executable, "-I", "-c", transport]}))
+            return [sys.executable, "-I", str(PATH), "--network-supervisor", str(launch)], launch
+        class SmokeProcess(popen):
+            def communicate(self, *, timeout):
+                nonlocal group
+                assert timeout == 15
+                assert select.select([self.stdout], [], [], 5)[0], "transport did not start"
+                pids = json.loads(self.stdout.readline())
+                group = pids[0]
+                descriptors.extend(os.pidfd_open(pid) for pid in pids)
+                return super().communicate(timeout=.1)
+        def kill_before_cleanup(process):
+            assert workspaces[0].exists(), "workspace removed before killing smoke"
+            with pytest.raises(server.Refused, match="host busy"):
+                with server.admission_lock(root):
+                    pytest.fail("smoke released admission before killing its group")
+            kill_group(process)
+        try:
+            with (patch.object(server, "prepare_launch", side_effect=prepare),
+                  patch.object(server.subprocess, "Popen", SmokeProcess),
+                  patch.object(server, "kill_group", side_effect=kill_before_cleanup)):
+                with pytest.raises(subprocess.TimeoutExpired):
+                    server.smoke_test({"state_root": str(root), "require_mount": False})
+            pending = set(descriptors)
+            assert pending
+            deadline = time.monotonic() + 5
+            while pending:
+                ready, _, _ = select.select(list(pending), [], [], max(0, deadline - time.monotonic()))
+                assert ready, "timed-out smoke left a live process"
+                pending.difference_update(ready)
+            assert not workspaces[0].exists()
+            with server.admission_lock(root):
+                assert list(root.iterdir()) == [root / "admission.lock"]
+        finally:
+            if group:
+                try:
+                    os.killpg(group, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            for descriptor in descriptors:
+                os.close(descriptor)
 
 
 def test_connected_subnets_excludes_link_scope_so_ipv6_gateway_is_usable():

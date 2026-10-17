@@ -360,6 +360,49 @@ def network_rules(addresses, subnets):
     return rules + "}\n}\n"
 
 
+def network_guard(group):
+    """EOF survives simultaneous server/supervisor death, unlike their handlers."""
+    # Only the supervisor owns the write end; transport close_fds prevents
+    # pasta or the job keeping it alive, even if pasta clears PDEATHSIG.
+    if os.read(0, 1) != b"D":
+        os.killpg(group, signal.SIGKILL)
+
+
+def network_supervisor(path):
+    """Keep the parent-death contract outside pasta, which may clear it."""
+    import ctypes
+    if os.getpgrp() != os.getpid():
+        os.setsid()
+    group = os.getpid()
+
+    def stop(_signum=None, _frame=None):
+        os.killpg(group, signal.SIGKILL)
+
+    for signum in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+        signal.signal(signum, stop)
+    launch = json.loads(Path(path).read_text())
+    if ctypes.CDLL(None, use_errno=True).prctl(1, signal.SIGTERM, 0, 0, 0) != 0:
+        raise RuntimeError("cannot establish supervisor death signal")
+    if os.getppid() != launch["parent_pid"]:
+        stop()
+    # Foreground pasta stays in this group; killing it also kills its PID
+    # namespace leader, including jobs that started their own sessions.
+    def transport_death():
+        if (ctypes.CDLL(None, use_errno=True).prctl(1, signal.SIGKILL, 0, 0, 0) != 0
+                or os.getppid() != group):
+            os._exit(125)
+
+    guard = subprocess.Popen(["/usr/bin/python3", "-I", str(Path(__file__).resolve()),
+                              "--network-guard", str(group)], stdin=subprocess.PIPE)
+    try:
+        result = subprocess.run(launch["transport"], close_fds=True, preexec_fn=transport_death)
+        return result.returncode if result.returncode >= 0 else 128 - result.returncode
+    finally:
+        guard.stdin.write(b"D")
+        guard.stdin.close()
+        guard.wait(timeout=5)
+
+
 def network_child(path):
     """Trusted setup in pasta's private user/netns, before bwrap drops caps."""
     # Older pasta clears PDEATHSIG before exec. Restore it so killing the
@@ -432,7 +475,7 @@ def check_tools(pasta="/usr/bin/pasta"):
     # An intentionally unknown option prints complete usage to unbuffered stderr.
     help_text = subprocess.run([pasta, "--chaldea-option-probe"], capture_output=True, text=True, timeout=2)
     help_text = help_text.stdout + help_text.stderr
-    for option in ("--config-net", "--no-map-gw", "--map-host-loopback", "--no-splice"):
+    for option in ("--foreground", "--dns", "--config-net", "--no-map-gw", "--map-host-loopback", "--no-splice"):
         if option not in help_text:
             raise Refused("installed pasta lacks required option " + option)
     return help_text
@@ -442,19 +485,23 @@ def prepare_launch(request, workspace, config):
     config = {**config, "_host_addresses": host_addresses(), "_blocked_subnets": connected_subnets()}
     command, env = sandbox(request, workspace, config)
     launch = workspace.parent / (request["jobId"] + ".launch")
-    launch.write_text(json.dumps({"command": command, "env": env,
-                                 "addresses": config["_host_addresses"], "subnets": config["_blocked_subnets"]}))
     pasta = config.get("pasta_binary", "/usr/bin/pasta")
     # Older distro pasta creates an extra PID namespace. Translate bwrap's
     # status PID on the host instead of requiring the newer --no-pidns option.
-    wrapped = [pasta, "--quiet", "--config-net", "--no-map-gw",
-               "--map-host-loopback", "none", "--no-splice",
+    wrapped = [pasta, "--foreground", "--quiet", "--config-net", "--no-map-gw",
+               "--map-host-loopback", "none", "--no-splice", "--dns", "none",
                "-t", "none", "-u", "none", "-T", "none", "-U", "none"]
+    # The guest already has a sanitized resolv.conf; do not auto-discover DNS
+    # for unused DHCP/NDP metadata (which warns on loopback-only host stubs).
     if "--conf-path" in check_tools(pasta):
         wrapped += ["-c", str(workspace.parent / ".pasta.sock")]
     wrapped += ["--", "/usr/bin/python3", "-I", str(Path(__file__).resolve()),
                 "--network-child", str(launch)]
-    return wrapped, launch
+    launch.write_text(json.dumps({"command": command, "env": env,
+                                 "addresses": config["_host_addresses"], "subnets": config["_blocked_subnets"],
+                                 "transport": wrapped, "parent_pid": os.getpid()}))
+    return ["/usr/bin/python3", "-I", str(Path(__file__).resolve()),
+            "--network-supervisor", str(launch)], launch
 
 
 @contextmanager
@@ -479,10 +526,17 @@ def smoke_test(config):
                    str(int(config.get("shm_bytes", 64 * 1024**2))) + "; print('sandbox-smoke-ok')"],
                    "cwd": "", "gpu": False}
         wrapped, launch = prepare_launch(request, workspace, config)
-        result = subprocess.run(wrapped, env={"PATH": "/usr/bin:/bin", "HOME": str(workspace)},
-                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15)
-        if result.returncode or not launched(launch) or result.stdout.strip() != "sandbox-smoke-ok":
-            raise Refused("installed pasta/bwrap smoke failed: " + result.stderr[-2048:])
+        process = subprocess.Popen(wrapped, env={"PATH": "/usr/bin:/bin", "HOME": str(workspace)},
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, text=True, start_new_session=True)
+        try:
+            stdout, stderr = process.communicate(timeout=15)
+            if process.returncode or not launched(launch) or stdout.strip() != "sandbox-smoke-ok":
+                raise Refused("installed pasta/bwrap smoke failed: " + stderr[-2048:])
+        finally:
+            kill_group(process)
+            process.stdout.close()
+            process.stderr.close()
     print("sandbox-smoke-ok")
 
 
@@ -606,9 +660,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="/etc/chaldea-job.json")
     parser.add_argument("--network-child")
+    parser.add_argument("--network-supervisor")
+    parser.add_argument("--network-guard", type=int)
     parser.add_argument("--check-tools", action="store_true")
     parser.add_argument("--smoke-test", action="store_true")
     args = parser.parse_args()
+    if args.network_guard is not None:
+        network_guard(args.network_guard)
+        return
+    if args.network_supervisor:
+        sys.exit(network_supervisor(args.network_supervisor))
     if args.network_child:
         network_child(args.network_child)
         return
@@ -673,7 +734,7 @@ if __name__ == "__main__":
         if "--check-tools" in sys.argv or "--smoke-test" in sys.argv:
             print("chaldea: apply-time sandbox check failed: " + str(exc), file=sys.stderr)
             sys.exit(1)
-        if "--network-child" in sys.argv:
+        if any(flag in sys.argv for flag in ("--network-child", "--network-supervisor", "--network-guard")):
             # Bootstrap failures are not command stdout or remote exit 125.
             print("chaldea: network/sandbox bootstrap failed: " + type(exc).__name__, file=sys.stderr)
             sys.exit(125)
