@@ -1,212 +1,187 @@
-# Restricted job hosts, protocol 1
+# Restricted job hosts, protocol 1 — fix round 1
 
-This is fleet compute v0 for
-[the Chaldea client](https://github.com/iryzhkov/chaldea), not an operator SSH
-account. Both roles default off. Nothing is provisioned merely by merging.
+Both roles default off. No real host has been provisioned by this lane. The
+client is in iryzhkov/chaldea PR #2; these roles are PR #3. Apply only after the
+reviewed pair and the concrete public-key inventory are approved.
 
-## Host layout and enforced policy
+## Enforced behavior and limits
 
-- agent-a: `/srv/agent/chaldea-job`, always accepts.
-- agent-b: `/srv/agent/chaldea-job`, always accepts.
-- laptop: `/home/chaldea-job/jobs`, always accepts while it answers.
-- omarchy-pc: `/home/chaldea-job/jobs`, idle gate enforced on the host.
-  Every graphical session for `chaldea_job_host_desktop_user` must have
-  loginctl LockedHint=yes. Every process owned by that user must have its exact
-  comm name in `chaldea_job_host_idle_allowed_processes`. Sunshine, Steam,
-  Wine/Proton, Lutris, Heroic and gamescope are refused even if listed.
-  The baseline defaults empty, hence refuses until reviewed. Unknown processes
-  fail closed. This deliberately also refuses harmless applications and an idle
-  Sunshine daemon; it does not claim to distinguish active Sunshine streams.
-  Do not allowlist games or general launchers. Running jobs are not preempted
-  when the user unlocks in v0.
+- agent-a and agent-b accept jobs while up, using /srv/agent/chaldea-job.
+- laptop accepts while awake, using /home/chaldea-job/jobs.
+- omarchy-pc uses /home/chaldea-job/jobs and policy idle. A Steam game or
+  Minecraft refuses admission. Sunshine and the Steam client do not.
+- Steam defaults to a reaper command line containing SteamLaunch AppId=<number>,
+  plus its descendants. Minecraft defaults to java running net.minecraft,
+  Fabric's knot launcher, or a .minecraft/.minecraft-modded game directory.
+  Inventory can override chaldea_job_host_steam_game_pattern and
+  chaldea_job_host_minecraft_pattern. No LockedHint or Sunshine test remains.
+  A five-second check runs only during an idle-policy job. Gaming appearance
+  sends SIGTERM to the job group, followed by SIGKILL after ten seconds if
+  necessary. Client journal/status says preempted; it never retries.
+- One job per host; six-hour runtime, two-minute upload, 64 MiB snapshot,
+  64 MiB combined output, 32 regular-file artifacts / 64 MiB aggregate.
+- Every job has its own network namespace, connected outward by pasta.
+  Host-loopback/gateway mapping, automatic port forwarding and socket splicing
+  are explicitly disabled. An nft output filter in that namespace rejects
+  every non-loopback address assigned to the host. Guest loopback stays inside
+  the guest and host abstract Unix sockets are absent. Outbound DNS/HTTPS works.
+  This is host isolation, **not a general internet/LAN egress allowlist**.
+- bubblewrap shares only pasta's new namespace, never the host namespace. It
+  creates the remaining namespaces and supplies a fresh HOME/TMPDIR, read-only
+  system tools and public resolver/certificate files, and the writable workspace.
+  No host credentials, sudo, Huyang/Docker/SSH-agent/D-Bus sockets are mounted.
+  Nested user namespaces are disabled when bwrap supports --disable-userns.
+  The root-owned forced command uses python3 -I.
+- GPU devices are absent unless --gpu. Enroll verified RTX 4090 device nodes and
+  its NVIDIA ICD, never the AMD iGPU (normally Vulkan device 0).
+- The job sshd cgroup applies MemoryMax, MemorySwapMax=0, TasksMax, CPUWeight=10
+  and IOWeight=10. Defaults: agents 8G/512 tasks, desktop 4G/256, laptop 2G/128.
+  Variables chaldea_job_host_memory_max, _tasks_max, _cpu_weight and _io_weight
+  are operator-adjustable. /dev/shm is a private size-limited tmpfs, default
+  64 MiB (chaldea_job_host_shm_bytes), and counts against MemoryMax.
+- Storage is one fixed-size sparse ext4 image, default 21474836480 bytes
+  (chaldea_job_host_image_bytes). No filesystem-wide quotas are enabled.
+  Default image: /srv/agent/chaldea-job.ext4 on agents, otherwise
+  /home/chaldea-job-state.ext4; chaldea_job_host_image overrides it.
+  Existing images are never reformatted or resized. Put images outside snapshot
+  coverage (or explicitly exclude them) if the containing filesystem has snapshots.
+  Admission checks free space on the image filesystem, reserving 256 MiB + input.
+- Normal/failed workspaces are deleted immediately. fd-relative cleanup handles
+  paths beyond PATH_MAX and chmod-000 directories. Startup/end cleanup has a
+  one-second budget, logs bounded leftover warnings and continues after failures.
+  Unremovable/crash leftovers stay inside the image bound; new work proceeds if
+  space remains. No cleanup polling timer exists. Authentication logs have a
+  separate 16 MiB / 14-day journal namespace.
+- Client artifacts are capped at 20 GiB per destination across all worktrees,
+  using paths in the journal; age is 14 days, with older completed artifacts
+  evicted under size pressure. Journal eviction also removes its artifacts.
+  A per-host kernel flock protects accounting and vanishes on crash/reboot.
+  Definite non-execution is refused; dispatched/lost outcomes remain uncertain.
+  Remote exit 125 passes through; local Chaldea failures use 255, as with SSH.
+  A remote 255 is distinguished by the finished journal entry.
 
-The user `chaldea-job` has no usable password and no sudo grants. The ordinary
-operator sshd denies it through a Match drop-in; a separate sshd on TCP 2222
-allows only that user. That daemon reuses the existing host Ed25519 key, uses
-source-bound `restrict,from=...,command=...` authorized_keys, and also sets a
-root-owned ForceCommand. It disables password/keyboard auth, PTY, user rc/env,
-TCP/Unix/agent/X11 forwarding and tunnels. The complete operator config is
-tested, its effective DenyUsers verified, then reloaded. The job daemon validates
-its complete config before starting/restarting.
+## Boot and reboot contract
 
-Managed blocks in UFW's IPv4 and IPv6 **before-input** chains accept the job
-port only from the enrolled source IPs and drop other sources before ordinary
-allow rules. Updating the block removes old source allowances. The role requires
-UFW active, validates each rules file with iptables-restore --test, reloads UFW
-before job admission, and leaves ordinary SSH rules intact. Use fixed addresses
-(or DHCP reservations). Changing the port after initial enrollment also requires
-removing any old compute-port rules/config and updating known-host entries;
-do not leave an old manually managed daemon listening.
+The image has an enabled path-named systemd .mount unit. It has nofail,
+DefaultDependencies=no, no Before=multi-user.target and no hard dependency from
+that target. A missing image skips it; a corrupt image fails its mount within
+five seconds. Neither can hold boot waiting for job storage.
 
-The self-contained Python server lives in this role's files, installed as
-`/usr/local/libexec/chaldea-job-server-v1`; no repository deploy key is needed on
-a job host for the client. Python, /usr/bin/bwrap and system build tools are used.
-Only the client needs Node 26.10.0. No host mise config or operator runtime home is
-mounted into a job.
+chaldea-job-sshd.service is enabled independently, with **no mount dependency**.
+It stays available and returns "job storage unavailable: image is not mounted"
+until storage is ready. It never writes jobs to the underlying mountpoint.
+When storage returns, the next explicit invocation works; startup removes killed
+jobs' leftovers within its budget. UFW is enabled and the IPv4/IPv6 before-chain
+rules are persistent.
 
-Sandbox network is **on**, including loopback. No egress filtering is implemented.
-Filesystem and environment isolation are enforced, not network service scopes.
-The job has no host credentials or mounted control sockets. Native x86_64 and
-aarch64 jobs only: seccomp blocks foreign ABIs and Btrfs subvolume/snapshot and
-subvolume-flag ioctls, preventing nested-subvolume quota bypasses while leaving
-GPU ioctls available.
+The operator sshd denies chaldea-job; the compute-only daemon on TCP 2222 allows
+only that account. Root owns .ssh and authorized_keys. Every source key has
+restrict,from=<exact IP>,command=<isolated Python forced command>. Password,
+keyboard auth, PTY, user rc/env, tunnels and TCP/Unix/agent/X11 forwarding are
+disabled. Main-sshd configuration is tested including its effective DenyUsers
+rule case-insensitively. Failed validation removes the drop-in without reloading
+an invalid configuration. UFW restricts the compute port before ordinary allow
+rules. Changes to port/source inventory replace the managed rules.
 
-A host lock admits one job at a time without a queue or polling. Busy hosts
-refuse immediately. stdin EOF or SSH termination kills the process group;
-bubblewrap parent-death/PID-namespace isolation also kills detached descendants.
-SSH keepalives bound detection of silent partitions to about 30 seconds.
-Workspaces are deleted after success and failure, including chmod-000 directories.
-Stale state after SIGKILL/reboot is cleaned at next connection under the host
-lock; a hard filesystem quota bounds it even if the host receives no further job.
-No timer is installed. No result-reconnect or automatic retry exists.
+Neither role connects to peers at boot. Session hosts only get static SSH config
+and metadata checks. Job hosts only need local disk, firewall and sshd.
+Source/target reboot during dispatch leaves durable intent uncertain. There is
+no reconnect/replay path. Stale ControlMaster sockets are checked and removed
+before a new dispatch; flock needs no stale-lock cleanup.
 
-The state directory has a 20 GiB hard limit, via a dedicated Btrfs subvolume's
-referenced-byte qgroup or a Unix user quota on another filesystem. The role never
-enables quotas or changes mount options implicitly. It refuses unsupported or
-unprepared filesystems. New jobs also require 256 MiB free space plus 64 MiB input
-capacity. Snapshot and aggregate artifact limits are 64 MiB each, output 64 MiB,
-runtime six hours and upload two minutes. Both successful and failed workspaces
-are deleted immediately; the three-day failed-workspace option is not used.
-Authentication logs use a separate systemd journal namespace capped at 16 MiB
-and 14 days. No command/output log is retained on the host. The client prunes
-artifacts at 14 days and bounds its durable local journal to 1,000 entries /
-14 days, protecting live client intents and refusing admission if no slot exists.
+## Enrollment and apply (orchestrator, after approval)
 
-## Exact enrollment and apply procedure (orchestrator only)
-
-Do these only after Igor approves the reviewed commits. Apply one host at a time.
-No commands in this procedure were run against real hosts during implementation.
-
-1. On **each source/session host** (agent-a, agent-b, laptop, omarchy-pc), as igor,
-   generate its dedicated client key if absent. Never overwrite an existing key:
-
+1. On each source host (agent-a, agent-b, laptop, omarchy-pc), as igor, create
+   ~/.ssh/chaldea-job_ed25519 **only if absent**:
+   `umask 077; ssh-keygen -t ed25519 -f ~/.ssh/chaldea-job_ed25519 -N ''`.
+   Keep its private half mode 0600. Copy only .pub and its fixed source IP into
+   chaldea_job_host_sources in inventory/group_vars/all.yml. Replace every
+   PLACEHOLDER/TEST-NET value. chaldea_job_client_targets lists actual destination
+   addresses and port 2222. No new repository deploy key is needed for job hosts.
+2. In inventory/hosts.yml enable chaldea_job_host_enabled and
+   chaldea_job_client_enabled per enrolled host. Keep normandy/homelab off.
+   Preserve omarchy-pc policy idle; agents/laptop default always. Resource defaults
+   are already conservative. Review pattern and image-size overrides if needed.
+   The /srv/agent filesystem must already be mounted on agent-a/b.
+3. On omarchy-pc, optionally set chaldea_job_host_gpu_devices to the RTX 4090's
+   actual /dev/nvidia* nodes plus its PCI-resolved render node, _nvidia_icd to its
+   NVIDIA ICD JSON and _gpu_groups to [video, render] if permissions require it.
+   Inspect lspci -nnk and /dev/dri/by-path; do not guess renderD128 or Vulkan index.
+4. No quota conversion, remount, Btrfs qgroup enablement or snapper change is
+   required. Ensure the chosen image path has space, is outside snapshot coverage,
+   and is absent or already the reviewed fixed image. Do not overwrite an image
+   or move old job data without inspection. A leftover .ext4.new from interrupted
+   first creation is never overwritten; inspect/remove it before repeating apply.
+5. From the reviewed fleet checkout on **each host itself**, with HOST set to that
+   machine's inventory name, run:
    ```sh
-   test ! -e ~/.ssh/chaldea-job_ed25519
-   umask 077
-   ssh-keygen -t ed25519 -f ~/.ssh/chaldea-job_ed25519 -N '' -C "chaldea-job-$(hostname)"
-   chmod 600 ~/.ssh/chaldea-job_ed25519
-   ```
-
-   Copy only the .pub contents to inventory. Never put a private key in inventory,
-   command output, logs or a review. The role checks only existence, regular-file
-   status, mode 0600 and ownership; it does not read key contents or generate keys.
-
-2. Replace all TEST-NET addresses and PLACEHOLDER public keys in
-   `inventory/group_vars/all.yml`:
-   `chaldea_job_host_sources: [{name, ip, public_key}, ...]` lists every source;
-   `chaldea_job_client_targets: [{name, address, port: 2222}, ...]` lists the four
-   destinations. Public keys are ordinary inventory data. Use the actual source
-   address the destination sees, not a hostname or a wildcard subnet.
-   Add these values under each enrolled host in `inventory/hosts.yml`:
-
-   ```yaml
-   chaldea_job_host_enabled: true
-   chaldea_job_client_enabled: true
-   ```
-
-   Keep normandy/homelab off. agent-a/agent-b already have data_disk_root=/srv/agent
-   and must have that mount present. Their job policy defaults always. laptop
-   defaults always and needs no awake detector. omarchy-pc already has policy
-   idle: retain that and set `chaldea_job_host_desktop_user: igor` plus a reviewed
-   `chaldea_job_host_idle_allowed_processes` baseline collected with
-   `ps -u igor -o comm=` while locked and with games/Sunshine stopped. An empty
-   baseline refuses all desktop jobs. Do not turn its policy to always.
-
-3. Prepare and verify quotas **on each job host**. Determine the job filesystem:
-
-   ```sh
-   # agent-a and agent-b:
-   findmnt -n -o FSTYPE,TARGET,OPTIONS --target /srv/agent
-   # laptop and omarchy-pc:
-   findmnt -n -o FSTYPE,TARGET,OPTIONS --target /home
-   ```
-
-   For Btrfs, an operator must enable consistent qgroups on that mount if not
-   already enabled: `sudo btrfs quota enable MOUNT`, then
-   `sudo btrfs quota rescan -w MOUNT`. This is a filesystem-wide accounting change
-   and can take time; review it before running it. The role creates a fresh
-   subvolume at the exact job path and sets its 21474836480-byte limit. An existing
-   ordinary directory at that path is refused; move/remove it only after inspecting
-   it and stopping any old job daemon. Never convert nonempty job state silently.
-
-   For a non-Btrfs filesystem, enable filesystem-specific **user quotas** first.
-   Do not run filesystem conversion/remount/quotacheck commands guessed from this
-   document. `sudo quotaon -p -u MOUNT` must report on. The role assigns
-   `setquota -u chaldea-job 0 20971520 0 0 MOUNT` after creating the user.
-   Unsupported quota filesystems remain unenrolled rather than using a soft cap.
-   Ensure UFW is already active and the ordinary SSH host Ed25519 key exists.
-
-4. On omarchy-pc only, enroll the NVIDIA GPU if desired. Set
-   `chaldea_job_host_gpu_devices` to the RTX 4090's actual NVIDIA device nodes
-   (typically /dev/nvidia0, /dev/nvidiactl, /dev/nvidia-uvm and, if needed,
-   /dev/nvidia-uvm-tools plus the NVIDIA render node resolved from its PCI
-   by-path link). Determine PCI ownership with `lspci -nnk` and
-   `ls -l /dev/dri/by-path/`; **do not assume renderD128 is NVIDIA**.
-   Set `chaldea_job_host_nvidia_icd` to the installed NVIDIA Vulkan ICD JSON
-   (often /usr/share/vulkan/icd.d/nvidia_icd.json) and
-   `chaldea_job_host_gpu_groups: [video, render]` if device modes require those
-   groups. Verify the nodes actually belong to the RTX 4090, not the AMD iGPU
-   (which is normally Vulkan device 0). Leave these empty on CPU-only hosts.
-   Without --gpu no GPU nodes are mounted. With missing GPU enrollment the host
-   refuses the request. No real GPU job was run in this implementation.
-
-5. Commit/review the concrete inventory, then run on each host itself, as igor,
-   from its reviewed fleet-config checkout. Set HOST to exactly agent-a, agent-b,
-   laptop or omarchy-pc for that machine:
-
-   ```sh
-   export TMPDIR="$HOME/.cache/chaldea-apply"
+   export TMPDIR="$HOME/.cache/chaldea-scratch/laneC"
    mkdir -p "$TMPDIR"
    ANSIBLE=~/.local/share/chaldea/ansible-core-2.19.14/bin/ansible-playbook
    "$ANSIBLE" -i inventory site.yml --limit HOST --tags chaldea_job_host,chaldea_job_client --check --diff
    "$ANSIBLE" -i inventory site.yml --limit HOST --tags chaldea_job_host,chaldea_job_client
    "$ANSIBLE" -i inventory site.yml --limit HOST --tags chaldea_job_host,chaldea_job_client
    ```
+   Add --ask-become-pass if needed. Review the check diff before apply; the second
+   real apply should report changed=0. The role installs passt, nftables,
+   bubblewrap, SSH, UFW and e2fsprogs, creates/formats only a new image, enables the
+   optional mount, UFW and job daemon. No step contacts another host.
+6. On every source, pin each existing destination host Ed25519 public key through
+   a trusted console/verified operator SSH path. Put
+   `[DESTINATION-IP]:2222 ssh-ed25519 PUBLIC-KEY` in
+   ~/.ssh/chaldea-job_known_hosts (0600), verifying the fingerprint.
+   Install the reviewed client with Node 26.10.0 and npm ci. Client flock/ssh
+   are system tools; no session-host service is added.
 
-   Add --ask-become-pass if that host needs it. Read the check diff first.
-   Quota setters are idempotent absolute assignments and report unchanged.
-   The second real run should have changed=0. Verify:
+## Per-host acceptance, including reboot
 
-   ```sh
-   sudo sshd -t
-   sudo sshd -t -f /etc/ssh/chaldea-job-sshd.conf
-   sudo systemctl is-active chaldea-job-sshd.service
-   sudo ufw show before-rules
-   # Btrfs, using the host's job path:
-   sudo btrfs qgroup show -r --raw JOB_PATH
-   # Or, for other filesystems:
-   sudo quota -w -u chaldea-job
-   ```
+Run these on agent-a, agent-b, laptop and omarchy-pc, one host at a time:
 
-6. On **each source host**, pin every destination's existing host Ed25519 **public**
-   key through a trusted operator path (console/existing verified operator SSH),
-   verifying its fingerprint. Add a line per destination to
-   `~/.ssh/chaldea-job_known_hosts` as
-   `[DESTINATION-IP]:2222 ssh-ed25519 PUBLIC-KEY`, mode 0600. The role deliberately
-   does not trust an unauthenticated ssh-keyscan response. Install the reviewed
-   Chaldea client with Node 26.10.0; run `npm ci`. From a disposable Git worktree,
-   run `node /PATH/TO/chaldea/bin/chaldea exec --host agent-a -- printf ready`,
-   then an artifact test and a repeated invocation. Repeat admission tests for
-   agent-b, laptop (awake), and omarchy-pc locked/busy, plus a GPU smoke test if
-   enrolled. Confirm ordinary `ssh chaldea-job@HOST` and forwarding are denied.
+- Validate sudo sshd -t and sudo sshd -t -f /etc/ssh/chaldea-job-sshd.conf.
+  Verify job daemon, UFW and the path-named mount are enabled, then inspect
+  systemctl show chaldea-job-sshd -p MemoryMax -p TasksMax -p CPUWeight -p IOWeight.
+  Inspect findmnt JOB_ROOT and sudo ufw show before-rules. Confirm ordinary
+  chaldea-job SSH and forwarding are refused.
+- From a disposable Git worktree run output/status/artifact tests, including a
+  command returning 125. Repeat to measure warm startup. Inside a job check
+  /dev/shm size and absence of the host HOME, sockets and credentials.
+- Start a temporary host TCP listener on loopback and on a host LAN address,
+  plus an abstract Unix socket. Confirm a job cannot connect to either listener
+  or see/connect to the abstract socket; confirm its own loopback works and
+  outbound DNS plus HTTPS succeed. Stop the temporary listeners.
+- On omarchy-pc specifically: Sunshine and the Steam client alone must permit
+  admission. Launch a Steam game, then Minecraft (including the modded/Fabric
+  path); each must refuse a new job. During a long running job, start either
+  game: observe preempted status within five seconds plus at most ten seconds of
+  SIGTERM grace. Check the real process table matches the default patterns.
+  Perform an RTX 4090 smoke test only if GPU enrollment was approved.
+- Reboot each target during a harmless long job: the source journal must remain
+  uncertain, with no rerun. After boot verify local boot succeeds independently
+  of every peer's availability, units are enabled/active, UFW rules persist,
+  old workspaces are cleaned and a new explicit invocation succeeds.
+- Reboot each source during a harmless job. After boot confirm its journal is
+  uncertain, no automatic job starts, and its next explicit command succeeds
+  without manual ControlMaster/lock cleanup.
+- On each host, in an approved maintenance window with jobs stopped, test missing
+  image and a corrupt **disposable test image**. Never corrupt the real image:
+  temporarily override the mount's What/ConditionPathExists to the test path.
+  Reboot: boot must complete, job sshd must answer with the storage-unavailable
+  refusal, and peers must boot normally while this host is down. Restore the
+  reviewed mount configuration/image, start its mount, verify a new call works
+  without restarting the job daemon, and repeat a clean apply.
 
-For immediate revocation stop `chaldea-job-sshd.service` and update/remove its
-authorized keys. Setting the enrollment switch false only skips future applies;
-it does not revoke an already deployed daemon.
+Stopping chaldea-job-sshd.service revokes admission immediately. An enrollment
+switch false merely skips future applies and does not revoke an installed daemon.
 
-## Local checks and remaining deployment evidence
+## Validation boundary
 
-`CI_PYTHON=$(uv python find 3.13) bash tools/ci.sh` covers the repository gates,
-server validation/idle-policy/sandbox/cleanup tests, rendered client config and
-unsafe key metadata refusal, plus the existing synthetic double convergence.
-Set TMPDIR to disk-backed scratch before invoking it.
+Local: CI_PYTHON=$(uv python find 3.13) bash tools/ci.sh; companion exec:check,
+exec:test and exec:e2e with CHALDEA_JOB_SERVER explicitly pointing to this role.
+E2E renders the shipped sshd/key templates. It tests real unprivileged SSH and
+bubblewrap/pasta, DNS/HTTPS, host TCP/abstract isolation, TERM/KILL preemption,
+disconnect after output closes, missing mount, stale sockets and startup cleanup.
+DNS/HTTPS skips only when the host itself lacks that connectivity.
 
-The companion client's `npm run exec:e2e`, with CHALDEA_JOB_SERVER pointing at
-this role's file, uses real unprivileged sshd and bubblewrap on loopback only.
-It proves streaming/status, artifact delivery, cleanup, shell/PTY/forwarding
-refusal, no host sockets/credentials/sudo/GPU, quota-escape syscall refusal,
-disconnect descendant termination, and injected admission limits.
-It cannot prove real firewall rules, installed filesystem hard quotas, a real
-RTX 4090 execution, actual desktop baseline suitability or real-host convergence.
-Those are the orchestrator's post-approval acceptance checks. No real host was
-updated or verified by this implementation lane.
+Real image mounting/cgroup enforcement, host reboot/boot ordering, firewall
+effects, default game-pattern suitability and RTX 4090 execution remain
+post-approval deployment acceptance. No real host was updated in this lane.

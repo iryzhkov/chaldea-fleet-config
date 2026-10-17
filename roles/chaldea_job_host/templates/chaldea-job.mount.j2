@@ -1,0 +1,15 @@
+[Unit]
+Description=Optional Chaldea job image
+DefaultDependencies=no
+After=local-fs.target
+Conflicts=umount.target
+Before=umount.target
+ConditionPathExists={{ chaldea_job_host_image }}
+[Mount]
+What={{ chaldea_job_host_image }}
+Where={{ chaldea_job_host_state_root }}
+Type=ext4
+Options=loop,nofail,nodev,nosuid
+TimeoutSec=5
+[Install]
+WantedBy=multi-user.target

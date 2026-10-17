@@ -1,10 +1,11 @@
 Port {{ chaldea_job_host_port }}
-ListenAddress 0.0.0.0
-ListenAddress ::
-PidFile /run/chaldea-job-sshd.pid
-AllowUsers chaldea-job
-HostKey /etc/ssh/ssh_host_ed25519_key
-AuthorizedKeysFile /home/chaldea-job/.ssh/authorized_keys
+{% for address in chaldea_job_host_listen %}
+ListenAddress {{ address }}
+{% endfor %}
+PidFile {{ chaldea_job_host_pid_file }}
+AllowUsers {{ chaldea_job_host_user }}
+HostKey {{ chaldea_job_host_host_key }}
+AuthorizedKeysFile {{ chaldea_job_host_authorized_keys }}
 StrictModes yes
 UsePAM no
 PubkeyAuthentication yes
@@ -19,9 +20,9 @@ ClientAliveCountMax 2
 LoginGraceTime 30
 MaxAuthTries 2
 MaxSessions 1
-LogLevel ERROR
-Match User chaldea-job
-    ForceCommand {{ chaldea_job_host_server }}
+LogLevel {{ chaldea_job_host_log_level }}
+Match User {{ chaldea_job_host_user }}
+    ForceCommand {{ chaldea_job_host_command }}
     DisableForwarding yes
     AllowTcpForwarding no
     AllowStreamLocalForwarding no

@@ -5,29 +5,6 @@
     argv: [ufw, reload]
   changed_when: true
 
-- name: Validate the complete operator SSH configuration
-  become: true
-  ansible.builtin.command:
-    argv: ["{{ chaldea_job_host_sshd_binary }}", -t]
-  changed_when: false
-  listen: Validate and reload operator sshd
-
-- name: Require the ordinary daemon to include the job user's deny rule
-  become: true
-  ansible.builtin.command:
-    argv: ["{{ chaldea_job_host_sshd_binary }}", -T, -C, "user=chaldea-job,host=localhost,addr=127.0.0.1"]
-  register: chaldea_job_host_effective_sshd
-  changed_when: false
-  failed_when: not (chaldea_job_host_effective_sshd.stdout is search('(?m)^denyusers (.* )?chaldea-job( |$)'))
-  listen: Validate and reload operator sshd
-
-- name: Reload the validated operator SSH daemon
-  become: true
-  ansible.builtin.systemd_service:
-    name: "{{ chaldea_job_host_sshd_service }}"
-    state: reloaded
-  listen: Validate and reload operator sshd
-
 - name: Restart job sshd
   become: true
   ansible.builtin.systemd_service:
@@ -40,3 +17,8 @@
   ansible.builtin.systemd_service:
     name: systemd-journald@chaldea-job.service
     state: restarted
+
+- name: Reload job units
+  become: true
+  ansible.builtin.systemd_service:
+    daemon_reload: true

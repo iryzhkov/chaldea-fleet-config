@@ -8,7 +8,7 @@
       - chaldea_job_host_port | int != 22
       - chaldea_job_host_sources | length > 0
       - chaldea_job_host_policy in ['always', 'idle']
-      - chaldea_job_host_quota_blocks | int == 20971520
+      - chaldea_job_host_image_bytes | int >= 536870912
       - chaldea_job_host_state_root is match('^/(srv/agent/chaldea-job|home/chaldea-job/jobs)$')
     quiet: true
 
@@ -25,10 +25,10 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Install sandbox and quota tools
+- name: Install sandbox, isolated networking and image tools
   become: true
   ansible.builtin.package:
-    name: "{{ ['bubblewrap', 'openssh', 'ufw', 'quota-tools', 'btrfs-progs'] if ansible_facts.os_family == 'Archlinux' else ['bubblewrap', 'openssh-server', 'ufw', 'quota', 'btrfs-progs'] }}"
+    name: "{{ ['bubblewrap', 'openssh', 'ufw', 'passt', 'nftables', 'e2fsprogs'] if ansible_facts.os_family == 'Archlinux' else ['bubblewrap', 'openssh-server', 'ufw', 'passt', 'nftables', 'e2fsprogs'] }}"
     state: present
 
 - name: Require an active firewall before opening the compute path
@@ -51,70 +51,96 @@
     append: false
     create_home: true
 
-- name: Create private job directories
+- name: Secure the job account home
   become: true
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: /home/chaldea-job
     state: directory
     owner: "{{ chaldea_job_host_user }}"
     group: "{{ chaldea_job_host_user }}"
     mode: "0700"
-  loop:
-    - /home/chaldea-job
-    - /home/chaldea-job/.ssh
 
-- name: Find the filesystem that must enforce the hard quota
+- name: Make authorized-key administration root-owned
+  become: true
+  ansible.builtin.file:
+    path: /home/chaldea-job/.ssh
+    state: directory
+    owner: root
+    group: "{{ chaldea_job_host_user }}"
+    mode: "0750"
+
+- name: Require the data disk for image creation on data-disk hosts
   ansible.builtin.command:
-    argv: [findmnt, -n, -o, "FSTYPE,TARGET", --target, "{{ '/srv/agent' if chaldea_job_host_state_root is match('^/srv/agent/') else '/home' }}"]
-  register: chaldea_job_host_filesystem
+    argv: [findmnt, -n, -o, TARGET, --target, /srv/agent]
+  register: chaldea_job_host_data_mount
+  changed_when: false
+  check_mode: false
+  failed_when: chaldea_job_host_data_mount.stdout != '/srv/agent'
+  when: chaldea_job_host_state_root is match('^/srv/agent/')
+
+- name: Inspect the optional image mount before creating its mountpoint
+  ansible.builtin.command:
+    argv: [mountpoint, -q, "{{ chaldea_job_host_state_root }}"]
+  register: chaldea_job_host_was_mounted
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Create the underlying mountpoint without granting job writes
+  become: true
+  ansible.builtin.file:
+    path: "{{ chaldea_job_host_state_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: chaldea_job_host_was_mounted.rc != 0
+
+- name: Derive the correct systemd path mount unit name
+  ansible.builtin.command:
+    argv: [systemd-escape, --path, --suffix=mount, "{{ chaldea_job_host_state_root }}"]
+  register: chaldea_job_host_mount_name
   changed_when: false
   check_mode: false
 
-- name: Require the configured data disk to be mounted
-  ansible.builtin.assert:
-    that:
-      - chaldea_job_host_filesystem.stdout.split()[1] == '/srv/agent'
-    fail_msg: The job data disk must be mounted at /srv/agent before enrollment.
-    quiet: true
-  when: chaldea_job_host_state_root is match('^/srv/agent/')
-
-- name: Create a dedicated Btrfs job subvolume
+- name: Create the fixed-size ext4 image without formatting existing state
   become: true
-  ansible.builtin.command:
-    argv: [btrfs, subvolume, create, "{{ chaldea_job_host_state_root }}"]
-    creates: "{{ chaldea_job_host_state_root }}"
-  when: chaldea_job_host_filesystem.stdout.split()[0] == 'btrfs'
+  ansible.builtin.script:
+    cmd: "chaldea-job-image --image {{ chaldea_job_host_image }} --bytes {{ chaldea_job_host_image_bytes }}"
+    executable: /usr/bin/python3 -I
+  register: chaldea_job_host_image_created
+  changed_when: "'created' in chaldea_job_host_image_created.stdout"
+  when: not ansible_check_mode
 
-- name: Require the Btrfs job root to be its own subvolume
+- name: Install the optional boot-safe image mount
   become: true
+  ansible.builtin.template:
+    src: chaldea-job.mount.j2
+    dest: "/etc/systemd/system/{{ chaldea_job_host_mount_name.stdout }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload job units
+
+- name: Enable and attempt the optional mount without making it a boot dependency
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ chaldea_job_host_mount_name.stdout }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  register: chaldea_job_host_mount_started
+  failed_when: false
+
+- name: Check whether job storage is actually mounted
   ansible.builtin.command:
-    argv: [btrfs, subvolume, show, "{{ chaldea_job_host_state_root }}"]
+    argv: [mountpoint, -q, "{{ chaldea_job_host_state_root }}"]
+  register: chaldea_job_host_mount_ready
   changed_when: false
-  when:
-    - chaldea_job_host_filesystem.stdout.split()[0] == 'btrfs'
-    - not ansible_check_mode
+  failed_when: false
+  check_mode: false
 
-- name: Require Btrfs quotas already enabled and consistent by the operator
-  become: true
-  ansible.builtin.command:
-    argv: [btrfs, qgroup, show, --raw, "{{ chaldea_job_host_state_root }}"]
-  register: chaldea_job_host_qgroup
-  changed_when: false
-  failed_when: chaldea_job_host_qgroup.rc != 0 or 'inconsistent' in chaldea_job_host_qgroup.stderr
-  when:
-    - chaldea_job_host_filesystem.stdout.split()[0] == 'btrfs'
-    - not ansible_check_mode
-
-- name: Assign the absolute 20 GiB referenced-byte Btrfs quota
-  become: true
-  ansible.builtin.command:
-    argv: [btrfs, qgroup, limit, "21474836480", "{{ chaldea_job_host_state_root }}"]
-  changed_when: false
-  when:
-    - chaldea_job_host_filesystem.stdout.split()[0] == 'btrfs'
-    - not ansible_check_mode
-
-- name: Create or secure the private job root
+- name: Secure the mounted filesystem for jobs
   become: true
   ansible.builtin.file:
     path: "{{ chaldea_job_host_state_root }}"
@@ -122,27 +148,7 @@
     owner: "{{ chaldea_job_host_user }}"
     group: "{{ chaldea_job_host_user }}"
     mode: "0700"
-
-- name: Require filesystem user quotas already enabled by the operator
-  become: true
-  ansible.builtin.command:
-    argv: [quotaon, -p, -u, "{{ chaldea_job_host_filesystem.stdout.split()[1] }}"]
-  register: chaldea_job_host_quota_on
-  changed_when: false
-  failed_when: chaldea_job_host_quota_on.rc != 0 or 'is on' not in chaldea_job_host_quota_on.stdout
-  when:
-    - chaldea_job_host_filesystem.stdout.split()[0] != 'btrfs'
-    - not ansible_check_mode
-
-- name: Assign the absolute 20 GiB hard user quota on other filesystems
-  become: true
-  ansible.builtin.command:
-    argv: [setquota, -u, "{{ chaldea_job_host_user }}", "0", "{{ chaldea_job_host_quota_blocks | string }}", "0", "0", "{{ chaldea_job_host_filesystem.stdout.split()[1] }}"]
-  # Quota setters assign an absolute limit and have no changed/no-change output.
-  changed_when: false
-  when:
-    - chaldea_job_host_filesystem.stdout.split()[0] != 'btrfs'
-    - not ansible_check_mode
+  when: chaldea_job_host_mount_ready.rc == 0
 
 - name: Create the root-owned server directory
   become: true
@@ -189,16 +195,46 @@
     group: root
     mode: "0755"
 
-- name: Deny the job user on the ordinary operator SSH daemon
+- name: Install and validate operator SSH policy with rollback
   become: true
-  ansible.builtin.template:
-    src: 90-chaldea-job.conf.j2
-    dest: /etc/ssh/sshd_config.d/90-chaldea-job.conf
-    owner: root
-    group: root
-    mode: "0644"
-    validate: "{{ chaldea_job_host_sshd_binary }} -t -f %s"
-  notify: Validate and reload operator sshd
+  block:
+    - name: Deny the job user on the ordinary operator SSH daemon
+      ansible.builtin.template:
+        src: 90-chaldea-job.conf.j2
+        dest: /etc/ssh/sshd_config.d/90-chaldea-job.conf
+        owner: root
+        group: root
+        mode: "0644"
+        validate: "{{ chaldea_job_host_sshd_binary }} -t -f %s"
+      register: chaldea_job_host_operator_dropin
+
+    - name: Validate the complete operator SSH configuration
+      ansible.builtin.command:
+        argv: ["{{ chaldea_job_host_sshd_binary }}", -t]
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Require the effective ordinary SSH deny rule case-insensitively
+      ansible.builtin.command:
+        argv: ["{{ chaldea_job_host_sshd_binary }}", -T, -C, "user=chaldea-job,host=localhost,addr=127.0.0.1"]
+      register: chaldea_job_host_effective_sshd
+      changed_when: false
+      failed_when: not (chaldea_job_host_effective_sshd.stdout is search('(?im)^denyusers (.* )?chaldea-job( |$)'))
+      when: not ansible_check_mode
+
+    - name: Reload only the validated operator daemon  # noqa: no-handler -- keep reload inside rollback block
+      ansible.builtin.systemd_service:
+        name: "{{ chaldea_job_host_sshd_service }}"
+        state: reloaded
+      when: chaldea_job_host_operator_dropin.changed
+  rescue:
+    - name: Remove the rejected drop-in
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d/90-chaldea-job.conf
+        state: absent
+    - name: Stop this apply after rollback without reloading invalid SSH config
+      ansible.builtin.fail:
+        msg: Operator SSH validation failed; the Chaldea drop-in was removed and no invalid config was reloaded.
 
 - name: Install the isolated job SSH daemon configuration
   become: true
@@ -269,14 +305,12 @@
 - name: Apply validated firewall and SSH changes before admitting jobs
   ansible.builtin.meta: flush_handlers
 
-- name: Verify ordinary SSH still denies the job account on every apply
+- name: Enable persistent UFW enforcement at boot
   become: true
-  ansible.builtin.command:
-    argv: ["{{ chaldea_job_host_sshd_binary }}", -T, -C, "user=chaldea-job,host=localhost,addr=127.0.0.1"]
-  register: chaldea_job_host_effective_ordinary_sshd
-  changed_when: false
-  failed_when: not (chaldea_job_host_effective_ordinary_sshd.stdout is search('(?m)^denyusers (.* )?chaldea-job( |$)'))
-  when: not ansible_check_mode
+  ansible.builtin.systemd_service:
+    name: ufw.service
+    enabled: true
+    state: started
 
 - name: Start the restricted job SSH daemon
   become: true
