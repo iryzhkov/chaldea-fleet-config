@@ -24,8 +24,10 @@ chaldea_job_host_sshd_service: "{{ 'sshd' if ansible_facts.os_family == 'Archlin
 chaldea_job_host_command: "/usr/bin/python3 -I {{ chaldea_job_host_server }}"
 chaldea_job_host_image: "{{ '/srv/agent/chaldea-job.ext4' if data_disk_root | default('') | length > 0 else '/home/chaldea-job-state.ext4' }}"
 chaldea_job_host_image_bytes: 21474836480
-chaldea_job_host_memory_max: 4G
+chaldea_job_host_memory_max: "{{ [4 * 1024**3, ansible_facts.memtotal_mb | int * 1024**2 // 2] | min }}"
 chaldea_job_host_tasks_max: 256
 chaldea_job_host_cpu_weight: 10
 chaldea_job_host_io_weight: 10
+# systemd percentages are of one CPU: 50% of every logical core by default.
+chaldea_job_host_cpu_quota: "{{ (ansible_facts.processor_vcpus | int * 50) }}%"
 chaldea_job_host_shm_bytes: 67108864

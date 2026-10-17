@@ -160,11 +160,13 @@ def test_preemption_sends_term_then_kill_after_ten_seconds_and_keeps_stdin_after
         workspace.mkdir()
         with patch.object(server, "sandbox", return_value=(["true"], {})), \
              patch.object(server, "host_addresses", return_value=[]), \
+             patch.object(server, "connected_subnets", return_value=[]), \
+             patch.object(server, "check_tools", return_value=""), \
              patch.object(server.subprocess, "Popen", return_value=process), \
              patch.object(server.os, "pidfd_open", return_value=999), \
              patch.object(server.os, "close"), \
              patch.object(server, "kill_group"), \
-             patch.object(server, "job_signal", side_effect=lambda _, sig: signals.append((sig, clock[0]))), \
+             patch.object(server, "job_signal", side_effect=lambda _, sig, _pasta: signals.append((sig, clock[0]))), \
              patch.object(server, "gaming", return_value=True), \
              patch.object(server.time, "monotonic", side_effect=lambda: clock[0]), \
              patch.object(server.selectors, "DefaultSelector", Selector):
@@ -196,6 +198,8 @@ def test_stdin_is_monitored_after_both_output_pipes_close():
         workspace.mkdir()
         with patch.object(server, "sandbox", return_value=(["true"], {})), \
              patch.object(server, "host_addresses", return_value=[]), \
+             patch.object(server, "connected_subnets", return_value=[]), \
+             patch.object(server, "check_tools", return_value=""), \
              patch.object(server.subprocess, "Popen", return_value=process), \
              patch.object(server.os, "pidfd_open", return_value=999), \
              patch.object(server.os, "read", return_value=b""), \
@@ -223,7 +227,8 @@ def test_rendered_role_boot_limits_mixed_case_deny_and_rollback():
         assert value == "False"
     assert guarded["rescue"][0]["ansible.builtin.file"]["state"] == "absent"
     defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
-    defaults.update(chaldea_job_host_state_root="/home/chaldea-job/jobs",
+    defaults.update(chaldea_job_host_memory_max="4G", chaldea_job_host_cpu_quota="400%",
+                    chaldea_job_host_state_root="/home/chaldea-job/jobs",
                     chaldea_job_host_image="/home/chaldea-job-state.ext4",
                     chaldea_job_host_sshd_binary="/usr/bin/sshd")
     mount = Template((role / "templates/chaldea-job.mount.j2").read_text()).render(**defaults)
@@ -253,3 +258,166 @@ def test_fixed_image_creation_is_atomic_and_never_reformats_existing():
         with pytest.raises(ValueError, match="refusing"):
             image_module.create(image, 1024 * 1024**2, (os.getuid(), os.getgid()))
         assert not Path(str(image) + ".new").exists()
+
+
+def test_network_blocks_nondefault_connected_subnets_and_keeps_default_route():
+    rows = [
+        {"ifname": "lo", "flags": ["LOOPBACK"], "addr_info": [{"local": "127.0.0.1", "prefixlen": 8}]},
+        {"ifname": "eno1", "addr_info": [{"local": "192.168.90.212", "prefixlen": 24}]},
+        {"ifname": "docker0", "addr_info": [{"local": "172.17.0.1", "prefixlen": 16}]},
+        {"ifname": "nebula1", "addr_info": [{"local": "10.42.0.6", "prefixlen": 24},
+                                          {"local": "fd42::6", "prefixlen": 64}]},
+    ]
+    subnets = server.connected_subnets(rows, [{"dev": "eno1", "dst": "default"}])
+    assert set(subnets) == {"172.17.0.0/16", "10.42.0.0/24", "fd42::/64"}
+    rules = server.network_rules(["192.168.90.212", "172.17.0.1", "127.0.0.1"], subnets)
+    assert "172.17.0.0/16" in rules and "10.42.0.0/24" in rules and "fd42::/64" in rules
+    assert "192.168.90.212/32" in rules
+    assert "192.168.90.0/24" not in rules and "127.0.0.1" not in rules
+
+
+def test_connected_subnet_filter_rejects_packets_in_private_netns():
+    import shutil
+    import subprocess
+    import sys
+    if not all(shutil.which(name) for name in ("nft", "unshare", "ip")):
+        pytest.skip("nft/unshare/ip absent; packet test needs an existing rootless netns toolchain")
+    probe = subprocess.run(["unshare", "-Urn", "true"], capture_output=True)
+    if probe.returncode:
+        pytest.skip("unprivileged user/network namespaces unavailable; no host changes made")
+    # Both listeners live in this disposable netns. The synthetic bridge's
+    # subnet contains a second endpoint, not just its interface's own address.
+    subnets = server.connected_subnets(
+        [{"ifname": "docker0", "addr_info": [{"local": "127.20.0.1", "prefixlen": 16}]}],
+        [{"dev": "eno1"}])
+    rules = server.network_rules([], subnets)
+    code = """
+import errno,socket,subprocess,sys
+subprocess.run(['ip','link','set','lo','up'],check=True)
+blocked=socket.socket(); blocked.bind(('127.20.0.2',0)); blocked.listen()
+allowed=socket.socket(); allowed.bind(('127.0.0.1',0)); allowed.listen()
+subprocess.run(['nft','-f','-'],input=sys.argv[1],text=True,check=True)
+client=socket.socket(); client.settimeout(1)
+assert client.connect_ex(blocked.getsockname()) == errno.ECONNREFUSED
+client.close()
+client=socket.create_connection(allowed.getsockname(),timeout=1)
+peer,_=allowed.accept(); peer.close(); client.close()
+"""
+    result = subprocess.run(["unshare", "-Urn", sys.executable, "-I", "-c", code, rules],
+                            capture_output=True, text=True, timeout=5)
+    assert result.returncode == 0, result.stderr
+
+
+def test_package_baseline_rejects_old_bwrap_and_missing_pasta_options():
+    from types import SimpleNamespace
+    required = "--config-net --no-map-gw --map-host-loopback --no-splice"
+    with patch.object(server.subprocess, "check_output", return_value="bubblewrap 0.8.0"):
+        with pytest.raises(server.Refused, match="bubblewrap >= 0.9"):
+            server.check_tools()
+    with patch.object(server.subprocess, "check_output", return_value="bubblewrap 0.12.0"), \
+         patch.object(server.subprocess, "run", return_value=SimpleNamespace(stdout=required, stderr="")):
+        assert "--no-pidns" not in server.check_tools()
+    with patch.object(server.subprocess, "check_output", return_value="bubblewrap 0.12.0"), \
+         patch.object(server.subprocess, "run", return_value=SimpleNamespace(stdout="--config-net", stderr="")):
+        with pytest.raises(server.Refused, match="lacks required option"):
+            server.check_tools()
+
+
+def test_pid_translation_stays_in_pasta_tree_and_signals_host_group():
+    import signal
+    with tempfile.TemporaryDirectory() as tmp:
+        proc = Path(tmp)
+        def row(pid, children, ids):
+            task = proc / str(pid) / "task" / str(pid)
+            task.mkdir(parents=True)
+            (task / "children").write_text(children)
+            (proc / str(pid) / "status").write_text("NSpid:\t" + ids + "\n")
+        row(100, "101", "100")
+        row(101, "102", "101 1")
+        row(102, "", "102 7 1")
+        row(999, "", "999 7 1")  # same inner PID, outside transport tree
+        assert server.host_job_pid(7, 100, proc) == 102
+        assert server.host_job_pid(99, 100, proc) is None
+        launch = proc / "job.launch"
+        Path(str(launch) + ".status").write_text('{"child-pid":7}\n')
+        with patch.object(server, "host_job_pid", return_value=102), \
+             patch.object(server.os, "getpgid", return_value=102), \
+             patch.object(server.os, "killpg") as kill:
+            server.job_signal(launch, signal.SIGTERM, 100)
+            kill.assert_called_once_with(102, signal.SIGTERM)
+
+
+def test_image_refuses_insufficient_backing_space_before_creating_any_file():
+    import os
+    import shutil
+    image_loader = importlib.machinery.SourceFileLoader("image_space", str(PATH.with_name("chaldea-job-image")))
+    image_spec = importlib.util.spec_from_loader(image_loader.name, image_loader)
+    image_module = importlib.util.module_from_spec(image_spec)
+    image_loader.exec_module(image_module)
+    size = 512 * 1024**2
+    with tempfile.TemporaryDirectory() as tmp:
+        image = Path(tmp) / "jobs.ext4"
+        with patch.object(shutil, "disk_usage", return_value=shutil._ntuple_diskusage(size * 2, size + 1, size - 1)):
+            with pytest.raises(ValueError, match="free space for the full job image"):
+                image_module.create(image, size, (os.getuid(), os.getgid()))
+        assert list(Path(tmp).iterdir()) == []
+
+
+def test_role_memory_and_top_level_slice_budget_and_apply_smoke():
+    import yaml
+    from jinja2 import Environment, Template
+    from ansible.plugins.filter.core import FilterModule
+    from ansible.plugins.filter.mathstuff import FilterModule as MathFilters
+    from ansible.plugins.test.core import TestModule
+    role = PATH.parents[1]
+    defaults = yaml.safe_load((role / "defaults/main.yml").read_text())
+    inventory = yaml.safe_load((role.parents[1] / "inventory/hosts.yml").read_text())
+    hosts = inventory["all"]["children"]["agent_hosts"]["hosts"]
+    assert hosts["agent-b"]["chaldea_job_host_memory_max"] == "4G"
+    env = Environment()
+    env.filters.update(FilterModule().filters())
+    env.filters.update(MathFilters().filters())
+    env.tests.update(TestModule().tests())
+    for name, ram in {"agent-a": 20, "agent-b": 8, "laptop": 24, "omarchy-pc": 32}.items():
+        assert env.filters["human_to_bytes"](hosts[name]["chaldea_job_host_memory_max"]) <= ram * 1024**3 // 2
+    for ram_mb in (2048, 8192, 32768):
+        value = int(env.from_string(defaults["chaldea_job_host_memory_max"]).render(
+            ansible_facts={"memtotal_mb": ram_mb}))
+        assert value <= ram_mb * 1024**2 // 2
+    quota = env.from_string(defaults["chaldea_job_host_cpu_quota"]).render(
+        ansible_facts={"processor_vcpus": 8})
+    assert quota == "400%"
+    unit = Template((role / "templates/chaldea-job-sshd.service.j2").read_text()).render(**defaults)
+    budget = Template((role / "templates/chaldea.slice.j2").read_text()).render(
+        **{**defaults, "chaldea_job_host_cpu_quota": quota})
+    assert "Slice=chaldea.slice" in unit  # no dash: direct sibling of user.slice
+    assert "CPUWeight=10" in budget and "CPUQuota=400%" in budget
+    assert "Requires=" not in budget
+    tasks = yaml.safe_load((role / "tasks/main.yml").read_text())
+    smoke = next(t for t in tasks if "Smoke test" in t["name"])
+    assert smoke["become"] is True
+    assert "--reuid={{ chaldea_job_host_user }}" in smoke["ansible.builtin.command"]["argv"]
+    hardware = next(t for t in tasks if "CPU and RAM facts" in t["name"])
+    assert "hardware" in hardware["ansible.builtin.setup"]["gather_subset"]
+    assert "--smoke-test" in smoke["ansible.builtin.command"]["argv"]
+    assert "chaldea_job_host_mount_ready.rc == 0" in smoke["when"]
+    baseline = next(t for t in tasks if "supported distro sandbox baseline" in t["name"])
+    for version in ("2026_07_28.f8df3f1-1", "0.0~git20250503.587980c-2+deb13u1"):
+        assert env.from_string("{{ " + baseline["ansible.builtin.assert"]["that"][1] + " }}").render(
+            ansible_facts={"packages": {"passt": [{"version": version}]}}) == "True"
+    assert env.from_string("{{ " + baseline["ansible.builtin.assert"]["that"][1] + " }}").render(
+        ansible_facts={"packages": {"passt": [{"version": "2024_12_01.old"}]}}) == "False"
+
+
+def test_resolver_on_blocked_connected_subnet_is_not_imported():
+    with tempfile.TemporaryDirectory() as tmp:
+        read = Path.read_text
+        def resolver(path, *args, **kwargs):
+            if str(path) == "/etc/resolv.conf":
+                return "nameserver 172.17.0.53\n"
+            return read(path, *args, **kwargs)
+        with patch.object(Path, "read_text", resolver), \
+             patch.object(server.subprocess, "check_output", return_value="--disable-userns"):
+            server.sandbox(request(), Path(tmp), {"_blocked_subnets": ["172.17.0.0/16"]})
+        value = (Path(tmp) / ".chaldea-resolv").read_text()
+        assert "172.17.0.53" not in value and "1.1.1.1" in value

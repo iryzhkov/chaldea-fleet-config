@@ -1,0 +1,6 @@
+[Unit]
+Description=Chaldea shared-host compute budget
+[Slice]
+CPUWeight={{ chaldea_job_host_cpu_weight }}
+CPUQuota={{ chaldea_job_host_cpu_quota }}
+IOWeight={{ chaldea_job_host_io_weight }}

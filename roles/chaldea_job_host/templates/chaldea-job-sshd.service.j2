@@ -3,6 +3,7 @@ Description=Chaldea restricted compute SSH
 After=network.target ufw.service
 [Service]
 Type=simple
+Slice=chaldea.slice
 ExecStartPre={{ chaldea_job_host_sshd_binary }} -t -f /etc/ssh/chaldea-job-sshd.conf
 ExecStart={{ chaldea_job_host_sshd_binary }} -D -e -f /etc/ssh/chaldea-job-sshd.conf
 Restart=on-failure

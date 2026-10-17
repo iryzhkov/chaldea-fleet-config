@@ -1,4 +1,4 @@
-# Restricted job hosts, protocol 1 — fix round 1
+# Restricted job hosts, protocol 1 — fix round 2
 
 Both roles default off. No real host has been provisioned by this lane. The
 client is in iryzhkov/chaldea PR #2; these roles are PR #3. Apply only after the
@@ -23,7 +23,11 @@ reviewed pair and the concrete public-key inventory are approved.
 - Every job has its own network namespace, connected outward by pasta.
   Host-loopback/gateway mapping, automatic port forwarding and socket splicing
   are explicitly disabled. An nft output filter in that namespace rejects
-  every non-loopback address assigned to the host. Guest loopback stays inside
+  every non-loopback address assigned to the host and connected subnets of all
+  interfaces outside the IPv4/IPv6 default routes (including Docker bridges and
+  Nebula overlays). DNS resolvers in these blocked ranges are replaced by public
+  fallback resolvers. These addresses/subnets are captured at job start; dynamic
+  interface changes during a job remain follow-up N2. Guest loopback stays inside
   the guest and host abstract Unix sockets are absent. Outbound DNS/HTTPS works.
   This is host isolation, **not a general internet/LAN egress allowlist**.
 - bubblewrap shares only pasta's new namespace, never the host namespace. It
@@ -34,15 +38,23 @@ reviewed pair and the concrete public-key inventory are approved.
   The root-owned forced command uses python3 -I.
 - GPU devices are absent unless --gpu. Enroll verified RTX 4090 device nodes and
   its NVIDIA ICD, never the AMD iGPU (normally Vulkan device 0).
-- The job sshd cgroup applies MemoryMax, MemorySwapMax=0, TasksMax, CPUWeight=10
-  and IOWeight=10. Defaults: agents 8G/512 tasks, desktop 4G/256, laptop 2G/128.
-  Variables chaldea_job_host_memory_max, _tasks_max, _cpu_weight and _io_weight
-  are operator-adjustable. /dev/shm is a private size-limited tmpfs, default
+- The job sshd cgroup applies MemoryMax, MemorySwapMax=0 and TasksMax.
+  Defaults: agent-a 8G/512 tasks, agent-b 4G/512, desktop 4G/256, laptop 2G/128.
+  The generic default is the smaller of 4 GiB and half the detected RAM; apply
+  refuses any inventory MemoryMax above half RAM. Recheck this after VM resizing.
+  Its dedicated top-level chaldea.slice is a direct sibling of user.slice, with
+  CPUWeight=10 (versus user.slice's default 100), IOWeight=10 and a CPUQuota of
+  50% of the host's logical cores (8 cores => 400%, since 100% is one CPU).
+  Variables chaldea_job_host_memory_max, _tasks_max, _cpu_weight, _io_weight and
+  _cpu_quota are operator-adjustable. /dev/shm is a private size-limited tmpfs, default
   64 MiB (chaldea_job_host_shm_bytes), and counts against MemoryMax.
 - Storage is one fixed-size sparse ext4 image, default 21474836480 bytes
   (chaldea_job_host_image_bytes). No filesystem-wide quotas are enabled.
   Default image: /srv/agent/chaldea-job.ext4 on agents, otherwise
   /home/chaldea-job-state.ext4; chaldea_job_host_image overrides it.
+  Before creating a new sparse image, the role checks backing-filesystem free
+  space for its full configured size and refuses if insufficient. This is an
+  apply-time check, not a reservation against later unrelated disk writers.
   Existing images are never reformatted or resized. Put images outside snapshot
   coverage (or explicitly exclude them) if the containing filesystem has snapshots.
   Admission checks free space on the image filesystem, reserving 256 MiB + input.
@@ -123,7 +135,15 @@ before a new dispatch; flock needs no stale-lock cleanup.
    "$ANSIBLE" -i inventory site.yml --limit HOST --tags chaldea_job_host,chaldea_job_client
    ```
    Add --ask-become-pass if needed. Review the check diff before apply; the second
-   real apply should report changed=0. The role installs passt, nftables,
+   real apply should report changed=0. The role requires passt >= 2025-05-03 and
+   bubblewrap >= 0.9 (size-limited tmpfs), checks required networking options, and
+   runs the exact pasta+bwrap launch as chaldea-job against mounted job storage.
+   A failed smoke test fails apply clearly before enabling new SSH access. An
+   absent mount skips this storage-dependent smoke and jobs refuse until mounted.
+   Repeat apply once mounted; do not accept enrollment without a passing smoke.
+   Older distro pasta uses a PID namespace: the server translates bwrap's status
+   PID through /proc within the transport's descendant tree. It does not require
+   --no-pidns. The optional -c socket flag is feature-detected. The role installs passt, nftables,
    bubblewrap, SSH, UFW and e2fsprogs, creates/formats only a new image, enables the
    optional mount, UFW and job daemon. No step contacts another host.
 6. On every source, pin each existing destination host Ed25519 public key through
@@ -139,7 +159,9 @@ Run these on agent-a, agent-b, laptop and omarchy-pc, one host at a time:
 
 - Validate sudo sshd -t and sudo sshd -t -f /etc/ssh/chaldea-job-sshd.conf.
   Verify job daemon, UFW and the path-named mount are enabled, then inspect
-  systemctl show chaldea-job-sshd -p MemoryMax -p TasksMax -p CPUWeight -p IOWeight.
+  systemctl show chaldea-job-sshd -p MemoryMax -p TasksMax -p Slice, then
+  systemctl show chaldea.slice -p CPUWeight -p CPUQuotaPerSecUSec -p IOWeight.
+  Confirm MemoryMax <= half physical RAM and CPUQuota equals the reviewed budget.
   Inspect findmnt JOB_ROOT and sudo ufw show before-rules. Confirm ordinary
   chaldea-job SSH and forwarding are refused.
 - From a disposable Git worktree run output/status/artifact tests, including a
@@ -148,7 +170,10 @@ Run these on agent-a, agent-b, laptop and omarchy-pc, one host at a time:
 - Start a temporary host TCP listener on loopback and on a host LAN address,
   plus an abstract Unix socket. Confirm a job cannot connect to either listener
   or see/connect to the abstract socket; confirm its own loopback works and
-  outbound DNS plus HTTPS succeed. Stop the temporary listeners.
+  outbound DNS plus HTTPS succeed. Also test a reachable container/overlay peer
+  on each non-default connected subnet: its service must be unreachable from a
+  job. Verify the detected Docker/Nebula prefixes and default-route interface
+  before testing. Stop the temporary listeners.
 - On omarchy-pc specifically: Sunshine and the Steam client alone must permit
   admission. Launch a Steam game, then Minecraft (including the modded/Fabric
   path); each must refuse a new job. During a long running job, start either
@@ -180,7 +205,17 @@ exec:test and exec:e2e with CHALDEA_JOB_SERVER explicitly pointing to this role.
 E2E renders the shipped sshd/key templates. It tests real unprivileged SSH and
 bubblewrap/pasta, DNS/HTTPS, host TCP/abstract isolation, TERM/KILL preemption,
 disconnect after output closes, missing mount, stale sockets and startup cleanup.
-DNS/HTTPS skips only when the host itself lacks that connectivity.
+DNS/HTTPS skips only when the host itself lacks that connectivity. System
+/usr/bin/pasta is the E2E default. CHALDEA_PASTA is an explicit override only;
+never validate a newer fixture in place of the enrolled hosts' distro packages.
+Local omarchy-pc has no installed passt, and this lane cannot install packages on
+real hosts. Round 2 therefore tests the exact extracted Arch mirror package
+2026_07_28.f8df3f1-1 and Debian 13 candidate
+0.0~git20250503.587980c-2+deb13u1 against system bubblewrap 0.12.0, using explicit
+CHALDEA_PASTA overrides in disk-backed scratch. Agent-a/b were inspected read-only:
+Debian 13, no passt/bubblewrap installed; candidate bubblewrap 0.12.0. Laptop's
+Arch ARM mirror offers passt 2026_10_02 and bubblewrap 0.13. Enrollment must pass
+the same smoke with its actual installed packages; no package was installed here.
 
 Real image mounting/cgroup enforcement, host reboot/boot ordering, firewall
 effects, default game-pattern suitability and RTX 4090 execution remain

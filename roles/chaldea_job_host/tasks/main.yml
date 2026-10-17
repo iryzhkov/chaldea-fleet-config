@@ -25,11 +25,35 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Read local CPU and RAM facts for shared-host limits
+  ansible.builtin.setup:
+    gather_subset: ["!all", "!min", hardware]
+    filter: [ansible_memtotal_mb, ansible_processor_vcpus]
+
+- name: Bound job memory to at most half of the host RAM
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_host_memory_max | human_to_bytes <= ansible_facts.memtotal_mb | int * 1024**2 // 2
+    fail_msg: chaldea_job_host_memory_max must be at most half of this host's RAM.
+    quiet: true
+
 - name: Install sandbox, isolated networking and image tools
   become: true
   ansible.builtin.package:
     name: "{{ ['bubblewrap', 'openssh', 'ufw', 'passt', 'nftables', 'e2fsprogs'] if ansible_facts.os_family == 'Archlinux' else ['bubblewrap', 'openssh-server', 'ufw', 'passt', 'nftables', 'e2fsprogs'] }}"
     state: present
+
+- name: Read installed package versions
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Require the supported distro sandbox baseline
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.packages['bubblewrap'][0].version is version('0.9', '>=')
+      - (ansible_facts.packages['passt'][0].version | regex_search('[0-9]{4}[_]?[0-9]{2}[_]?[0-9]{2}') | replace('_', '') | int) >= 20250503
+    fail_msg: Jobs require bubblewrap >= 0.9 and passt >= 2025-05-03; update the distro packages before enrollment.
+    quiet: true
 
 - name: Require an active firewall before opening the compute path
   become: true
@@ -112,6 +136,16 @@
   changed_when: "'created' in chaldea_job_host_image_created.stdout"
   when: not ansible_check_mode
 
+- name: Install the low-priority bounded compute slice
+  become: true
+  ansible.builtin.template:
+    src: chaldea.slice.j2
+    dest: /etc/systemd/system/chaldea.slice
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload job units
+
 - name: Install the optional boot-safe image mount
   become: true
   ansible.builtin.template:
@@ -176,6 +210,31 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Verify the installed sandbox option baseline
+  ansible.builtin.command:
+    argv: [/usr/bin/python3, -I, "{{ chaldea_job_host_server }}", --check-tools]
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Smoke test the exact installed pasta and bubblewrap launch as the job user
+  become: true
+  # Drop from root after Ansible starts its module; no cross-user temp-file ACLs.
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/setpriv
+      - "--reuid={{ chaldea_job_host_user }}"
+      - "--regid={{ chaldea_job_host_user }}"
+      - --init-groups
+      - --
+      - /usr/bin/python3
+      - -I
+      - "{{ chaldea_job_host_server }}"
+      - --smoke-test
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - chaldea_job_host_mount_ready.rc == 0
 
 - name: Install only forced source-bound keys
   become: true
