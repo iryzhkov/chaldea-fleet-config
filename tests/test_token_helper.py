@@ -120,7 +120,8 @@ def test_shared_verifier_checks_archive_before_install_and_rejects_drift(tmp_pat
     spec.loader.exec_module(module)
     import io
     files = {"bin/chaldea": b"client", "bin/chaldea-token-helper": b"helper",
-             "src/cli.ts": b"source", "package.json": b"{}"}
+             "src/cli.ts": b"source", "package.json": b"{}",
+             "node_modules/pkg/deep/index.js": b"dependency"}
     archive = tmp_path / "client.tar.gz"
     with tarfile.open(archive, "w:gz") as tar:
         for name, content in files.items():
@@ -138,7 +139,11 @@ def test_shared_verifier_checks_archive_before_install_and_rejects_drift(tmp_pat
         module.install(request)
     assert not Path(params["root"]).exists()
     params["sha256"] = sha
-    assert module.install(request)
+    previous_umask = os.umask(0o002)
+    try:
+        assert module.install(request)
+    finally:
+        os.umask(previous_umask)
     assert not module.install(request)
     installed = Path(params["root"]) / params["version"]
     assert (installed / "bin/chaldea-token-helper").stat().st_mode & 0o777 == 0o755
