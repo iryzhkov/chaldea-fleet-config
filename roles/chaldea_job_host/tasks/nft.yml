@@ -1,0 +1,49 @@
+---
+- name: Read distro nftables service enablement without changing it
+  become: true
+  ansible.builtin.command:
+    argv: [systemctl, is-enabled, nftables.service]
+  register: chaldea_job_host_nftables_enabled
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Require the distro global nftables loader to be disabled
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_host_nftables_enabled.stdout | trim in ['disabled', 'masked', 'masked-runtime', 'not-found']
+    fail_msg: >-
+      nft mode requires nftables.service to be disabled (found
+      {{ chaldea_job_host_nftables_enabled.stdout | trim | default('unknown', true) }}).
+      Its global /etc/nftables.conf may flush the compute table and Docker rules.
+      Review and disable that service before applying; this role will not change it.
+
+- name: Install and validate only the compute-port nft table
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job.nft.j2
+    dest: /etc/chaldea-job.nft
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/nft -c -f %s
+  notify: Reload job nft firewall
+
+- name: Install the dedicated persistent compute firewall unit
+  become: true
+  ansible.builtin.template:
+    src: chaldea-job-firewall.service.j2
+    dest: /etc/systemd/system/chaldea-job-firewall.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload job nft firewall
+
+- name: Enable and load the compute firewall without the distro nftables service
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-job-firewall.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode

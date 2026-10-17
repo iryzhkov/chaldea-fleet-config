@@ -1,0 +1,53 @@
+---
+- name: Select only packages required by the chosen firewall backend
+  ansible.builtin.set_fact:
+    chaldea_job_host_required_packages: "{{ ['bubblewrap', 'passt', 'nftables', 'e2fsprogs'] + (['openssh'] if ansible_facts.os_family == 'Archlinux' else ['openssh-server']) + (['ufw'] if chaldea_job_host_firewall == 'ufw' else []) }}"
+
+- name: Ensure Debian python3-apt before package facts
+  become: true
+  ansible.builtin.apt:
+    name: python3-apt
+    state: present
+  when: ansible_facts.os_family == 'Debian'
+
+- name: Read installed packages using ansible-core
+  ansible.builtin.package_facts:
+    manager: "{{ 'pacman' if ansible_facts.os_family == 'Archlinux' else 'apt' }}"
+
+- name: Identify missing job host packages
+  ansible.builtin.set_fact:
+    chaldea_job_host_missing_packages: "{{ chaldea_job_host_required_packages | difference(ansible_facts.packages.keys() | list) | sort }}"
+
+- name: Report packages that check mode would install
+  ansible.builtin.debug:
+    msg: "Would install: {{ chaldea_job_host_missing_packages | join(', ') }}; installation skipped in check mode."
+  when:
+    - ansible_check_mode
+    - chaldea_job_host_missing_packages | length > 0
+
+- name: Install only missing Arch packages without a collection
+  become: true
+  ansible.builtin.command:
+    argv: "{{ ['pacman', '-S', '--needed', '--noconfirm'] + chaldea_job_host_missing_packages }}"
+  environment:
+    LC_ALL: C
+  register: chaldea_job_host_pacman
+  changed_when: chaldea_job_host_pacman.stdout is search('(?m)(installing|upgrading|reinstalling) ')
+  when:
+    - ansible_facts.os_family == 'Archlinux'
+    - not ansible_check_mode
+    - chaldea_job_host_missing_packages | length > 0
+
+- name: Install Debian job host packages with apt
+  become: true
+  ansible.builtin.apt:
+    name: "{{ chaldea_job_host_required_packages }}"
+    state: present
+  when: ansible_facts.os_family == 'Debian'
+
+- name: Refresh installed versions after package installation
+  ansible.builtin.package_facts:
+    manager: "{{ 'pacman' if ansible_facts.os_family == 'Archlinux' else 'apt' }}"
+  when:
+    - not ansible_check_mode
+    - chaldea_job_host_missing_packages | length > 0

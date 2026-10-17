@@ -14,6 +14,19 @@ server = importlib.util.module_from_spec(spec)
 loader.exec_module(server)
 
 
+def test_network_child_uses_nft_path_available_on_debian_and_arch():
+    with tempfile.TemporaryDirectory() as tmp:
+        launch = Path(tmp) / "launch.json"
+        launch.write_text(json.dumps({"addresses": [], "subnets": [],
+                                     "command": ["/usr/bin/bwrap", "--", "true"], "env": {}}))
+        with (patch("ctypes.CDLL") as libc, patch.object(server.subprocess, "run") as run,
+              patch.object(server.os, "open", return_value=42),
+              patch.object(server.os, "set_inheritable"), patch.object(server.os, "execve")):
+            libc.return_value.prctl.return_value = 0
+            server.network_child(launch)
+        assert run.call_args.args[0] == ["/usr/sbin/nft", "-f", "-"]
+
+
 def request(**overrides):
     return {"version": 1, "jobId": "11111111-1111-1111-1111-111111111111",
             "argv": ["printf", "$HOME"], "cwd": "", "gpu": False,

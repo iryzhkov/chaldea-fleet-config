@@ -1,0 +1,25 @@
+# One atomic transaction; add also succeeds when this table already exists.
+add table inet chaldea_job
+delete table inet chaldea_job
+table inet chaldea_job {
+    set sources4 {
+        type ipv4_addr
+{% set ipv4 = chaldea_job_host_sources | rejectattr('ip', 'search', ':') | map(attribute='ip') | unique | list %}
+{% if ipv4 %}
+        elements = { {{ ipv4 | join(', ') }} }
+{% endif %}
+    }
+    set sources6 {
+        type ipv6_addr
+{% set ipv6 = chaldea_job_host_sources | selectattr('ip', 'search', ':') | map(attribute='ip') | unique | list %}
+{% if ipv6 %}
+        elements = { {{ ipv6 | join(', ') }} }
+{% endif %}
+    }
+    chain input {
+        type filter hook input priority filter; policy accept;
+        tcp dport {{ chaldea_job_host_port }} ip saddr @sources4 accept
+        tcp dport {{ chaldea_job_host_port }} ip6 saddr @sources6 accept
+        tcp dport {{ chaldea_job_host_port }} drop
+    }
+}

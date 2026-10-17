@@ -8,6 +8,7 @@
       - chaldea_job_host_port | int != 22
       - chaldea_job_host_sources | length > 0
       - chaldea_job_host_policy in ['always', 'idle']
+      - chaldea_job_host_firewall in ['ufw', 'nft']
       - chaldea_job_host_image_bytes | int >= 536870912
       - chaldea_job_host_state_root is match('^/(srv/agent/chaldea-job|home/chaldea-job/jobs)$')
     quiet: true
@@ -37,15 +38,15 @@
     fail_msg: chaldea_job_host_memory_max must be at most half of this host's RAM.
     quiet: true
 
-- name: Install sandbox, isolated networking and image tools
-  become: true
-  ansible.builtin.package:
-    name: "{{ ['bubblewrap', 'openssh', 'ufw', 'passt', 'nftables', 'e2fsprogs'] if ansible_facts.os_family == 'Archlinux' else ['bubblewrap', 'openssh-server', 'ufw', 'passt', 'nftables', 'e2fsprogs'] }}"
-    state: present
+- name: Install job host packages without collection dependencies
+  ansible.builtin.import_tasks: packages.yml
 
-- name: Read installed package versions
-  ansible.builtin.package_facts:
-    manager: auto
+- name: Explain deferred version checks for missing check-mode packages
+  ansible.builtin.debug:
+    msg: "Skipping the installed-version baseline until apply installs {{ ['bubblewrap', 'passt'] | difference(ansible_facts.packages.keys() | list) | join(', ') }}."
+  when:
+    - ansible_check_mode
+    - "['bubblewrap', 'passt'] | difference(ansible_facts.packages.keys() | list) | length > 0"
 
 - name: Require the supported distro sandbox baseline
   ansible.builtin.assert:
@@ -54,15 +55,21 @@
       - (ansible_facts.packages['passt'][0].version | regex_search('[0-9]{4}[_]?[0-9]{2}[_]?[0-9]{2}') | replace('_', '') | int) >= 20250503
     fail_msg: Jobs require bubblewrap >= 0.9 and passt >= 2025-05-03; update the distro packages before enrollment.
     quiet: true
+  when: not ansible_check_mode or ('bubblewrap' in ansible_facts.packages and 'passt' in ansible_facts.packages)
 
 - name: Require an active firewall before opening the compute path
   become: true
   ansible.builtin.command:
     argv: [ufw, status]
-  register: chaldea_job_host_firewall
+  register: chaldea_job_host_ufw_status
   changed_when: false
   check_mode: false
-  failed_when: "'Status: active' not in chaldea_job_host_firewall.stdout"
+  failed_when: "'Status: active' not in chaldea_job_host_ufw_status.stdout"
+  when: chaldea_job_host_firewall == 'ufw'
+
+- name: Configure the isolated compute-port nft firewall
+  ansible.builtin.import_tasks: nft.yml
+  when: chaldea_job_host_firewall == 'nft'
 
 - name: Create the dedicated job account without a usable password
   become: true
@@ -360,6 +367,7 @@
   loop_control:
     label: "{{ item.path }}"
   notify: Reload job firewall
+  when: chaldea_job_host_firewall == 'ufw'
 
 - name: Apply validated firewall and SSH changes before admitting jobs
   ansible.builtin.meta: flush_handlers
@@ -370,6 +378,16 @@
     name: ufw.service
     enabled: true
     state: started
+  when: chaldea_job_host_firewall == 'ufw'
+
+- name: Require the compute-port nft table before starting job SSH
+  become: true
+  ansible.builtin.command:
+    argv: [/usr/sbin/nft, list, table, inet, chaldea_job]
+  changed_when: false
+  when:
+    - chaldea_job_host_firewall == 'nft'
+    - not ansible_check_mode
 
 - name: Start the restricted job SSH daemon
   become: true
@@ -378,3 +396,4 @@
     enabled: true
     state: started
     daemon_reload: true
+  when: not ansible_check_mode

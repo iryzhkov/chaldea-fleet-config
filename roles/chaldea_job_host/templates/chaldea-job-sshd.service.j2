@@ -1,9 +1,17 @@
 [Unit]
 Description=Chaldea restricted compute SSH
+{% if chaldea_job_host_firewall == 'nft' %}
+Requires=chaldea-job-firewall.service
+After=network.target chaldea-job-firewall.service
+{% else %}
 After=network.target ufw.service
+{% endif %}
 [Service]
 Type=simple
 Slice=chaldea.slice
+{% if chaldea_job_host_firewall == 'nft' %}
+ExecStartPre=/usr/sbin/nft list table inet chaldea_job
+{% endif %}
 ExecStartPre={{ chaldea_job_host_sshd_binary }} -t -f /etc/ssh/chaldea-job-sshd.conf
 ExecStart={{ chaldea_job_host_sshd_binary }} -D -e -f /etc/ssh/chaldea-job-sshd.conf
 Restart=on-failure

@@ -55,7 +55,10 @@ reviewed pair and the concrete public-key inventory are approved.
   Before creating a new sparse image, the role checks backing-filesystem free
   space for its full configured size and refuses if insufficient. This is an
   apply-time check, not a reservation against later unrelated disk writers.
-  Existing images are never reformatted or resized. Put images outside snapshot
+  On btrfs, creation applies chattr +C (No_COW) to the empty new file before
+  truncating/formatting it. Existing images are never reformatted, resized or
+  given new attributes. On omarchy-pc, /home is the @home subvolume outside
+  snapper's root configuration; the default image lives there. Put images outside snapshot
   coverage (or explicitly exclude them) if the containing filesystem has snapshots.
   Admission checks free space on the image filesystem, reserving 256 MiB + input.
 - Normal/failed workspaces are deleted immediately. fd-relative cleanup handles
@@ -83,8 +86,9 @@ chaldea-job-sshd.service is enabled independently, with **no mount dependency**.
 It stays available and returns "job storage unavailable: image is not mounted"
 until storage is ready. It never writes jobs to the underlying mountpoint.
 When storage returns, the next explicit invocation works; startup removes killed
-jobs' leftovers within its budget. UFW is enabled and the IPv4/IPv6 before-chain
-rules are persistent.
+jobs' leftovers within its budget. The chosen compute firewall is enabled at
+boot: UFW's persistent IPv4/IPv6 before-chain rules, or the dedicated nft unit
+below. No role enables the distro nftables.service.
 
 The operator sshd denies chaldea-job; the compute-only daemon on TCP 2222 allows
 only that account. Root owns .ssh and authorized_keys. Every source key has
@@ -92,14 +96,67 @@ restrict,from=<exact IP>,command=<isolated Python forced command>. Password,
 keyboard auth, PTY, user rc/env, tunnels and TCP/Unix/agent/X11 forwarding are
 disabled. Main-sshd configuration is tested including its effective DenyUsers
 rule case-insensitively. Failed validation removes the drop-in without reloading
-an invalid configuration. UFW restricts the compute port before ordinary allow
-rules. Changes to port/source inventory replace the managed rules.
+an invalid configuration. The selected backend restricts the compute port to
+enrolled source addresses. Changes to port/source inventory replace only the
+managed UFW block or dedicated nft table.
 
 Neither role connects to peers at boot. Session hosts only get static SSH config
 and metadata checks. Job hosts only need local disk, firewall and sshd.
 Source/target reboot during dispatch leaves durable intent uncertain. There is
 no reconnect/replay path. Stale ControlMaster sockets are checked and removed
 before a new dispatch; flock needs no stale-lock cleanup.
+
+## Compute-port firewall modes and removal
+
+chaldea_job_host_firewall selects ufw (default) or nft. Inventory selects nft for
+agent-a; this does not change policy for its operator SSH, T3 ports or Docker.
+
+- ufw requires an already-active UFW before proceeding. It maintains source-bound
+  TCP compute rules in the IPv4/IPv6 before chains and enables UFW persistence.
+  An inactive UFW causes a clear failure; the role does not silently enable a
+  new host-wide policy.
+- nft does not install or invoke UFW. /etc/chaldea-job.nft contains only the inet
+  chaldea_job table, accepting the configured TCP compute port (default 2222)
+  from IPv4/IPv6 enrolled-source sets and dropping other TCP traffic to that port.
+  The input chain accepts other traffic without overriding any other firewall's
+  decision. It has no forwarding, output or Docker rules. One atomic nft -f
+  transaction adds/deletes/recreates only chaldea_job, validated first with
+  nft -c -f. Commands use /usr/sbin/nft on Debian and Arch (Arch's merged
+  /usr/sbin points into /usr/bin). It never flushes the global ruleset or modifies
+  another table.
+- chaldea-job-firewall.service is an enabled oneshot with RemainAfterExit, no
+  default boot ordering and a five-second timeout. It runs only the dedicated
+  file, validates on start/reload, and has no dependency on peers or networking
+  being online. Boot continues if it fails. Job SSH requires/starts after this
+  unit and checks that the table is loaded before listening, including on reboot.
+  Apply refuses if the distro nftables.service is enabled, without changing it:
+  Debian's global /etc/nftables.conf loader can flush the compute table and
+  Docker's rules. Never enable it alongside this role. The dedicated unit orders
+  after nftables.service if both are started, without pulling that service in.
+- Stopping the dedicated firewall unit leaves its table installed. To remove nft
+  enrollment, set chaldea_job_host_enabled=false in inventory, then as operator:
+  ```sh
+  sudo systemctl disable --now chaldea-job-sshd.service
+  sudo systemctl disable --now chaldea-job-firewall.service
+  sudo /usr/sbin/nft delete table inet chaldea_job
+  sudo rm /etc/chaldea-job.nft /etc/systemd/system/chaldea-job-firewall.service
+  sudo systemctl daemon-reload
+  ```
+  If the table is already absent, omit its deletion. Keep other tables and the
+  distro service configuration unchanged. For UFW removal, stop/disable job SSH
+  first, remove only the CHALDEA JOB V0 managed blocks from before.rules and
+  before6.rules, then ufw reload; do not disable the host's existing firewall.
+  Switching backends does not automatically remove old backend rules; coordinate
+  that removal with jobs stopped.
+
+Packages use ansible-core only: Debian ensures python3-apt before collecting
+package facts and uses apt; Arch reads package_facts through
+pacman and runs pacman -S --needed --noconfirm only for missing packages, with
+English transaction output determining changed status. No community.general
+collection is required. Arch check mode reports missing packages and skips the
+install command; missing sandbox-package version checks are explicitly deferred
+until installation on apply. Installed-version checks run normally when both
+baseline packages exist.
 
 ## Enrollment and apply (orchestrator, after approval)
 
@@ -144,8 +201,9 @@ before a new dispatch; flock needs no stale-lock cleanup.
    Older distro pasta uses a PID namespace: the server translates bwrap's status
    PID through /proc within the transport's descendant tree. It does not require
    --no-pidns. The optional -c socket flag is feature-detected. The role installs passt, nftables,
-   bubblewrap, SSH, UFW and e2fsprogs, creates/formats only a new image, enables the
-   optional mount, UFW and job daemon. No step contacts another host.
+   bubblewrap, SSH and e2fsprogs, plus UFW only in ufw mode. It creates/formats
+   only a new image, enables the optional mount, chosen firewall and job daemon.
+   No step contacts another host.
 6. On every source, pin each existing destination host Ed25519 public key through
    a trusted console/verified operator SSH path. Put
    `[DESTINATION-IP]:2222 ssh-ed25519 PUBLIC-KEY` in
@@ -158,11 +216,15 @@ before a new dispatch; flock needs no stale-lock cleanup.
 Run these on agent-a, agent-b, laptop and omarchy-pc, one host at a time:
 
 - Validate sudo sshd -t and sudo sshd -t -f /etc/ssh/chaldea-job-sshd.conf.
-  Verify job daemon, UFW and the path-named mount are enabled, then inspect
+  Verify job daemon, chosen firewall unit and the path-named mount are enabled, then inspect
   systemctl show chaldea-job-sshd -p MemoryMax -p TasksMax -p Slice, then
   systemctl show chaldea.slice -p CPUWeight -p CPUQuotaPerSecUSec -p IOWeight.
   Confirm MemoryMax <= half physical RAM and CPUQuota equals the reviewed budget.
-  Inspect findmnt JOB_ROOT and sudo ufw show before-rules. Confirm ordinary
+  Inspect findmnt JOB_ROOT. In ufw mode inspect sudo ufw show before-rules;
+  in nft mode inspect sudo nft list table inet chaldea_job and validate
+  sudo nft -c -f /etc/chaldea-job.nft. Confirm enrolled IPv4/IPv6 sources can
+  reach TCP 2222 and other sources cannot. Confirm ports 22, 7391 and 45011
+  and Docker connectivity retain their previous behavior. Confirm ordinary
   chaldea-job SSH and forwarding are refused.
 - From a disposable Git worktree run output/status/artifact tests, including a
   command returning 125. Repeat to measure warm startup. Inside a job check
@@ -182,7 +244,7 @@ Run these on agent-a, agent-b, laptop and omarchy-pc, one host at a time:
   Perform an RTX 4090 smoke test only if GPU enrollment was approved.
 - Reboot each target during a harmless long job: the source journal must remain
   uncertain, with no rerun. After boot verify local boot succeeds independently
-  of every peer's availability, units are enabled/active, UFW rules persist,
+  of every peer's availability, units are enabled/active, selected firewall rules persist,
   old workspaces are cleaned and a new explicit invocation succeeds.
 - Reboot each source during a harmless job. After boot confirm its journal is
   uncertain, no automatic job starts, and its next explicit command succeeds

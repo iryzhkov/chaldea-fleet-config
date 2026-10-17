@@ -12,6 +12,11 @@ jobs:
     env:
       CI_PYTHON: /usr/bin/python3.13
       ANSIBLE_FORKS: "1"
+      TMPDIR: ${{ github.workspace }}/../chaldea-fleet-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: mkdir -p "$TMPDIR"
       - run: bash tools/ci.sh
+      - name: Remove this run's disk-backed scratch
+        if: always()
+        run: rm -rf -- "$TMPDIR"
