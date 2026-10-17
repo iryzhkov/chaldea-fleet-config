@@ -22,7 +22,20 @@ def trusted(path, private=False):
         raise ValueError("unsafe input")
 
 
+def trusted_runtime(path):
+    target = Path(path)
+    if not target.is_absolute():
+        raise ValueError("runtime must be absolute")
+    for entry in (target, *target.parents):
+        info = entry.lstat()
+        regular = stat.S_ISREG(info.st_mode) if entry == target else stat.S_ISDIR(info.st_mode)
+        if not regular or info.st_uid != 0 or info.st_mode & 0o022:
+            raise ValueError("runtime and ancestors must be immutable root-owned paths")
+
+
 def fetch(config):
+    trusted_runtime(config["node"])
+    trusted_runtime(config["runtime"])
     state = Path(config["state"])
     info = state.lstat()
     if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid()
@@ -39,6 +52,8 @@ def fetch(config):
             "/usr/bin/ssh", "-F", "/dev/null", "-o", "BatchMode=yes",
             "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=yes",
             "-o", "UserKnownHostsFile=" + config["known_hosts"],
+            "-o", "GlobalKnownHostsFile=/dev/null", "-o", "UpdateHostKeys=no",
+            "-o", "ConnectTimeout=10", "-o", "CheckHostIP=no",
             "-i", config["key"],
         ]),
     }
@@ -63,9 +78,6 @@ def fetch(config):
     envelope = git("--git-dir=" + str(cache), "cat-file", "blob", obj)
     if len(envelope) != size:
         raise ValueError("bundle changed")
-    # Bound the byte-only transport cache; never prune security state.
-    git("--git-dir=" + str(cache), "reflog", "expire", "--expire=now", "--all")
-    git("--git-dir=" + str(cache), "gc", "--prune=now", "--quiet")
     candidate = state / "candidate.jws"
     # state is private and trusted; never write a candidate in the public directory.
     fd = os.open(candidate, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
@@ -85,11 +97,23 @@ def fetch(config):
         ], env=env, check=True, timeout=15)
     finally:
         candidate.unlink(missing_ok=True)
+    # Housekeeping must not prevent installation or report a successful install as failed.
+    try:
+        git("--git-dir=" + str(cache), "reflog", "expire", "--expire=now", "--all")
+        git("--git-dir=" + str(cache), "gc", "--prune=now", "--quiet")
+    except (subprocess.SubprocessError, OSError):
+        print("chaldea trust: transport cache housekeeping failed", file=sys.stderr)
 
 
 def main():
     try:
         os.umask(0o077)
+        if sys.argv[1] == "--check-runtime":
+            if len(sys.argv) != 4:
+                raise ValueError("runtime arguments")
+            for path in sys.argv[2:]:
+                trusted_runtime(path)
+            return 0
         trusted(sys.argv[1])
         config = json.loads(Path(sys.argv[1]).read_text())
         fetch(config)

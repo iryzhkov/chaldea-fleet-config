@@ -18,7 +18,10 @@ ansible-pull; this root updater gets its own read-only key for the same scope.
 The existing 4h ansible-pull timer is too slow, so fetch is independent.
 
 Git-over-SSH pins the transport host key, then package C verifies a separate,
-independently pinned Ed25519 deployment anchor. The bare cache never checks out
+operator-compared Ed25519 deployment anchor. Its public pin is committed in this
+same repository; repo-write protection and the existing root ansible-pull channel
+are therefore part of the trust base. The signature does not defend against an
+attacker who can rewrite root fleet configuration. The bare cache never checks out
 or executes repository code. Only bundle.jws goes to the installer.
 
 Requests use local cached trust. Any single fleet host may be down without an
@@ -37,10 +40,18 @@ laptop, normandy and public-api/public-api-b have no action in this slice.
 Later enrollment needs an explicit host list. No broad fleet apply.
 
 1. Freeze reviewed application/fleet commits and successful CI. Separately install
-   immutable chaldea source under root-owned /opt/chaldea/app and pinned Node
-   26.10.0 at /opt/chaldea/node/bin/node on homelab (later agent-a).
-   ProtectHome requires runtime outside /home. Provision git, openssh-client,
-   python3 and chrony through approved host configuration. Require independent
+   immutable chaldea artifact under root-owned /opt/chaldea/app and pinned Node
+   26.10.0 at /opt/chaldea/node/bin/node on homelab and omarchy-pc (later agent-a).
+   Build production dependencies from the lockfile on a job host (npm ci --omit=dev
+   --ignore-scripts), include them in the immutable artifact, and install the full
+   tree root-owned without group/other write. A source-only tree lacks jose.
+   The node and maintenance.ts paths and all ancestors must be real, root-owned,
+   non-writable-by-others paths; the updater and clock ExecStartPre check this at
+   every start. ProtectHome requires runtime outside /home.
+   Provision git, openssh-client, python3 and chrony on these approved hosts.
+   omarchy-pc currently uses timesyncd; this requires an explicitly approved time
+   service migration and healthy chrony before signing. No such migration occurs
+   in this task. Require independent
    external time sources and the root-protected /run/chrony/chronyd.sock socket;
    no UDP fallback, chrony local/orphan mode or single fleet NTP host.
    This role does not install or change time services.
@@ -50,7 +61,13 @@ Later enrollment needs an explicit host list. No broad fleet apply.
    <keys-dir>/deployment-2026-10.pem. The PKCS8 file is igor-owned 0600,
    single-link. Protect ancestors. Igor holds its protected offline backup;
    omarchy-pc holds the sole live deployment key. Never copy it to a run host,
-   sandbox, repository, env or transcript. Independently compare its public
+   sandbox, repository, env or transcript. omarchy-pc also hosts compute jobs:
+   provision the live key only after canaries prove those sandboxes and restricted
+   UIDs cannot read Igor's publisher directory or use sudo. Interactive full-access
+   operator agents running as igor/root remain trusted and can read it; 0700/0600
+   does not isolate it from that operator identity. If that trust is unacceptable,
+   use a separately reviewed publisher UID or protected signer before creating it.
+   Independently compare its public
    fingerprint/JWK before pinning chaldea_access_trust_anchors in approved
    inventory and Akasha config.
 3. For each approved issuer (first agent-a), the operator separately provisions
@@ -106,6 +123,10 @@ Later enrollment needs an explicit host list. No broad fleet apply.
 7. Set chaldea_access_trust_enabled=true and independently pinned public anchors
    only in homelab's approved inventory. Check then apply only
    --limit homelab --tags chaldea_access_trust through local ansible-pull.
+   Bootstrap key/known_hosts/state ownership and modes are checked before timers
+   start; state must already be initialized. The fixed runtime directory is
+   /run/chaldea-access-trust. chronyc needs /run/chrony writable for its private
+   reply socket, so only the clock unit allows that directory through ProtectSystem.
    Units: chaldea-clock-health.service/.timer (10s) and
    chaldea-access-trust.service/.timer (120s). Verify status/journal, first
    successful install sequence/expiry, ownership/modes and second-apply

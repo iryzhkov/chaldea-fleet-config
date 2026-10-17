@@ -37,6 +37,7 @@ def config(tmp_path):
 
 def fake_commands(monkeypatch, config, *, failure=None, size=6):
     calls = []
+    monkeypatch.setattr(fetcher, "trusted_runtime", lambda path: None)
 
     def run(args, **kwargs):
         calls.append((args, kwargs))
@@ -46,6 +47,7 @@ def fake_commands(monkeypatch, config, *, failure=None, size=6):
         assert env["HOME"] == config["state"]
         assert env["GIT_TERMINAL_PROMPT"] == "0"
         assert "StrictHostKeyChecking=yes" in env["GIT_SSH_COMMAND"]
+        assert "GlobalKnownHostsFile=/dev/null" in env["GIT_SSH_COMMAND"]
         if failure and failure in args:
             raise subprocess.CalledProcessError(1, args)
         if args[0] == config["node"]:
@@ -97,6 +99,26 @@ def test_oversize_and_unsafe_transport_key_fail_before_install(monkeypatch, conf
     assert calls == []
 
 
+def test_gc_failure_does_not_block_a_verified_install(monkeypatch, config):
+    calls = fake_commands(monkeypatch, config, failure="gc")
+    fetcher.fetch(config)
+    install = next(i for i, (args, _) in enumerate(calls) if args[0] == config["node"])
+    gc = next(i for i, (args, _) in enumerate(calls) if "gc" in args)
+    assert install < gc
+
+
+def test_runtime_rejects_writable_or_symlink_paths(tmp_path):
+    target = tmp_path / "runtime"
+    target.write_text("fixture")
+    target.chmod(0o666)
+    with pytest.raises(ValueError):
+        fetcher.trusted_runtime(str(target))
+    link = tmp_path / "symlink"
+    link.symlink_to(target)
+    with pytest.raises(ValueError):
+        fetcher.trusted_runtime(str(link))
+
+
 def test_inventory_disabled_and_units_use_isolated_state():
     defaults = yaml.safe_load((ROLE / "defaults/main.yml").read_text())
     inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
@@ -124,6 +146,8 @@ def test_inventory_disabled_and_units_use_isolated_state():
     clock = units["chaldea-clock-health.service.j2"]
     assert "clock-health --output /scratch/run/clock-health.json" in clock
     assert "RuntimeDirectoryPreserve=yes" in clock
+    assert "ReadWritePaths=/scratch/run /run/chrony" in clock
+    assert "--check-runtime" in clock
     tasks = (ROLE / "tasks/main.yml").read_text()
     assert "initialize-state" not in tasks and "genpkey" not in tasks
     assert json.loads((ROOT / "access-trust/issuer-grants.json").read_text()) == []
