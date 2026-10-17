@@ -38,10 +38,10 @@ chaldea_client_enabled: true
 chaldea_client_version: client-v0.2.0
 chaldea_client_sha256: "6803a80d05968928c77f028084a28490e805a5eaf775c771fa13324498744810"
 
-# TODO: orchestrator must publish host-v0.2.1 from reviewed main and fill the
-# SHA-256 from its chaldea-host.tar.gz release asset before merging this PR.
+# Published from Chaldea main fcf3651; SHA-256 verified from the release asset.
+# Keep this version and digest identical in fleet-config and homelab-infra.
 chaldea_host_version: host-v0.2.1
-chaldea_host_sha256: "TODO_HOST_V0_2_1_RELEASE_ASSET_SHA256"
+chaldea_host_sha256: "914918aa6931203d49be8d8e7874b2e24f28b9cdabdd5ad49101de9ab2e6e1c9"
 
 # Signed data lives apart from root-executed fleet configuration.
 chaldea_access_trust_repository: ssh://git@github.com/iryzhkov/chaldea-trust.git
