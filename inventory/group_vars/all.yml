@@ -48,3 +48,42 @@ t3_allow_upgrade: false
 # Both timers stay off until enabled per host after a reviewed check run.
 pull_timer_enabled: false
 retention_timer_enabled: false
+
+# Reviewed release pins, generated once from the published sums (2026-10-17).
+# Node: nodejs.org/dist/vVERSION/SHASUMS256.txt; Go: dl.google.com/go/*.sha256;
+# uv: github.com/astral-sh/uv/releases/download/VERSION/*.sha256;
+# Rust: static.rust-lang.org/dist/*.sha256. Updating versions requires pins.
+chaldea_job_host_toolchain_versions:
+  node: ["26.12.0"]
+  go: ["1.27.0"]
+  rust: ["1.99.0"]
+  uv: ["0.12.10"]
+chaldea_job_host_toolchain_checksums:
+  node:
+    "26.12.0":
+      x86_64:
+        node-v26.12.0-linux-x64.tar.xz: fd47865ecd6391ebb431fc815e01b9135bf83ded5cf373247e9331e196b7aded
+      aarch64:
+        node-v26.12.0-linux-arm64.tar.xz: fd6cc729fa4448c2ac27c3fca5606019ced63c65a15c152c8df03e0cbce7f4c5
+  go:
+    "1.27.0":
+      x86_64:
+        go1.27.0.linux-amd64.tar.gz: 675c26c449cbb18fc24b74650de1eabbae6e16f64326fd85a283fb3b58280685
+      aarch64:
+        go1.27.0.linux-arm64.tar.gz: 51798d2c42d0e1c6ed7fd9f48728b4193abac9e8aad6dbac2fe96a81f5909bda
+  rust:
+    "1.99.0":
+      x86_64:
+        rustc-1.99.0-x86_64-unknown-linux-gnu.tar.xz: 77171ba2a0345fdf2abc4fedda55d6de078dae7a68527c28be8c77dcc9604bd5
+        cargo-1.99.0-x86_64-unknown-linux-gnu.tar.xz: d7674918d28093097614cd9728b6ca60db9ea3038f640f0bd1e9a4188c7568ce
+        rust-std-1.99.0-x86_64-unknown-linux-gnu.tar.xz: 3e58dff2d0b72196b5ea4e90536e174d400de88564a52694686b81e091169933
+      aarch64:
+        rustc-1.99.0-aarch64-unknown-linux-gnu.tar.xz: 89c0f1a3a44df63c95e5d5f2ba093d0a12c5f5f57f8635f8a7a0ce50cf86600e
+        cargo-1.99.0-aarch64-unknown-linux-gnu.tar.xz: 113229fcc16cc1ba004923a4cc275fbf3281dafaaf8b97269f9c00189d497fd4
+        rust-std-1.99.0-aarch64-unknown-linux-gnu.tar.xz: 1cf7e2ef58ed1cfa6f1adea18e155cbf254c1951f39e5f5e3376879f55fd64a4
+  uv:
+    "0.12.10":
+      x86_64:
+        uv-x86_64-unknown-linux-gnu.tar.gz: 173d95a0c32d18c896c46ba6fafbf3cf9c14ab74b033f81b76c883ef492a976b
+      aarch64:
+        uv-aarch64-unknown-linux-gnu.tar.gz: 9ff6b9d4665edcdd3a88dcc73cd1eb641754deb927f14e8c62ebfde6bf4f5f5e

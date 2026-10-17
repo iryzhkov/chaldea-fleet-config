@@ -7,5 +7,7 @@
   'state_cap_bytes': chaldea_job_host_image_bytes,
   'shm_bytes': chaldea_job_host_shm_bytes,
   'gpu_devices': chaldea_job_host_gpu_devices,
-  'nvidia_icd': chaldea_job_host_nvidia_icd
+  'nvidia_icd': chaldea_job_host_nvidia_icd,
+  'toolchain_root': chaldea_job_host_toolchain_root,
+  'toolchain_defaults': dict(chaldea_job_host_toolchain_versions.keys() | zip(chaldea_job_host_toolchain_versions.values() | map('first')))
 } | to_nice_json }}

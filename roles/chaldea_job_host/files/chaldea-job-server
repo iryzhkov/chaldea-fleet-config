@@ -246,6 +246,28 @@ def unpack(request, workspace):
         raise ValueError("missing upload end")
 
 
+def toolchain_environment(config):
+    """Use only the root-owned role configuration, never client-supplied paths."""
+    root = config.get("toolchain_root")
+    defaults = config.get("toolchain_defaults", {})
+    if root is None and not defaults:
+        return [], []
+    if (not isinstance(root, str) or not root.startswith("/")
+            or str(Path(root)) != root or root in ("/", "/usr", "/home")
+            or set(defaults) != {"node", "go", "rust", "uv"}):
+        raise ValueError("invalid toolchain configuration")
+    directories = []
+    for tool in ("node", "go", "rust", "uv"):
+        version = defaults[tool]
+        if not isinstance(version, str) or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+            raise ValueError("toolchain versions must be pinned X.Y.Z releases")
+        directory = Path(root) / tool / version / "bin"
+        if not directory.is_dir():
+            raise ValueError("configured toolchain is not installed: " + tool + "@" + version)
+        directories.append(str(directory))
+    return ["--ro-bind", root, root], directories
+
+
 def sandbox(request, workspace, config):
     home = workspace / ".chaldea-home"
     temp = workspace / ".chaldea-tmp"
@@ -285,8 +307,15 @@ def sandbox(request, workspace, config):
             "--tmpfs", "/dev/shm", "--dir", "/run",
             "--bind", str(workspace), "/work", "--bind", str(home), "/home/job",
             "--bind", str(temp), "/tmp", "--chdir", "/work/" + request["cwd"]]
+    toolchain_mounts, toolchain_bins = toolchain_environment(config)
+    cmd += toolchain_mounts
     env = {"HOME": "/home/job", "USER": "chaldea-job", "LOGNAME": "chaldea-job",
-           "PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "TERM": "dumb",
+           "PATH": ":".join(toolchain_bins + ["/usr/bin", "/bin"]), "LANG": "C.UTF-8", "TERM": "dumb",
+           "TAR_OPTIONS": "--no-same-owner", "npm_config_cache": "/home/job/.cache/npm",
+           "CARGO_HOME": "/home/job/.cargo", "GOPATH": "/home/job/go",
+           "GOMODCACHE": "/home/job/go/pkg/mod", "GOCACHE": "/home/job/.cache/go-build",
+           "GOTOOLCHAIN": "local", "UV_CACHE_DIR": "/home/job/.cache/uv",
+           "UV_PYTHON_INSTALL_DIR": "/home/job/.local/share/uv/python",
            "TMPDIR": "/tmp", "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0",
            "XDG_CONFIG_HOME": "/home/job/.config", "XDG_CACHE_HOME": "/home/job/.cache",
            "XDG_DATA_HOME": "/home/job/.local/share", "XDG_STATE_HOME": "/home/job/.local/state"}

@@ -268,6 +268,110 @@ Run these on agent-a, agent-b, laptop and omarchy-pc, one host at a time:
 Stopping chaldea-job-sshd.service revokes admission immediately. An enrollment
 switch false merely skips future applies and does not revoke an installed daemon.
 
+
+## Pinned job toolchains
+
+The role installs an independent, root-owned tree at /opt/chaldea-tools, mounted
+read-only into jobs. It never mounts the operator's mise directory or home.
+chaldea_job_host_toolchain_versions is an inventory mapping of node, go, rust
+and uv to nonempty lists of exact X.Y.Z releases. The first version in each list
+is the default; every configured version is retained. Architecture comes from
+ansible_facts.architecture: x86_64 maps to Node x64 / Go amd64 / Rust x86_64;
+aarch64 maps to arm64 / arm64 / aarch64. Other architectures fail before download.
+
+The read-only omarchy-pc baseline for this change was:
+mise ls --current selected Node 26.12.0 and Rust stable, resolved by rustc and
+cargo to 1.99.0. Go and uv were absent from mise's current list; the installed
+/usr/bin tools reported go1.27.0-X:nodwarf5 and uv 0.12.10. The defaults therefore
+pin upstream Node 26.12.0, Go 1.27.0, Rust 1.99.0 and uv 0.12.10. The upstream Go
+build does not include the distro's X:nodwarf5 experiment suffix.
+
+Versions and SHA256 pins live together in inventory/group_vars/all.yml.
+chaldea_job_host_toolchain_checksums maps tool -> version -> architecture ->
+archive filename -> lowercase SHA256. The pins were generated once from the
+publishers' release metadata and committed for review: Node from
+nodejs.org/dist/vVERSION/SHASUMS256.txt; Go from dl.google.com/go/*.sha256
+(the official Go download CDN); uv from its GitHub release archive.sha256
+assets; Rust from static.rust-lang.org/dist/*.sha256 for rustc, cargo and
+rust-std. Changing or adding a version requires reviewing pins for every
+selected architecture and every archive. Missing/malformed pins fail closed
+before any download. The installer never downloads checksum files.
+
+Installation downloads only missing archives over verified HTTPS, refuses
+redirects to non-HTTPS URLs, compares each archive against the committed
+inventory pin, then extracts into private staging and publishes by rename.
+All three Rust archives are verified before copying their component payloads.
+Python copies only files/directories listed in the installer-format v3
+manifest.in files; install.sh is never invoked. **Nothing from any archive
+executes as root during provisioning.** This gives a compiler, Cargo and native
+standard library without rustup or mutable channels. Cargo writes only to the
+job's own home and workspace. Rust requires the exposed distro C/linker tools;
+cross compilation, rustfmt and clippy are outside this initial toolchain.
+
+The installed manifest records tool, version, architecture and verified digests.
+An existing completed version is left untouched and causes no network request;
+an incompatible/incomplete destination or manifest whose digests differ from
+the reviewed inventory pins is refused rather than overwritten.
+Installed directories and executable files are 0555; other files are 0444.
+Ansible runs the manager as root; the parent directories are root-owned 0755.
+Check mode reports intended versions without downloads or installation.
+Apply holds the existing job admission lock while installing and pruning.
+The lock is opened read-only with O_NOFOLLOW | O_NONBLOCK; fstat must confirm
+a regular file before flock. The role never touches or chowns a path in the
+job-owned directory. A missing lock means no server has run and is skipped
+without creating it. **A busy host stops the apply; retry it after the job
+finishes**, including when convergence is driven by the orchestrator. A separate
+installer lock prevents competing applies. Abandoned staging is removed on
+the next apply. No provisioning runs in a job or on the client.
+
+After installation, each tool keeps all configured versions plus at most one
+unconfigured previous version. The formerly selected default is preferred;
+otherwise the most recently installed unconfigured version is kept. Further
+versions are pruned on apply. Jobs cannot change the tree. To select an installed
+non-default version for one job, prepend its directory explicitly, for example:
+
+    chaldea exec --host agent-a -- sh -c 'export PATH=/opt/chaldea-tools/node/26.10.0/bin:$PATH; node --version; npm ci'
+
+No new client option is needed. Removing a configured version makes it eligible
+for pruning, so jobs should normally use inventory defaults.
+
+The server puts the four selected bin directories before /usr/bin:/bin and
+sets TAR_OPTIONS=--no-same-owner for GNU tar in the job user namespace. npm's
+cache, CARGO_HOME, GOPATH, GOMODCACHE, GOCACHE, UV_CACHE_DIR and uv's Python
+installation directory live under /home/job, backed by that job's workspace.
+GOTOOLCHAIN=local prevents Go from silently downloading another compiler.
+The fresh home, caches, build outputs and temporary files are removed with the
+workspace. There are no shared writable caches.
+
+The measured x86_64 tree for these defaults occupies 1,194,033,152 allocated
+bytes (1.12 GiB; apparent size 1,137,962,712 bytes). Budget **6 GiB per host for
+the toolchain tree, one previous set and installation staging**, in addition
+to the default 20 GiB job image and 16 MiB journal: about 26 GiB total.
+The /opt tree uses the root filesystem even when the job image uses /srv/agent;
+check capacity on both. This is a planning allowance for the default version
+count, not a quota: additional inventory versions require a larger allowance.
+Snapshot retention can retain old toolchain blocks after live-tree pruning.
+
+Run the role unit tests through tools/ci.sh. For real toolchain acceptance,
+install the tree under the disk-backed scratch directory as an unprivileged
+user, then run (from the fleet-config checkout, after CI creates its venv):
+
+    export TMPDIR=/home/igor/.cache/chaldea-scratch/toolchains
+    toolchain_versions=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all.yml"))["chaldea_job_host_toolchain_versions"]))')
+    toolchain_checksums=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all.yml"))["chaldea_job_host_toolchain_checksums"]))')
+    python3 -I roles/chaldea_job_host/files/chaldea-job-toolchains --root "$TMPDIR/tree" --architecture x86_64 --versions "$toolchain_versions" --checksums "$toolchain_checksums"
+    .venv-ci/bin/python tests/job_toolchains_e2e.py --chaldea "$TMPDIR/chaldea" --tree "$TMPDIR/tree"
+
+The chaldea argument must name a clone of iryzhkov/chaldea with npm ci completed.
+The test starts an ephemeral rootless SSH daemon using this role's shipped
+templates and server, invokes chaldea exec, checks all tool versions, runs npm ci
+and a tiny npm build, compiles/runs Go and Cargo programs, creates a uv venv, and
+extracts a tar with unmapped owner IDs without a command-line ownership flag.
+It also checks that extraction fails with TAR_OPTIONS unset and verifies
+workspace/cache removal. No real host is enrolled or changed. The existing
+chaldea exec:e2e suite can also run against CHALDEA_JOB_SERVER pointing at this
+role, with CHALDEA_TEST_PYTHON pointing at .venv-ci/bin/python.
+
 ## Validation boundary
 
 Local: CI_PYTHON=$(uv python find 3.13) bash tools/ci.sh; companion exec:check,

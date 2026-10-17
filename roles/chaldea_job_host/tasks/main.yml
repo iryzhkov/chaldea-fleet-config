@@ -213,6 +213,9 @@
     group: root
     mode: "0755"
 
+- name: Provision pinned job toolchains
+  ansible.builtin.import_tasks: toolchains.yml
+
 - name: Install the job host configuration
   become: true
   ansible.builtin.template:
