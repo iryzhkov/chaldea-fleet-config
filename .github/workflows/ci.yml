@@ -40,3 +40,76 @@ jobs:
       - name: Remove this run's disk-backed scratch
         if: always()
         run: rm -rf -- "$TMPDIR"
+
+  exec-e2e:
+    # This private repository accepts no fork code on the persistent runner.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, Linux, X64, chaldea-fleet-config]
+    timeout-minutes: 10
+    env:
+      # Bump this pin deliberately when adopting new client/server acceptance tests.
+      CHALDEA_REVISION: 8b21606226ed9ca74a3456bdecbbab24af91f051
+      CI_PYTHON: /usr/bin/python3.13
+      CI_NODE_VERSION: "26.10.0"
+      CI_NODE_SHA256: ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check out pinned public Chaldea client and acceptance tests
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: iryzhkov/chaldea
+          ref: ${{ env.CHALDEA_REVISION }}
+          path: .chaldea-e2e-client
+          persist-credentials: false
+      - name: Prepare short disk-backed scratch and isolated HOME
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.cache"
+          scratch=$(mktemp -d "$HOME/.cache/fx.XXXXXXXX")
+          # The e2e adds socket basenames; leave room below the 100-byte limit.
+          test "${#scratch}" -lt 45
+          mkdir "$scratch/home"
+          {
+            echo "TMPDIR=$scratch"
+            echo "HOME=$scratch/home"
+            echo "XDG_CONFIG_HOME=$scratch/home/.config"
+            echo "XDG_CACHE_HOME=$scratch/home/.cache"
+            echo "XDG_STATE_HOME=$scratch/home/.local/state"
+            echo "XDG_DATA_HOME=$scratch/home/.local/share"
+          } >> "$GITHUB_ENV"
+      - name: Stage checksum-pinned Node 26.10.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="node-v$CI_NODE_VERSION-linux-x64.tar.xz"
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            "https://nodejs.org/dist/v$CI_NODE_VERSION/$archive" --output "$TMPDIR/$archive"
+          printf '%s  %s\n' "$CI_NODE_SHA256" "$TMPDIR/$archive" | sha256sum --check -
+          mkdir "$TMPDIR/node"
+          tar --extract --xz --file "$TMPDIR/$archive" --directory "$TMPDIR/node" \
+            --strip-components=1 --no-same-owner
+          test "$("$TMPDIR/node/bin/node" --version)" = "v$CI_NODE_VERSION"
+          echo "$TMPDIR/node/bin" >> "$GITHUB_PATH"
+      - name: Install pinned dependencies and run real-server exec acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$CI_PYTHON" -m venv "$TMPDIR/python"
+          "$TMPDIR/python/bin/pip" install --quiet --require-hashes --no-deps --only-binary=:all: -r requirements-ci.txt
+          export CHALDEA_TEST_PYTHON="$TMPDIR/python/bin/python"
+          export CHALDEA_JOB_SERVER="$GITHUB_WORKSPACE/roles/chaldea_job_host/files/chaldea-job-server"
+          cd .chaldea-e2e-client
+          npm ci --ignore-scripts --no-audit --no-fund
+          # e2e.ts includes the real two-slot concurrency/refusal/cleanup test.
+          tests=(test/exec/e2e.ts)
+          if test -f test/exec/fallback.e2e.ts; then tests+=(test/exec/fallback.e2e.ts); fi
+          node --test --test-concurrency=1 "${tests[@]}"
+      - name: Remove this run's disk-backed scratch
+        if: always()
+        run: |
+          if test -n "${TMPDIR:-}" && test -d "$TMPDIR/home"; then
+            rm -rf -- "$TMPDIR"
+          fi
