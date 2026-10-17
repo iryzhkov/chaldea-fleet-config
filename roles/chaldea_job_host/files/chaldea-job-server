@@ -294,6 +294,9 @@ def sandbox(request, workspace, config):
                  "/etc/ld.so.cache", "/etc/alternatives"):
         if Path(name).exists():
             cmd += ["--ro-bind", name, name]
+    identity = workspace.parent / (workspace.name + ".identity")
+    for name in ("passwd", "group"):
+        cmd += ["--ro-bind", str(identity / name), "/etc/" + name]
     resolv = workspace / ".chaldea-resolv"
     host_addresses = set(config.get("_host_addresses", []))
     dns = []
@@ -315,7 +318,7 @@ def sandbox(request, workspace, config):
             "--bind", str(temp), "/tmp", "--chdir", "/work/" + request["cwd"]]
     toolchain_mounts, toolchain_bins = toolchain_environment(config)
     cmd += toolchain_mounts
-    env = {"HOME": "/home/job", "USER": "chaldea-job", "LOGNAME": "chaldea-job",
+    env = {"HOME": "/home/job", "USER": "job", "LOGNAME": "job",
            "PATH": ":".join(toolchain_bins + ["/usr/bin", "/bin"]), "LANG": "C.UTF-8", "TERM": "dumb",
            "TAR_OPTIONS": "--no-same-owner", "npm_config_cache": "/home/job/.cache/npm",
            "CARGO_HOME": "/home/job/.cargo", "GOPATH": "/home/job/go",
@@ -517,6 +520,15 @@ def check_tools(pasta="/usr/bin/pasta"):
 
 
 def prepare_launch(request, workspace, config):
+    # Siblings are outside every writable guest mount and cleaned with the slot.
+    # Never import the host account database or expose a writable backing inode.
+    identity = workspace.parent / (workspace.name + ".identity")
+    identity.mkdir(mode=0o700)
+    for name, content in (("passwd", "job:x:0:0::/home/job:/bin/sh\n"),
+                          ("group", "job:x:0:\n")):
+        path = identity / name
+        path.write_text(content)
+        path.chmod(0o444)
     config = {**config, "_host_addresses": host_addresses(), "_blocked_subnets": connected_subnets()}
     command, env = sandbox(request, workspace, config)
     launch = workspace.parent / (request["jobId"] + ".launch")
@@ -584,9 +596,35 @@ def smoke_test(config):
     with admission_lock(root, slot_count(config), all_slots=True), tempfile.TemporaryDirectory(prefix="smoke-", dir=root) as temporary:
         workspace = Path(temporary) / "work"
         workspace.mkdir()
-        request = {"jobId": str(uuid.uuid4()), "argv": ["/usr/bin/python3", "-c",
-                   "import os; assert os.statvfs('/dev/shm').f_blocks * os.statvfs('/dev/shm').f_frsize == " +
-                   str(int(config.get("shm_bytes", 64 * 1024**2))) + "; print('sandbox-smoke-ok')"],
+        probe = """
+import errno, grp, os, pathlib, pwd, subprocess, sys
+assert pwd.getpwuid(0).pw_name == 'job'
+assert pwd.getpwuid(0).pw_dir == '/home/job'
+assert pwd.getpwuid(0).pw_shell == '/bin/sh'
+assert [entry.pw_name for entry in pwd.getpwall()] == ['job']
+assert [entry.gr_name for entry in grp.getgrall()] == ['job']
+assert subprocess.check_output(['id', '-un'], text=True).strip() == 'job'
+assert subprocess.check_output(['id', '-gn'], text=True).strip() == 'job'
+assert subprocess.check_output(['getent', 'passwd', '0'], text=True) == 'job:x:0:0::/home/job:/bin/sh\\n'
+assert subprocess.check_output(['getent', 'group', '0'], text=True) == 'job:x:0:\\n'
+subprocess.run(['ssh', '-V'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+ssh = subprocess.check_output(['ssh', '-G', 'localhost'], text=True, stderr=subprocess.DEVNULL)
+assert 'user job' in ssh.splitlines()
+for name, expected in [('passwd', 'job:x:0:0::/home/job:/bin/sh\\n'), ('group', 'job:x:0:\\n')]:
+    path = pathlib.Path('/etc') / name
+    assert path.read_text() == expected
+    assert os.statvfs(path).f_flag & os.ST_RDONLY
+    try:
+        path.open('a').close()
+    except OSError as error:
+        assert error.errno in (errno.EACCES, errno.EROFS)
+    else:
+        raise AssertionError(str(path) + ' is writable')
+assert os.statvfs('/dev/shm').f_blocks * os.statvfs('/dev/shm').f_frsize == int(sys.argv[1])
+print('sandbox-smoke-ok')
+"""
+        request = {"jobId": str(uuid.uuid4()), "argv": ["/usr/bin/python3", "-c", probe,
+                   str(int(config.get("shm_bytes", 64 * 1024**2)))],
                    "cwd": "", "gpu": False}
         wrapped, launch = prepare_launch(request, workspace, config)
         process = subprocess.Popen(wrapped, env={"PATH": "/usr/bin:/bin", "HOME": str(workspace)},

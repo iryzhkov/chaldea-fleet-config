@@ -179,6 +179,31 @@ def test_apply_smoke_defers_on_busy_lock_without_launching_or_cleaning_jobs(tmp_
     assert (sentinel / "output").read_text() == "keep"
 
 
+def test_sandbox_identity_is_private_readonly_and_cleaned_with_slot(tmp_path):
+    workspace = tmp_path / request()["jobId"]
+    workspace.mkdir()
+    with (patch.object(server, "host_addresses", return_value=[]),
+          patch.object(server, "connected_subnets", return_value=[]),
+          patch.object(server, "check_tools", return_value=""),
+          patch.object(server.subprocess, "check_output", return_value="--disable-userns")):
+        _wrapped, launch = server.prepare_launch(request(), workspace, {})
+    value = json.loads(launch.read_text())
+    cmd, env = value["command"], value["env"]
+    mounts = [cmd[i:i + 3] for i, arg in enumerate(cmd) if arg in ("--ro-bind", "--bind")]
+    for name, content in (("passwd", "job:x:0:0::/home/job:/bin/sh\n"),
+                          ("group", "job:x:0:\n")):
+        mount = next(mount for mount in mounts if mount[2] == "/etc/" + name)
+        assert mount[0] == "--ro-bind"
+        source = Path(mount[1])
+        assert not source.is_relative_to(workspace)
+        assert source.read_text() == content
+        assert source.stat().st_mode & 0o777 == 0o444
+        assert not any(source.is_relative_to(Path(m[1])) for m in mounts if m[0] == "--bind")
+    assert env["USER"] == env["LOGNAME"] == "job"
+    server.cleanup(tmp_path)
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_sandbox_is_allowlisted_no_gpu_without_explicit_request():
     with tempfile.TemporaryDirectory() as tmp:
         with patch.object(server.subprocess, "check_output", return_value="--disable-userns"):
