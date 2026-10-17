@@ -1,0 +1,17 @@
+[Unit]
+Description=Install authenticated Chaldea trust from fleet Git
+Wants=network-online.target chaldea-clock-health.service
+After=network-online.target chaldea-clock-health.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 {{ chaldea_access_trust_fetcher }} {{ chaldea_access_trust_root }}/updater.json
+TimeoutStartSec=60
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths={{ chaldea_access_trust_state }} {{ chaldea_access_trust_public }}
+Environment=TMPDIR={{ chaldea_access_trust_state }}

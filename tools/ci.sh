@@ -38,7 +38,7 @@ reset_home() {
 
 python -m pytest -q -p no:cacheprovider tests
 # Scratch may be inside an isolated job workspace; generated fixture plays are not source.
-ansible-lint --exclude "$TMPDIR"
+ansible-lint --exclude "$TMPDIR" --exclude "${TMPDIR#"$PWD"/}"
 synthetic=(-i inventory -i tests/synthetic-inventory.yml --limit synthetic)
 ansible-playbook "${synthetic[@]}" site.yml --syntax-check
 reset_home
