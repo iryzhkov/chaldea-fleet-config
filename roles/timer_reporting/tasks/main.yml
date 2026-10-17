@@ -17,7 +17,14 @@
     - "{{ fleet_home }}/.local/bin"
     - "{{ fleet_home }}/.local/share/chaldea/timer-reporting"
     - "{{ fleet_home }}/.config/systemd/user"
-    - "{{ fleet_home }}/.config/chaldea"
+
+# Chaldea's private configuration and token files live here; the job client
+# role creates it with the same mode, so the two roles must not disagree.
+- name: Create the private Chaldea configuration directory
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.config/chaldea"
+    state: directory
+    mode: "0700"
 
 - name: Configure timer outcome delivery
   ansible.builtin.copy:
