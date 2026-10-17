@@ -2,7 +2,8 @@
 # Every CI gate, runnable locally: build the hashed toolchain from
 # requirements-ci.txt, then run the unit tests, ansible-lint, a syntax check, a
 # check-mode run and two real runs against a synthetic inventory whose home is a
-# scratch dir, and the role tests in tests/*.yml.
+# scratch dir, and the role tests in tests/*.yml. Node must be on PATH;
+# the workflow supplies a checksum-pinned runtime in job-local disk scratch.
 set -euo pipefail
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
@@ -17,6 +18,12 @@ test "$HOME" = "$TMPDIR/fleet-test-home"
 mkdir -p "$HOME"
 export XDG_CONFIG_HOME="$HOME/.config" XDG_STATE_HOME="$HOME/.local/state"
 export XDG_CACHE_HOME="$HOME/.cache" XDG_DATA_HOME="$HOME/.local/share"
+
+# Fail before preparing the Python environment if the JavaScript prerequisite is missing.
+command -v node >/dev/null 2>&1 || {
+	echo 'ci: Node is required on PATH; CI stages its pinned runtime in job scratch' >&2
+	exit 1
+}
 
 python=${CI_PYTHON:-python3}
 venv=.venv-ci

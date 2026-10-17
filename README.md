@@ -191,6 +191,15 @@ does not deploy it or enable timers.
 
 ## CI
 
+The self-hosted workflow stages Node 26.12.0 for Linux x64 from the official Node
+archive, verifies its pinned SHA-256 before extraction or execution, and adds its
+absolute bin path to the job PATH. The archive pin matches the reviewed job-toolchain
+pin in `inventory/group_vars/all.yml`; update both deliberately when changing it.
+Node lives only in that run's disk-backed `TMPDIR` and is removed by the existing
+always-run cleanup. This does not install Node on the host. The runner still needs
+`curl`, `sha256sum`, `tar` with xz support, and the existing Python/venv prerequisites.
+For direct `tools/ci.sh` runs, supply Node on PATH; the script fails early if absent.
+
 `bash tools/ci.sh` runs every gate locally and in CI: it builds a virtualenv from
 the hashed lock `requirements-ci.txt`, then runs the unit tests, `ansible-lint`,
 a syntax check and a `--check --diff` run for the synthetic host in
