@@ -41,3 +41,23 @@ def test_removed_tools_and_execution_handoff():
     assert "huyang trust <root>" in skill
     assert "untrusted root skips" in skill
     assert "does not grant trust or replace prepared-revision evidence" in skill
+
+
+def test_local_selection_precedes_remote_execution():
+    local_selector = "TEST_AFFECTED_LIST=1 make test-affected BASE=<pinned>"
+    remote_tests = ("chaldea exec --host agent-a -- env "
+                    "HUYANG_FRICTION=0 go test -race <pkgs>")
+    for path in ("agents/AGENTS.md", "codex/AGENTS.md", "agents/huyang.md",
+                 "claude/omarchy-setup/CLAUDE.md", "skills/huyang/SKILL.md"):
+        flat = " ".join((FILES / path).read_text().split())
+        assert "Chaldea jobs omit `.git`" in flat, path
+        assert "selection/planning locally only when it does no build or test" in flat, path
+        assert local_selector in flat and remote_tests in flat, path
+        assert flat.index(local_selector) < flat.index(remote_tests), path
+        assert "Keep the approved pinned base" in flat, path
+        assert "Actual builds/tests run only in Chaldea" in flat, path
+        assert "local selection is not verification" in flat, path
+        assert "`check-fast` and `check-review` before dispatch" in flat, path
+        assert "--artifact PATH" in flat and ".chaldea/artifacts/<job-id>/" in flat, path
+        assert "guarded Huyang edits" in flat and "revision-guarded edit/change plan" in flat, path
+        assert "Never overwrite repository source with shell commands" in flat, path
