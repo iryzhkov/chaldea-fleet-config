@@ -1,5 +1,10 @@
 # Shared instruction ownership
 
+OpenCode's Huyang V2 plugin has a separate narrow installation seam. Omarchy owns its
+source, and `agent_config` installs the reviewed copy without changing OpenCode JSON,
+other plugins or the wrapper. See [OpenCode Huyang profiles](opencode-huyang-profiles.md)
+for supported version, paths, guards and deferred integration checks.
+
 The `agent_config` role owns installed shared instructions and fleet skills. Edit
 `roles/agent_config/files/`, not installed files. Its defaults map source paths to
 destinations; its tasks copy those reviewed bytes directly.

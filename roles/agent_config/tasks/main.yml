@@ -1,4 +1,7 @@
 ---
+- name: Distribute the owned OpenCode Huyang plugin
+  ansible.builtin.import_tasks: opencode-huyang.yml
+
 # u+rwx leaves the group and other bits of an existing directory alone.
 - name: Create the parent directories of shared files
   ansible.builtin.file:

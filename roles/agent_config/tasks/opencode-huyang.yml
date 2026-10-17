@@ -1,0 +1,55 @@
+---
+# Exactly one owned plugin. Never replace OpenCode JSON, its wrapper or sibling plugins.
+- name: Inspect OpenCode plugin destination components
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item }}"
+    follow: false
+    get_checksum: false
+  loop:
+    - .config
+    - .config/opencode
+    - .config/opencode/plugins
+    - .config/opencode/plugins/huyang-profiles.js
+  register: agent_config_opencode_paths
+
+- name: Refuse symlinks and wrong file types in the OpenCode plugin destination
+  ansible.builtin.assert:
+    that:
+      - not (item.stat.islnk | default(false))
+      - >-
+        not (item.stat.exists | default(false)) or
+        (item.item == '.config/opencode/plugins/huyang-profiles.js' and (item.stat.isreg | default(false))) or
+        (item.item != '.config/opencode/plugins/huyang-profiles.js' and (item.stat.isdir | default(false)))
+    fail_msg: "Refusing an unsafe managed OpenCode plugin destination."
+    quiet: true
+  loop: "{{ agent_config_opencode_paths.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Read the existing managed OpenCode plugin marker
+  ansible.builtin.slurp:
+    src: "{{ fleet_home }}/.config/opencode/plugins/huyang-profiles.js"
+  when: agent_config_opencode_paths.results[3].stat.exists
+  register: agent_config_opencode_existing
+  no_log: true
+
+- name: Refuse an unmanaged collision at the OpenCode plugin filename
+  ansible.builtin.assert:
+    that:
+      - >-
+        not agent_config_opencode_paths.results[3].stat.exists or
+        ((agent_config_opencode_existing.content | default('') | b64decode).startswith('// fleet-managed: huyang-profiles/v1\n'))
+    fail_msg: "The OpenCode Huyang plugin filename is occupied by an unmanaged file."
+    quiet: true
+
+- name: Create the managed OpenCode plugin directory
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.config/opencode/plugins"
+    state: directory
+    mode: u+rwx
+
+- name: Install the source-owned OpenCode Huyang V2 plugin
+  ansible.builtin.copy:
+    src: opencode/huyang-profiles.js
+    dest: "{{ fleet_home }}/.config/opencode/plugins/huyang-profiles.js"
+    mode: "0644"
