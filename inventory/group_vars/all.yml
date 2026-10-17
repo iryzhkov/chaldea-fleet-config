@@ -32,9 +32,9 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Reviewed candidate; confirm the immutable public release tag before rollout.
-chaldea_host_version: host-v0.1.1
-chaldea_host_sha256: "f83769273ffe568c5748a0eccccf5a812d4f31c25be9e62ce00a9423ddc1d71e"
+# Released from main (63d2c3d) through the main-only release gate.
+chaldea_host_version: host-v0.2.0
+chaldea_host_sha256: "2e9a8d3cfd859516539aff8b494d66a397e6581a350ef9ecda80fd272ef9b4c6"
 
 # Canonical access filesystem contract, consumed by host-role defaults/templates.
 chaldea_access_paths:
@@ -55,7 +55,10 @@ chaldea_access_paths:
 # changes, its from= restriction refuses it until this entry is updated.
 # Trust and clock packaging is source-only; enroll verifiers explicitly after bootstrap.
 chaldea_access_trust_enabled: false
-chaldea_access_trust_anchors: []
+# SPKI SHA-256: 222450438cdcae5bda6c498f5e39baee5e2479923389c28e518ccf9138aee296
+chaldea_access_trust_anchors:
+  - kid: deployment-2026-10
+    public_key: {kty: OKP, crv: Ed25519, x: re7EPlrspBhs_OHsN7z1VqDZ8HkVib4glgZCczaKjRc}
 chaldea_job_host_enabled: false
 chaldea_job_client_enabled: false
 chaldea_job_host_sources:

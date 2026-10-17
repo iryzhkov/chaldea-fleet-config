@@ -1,6 +1,6 @@
 [Unit]
-Description=Chaldea fail-closed chrony health adapter
-After=chronyd.service chrony.service
+Description=Chaldea fail-closed time synchronization health adapter
+After=chronyd.service chrony.service systemd-timesyncd.service
 
 [Service]
 Type=oneshot
@@ -16,4 +16,4 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 # chronyc binds its private reply socket alongside chronyd's server socket.
-ReadWritePaths={{ chaldea_access_trust_run }} /run/chrony
+ReadWritePaths={{ chaldea_access_trust_run }} -/run/chrony
