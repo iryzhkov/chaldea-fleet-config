@@ -11,6 +11,7 @@
     scratch: "{{ playbook_dir }}/../.ci-home/user-timer"
     fake_state: "{{ scratch }}/systemctl.json"
     unit_dir: "{{ scratch }}/units"
+    fleet_home: "{{ scratch }}/reporting"
   environment:
     PATH: "{{ playbook_dir }}/fake-bin:{{ lookup('ansible.builtin.env', 'PATH') }}"
     FAKE_SYSTEMCTL_STATE: "{{ fake_state }}"
@@ -70,3 +71,21 @@
         fail_msg: "{{ state | to_json }}"
       vars:
         state: "{{ fake.content | b64decode | from_json }}"
+
+    - name: Install reporting for the first timer
+      ansible.builtin.include_role:
+        name: timer_reporting
+
+    - name: Verify the first include remembers a changed failure unit
+      ansible.builtin.assert:
+        that: timer_reporting_units_changed | bool
+
+    - name: Install reporting for the second timer
+      ansible.builtin.include_role:
+        name: timer_reporting
+
+    - name: Preserve the first include's reload requirement
+      ansible.builtin.assert:
+        that:
+          - timer_reporting_failure_unit is not changed
+          - timer_reporting_units_changed | bool

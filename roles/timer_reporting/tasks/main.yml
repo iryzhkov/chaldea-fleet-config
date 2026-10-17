@@ -1,0 +1,43 @@
+---
+- name: Create the timer reporting directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ fleet_home }}/.local/bin"
+    - "{{ fleet_home }}/.local/share/chaldea/timer-reporting"
+    - "{{ fleet_home }}/.config/systemd/user"
+
+- name: Install the timer outcome wrapper
+  ansible.builtin.copy:
+    src: chaldea-timer-report
+    dest: "{{ fleet_home }}/.local/bin/chaldea-timer-report"
+    mode: "0755"
+
+- name: Install the safe Ansible callback
+  ansible.builtin.copy:
+    src: chaldea_outcome.py
+    dest: "{{ fleet_home }}/.local/share/chaldea/timer-reporting/chaldea_outcome.py"
+    mode: "0644"
+
+- name: Install the timer failure handler
+  ansible.builtin.copy:
+    content: |
+      # Managed by chaldea-fleet-config (roles/timer_reporting).
+      [Unit]
+      Description=Record a failed Chaldea timer invocation for %i
+      [Service]
+      Type=oneshot
+      Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+      ExecStart=%h/.local/bin/chaldea-timer-report failure --job %i
+      TimeoutStartSec=30s
+    dest: "{{ fleet_home }}/.config/systemd/user/chaldea-timer-failure@.service"
+    mode: "0644"
+  register: timer_reporting_failure_unit
+
+# Both timer roles include this role. Preserve a change seen by the first
+# include so an enabled second timer reloads even if the first stays disabled.
+- name: Remember changed reporting units for this convergence
+  ansible.builtin.set_fact:
+    timer_reporting_units_changed: "{{ timer_reporting_units_changed | default(false) | bool or timer_reporting_failure_unit is changed }}"

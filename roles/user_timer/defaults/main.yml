@@ -6,4 +6,5 @@ user_timer_name: ""
 user_timer_service: ""
 user_timer_timer: ""
 user_timer_enabled: false
+user_timer_aux_changed: false
 user_timer_unit_dir: "{{ fleet_home }}/.config/systemd/user"

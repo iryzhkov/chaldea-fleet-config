@@ -271,3 +271,42 @@ def test_tmp_removes_old_entries_and_keeps_recent_ones(tmp_path):
 
     assert not (tmp / "old").exists()
     assert (tmp / "new").exists()
+
+
+def test_dry_run_lists_tmp_and_mise_sizes_without_deleting(tmp_path, monkeypatch, capsys):
+    tmp = tmp_path / "old-tmp"
+    tmp.mkdir()
+    candidate = tmp / "old"
+    candidate.write_bytes(b"x" * 8192)
+    age(candidate, 10)
+    install = tmp_path / "installs/claude/2.1.200"
+    install.mkdir(parents=True)
+    (install / "tool").write_bytes(b"x" * 4096)
+    args = retention.parse_args(["--dry-run", "--tmp-dir", str(tmp)])
+    monkeypatch.setattr(retention.shutil, "which", lambda name: "/fake/mise")
+    plan = PRUNE_PLAN.format(installs=tmp_path / "installs")
+    monkeypatch.setattr(retention.subprocess, "run",
+                        lambda *a, **kw: subprocess.CompletedProcess(a, 0, stdout=plan, stderr=""))
+    retention.prune_tmp(tmp, args, set(), time.time())
+    retention.prune_mise(args, set())
+    output = capsys.readouterr().out
+    assert f"would remove {candidate} (8192 bytes)" in output
+    assert "would uninstall claude@2.1.200 (4096 bytes in install; download cache excluded)" in output
+    assert candidate.exists() and install.exists()
+
+
+def test_retention_summary_tracks_changes_and_failed_phase(tmp_path, monkeypatch):
+    import json
+
+    state = tmp_path / "state.json"
+    state.write_text('{"invocation":"test"}')
+    monkeypatch.setenv("CHALDEA_RUN_STATE", str(state))
+    monkeypatch.setattr(retention, "outcome", {"changed": 0, "releases": [], "task": "", "reason": ""})
+    monkeypatch.setattr(retention, "prune_worktrees", lambda *args: 0)
+    monkeypatch.setattr(retention, "prune_tmp", lambda *args: retention.changed())
+    monkeypatch.setattr(retention, "prune_go_cache", lambda *args: retention.problem("SECRET_ENV_VALUE"))
+    monkeypatch.setattr(retention, "prune_mise", lambda *args: None)
+    assert retention.main([]) == 1
+    data = json.loads(state.read_text())
+    assert data["changed"] == 1 and data["task"] == "prune Go cache"
+    assert data["complete"] is True and "SECRET_ENV_VALUE" not in state.read_text()

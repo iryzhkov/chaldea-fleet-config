@@ -47,7 +47,7 @@
   ansible.builtin.systemd_service:
     scope: user
     daemon_reload: true
-  when: user_timer_units is changed and (user_timer_enabled | bool or user_timer_wanted.stat.exists or user_timer_running)
+  when: (user_timer_units is changed or user_timer_aux_changed | bool) and (user_timer_enabled | bool or user_timer_wanted.stat.exists or user_timer_running)
 
 - name: Report the timer a real run would enable
   ansible.builtin.debug:

@@ -9,6 +9,7 @@ or when anything under it changed within the protection window.
 """
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -28,6 +29,33 @@ TRASH = ".chaldea-retention-trash"
 DISPOSABLE_IGNORED = "node_modules,target,.venv,__pycache__,dist,build,.cache,.gradle,.pytest_cache,.mypy_cache,.ruff_cache,.tox"
 
 problems = []
+outcome = {"changed": 0, "releases": [], "task": "retention startup", "reason": ""}
+
+
+def summary(**fields):
+    """A private machine summary; never pass log messages or paths here."""
+    outcome.update(fields)
+    location = os.environ.get("CHALDEA_RUN_STATE")
+    if not location:
+        return
+    path = Path(location)
+    try:
+        data = json.loads(path.read_text())
+        data.update(outcome)
+        temporary = path.with_suffix(".new")
+        with open(temporary, "w", opener=lambda p, flags: os.open(p, flags, 0o600)) as stream:
+            json.dump(data, stream)
+        temporary.replace(path)
+    except (OSError, ValueError):
+        pass
+
+
+def changed(release=None):
+    outcome["changed"] += 1
+    if release:
+        outcome["release_count"] = outcome.get("release_count", 0) + 1
+        outcome["releases"] = (outcome["releases"] + [release])[-12:]
+    summary()
 
 
 def log(message):
@@ -36,6 +64,7 @@ def log(message):
 
 def problem(message):
     problems.append(message)
+    summary(reason="retention operation failed")
     log(f"warning: {message}")
 
 
@@ -188,7 +217,7 @@ def remove_worktree(wt, root, args, cutoff):
         log(f"keep {wt}: {reason}")
         return False
     if args.dry_run:
-        log(f"would remove worktree {wt}")
+        log(f"would remove worktree {wt} ({size_of(wt)} bytes)")
         return True
     trash = root / TRASH
     trash.mkdir(mode=0o700, exist_ok=True)
@@ -219,6 +248,7 @@ def remove_worktree(wt, root, args, cutoff):
         log(f"keep {wt}: {result.stderr.strip()}")
         return False
     shutil.rmtree(slot, ignore_errors=True)
+    changed()
     log(f"removed worktree {wt}")
     return True
 
@@ -243,6 +273,7 @@ def recover_trash(root):
             problem(f"{moved} is no longer a git worktree; restore it to {origin} by hand")
         elif restore(moved, origin, common):
             shutil.rmtree(slot, ignore_errors=True)
+            changed()
             log(f"restored {origin} from an interrupted run")
 
 
@@ -277,6 +308,7 @@ def prune_worktrees(root, args, held, now):
     used = total - freed
     log(f"worktrees: {len(removed)} removed, {gib(freed)} freed, {gib(used)} in use of {gib(budget)}")
     if used > budget:
+        summary(reason="worktree budget exceeded")
         log(f"warning: worktrees still over budget ({gib(used)} > {gib(budget)})")
         return 1
     return 0
@@ -288,19 +320,28 @@ def prune_tmp(root, args, held, now):
         return
     root = root.resolve()
     cutoff = now - max(args.tmp_max_age_days * DAY, args.protect_hours * 3600)
-    count = 0
+    count, freed = 0, 0
     for entry in os.scandir(root):
         path = Path(entry.path)
         if in_use(path, held) or touched_since(path, cutoff):
             continue
-        count += 1
+        size = size_of(path) if entry.is_dir(follow_symlinks=False) else path.lstat().st_blocks * 512
         if args.dry_run:
-            log(f"would remove {path}")
-        elif entry.is_dir(follow_symlinks=False):
-            shutil.rmtree(path, ignore_errors=True)
+            log(f"would remove {path} ({size} bytes)")
         else:
-            path.unlink(missing_ok=True)
-    log(f"tmp: {count} entries older than {args.tmp_max_age_days} days {'would be ' if args.dry_run else ''}removed")
+            try:
+                if entry.is_dir(follow_symlinks=False):
+                    shutil.rmtree(path)
+                else:
+                    path.unlink(missing_ok=True)
+            except OSError:
+                problem(f"could not remove tmp entry {path}")
+                continue
+            changed()
+        count += 1
+        freed += size
+    log(f"tmp: {count} entries older than {args.tmp_max_age_days} days {'would be ' if args.dry_run else ''}removed ({freed} bytes)")
+
 
 
 def prune_go_cache(args, held):
@@ -319,10 +360,15 @@ def prune_go_cache(args, held):
     elif in_use(cache.resolve(), held):
         log(f"go cache: {gib(size)} over {gib(limit)} but a build is using it; kept")
     elif args.dry_run:
-        log(f"go cache: {gib(size)} over {gib(limit)}; would run go clean -cache")
+        log(f"go cache: {gib(size)} over {gib(limit)}; would run go clean -cache ({size} bytes)")
     else:
-        subprocess.run([go, "clean", "-cache"], check=False)
-        log(f"go cache: {gib(size)} over {gib(limit)}; cleaned")
+        result = subprocess.run([go, "clean", "-cache"], check=False)
+        if result.returncode:
+            problem("go clean -cache failed")
+        else:
+            changed()
+            log(f"go cache: {gib(size)} over {gib(limit)}; cleaned")
+
 
 
 PRUNABLE = re.compile(r"^mise (\S+)@(\S+) is prunable")
@@ -369,10 +415,11 @@ def prune_mise(args, held):
         if reason:
             log(f"mise: keep {tool}@{version}: {reason}")
         elif args.dry_run:
-            log(f"mise: would uninstall {tool}@{version}")
+            log(f"mise: would uninstall {tool}@{version} ({size_of(path)} bytes in install; download cache excluded)")
         else:
             result = subprocess.run([mise, "uninstall", f"{tool}@{version}"], capture_output=True, text=True)
             if result.returncode == 0:
+                changed(f"{tool}@{version}")
                 log(f"mise: uninstalled {tool}@{version}")
             else:
                 problem(f"mise uninstall {tool}@{version} failed: {result.stderr.strip()}")
@@ -400,10 +447,22 @@ def parse_args(argv):
 def main(argv=None):
     args = parse_args(argv)
     now, held = time.time(), held_paths()
+    summary(changed=0, releases=[], release_count=0, task="prune worktrees", reason="")
     status = prune_worktrees(args.worktree_root, args, held, now)
+    failed_task = outcome["task"] if status or problems else ""
+    summary(task="prune temporary files")
     prune_tmp(args.tmp_dir, args, held, now)
+    if not failed_task and problems:
+        failed_task = outcome["task"]
+    summary(task="prune Go cache")
     prune_go_cache(args, held)
+    if not failed_task and problems:
+        failed_task = outcome["task"]
+    summary(task="prune mise installs")
     prune_mise(args, held)
+    if not failed_task and problems:
+        failed_task = outcome["task"]
+    summary(task=failed_task, complete=True)
     return 1 if status or problems else 0
 
 

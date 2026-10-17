@@ -1,4 +1,8 @@
 ---
+- name: Install timer outcome reporting
+  ansible.builtin.include_role:
+    name: timer_reporting
+
 - name: Check the SSH alias of this repository
   ansible.builtin.include_role:
     name: ssh_alias
@@ -25,3 +29,4 @@
     user_timer_service: "{{ pull_timer_service_unit }}"
     user_timer_timer: "{{ pull_timer_timer_unit }}"
     user_timer_enabled: "{{ pull_timer_enabled }}"
+    user_timer_aux_changed: "{{ timer_reporting_units_changed }}"
