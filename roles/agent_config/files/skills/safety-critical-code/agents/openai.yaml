@@ -1,0 +1,4 @@
+interface:
+  display_name: "Safety-critical code"
+  short_description: "Apply JPL-style rules to critical software"
+  default_prompt: "Apply the safety-critical coding rules to this design, implementation, or review."

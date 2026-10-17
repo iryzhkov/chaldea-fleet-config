@@ -70,6 +70,9 @@ Review <repository> at commit <sha> on branch <branch> (base <base-sha>).
 Role: <main reviewer | fan-out reviewer for TARGET AREA only>.
 Brief: <plan reference and the milestone's acceptance criteria>.
 Scope: <files or diff range>. Out of scope: <what to leave alone>.
+Check two axes separately: repository documented standards and originating issue/spec.
+Sources: <standards files/rules>; <issue/spec reference, or unavailable>.
+Cite each applicable rule/requirement; do not let one axis mask the other.
 Prior findings and responses: <list, or "none, first round">.
 Check that the tree is clean at that commit. Do not edit files.
 Return the verdict format below and nothing else.

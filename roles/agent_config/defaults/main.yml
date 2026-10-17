@@ -11,15 +11,25 @@ agent_config_files:
   - {src: agents/ov-memory.md, dest: .config/agents/ov-memory.md}
   - {src: bin/opencode, dest: .local/bin/opencode, mode: "0755"}
 
-# Skills written for this fleet. Skills installed by the skills CLI (with
-# ~/.agents/.skill-lock.json) and the Omarchy-provided symlinks stay with them.
+# Fleet-owned skills. Other CLI-installed skills and symlinks stay unmanaged,
+# except the exact retirement list and the two validated laptop link migrations.
 agent_config_skills:
+  - audit-lens
   - chaldea
+  - chaldea-audit
+  - codebase-design
+  - diagnosing-bugs
+  - fleet-rollout
+  - grilling
   - huyang
-  - implementation-session
   - ov-memory
   - ov-memory-curation
+  - resolving-merge-conflicts
   - review-delegation
+  - roadmap-executor
+  - safety-critical-code
+  - tdd
+  - unslop
 agent_config_skill_dirs:
   - .claude/skills
   - .agents/skills

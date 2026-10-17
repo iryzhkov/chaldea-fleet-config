@@ -1,0 +1,25 @@
+---
+# Exact retirement list only; unmanaged skills and final-component symlinks stay.
+- name: Inspect retired skill paths without following symlinks
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item.0 }}/{{ item.1 }}"
+    follow: false
+    get_checksum: false
+  loop: >-
+    {{ ['.claude/skills', '.agents/skills'] |
+       product(['find-skills', 'improve-codebase-architecture', 'domain-modeling',
+                'prototype', 'code-review', 'implementation-session']) | list }}
+  loop_control:
+    label: "~/{{ item.0 }}/{{ item.1 }}"
+  register: agent_config_retired_paths
+
+- name: Remove only real directories for retired skills
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/{{ item.item.0 }}/{{ item.item.1 }}"
+    state: absent
+  when:
+    - item.stat.isdir | default(false)
+    - not (item.stat.islnk | default(false))
+  loop: "{{ agent_config_retired_paths.results }}"
+  loop_control:
+    label: "~/{{ item.item.0 }}/{{ item.item.1 }}"
