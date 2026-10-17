@@ -78,6 +78,7 @@ def nothing_held(monkeypatch):
     # The test runner's own processes must not count as sessions.
     monkeypatch.setattr(retention, "held_paths", set)
     monkeypatch.setattr(retention, "problems", [])
+    monkeypatch.setattr(retention, "outcome", {"changed": 0, "releases": [], "task": "", "reason": ""})
 
 
 def test_removes_only_clean_worktrees_untouched_past_the_age_limit(repo, tmp_path):
@@ -310,3 +311,103 @@ def test_retention_summary_tracks_changes_and_failed_phase(tmp_path, monkeypatch
     data = json.loads(state.read_text())
     assert data["changed"] == 1 and data["task"] == "prune Go cache"
     assert data["complete"] is True and "SECRET_ENV_VALUE" not in state.read_text()
+
+
+def test_tmp_partial_cleanup_is_non_failing_and_later_work_continues(tmp_path, monkeypatch, capsys):
+    tmp = tmp_path / "tmp"
+    stuck = tmp / "read-only-modules"
+    stuck.mkdir(parents=True)
+    (stuck / "removable").write_text("old output")
+    (stuck / "protected").write_text("read-only module")
+    other = tmp / "other"
+    other.write_text("old output")
+    age(tmp, 10)
+    later = []
+    monkeypatch.setattr(retention, "prune_worktrees", lambda *args: 0)
+    monkeypatch.setattr(retention, "prune_go_cache", lambda *args: later.append("go"))
+    monkeypatch.setattr(retention, "prune_mise", lambda *args: later.append("mise"))
+
+    def partial_removal(path, ignore_errors=False):
+        assert path == stuck and ignore_errors is True
+        (path / "removable").unlink()
+
+    monkeypatch.setattr(retention.shutil, "rmtree", partial_removal)
+    assert retention.main(["--tmp-dir", str(tmp)]) == 0
+    assert not (stuck / "removable").exists() and (stuck / "protected").exists()
+    assert not other.exists() and later == ["go", "mise"]
+    assert retention.outcome["tmp_leftovers"] == 1
+    assert retention.outcome["changed"] == 1  # Only the fully removed entry.
+    assert retention.problems == []
+    output = capsys.readouterr().out
+    assert "note: tmp: 1 entries remain after best-effort cleanup" in output
+    assert str(stuck) not in output
+
+
+def test_tmp_vanishing_during_lstat_does_not_fail_or_skip_later_stages(tmp_path, monkeypatch):
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    vanishing = tmp / "vanishing"
+    vanishing.write_text("old output")
+    other = tmp / "other"
+    other.write_text("old output")
+    age(tmp, 10)
+    original_lstat = Path.lstat
+
+    def disappearing(path, *args, **kwargs):
+        if path == vanishing:
+            path.unlink()
+            raise FileNotFoundError("SECRET_ENV_VALUE")
+        return original_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", disappearing)
+    later = []
+    monkeypatch.setattr(retention, "prune_worktrees", lambda *args: 0)
+    monkeypatch.setattr(retention, "prune_go_cache", lambda *args: later.append("go"))
+    monkeypatch.setattr(retention, "prune_mise", lambda *args: later.append("mise"))
+    assert retention.main(["--tmp-dir", str(tmp)]) == 0
+    assert not vanishing.exists() and not other.exists()
+    assert later == ["go", "mise"] and retention.problems == []
+
+
+@pytest.mark.parametrize("failing", range(4))
+@pytest.mark.parametrize("error", [OSError, RuntimeError])
+def test_each_stage_error_preserves_failure_and_runs_all_stages(monkeypatch, failing, error):
+    import json
+
+    calls = []
+    functions = ["prune_worktrees", "prune_tmp", "prune_go_cache", "prune_mise"]
+    names = ["prune worktrees", "prune temporary files", "prune Go cache", "prune mise installs"]
+    for index, function in enumerate(functions):
+        def stage(*args, number=index):
+            calls.append(number)
+            if number == failing:
+                raise error("SECRET_ENV_VALUE")
+        monkeypatch.setattr(retention, function, stage)
+    assert retention.main([]) == 1
+    assert calls == [0, 1, 2, 3]
+    assert retention.outcome["task"] == names[failing]
+    assert retention.outcome["complete"] is True
+    assert "SECRET_ENV_VALUE" not in json.dumps(retention.outcome)
+
+
+def test_go_clean_failure_is_reported_and_mise_still_runs(tmp_path, monkeypatch):
+    cache = tmp_path / "go-cache"
+    cache.mkdir()
+    monkeypatch.setattr(retention.shutil, "which", lambda name: "/fake/go")
+    monkeypatch.setattr(retention, "size_of", lambda path: retention.GIB)
+    commands, later = [], []
+
+    def command(argv, **kwargs):
+        commands.append(argv)
+        if argv[1:] == ["env", "GOCACHE"]:
+            return subprocess.CompletedProcess(argv, 0, stdout=str(cache))
+        return subprocess.CompletedProcess(argv, 2)
+
+    monkeypatch.setattr(retention.subprocess, "run", command)
+    monkeypatch.setattr(retention, "prune_worktrees", lambda *args: 0)
+    monkeypatch.setattr(retention, "prune_tmp", lambda *args: None)
+    monkeypatch.setattr(retention, "prune_mise", lambda *args: later.append("mise"))
+    assert retention.main(["--go-cache-max-gb", "0"]) == 1
+    assert commands[-1] == ["/fake/go", "clean", "-cache"] and later == ["mise"]
+    assert retention.outcome["task"] == "prune Go cache"
+    assert retention.outcome["changed"] == 0

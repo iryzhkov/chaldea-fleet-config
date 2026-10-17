@@ -134,6 +134,9 @@ def record_outcome(job, invocation, status, fallback_reason="", checkout=None):
         release_count = state.get("release_count", len(record["releases"]))
         if type(release_count) is int:
             record["releases_omitted"] = max(0, min(release_count, 1000000) - len(record["releases"]))
+        leftovers = state.get("tmp_leftovers", 0)
+        if type(leftovers) is int and leftovers > 0:
+            record["notes"] = [f"temporary entries left after best-effort cleanup: {min(leftovers, 1000000)}"]
         record["task"] = str(record["task"])[:160]
         record["reason"] = str(record["reason"])[:160]
         records = records[-(MAX_RECORDS - 1):] + [record]

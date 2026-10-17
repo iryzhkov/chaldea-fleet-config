@@ -139,6 +139,15 @@ values are sent to the feed or status file. Task-name template expressions
 are redacted. Timer child output is suppressed; run the command manually for
 interactive diagnosis.
 
+Temporary cleanup remains best-effort: it attempts all removable contents of
+each old entry, including trees containing read-only Go modules. Leftover
+entries produce one aggregate, non-failing note per run in local status and
+the journal, without recording paths or posting a warning to the feed.
+Disappearing entries are skipped. Worktree, temporary-file, Go-cache and mise
+stages run independently; an error in one does not skip the others. A nonzero
+`go clean -cache` exit makes the run fail at `prune Go cache` and does not count
+a successful cache clean; the mise stage is still attempted.
+
 `OnFailure=chaldea-timer-failure@…` covers startup failures, crashes, OOM kills
 and the one-hour execution timeout. The wrapper handles ordinary completion;
 the handler uses `MONITOR_INVOCATION_ID` to deduplicate the same failure.

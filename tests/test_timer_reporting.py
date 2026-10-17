@@ -141,7 +141,7 @@ def test_feed_timeout_kills_descendants_and_does_not_fail_job(home, monkeypatch)
     assert not proc.exists() or proc.read_text().split()[2] == "Z"
 
 
-@pytest.mark.parametrize("failed", [False, True])
+@pytest.mark.parametrize("failed", [False, True, "rescued"])
 def test_real_ansible_callback_counts_changes_and_redacts_failure(home, failed):
     callback_dir = home / ".local/share/chaldea/timer-reporting"
     callback_dir.mkdir(parents=True)
@@ -151,7 +151,12 @@ def test_real_ansible_callback_counts_changes_and_redacts_failure(home, failed):
         "- hosts: localhost\n  gather_facts: false\n  tasks:\n"
         "    - name: Create a harmless file\n      ansible.builtin.copy:\n"
         f"        content: hello\n        dest: {home}/created\n        mode: '0600'\n"
-        + ("    - name: 'Fail with {{ lookup(\"env\", \"SECRET\") }}'\n"
+        + ("    - block:\n"
+           "        - name: Rescued failure\n          ansible.builtin.fail:\n            msg: SECRET_ENV_VALUE\n"
+           "      rescue:\n"
+           "        - name: Rescue failure\n          ansible.builtin.debug:\n            msg: recovered\n"
+           if failed == "rescued" else
+           "    - name: 'Fail with {{ lookup(\"env\", \"SECRET\") }}'\n"
            "      ansible.builtin.fail:\n        msg: 'SECRET_ENV_VALUE'\n" if failed else "")
     )
     environment = os.environ.copy()
@@ -162,13 +167,16 @@ def test_real_ansible_callback_counts_changes_and_redacts_failure(home, failed):
                              "--", shutil.which("ansible-playbook"), "-i", "localhost,", "-c", "local",
                              str(play), "-e", "ansible_python_interpreter=" + sys.executable],
                             capture_output=True, text=True, env=environment)
-    assert (result.returncode != 0) is failed, result.stdout + result.stderr
+    assert (result.returncode != 0) is (failed is True), result.stdout + result.stderr
     data = records(home)[0]
     assert data["changed"] == 1
     assert "SECRET_ENV_VALUE" not in json.dumps(data) + result.stdout + result.stderr
-    if failed:
+    if failed is True:
         assert data["task"] == "Fail with <redacted>"
         assert data["reason"] == "Ansible task failed"
+    if failed == "rescued":
+        state = json.loads((home / ".local/state/chaldea/chaldea-fleet-pull-run.json").read_text())
+        assert state["failed_task"] == ""
 
 
 def test_missing_summary_is_visible_failure(home):
@@ -207,3 +215,56 @@ def test_killed_wrapper_is_reported_by_failure_handler(home, monkeypatch):
     reporter.main(["failure", "--job", "chaldea-retention"])
     assert len(records(home)) == 1
     assert records(home)[0]["reason"] == "systemd signal"
+
+
+def test_tmp_leftover_note_is_bounded_local_and_does_not_post(home, monkeypatch):
+    reporter = load_reporter()
+    reporter.STATE.mkdir(parents=True)
+    reporter.write_json(reporter.run_path("chaldea-retention"),
+                        dict(invocation="a" * 32, changed=0, tmp_leftovers=2000000))
+    monkeypatch.setenv("FEED_TOKEN", "test-only")
+    reporter.record_outcome("chaldea-retention", "a" * 32, 0)
+    data = records(home)[0]
+    assert data["notes"] == ["temporary entries left after best-effort cleanup: 1000000"]
+    assert data["severity"] == "info" and data["delivery"] == "quiet"
+    assert not (home / "feed-calls").exists()
+
+
+@pytest.mark.parametrize("rescued", [False, True])
+def test_callback_only_keeps_unrescued_failure_across_later_tasks(home, monkeypatch, rescued):
+    from ansible.playbook.block import Block
+    from ansible.playbook.task import Task
+    from ansible.plugins.loader import init_plugin_loader
+    from types import SimpleNamespace
+
+    if "ansible_collections" not in sys.modules:
+        init_plugin_loader()
+
+    loader = importlib.machinery.SourceFileLoader("chaldea_outcome", str(CALLBACK))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    callback = module.CallbackModule()
+    state = home / "callback-state.json"
+    state.write_text("{}")
+    monkeypatch.setenv("CHALDEA_RUN_STATE", str(state))
+    block = Block.load({
+        "block": [{"name": "Earlier failure", "ansible.builtin.fail": {"msg": "SECRET_ENV_VALUE"}}],
+        "rescue": [{"name": "Rescue failure", "ansible.builtin.debug": {"msg": "rescued"}}],
+        "always": [{"name": "Always task", "ansible.builtin.debug": {"msg": "always"}}],
+    })
+    callback.v2_playbook_on_task_start(block.block[0], False)
+    callback.v2_runner_on_failed(SimpleNamespace(_task=block.block[0], _result={"rc": 7}))
+    if rescued:
+        callback.v2_playbook_on_task_start(block.rescue[0], False)
+        # Simulate a later failure without a runner result (e.g. load failure).
+        callback.v2_playbook_on_task_start(Task.load({"name": "Later failure", "ansible.builtin.fail": {}}), False)
+    else:
+        callback.v2_playbook_on_task_start(block.always[0], False)
+    stats = SimpleNamespace(processed={"localhost": None},
+                            summarize=lambda host: {"failures": 1, "changed": 0})
+    callback.v2_playbook_on_stats(stats)
+    data = json.loads(state.read_text())
+    assert data["task"] == ("Later failure" if rescued else "Earlier failure")
+    assert data["reason"] == ("" if rescued else "module failed (status 7)")
+    assert "SECRET_ENV_VALUE" not in state.read_text()
