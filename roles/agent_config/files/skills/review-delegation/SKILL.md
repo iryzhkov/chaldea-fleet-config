@@ -6,25 +6,23 @@ description: Review cadence, fan-out reviews and delegation patterns for an inte
 # Reviews and delegation in T3 sessions
 
 This expands the "Interactive work and delegation" section of the shared
-instructions; where the two seem to differ, that section wins. Nothing here is a
-mandatory ceremony: use these patterns to keep reviews cheap and useful, not to
-add steps to the session.
+instructions; where the two seem to differ, that section wins. Builders may launch their own
+reviews, but every review must use T3 `delegate_task`.
 
 ## When to review
 
-Each milestone of an agreed plan gets one round of reviews:
+Review the final commit of each milestone of an agreed plan:
 
 - A main review by a strong model from the provider that did not write the
   change: Sol 6.1 reviews work written by Claude, Opus 5.5 reviews work written
   by Codex.
-- Fan-out reviews on the small models of the same two providers, Sonnet 5.5 and
-  Luna 6, each given exactly one target area: for example data safety, error
-  handling, tests, or a single module. Pick the areas where the milestone is
-  most likely to be wrong; two or three are usually enough.
+- Add at most one narrow fan-out review, only for security- or data-sensitive
+  work, with exactly one target area such as data safety or credential handling.
 - A critical-review model (Astra or Fable) only for a consequential design
   decision or a disputed finding, never as a routine reviewer.
 
-OpenCode models are not used for reviews. Reviews stay within the brief.
+OpenCode models are not used for reviews. Reviews stay within the brief. Report
+each reviewer's thread ID, model and verdict in the reply and as a PR comment.
 
 ## How to run a round
 
@@ -32,7 +30,7 @@ Call `orchestrator_capabilities` for the current provider and model IDs rather
 than guessing them. Start every review round, including re-reviews, as a fresh
 `delegate_task` that carries the brief, the prior findings and the responses to
 them; do not continue a review through `t3_thread_send` on a child thread. Give
-each round its own `clientRequestId`. Launch the main and fan-out reviews of a
+each round its own `clientRequestId`. Launch the main review and any permitted fan-out of a
 round together; a finished child wakes the parent, so never poll.
 
 ## What blocks
@@ -41,8 +39,9 @@ round together; a finished child wakes the parent, so never poll.
   shows concrete evidence of a defect, and names a location. Anything else is a
   note.
 - Findings outside the plan's scope become follow-up notes, not blocking work.
-- ACCEPT names the exact commit, reviewed on a clean tree. Any later change
-  invalidates it; the next round reviews the new diff.
+- ACCEPT names the exact commit, reviewed on a clean tree. After an accepted
+  review, the orchestrator verifies a change of under about 50 lines without
+  another review. For larger changes, review the final commit again.
 - At most two fix rounds per milestone. After that the lead decides or asks
   Igor.
 - The author may dispute a finding with a reason. Disputes go to a
@@ -58,8 +57,8 @@ round together; a finished child wakes the parent, so never poll.
   copied.
 - Split independent parts into parallel children only when their files do not
   overlap.
-- Keep fix rounds small: send the blocking findings and the commit, not the
-  whole plan again.
+- Keep fix rounds focused, while retaining the original brief, prior findings,
+  responses and unresolved objections in each new `delegate_task` prompt.
 - Report implemented, reviewed, merged, deployed and verified as separate
   states. A passing task is not an accepted review, and a merge is not a
   deployment.

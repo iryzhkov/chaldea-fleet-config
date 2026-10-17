@@ -101,6 +101,12 @@ Delegate through T3's own tools rather than a separate scheduler:
   `schedule_task` for recurring work, and `watch_pull_request` for following CI.
 - Native same-provider subagents are for quick bounded reading and searching.
 
+Builders may launch their own reviews, using T3 `delegate_task` only. Review the final
+commit with one main reviewer on the other provider, plus at most one narrow fan-out
+for security- or data-sensitive work. Allow at most two fix rounds. Report every
+reviewer's thread ID, model and verdict in the reply and a PR comment. After an accepted
+review, the orchestrator verifies a change of under about 50 lines without another review.
+
 T3 tools act only on the host's own T3 server. There is no agent-driven launch on another
 host yet; ask Igor to start work there from the T3 app.
 
@@ -116,12 +122,27 @@ changes more than one host.
 
 Use the `chaldea` skill for builds and heavy runs on job hosts, durable waits and the
 decision inbox. Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
+Before asking Igor through native T3 user input, call
+`chaldea_decision_prepare({threadId, requestId, dependentAction, defaultAction, deadline})`.
+Use `chaldea_decision_track` for a known native request and `chaldea_decision_status`
+to read its state. Providers without native input use `chaldea_decision_ask` and
+`chaldea_decision_answer` with the answering thread's `answeringThreadId`.
+Defaults only skip or defer the dependent action; they never grant approval.
+
+Use `chaldea exec` for builds and test suites instead of running them on omarchy-pc,
+Igor's gaming PC. `--host` is optional: without it, `~/.config/chaldea/exec-hosts`
+tries agent-a, agent-b, omarchy-pc when its game gate allows, then laptop when awake.
+It moves on only after a refusal or an unreachable host before the request was sent.
+Hosts run several jobs concurrently: agent-a 3, omarchy-pc 2, agent-b 1 and laptop 1.
+
 On a quota stop, the session needs to do nothing: T3 resumes at reset; when enabled,
 Chaldea's provider switch continues the same thread on an equivalent model. Never tell
 Igor to resume manually.
 
 Keep scratch on disk under `~/.cache/<task>/`, set `TMPDIR` there and tell workers the
-path. Do not use host `/tmp`: it is RAM tmpfs with a quota.
+path. Do not use host `/tmp`: it is RAM tmpfs with a quota. Tests must never write
+outside a scratch HOME; assert the HOME is the intended scratch directory before writing.
+A test overwrote a real key on 2026-10-17.
 
 # Working documents: Jocasta
 
