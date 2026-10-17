@@ -1,11 +1,12 @@
 # Managed by chaldea-fleet-config (roles/retention).
 [Unit]
+OnFailure=chaldea-timer-failure@chaldea-retention.service
 Description=Bounded cleanup of T3 worktrees and agent caches
 
 [Service]
 Type=oneshot
 Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart={{ retention_script }} \
+ExecStart=%h/.local/bin/chaldea-timer-report run --job chaldea-retention -- {{ retention_script }} \
   --protect-hours {{ retention_protect_hours }} \
   --worktree-root {{ retention_worktree_root }} \
   --worktree-max-age-days {{ retention_worktree_max_age_days }} \
@@ -17,3 +18,4 @@ ExecStart={{ retention_script }} \
   --go-cache-max-gb {{ retention_go_cache_max_gb }}{{ '' if retention_mise_prune | bool else ' --no-mise-prune' }}
 Nice=19
 IOSchedulingClass=idle
+TimeoutStartSec=1h

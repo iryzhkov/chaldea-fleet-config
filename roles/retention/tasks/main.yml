@@ -1,4 +1,8 @@
 ---
+- name: Install timer outcome reporting
+  ansible.builtin.include_role:
+    name: timer_reporting
+
 - name: Install the retention script
   ansible.builtin.copy:
     src: chaldea-retention
@@ -18,3 +22,4 @@
     user_timer_service: "{{ retention_service_unit }}"
     user_timer_timer: "{{ retention_timer_unit }}"
     user_timer_enabled: "{{ retention_timer_enabled }}"
+    user_timer_aux_changed: "{{ timer_reporting_units_changed }}"

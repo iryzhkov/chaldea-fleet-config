@@ -46,6 +46,8 @@ def exec_start(unit):
 def test_rendered_unit_arguments_parse(mise_prune):
     argv, lines = exec_start(render(mise_prune))
     assert "Nice=19" in lines and "IOSchedulingClass=idle" in lines
-    args = retention.parse_args(argv[1:])
+    assert argv[:5] == ["%h/.local/bin/chaldea-timer-report", "run", "--job", "chaldea-retention", "--"]
+    assert "OnFailure=chaldea-timer-failure@chaldea-retention.service" in lines
+    args = retention.parse_args(argv[6:])
     assert args.go_cache_max_gb == 10
     assert ("--no-mise-prune" in argv) is (not mise_prune)

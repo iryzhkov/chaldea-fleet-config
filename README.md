@@ -116,6 +116,79 @@ that host, `retention_timer_enabled: true`) under the host in
 to false stops and disables its timer on the next run, whether it was enabled or
 only started by hand.
 
+
+## Timer outcomes
+
+The pull and retention services run through `chaldea-timer-report`. Every run
+has one local outcome, keyed by systemd's invocation ID, in
+`~/.local/state/chaldea/fleet-status.json` (the last 50 outcomes, capped at
+128 KiB, atomically replaced, mode 0600). Each outcome is also written as one
+JSON line to its service journal. The local record's `delivery` field shows
+the final delivery result; the journal line is written before attempting the
+feed and therefore says `pending`.
+
+A successful run with changes posts one short `info` entry: host, changed
+count, and current release names for pull, or removed tool versions for
+retention (at most 12 names, with a count of omitted names). Pull counts Ansible's changed tasks; retention counts successful
+deletions, cache cleans and interrupted-worktree restorations. A successful
+run with no changes posts **nothing** to the feed; its local/journal outcome
+is `unchanged`. Failures post one `fail` entry with the failing task name and
+a fixed, short reason (for example, module exit status, budget exceeded or
+systemd timeout). No module messages, command output, arguments or environment
+values are sent to the feed or status file. Task-name template expressions
+are redacted. Timer child output is suppressed; run the command manually for
+interactive diagnosis.
+
+Temporary cleanup remains best-effort: it attempts all removable contents of
+each old entry, including trees containing read-only Go modules. Leftover
+entries produce one aggregate, non-failing note per run in local status and
+the journal, without recording paths or posting a warning to the feed.
+Disappearing entries are skipped. Worktree, temporary-file, Go-cache and mise
+stages run independently; an error in one does not skip the others. A nonzero
+`go clean -cache` exit makes the run fail at `prune Go cache` and does not count
+a successful cache clean; the mise stage is still attempted.
+
+`OnFailure=chaldea-timer-failure@…` covers startup failures, crashes, OOM kills
+and the one-hour execution timeout. The wrapper handles ordinary completion;
+the handler uses `MONITOR_INVOCATION_ID` to deduplicate the same failure.
+This requires systemd 251 or newer. Both services use the same safe summary
+format. An Ansible run that succeeds without producing its callback summary
+is reported as a failure, rather than silently claiming no changes.
+
+The reporter checks for a readable, nonempty feed key at
+`~/.config/feed/key` (respecting `XDG_CONFIG_HOME` and `FEED_KEY_FILE`), or
+`FEED_TOKEN`, before invoking `feed post`. No credential means no request.
+Feed attempts have an eight-second deadline, kill descendants on timeout,
+never retry, and never change the job's exit status. A failed/refused request
+stays in local status; the reporter does not install credentials. The local
+claim is written before posting, so a crash or ambiguous HTTP timeout never
+causes a duplicate POST; it may leave `delivery=pending` or `feed-timeout`
+when acceptance by the server is unknown. There is no replay queue.
+
+Read outcomes with:
+
+```sh
+feed recent --source chaldea-fleet --full
+feed recent --source chaldea-retention --full
+python3 -m json.tool ~/.local/state/chaldea/fleet-status.json
+journalctl --user -u chaldea-fleet-pull.service -u chaldea-retention.service \
+  -u 'chaldea-timer-failure@*' --since today
+```
+
+Read-only authentication checks on 2026-10-16 found a usable credential on
+omarchy-pc and laptop (an authenticated feed read succeeded). Agent-a and
+agent-b have no key, so they record outcomes locally and in the journal
+without contacting the feed. No test entries were posted. An authenticated
+read verifies the shared credential; it does not exercise the POST endpoint.
+
+Before enabling retention, run `chaldea-retention --dry-run` and read every
+candidate. It prints worktree and temporary-entry deletion sizes in bytes,
+the Go cache size when a clean is planned, and each prunable mise version's
+installed size. Mise download caches are excluded from those size estimates.
+Dry-run mode does not delete or restore worktrees, clean caches or uninstall
+tools. Timer reporting is installed on the next manual convergence; this PR
+does not deploy it or enable timers.
+
 ## CI
 
 `bash tools/ci.sh` runs every gate locally and in CI: it builds a virtualenv from
