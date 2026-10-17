@@ -14,7 +14,8 @@ server = importlib.util.module_from_spec(spec)
 loader.exec_module(server)
 
 
-def test_supervisor_kills_transport_that_clears_parent_death_signal():
+@pytest.mark.parametrize("kill_supervisor", [False, True])
+def test_supervisor_kills_transport_that_clears_parent_death_signal(kill_supervisor):
     import os
     import select
     import signal
@@ -22,7 +23,10 @@ def test_supervisor_kills_transport_that_clears_parent_death_signal():
     import sys
     import time
     transport = """
-import ctypes,json,os,subprocess,sys
+import ctypes,json,os,signal,subprocess,sys
+inherited=ctypes.c_int()
+assert ctypes.CDLL(None).prctl(2,ctypes.byref(inherited),0,0,0) == 0
+assert inherited.value == signal.SIGKILL
 assert ctypes.CDLL(None).prctl(1,0,0,0,0) == 0
 child = subprocess.Popen([sys.executable,'-I','-c','import time; time.sleep(100)'])
 print(json.dumps([os.getppid(),os.getpid(),child.pid]), flush=True)
@@ -51,6 +55,8 @@ sys.exit(child.wait())
             pids = json.loads(parent.stdout.readline())
             group = pids[0]
             descriptors = [os.pidfd_open(pid) for pid in pids]
+            if kill_supervisor:
+                os.kill(group, signal.SIGKILL)
             parent.kill()
             parent.wait(timeout=5)
             pending = set(descriptors)
@@ -539,6 +545,7 @@ def test_smoke_refuses_busy_lock_before_touching_a_jobs_workspace():
 
 
 def test_smoke_holds_admission_lock_through_launch_and_releases_after_cleanup():
+    import io
     from types import SimpleNamespace
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -551,16 +558,89 @@ def test_smoke_holds_admission_lock_through_launch_and_releases_after_cleanup():
             check_locked()
             workspaces.append(workspace.parent)
             return ["fake-pasta"], workspace.parent / "launch"
-        def run(*_args, **_kwargs):
+        def communicate(timeout):
             check_locked()
-            return SimpleNamespace(returncode=0, stdout="sandbox-smoke-ok\n", stderr="")
-        with patch.object(server, "prepare_launch", side_effect=prepare), \
-             patch.object(server.subprocess, "run", side_effect=run), \
-             patch.object(server, "launched", return_value=True):
+            assert timeout == 15
+            return "sandbox-smoke-ok\n", ""
+        process = SimpleNamespace(returncode=0, stdout=io.StringIO(), stderr=io.StringIO(),
+                                  communicate=communicate)
+        with (patch.object(server, "prepare_launch", side_effect=prepare),
+              patch.object(server.subprocess, "Popen", return_value=process) as popen,
+              patch.object(server, "kill_group", side_effect=lambda _process: check_locked()) as kill,
+              patch.object(server, "launched", return_value=True)):
             server.smoke_test({"state_root": str(root), "require_mount": False})
+        assert popen.call_args.kwargs["start_new_session"] is True
+        kill.assert_called_once_with(process)
         assert workspaces and not workspaces[0].exists()
         with server.admission_lock(root):
             assert list(root.iterdir()) == [root / "admission.lock"]
+
+
+def test_smoke_timeout_kills_tree_before_workspace_cleanup_and_unlock():
+    import os
+    import select
+    import signal
+    import subprocess
+    import sys
+    import time
+    popen = subprocess.Popen
+    kill_group = server.kill_group
+    descriptors = []
+    workspaces = []
+    group = None
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        transport = """
+import json,os,subprocess,sys
+child=subprocess.Popen([sys.executable,'-I','-c','import time; time.sleep(100)'])
+print(json.dumps([os.getppid(),os.getpid(),child.pid]),flush=True)
+child.wait()
+"""
+        def prepare(_request, workspace, _config):
+            workspaces.append(workspace.parent)
+            launch = workspace.parent / "launch"
+            launch.write_text(json.dumps({"parent_pid": os.getpid(),
+                                          "transport": [sys.executable, "-I", "-c", transport]}))
+            return [sys.executable, "-I", str(PATH), "--network-supervisor", str(launch)], launch
+        class SmokeProcess(popen):
+            def communicate(self, *, timeout):
+                nonlocal group
+                assert timeout == 15
+                assert select.select([self.stdout], [], [], 5)[0], "transport did not start"
+                pids = json.loads(self.stdout.readline())
+                group = pids[0]
+                descriptors.extend(os.pidfd_open(pid) for pid in pids)
+                return super().communicate(timeout=.1)
+        def kill_before_cleanup(process):
+            assert workspaces[0].exists(), "workspace removed before killing smoke"
+            with pytest.raises(server.Refused, match="host busy"):
+                with server.admission_lock(root):
+                    pytest.fail("smoke released admission before killing its group")
+            kill_group(process)
+        try:
+            with (patch.object(server, "prepare_launch", side_effect=prepare),
+                  patch.object(server.subprocess, "Popen", SmokeProcess),
+                  patch.object(server, "kill_group", side_effect=kill_before_cleanup)):
+                with pytest.raises(subprocess.TimeoutExpired):
+                    server.smoke_test({"state_root": str(root), "require_mount": False})
+            pending = set(descriptors)
+            assert pending
+            deadline = time.monotonic() + 5
+            while pending:
+                ready, _, _ = select.select(list(pending), [], [], max(0, deadline - time.monotonic()))
+                assert ready, "timed-out smoke left a live process"
+                pending.difference_update(ready)
+            assert not workspaces[0].exists()
+            with server.admission_lock(root):
+                assert list(root.iterdir()) == [root / "admission.lock"]
+        finally:
+            if group:
+                try:
+                    os.killpg(group, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            for descriptor in descriptors:
+                os.close(descriptor)
 
 
 def test_connected_subnets_excludes_link_scope_so_ipv6_gateway_is_usable():

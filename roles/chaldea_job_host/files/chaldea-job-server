@@ -360,6 +360,14 @@ def network_rules(addresses, subnets):
     return rules + "}\n}\n"
 
 
+def network_guard(group):
+    """EOF survives simultaneous server/supervisor death, unlike their handlers."""
+    # Only the supervisor owns the write end; transport close_fds prevents
+    # pasta or the job keeping it alive, even if pasta clears PDEATHSIG.
+    if os.read(0, 1) != b"D":
+        os.killpg(group, signal.SIGKILL)
+
+
 def network_supervisor(path):
     """Keep the parent-death contract outside pasta, which may clear it."""
     import ctypes
@@ -379,8 +387,20 @@ def network_supervisor(path):
         stop()
     # Foreground pasta stays in this group; killing it also kills its PID
     # namespace leader, including jobs that started their own sessions.
-    result = subprocess.run(launch["transport"])
-    return result.returncode if result.returncode >= 0 else 128 - result.returncode
+    def transport_death():
+        if (ctypes.CDLL(None, use_errno=True).prctl(1, signal.SIGKILL, 0, 0, 0) != 0
+                or os.getppid() != group):
+            os._exit(125)
+
+    guard = subprocess.Popen(["/usr/bin/python3", "-I", str(Path(__file__).resolve()),
+                              "--network-guard", str(group)], stdin=subprocess.PIPE)
+    try:
+        result = subprocess.run(launch["transport"], close_fds=True, preexec_fn=transport_death)
+        return result.returncode if result.returncode >= 0 else 128 - result.returncode
+    finally:
+        guard.stdin.write(b"D")
+        guard.stdin.close()
+        guard.wait(timeout=5)
 
 
 def network_child(path):
@@ -506,10 +526,17 @@ def smoke_test(config):
                    str(int(config.get("shm_bytes", 64 * 1024**2))) + "; print('sandbox-smoke-ok')"],
                    "cwd": "", "gpu": False}
         wrapped, launch = prepare_launch(request, workspace, config)
-        result = subprocess.run(wrapped, env={"PATH": "/usr/bin:/bin", "HOME": str(workspace)},
-                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15)
-        if result.returncode or not launched(launch) or result.stdout.strip() != "sandbox-smoke-ok":
-            raise Refused("installed pasta/bwrap smoke failed: " + result.stderr[-2048:])
+        process = subprocess.Popen(wrapped, env={"PATH": "/usr/bin:/bin", "HOME": str(workspace)},
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, text=True, start_new_session=True)
+        try:
+            stdout, stderr = process.communicate(timeout=15)
+            if process.returncode or not launched(launch) or stdout.strip() != "sandbox-smoke-ok":
+                raise Refused("installed pasta/bwrap smoke failed: " + stderr[-2048:])
+        finally:
+            kill_group(process)
+            process.stdout.close()
+            process.stderr.close()
     print("sandbox-smoke-ok")
 
 
@@ -634,9 +661,13 @@ def main():
     parser.add_argument("--config", default="/etc/chaldea-job.json")
     parser.add_argument("--network-child")
     parser.add_argument("--network-supervisor")
+    parser.add_argument("--network-guard", type=int)
     parser.add_argument("--check-tools", action="store_true")
     parser.add_argument("--smoke-test", action="store_true")
     args = parser.parse_args()
+    if args.network_guard is not None:
+        network_guard(args.network_guard)
+        return
     if args.network_supervisor:
         sys.exit(network_supervisor(args.network_supervisor))
     if args.network_child:
@@ -703,7 +734,7 @@ if __name__ == "__main__":
         if "--check-tools" in sys.argv or "--smoke-test" in sys.argv:
             print("chaldea: apply-time sandbox check failed: " + str(exc), file=sys.stderr)
             sys.exit(1)
-        if "--network-child" in sys.argv or "--network-supervisor" in sys.argv:
+        if any(flag in sys.argv for flag in ("--network-child", "--network-supervisor", "--network-guard")):
             # Bootstrap failures are not command stdout or remote exit 125.
             print("chaldea: network/sandbox bootstrap failed: " + type(exc).__name__, file=sys.stderr)
             sys.exit(125)
