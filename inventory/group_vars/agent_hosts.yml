@@ -1,0 +1,7 @@
+---
+# Enabled 2026-10-17 at Igor's direction, after the timers gained outcome
+# reporting (feed on hosts with a feed key, a bounded local status file on the
+# others) and after Igor reviewed each host's retention dry run. Servers
+# (normandy, homelab) keep the defaults in all.yml, which leave both off.
+pull_timer_enabled: true
+retention_timer_enabled: true
