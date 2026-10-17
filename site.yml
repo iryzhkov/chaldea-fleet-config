@@ -51,6 +51,9 @@
     - role: chaldea_access_trust
       tags: [chaldea_access_trust]
       when: chaldea_access_trust_enabled | default(false) | bool
+    - role: chaldea_token_helper
+      tags: [chaldea_token_helper]
+      when: chaldea_token_helper_enabled | default(false) | bool
     - role: pull_timer
       tags: [pull_timer]
   # Discover after installers (including the Chaldea wrapper) have converged.

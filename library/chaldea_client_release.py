@@ -53,9 +53,12 @@ def install(module):
             if destination.is_symlink() or not destination.is_dir():
                 raise ValueError("installed release must be a real directory")
             actual = {}
-            for path in destination.rglob("*"):
+            for path in [destination, *destination.rglob("*")]:
                 if path.is_symlink():
                     raise ValueError("installed release contains a symlink")
+                stat = path.stat()
+                if p.get("check_permissions", False) and (stat.st_uid != os.geteuid() or stat.st_mode & 0o022):
+                    raise ValueError("installed release has unsafe ownership or write permissions")
                 if path.is_file():
                     actual[path.relative_to(destination).as_posix()] = digest(path)
             if actual != expected:
@@ -73,6 +76,10 @@ def install(module):
                 with target.open("xb") as stream:
                     shutil.copyfileobj(tar.extractfile(member), stream)
                 target.chmod(0o755 if member.name.startswith("bin/") else 0o644)
+            # Intermediate mkdir(parents=True) directories otherwise inherit umask.
+            for directory in stage.rglob("*"):
+                if directory.is_dir():
+                    directory.chmod(0o755)
             os.rename(stage, destination)
         finally:
             if stage.exists():
@@ -83,6 +90,7 @@ def install(module):
 def main():
     module = AnsibleModule(argument_spec={
         "root": {"type": "path", "required": True},
+        "check_permissions": {"type": "bool", "default": False},
         "archive": {"type": "path", "required": True},
         "manifest": {"type": "path", "required": True},
         "version": {"type": "str", "required": True},
