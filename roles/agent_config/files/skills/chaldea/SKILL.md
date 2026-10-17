@@ -24,7 +24,7 @@ Use `chaldea exec` for builds and test suites instead of running them on omarchy
 Igor's gaming PC. `--host` is optional: without it, `~/.config/chaldea/exec-hosts`
 tries agent-a, agent-b, omarchy-pc when its game gate allows, then laptop when awake.
 It moves on only after a refusal or an unreachable host before the request was sent.
-Hosts run several jobs concurrently: agent-a 3, omarchy-pc 2, agent-b 1 and laptop 1.
+Hosts run several jobs concurrently: agent-a 3, omarchy-pc 2, agent-b 1 and laptop 1; when all reachable hosts are busy, exec queues for up to one hour (--queue-timeout, --no-queue to refuse), so never add a retry loop.
 
 `--gpu` requests the job host's configured NVIDIA devices. Tests must never
 write outside a scratch HOME. Assert that HOME is the intended scratch directory

@@ -162,7 +162,7 @@ def idle_policy(config):
     if config.get("policy") != "idle":
         raise Refused("unknown host acceptance policy")
     if gaming(config):
-        raise Refused("host busy: a Steam game or Minecraft is running")
+        raise Busy("host busy: a Steam game or Minecraft is running")
 
 
 def remove_tree(path, deadline=None):
@@ -577,6 +577,104 @@ def admission_lock(root, slots=1, all_slots=False):
         yield root
 
 
+
+# Each helper blocks in the kernel and owns just one lock. Pipe EOF or explicit
+# termination releases it; unlike waiter threads, losers can be reaped at once.
+SLOT_WAITER = """
+import ctypes,fcntl,os,signal,sys
+ctypes.CDLL(None).prctl(1, signal.SIGKILL, 0, 0, 0)
+if os.getppid() != int(sys.argv[2]):
+    sys.exit(0)
+with open(sys.argv[1], "a") as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    print("ready", flush=True)
+    sys.stdin.buffer.read()
+"""
+
+
+@contextmanager
+def queued_admission(root, config, seconds):
+    deadline = time.monotonic() + seconds
+    waiters = []
+    with selectors.DefaultSelector() as selector:
+        selector.register(0, selectors.EVENT_READ, "client")
+        try:
+            slots = slot_count(config)
+            for slot in range(slots):
+                path = root / ("admission.lock" if slot == 0 else f"admission-{slot}.lock")
+                child = subprocess.Popen([sys.executable, "-I", "-c", SLOT_WAITER, str(path), str(os.getpid())],
+                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                waiters.append(child)
+                selector.register(child.stdout, selectors.EVENT_READ, slot)
+            chosen = None
+            next_idle = deadline
+            while True:
+                now = time.monotonic()
+                if now >= deadline:
+                    raise Refused("queue timeout")
+                if chosen is not None and now >= next_idle:
+                    try:
+                        idle_policy(config)
+                    except Busy:
+                        next_idle = time.monotonic() + 5
+                    else:
+                        break
+                for key, _ in selector.select(max(0, min(deadline, next_idle) - time.monotonic())):
+                    if key.data == "client":
+                        # C (cancel), EOF, or any other pre-go input: launch nothing.
+                        raise ConnectionError("queue cancelled or client disconnected")
+                    slot = key.data
+                    selector.unregister(key.fileobj)
+                    if key.fileobj.readline() != b"ready\n":
+                        raise Refused("slot waiter failed")
+                    if chosen is None:
+                        chosen = slot
+                        for index, child in enumerate(waiters):
+                            if index != chosen:
+                                selector.unregister(child.stdout)
+                                child.terminate()
+                        next_idle = 0  # check the game gate once the slot is granted
+                        break
+            admission(root, config)
+            send("Y", encode({"version": 1, "state": "ready"}))
+            signal.alarm(max(1, int(deadline - time.monotonic()) + 1))
+            kind, body = receive()
+            if kind != "G" or body:
+                raise ConnectionError("queue cancelled before go")
+            # The game may have appeared while the client chose among hosts.
+            idle_policy(config)
+            directory = root if slots == 1 else root / f"slot-{chosen}"
+            directory.mkdir(mode=0o700, exist_ok=True)
+            yield directory
+        finally:
+            for child in waiters:
+                child.terminate()
+            for child in waiters:
+                child.wait()
+                child.stdin.close()
+                child.stdout.close()
+
+
+@contextmanager
+def job_admission(root, config, queued):
+    if queued:
+        send("H", encode({"version": VERSION, "queueVersion": 1}))
+        signal.alarm(120)
+        kind, body = receive()
+        value = json.loads(body)
+        seconds = value.get("timeoutSeconds") if isinstance(value, dict) else None
+        if (kind != "W" or value.get("version") != 1 or type(seconds) not in (int, float)
+                or not 0 < seconds <= 86400):
+            raise Refused("unsupported queue request")
+        signal.alarm(max(1, int(seconds) + 1))
+        with queued_admission(root, config, seconds) as slot_root:
+            yield slot_root
+    else:
+        with admission_lock(root, slot_count(config)) as slot_root:
+            send("H", encode({"version": VERSION}))
+            yield slot_root
+
+
 def smoke_test(config):
     """Run the same trusted launch path as jobs, as the actual job account."""
     root = Path(config["state_root"])
@@ -742,7 +840,8 @@ def main():
     if args.smoke_test:
         smoke_test(json.loads(Path(args.config).read_text()))
         return
-    if os.environ.get("SSH_ORIGINAL_COMMAND") != "chaldea-exec-v0":
+    queued = os.environ.get("SSH_ORIGINAL_COMMAND") == "chaldea-exec-queue-v1"
+    if os.environ.get("SSH_ORIGINAL_COMMAND") not in ("chaldea-exec-v0", "chaldea-exec-queue-v1"):
         raise ValueError("only chaldea-exec-v0 protocol requests are allowed; no shell")
     if os.environ.get("SSH_AUTH_SOCK"):
         raise ValueError("forwarded SSH agents are forbidden")
@@ -760,9 +859,8 @@ def main():
     if config.get("require_mount", True) and not os.path.ismount(root):
         raise Refused("job storage unavailable: image is not mounted; host remains available")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with admission_lock(root, slot_count(config)) as slot_root:
+    with job_admission(root, config, queued) as slot_root:
         cleanup(slot_root)
-        send("H", encode({"version": VERSION}))
         signal.alarm(120)
         kind, body = receive()
         if kind != "Q":
@@ -807,7 +905,7 @@ if __name__ == "__main__":
         try:
             # Never log argv, environment, snapshot bytes, or raw OS exceptions.
             message = str(exc) if isinstance(exc, (ValueError, ConnectionError)) else type(exc).__name__
-            send("R", encode({"message": message[:1024], "outcome": "preempted" if isinstance(exc, Preempted) else "uncertain" if JOB_STARTED else "refused"}))
+            send("R", encode({"message": message[:1024], "busy": isinstance(exc, Busy), "outcome": "preempted" if isinstance(exc, Preempted) else "uncertain" if JOB_STARTED else "refused"}))
         except (BrokenPipeError, OSError):
             pass
         sys.exit(125)

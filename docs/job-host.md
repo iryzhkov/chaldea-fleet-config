@@ -18,7 +18,7 @@ reviewed pair and the concrete public-key inventory are approved.
   A five-second check runs only during an idle-policy job. Gaming appearance
   sends SIGTERM to the job group, followed by SIGKILL after ten seconds if
   necessary. Client journal/status says preempted; it never retries.
-- Bounded concurrent slots, with no scheduler or queue: chaldea_job_host_slots
+- Bounded concurrent slots with versioned pending admission (blocking slot locks, ready/go/cancel, disconnect releases admission, default one-hour client timeout): chaldea_job_host_slots
   defaults to 1; inventory uses agent-a 3, omarchy-pc 2, agent-b 1, laptop 1.
   Each request tries slot locks with non-blocking flock and refuses only when
   none is free (or another pre-launch check fails). Gaming still gates every
