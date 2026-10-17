@@ -33,7 +33,7 @@ def test_systemd_accepts_services_and_failure_handler(tmp_path):
     wrapper.symlink_to("/bin/true")
     tasks = yaml.safe_load((ROOT / "roles/timer_reporting/tasks/main.yml").read_text())
     handler = next(task["ansible.builtin.copy"]["content"] for task in tasks
-                   if "content" in task.get("ansible.builtin.copy", {}))
+                   if task["name"] == "Install the timer failure handler")
     units = {
         "chaldea-retention.service": render(True),
         "chaldea-timer-failure@.service": handler,

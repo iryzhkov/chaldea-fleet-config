@@ -6,8 +6,6 @@ from pathlib import Path
 import jinja2
 import pytest
 
-from test_retention import retention
-
 TEMPLATE = Path(__file__).resolve().parents[1] / "roles/retention/templates/chaldea-retention.service.j2"
 
 
@@ -17,6 +15,7 @@ def render(mise_prune):
     env = jinja2.Environment(trim_blocks=True, keep_trailing_newline=True, undefined=jinja2.StrictUndefined)
     env.filters["bool"] = bool  # stand-in for Ansible's filter; the test only passes real booleans
     return env.from_string(TEMPLATE.read_text()).render(
+        chaldea_node_version="26.10.0",
         retention_script="/home/u/.local/bin/chaldea-retention",
         retention_protect_hours=24,
         retention_worktree_root="/home/u/.t3/worktrees",
@@ -48,6 +47,13 @@ def test_rendered_unit_arguments_parse(mise_prune):
     assert "Nice=19" in lines and "IOSchedulingClass=idle" in lines
     assert argv[:5] == ["%h/.local/bin/chaldea-timer-report", "run", "--job", "chaldea-retention", "--"]
     assert "OnFailure=chaldea-timer-failure@chaldea-retention.service" in lines
-    args = retention.parse_args(argv[6:])
-    assert args.go_cache_max_gb == 10
+    assert "Environment=CHALDEA_NODE_VERSION=26.10.0" in lines
+    assert argv[argv.index("--go-cache-max-gb") + 1] == "10"
+    assert argv[6:] == [
+        "--protect-hours", "24", "--worktree-root", "/home/u/.t3/worktrees",
+        "--worktree-max-age-days", "14", "--worktree-budget-gb", "20",
+        "--worktree-pressure-age-days", "3", "--disposable-ignored", "node_modules,target",
+        "--tmp-dir", "/home/u/.cache/tmp", "--tmp-max-age-days", "3",
+        "--go-cache-max-gb", "10",
+    ] + ([] if mise_prune else ["--no-mise-prune"])
     assert ("--no-mise-prune" in argv) is (not mise_prune)

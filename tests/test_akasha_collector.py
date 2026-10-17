@@ -18,10 +18,14 @@ def test_collector_is_disabled_and_uses_one_locked_scoped_service():
         assert "akasha_collector_enabled: true" not in file.read_text()
 
 
-def test_timer_reporting_includes_collector_and_has_no_network_delivery():
+def test_timer_reporting_uses_artifact_and_delivery_configuration():
     tasks = yaml.safe_load((ROOT / "roles/timer_reporting/tasks/main.yml").read_text())
-    assert tasks[0]["ansible.builtin.include_role"]["name"] == "akasha_collector"
-    script = (ROOT / "roles/akasha_collector/files/chaldea-timer-report").read_text()
-    enqueue = script[script.index("def queue_delivery"):script.index("def record_outcome")]
-    assert "subprocess." not in enqueue
-    assert "8 * 1024 * 1024" in enqueue and "dropped" in enqueue
+    includes = [t["ansible.builtin.include_role"]["name"] for t in tasks if "ansible.builtin.include_role" in t]
+    assert includes == ["chaldea_host_artifact", "akasha_collector"]
+    wrapper = next(t for t in tasks if t["name"] == "Install the timer outcome wrapper")
+    assert wrapper["ansible.builtin.copy"]["src"] == "{{ chaldea_host_artifact_root }}/chaldea-timer-report"
+    assert wrapper["ansible.builtin.copy"]["remote_src"] is True
+    config = next(t["ansible.builtin.copy"] for t in tasks if t["name"] == "Configure timer outcome delivery")
+    assert "'queue' if akasha_collector_enabled" in config["content"]
+    assert "else 'feed'" in config["content"]
+    assert config["dest"].endswith("/.config/chaldea/timer-reporting.json")

@@ -45,10 +45,23 @@ reset_home() {
 	printf '{"units": {}, "calls": []}\n' >"$FAKE_SYSTEMCTL_STATE"
 }
 
+# Stage a synthetic, checksummed host release. All role destinations remain in
+# scratch; this exercises extraction and installed-byte copies without sudo.
+python tests/host_artifact_fixture.py "$TMPDIR/host-artifact" >"$TMPDIR/host-artifact-vars.json"
+export HUYANG_PLUGIN_SOURCE="$TMPDIR/huyang-profiles.js"
+# Read source pins from inventory so CI exercises the deployed download.
+plugin_ref=$(python -c 'import yaml; print(yaml.safe_load(open("inventory/group_vars/all.yml"))["agent_config_huyang_plugin_ref"])')
+plugin_sha=$(python -c 'import yaml; print(yaml.safe_load(open("inventory/group_vars/all.yml"))["agent_config_huyang_plugin_sha256"])')
+curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
+  "https://raw.githubusercontent.com/iryzhkov/omarchy-setup/$plugin_ref/config/opencode/plugins/huyang-profiles.js" \
+  --output "$HUYANG_PLUGIN_SOURCE"
+printf '%s  %s\n' "$plugin_sha" "$HUYANG_PLUGIN_SOURCE" | sha256sum --check -
+
+export CHALDEA_HOST_TEST_EVIDENCE="$TMPDIR/role-install-evidence"
 python -m pytest -q -p no:cacheprovider tests
 # Scratch may be inside an isolated job workspace; generated fixture plays are not source.
 ansible-lint --exclude "$TMPDIR" --exclude "${TMPDIR#"$PWD"/}"
-synthetic=(-i inventory -i tests/synthetic-inventory.yml --limit synthetic)
+synthetic=(-i inventory -i tests/synthetic-inventory.yml --limit synthetic --extra-vars "@$TMPDIR/host-artifact-vars.json")
 ansible-playbook "${synthetic[@]}" site.yml --syntax-check
 reset_home
 ansible-playbook "${synthetic[@]}" site.yml --check --diff
@@ -64,6 +77,6 @@ if ! grep -Eq '^synthetic +: ok=[0-9]+ +changed=0 ' .ci-home/second-run.log; the
 	exit 1
 fi
 
-ansible-playbook -i localhost, tests/user_timer.yml
+ansible-playbook -i localhost, tests/user_timer.yml --extra-vars "@$TMPDIR/host-artifact-vars.json"
 ansible-playbook -i localhost, tests/data_disk.yml
 ansible-playbook -i localhost, tests/job_client.yml

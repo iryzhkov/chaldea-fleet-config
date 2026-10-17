@@ -39,15 +39,25 @@ issuer and needs its own key, clock and trust state before minting. agent-b,
 laptop, normandy and public-api/public-api-b have no action in this slice.
 Later enrollment needs an explicit host list. No broad fleet apply.
 
-1. Freeze reviewed application/fleet commits and successful CI. Separately install
-   immutable chaldea artifact under root-owned /opt/chaldea/app and pinned Node
-   26.10.0 at /opt/chaldea/node/bin/node on homelab and omarchy-pc (later agent-a).
-   Build production dependencies from the lockfile on a job host (npm ci --omit=dev
-   --ignore-scripts), include them in the immutable artifact, and install the full
-   tree root-owned without group/other write. A source-only tree lacks jose.
-   The node and maintenance.ts paths and all ancestors must be real, root-owned,
-   non-writable-by-others paths; the updater and clock ExecStartPre check this at
-   every start. ProtectHome requires runtime outside /home.
+1. Freeze reviewed Chaldea/fleet commits and successful CI. Install the public
+   host release through chaldea_host_artifact using the inventory version and
+   SHA-256; see [host installation](host-artifact.md). The bundled maintenance
+   entry point is /opt/chaldea-host/releases/VERSION/host/access-maintenance.mjs.
+   It includes production dependencies; do not separately stage a source tree or
+   run npm on the deployment host. Separately install pinned Node 26.10.0 at
+   /opt/chaldea/node/bin/node on homelab and omarchy-pc (later agent-a).
+   The node, bundled runtime and ancestors must be real, root-owned paths without
+   group/other write; updater and clock ExecStartPre check this on every start.
+   ProtectHome requires runtime outside /home. Use the rendered role values:
+
+       CHALDEA_HOST_VERSION=<inventory-chaldea_host_version>
+       CHALDEA_ACCESS_NODE=/opt/chaldea/node/bin/node
+       CHALDEA_ACCESS_RUNTIME=/opt/chaldea-host/releases/$CHALDEA_HOST_VERSION/host/access-maintenance.mjs
+
+   CHALDEA_ACCESS_NODE must equal the reviewed chaldea_access_trust_node setting.
+   Bundle, clock-health, updater and verifier state paths below come from the
+   single inventory chaldea_access_paths mapping; override examples with its
+   rendered values if an approved configuration changes them.
    Provision git, openssh-client, python3 and chrony on these approved hosts.
    omarchy-pc currently uses timesyncd; this requires an explicitly approved time
    service migration and healthy chrony before signing. No such migration occurs
@@ -92,10 +102,10 @@ Later enrollment needs an explicit host list. No broad fleet apply.
    resource/actions from its reviewed registry. Never guess broad grants.
 5. On omarchy-pc, create private publisher state directory 0700. Initialize once:
 
-       chaldea access initialize-state --state-file <publisher-state-dir>/publisher.sqlite
+       "$CHALDEA_ACCESS_NODE" "$CHALDEA_ACCESS_RUNTIME" initialize-state --state-file <publisher-state-dir>/publisher.sqlite
        sudo install -d -o root -g root -m 0755 /run/chaldea-access-trust
-       sudo /opt/chaldea/node/bin/node /opt/chaldea/app/src/access/maintenance.ts clock-health --output /run/chaldea-access-trust/clock-health.json
-       chaldea access sign-bundle --state-file <publisher-state-dir>/publisher.sqlite --clock-health-file /run/chaldea-access-trust/clock-health.json --key-file <deployment-private-path> --kid deployment-2026-10 --grants-file <fleet-checkout>/access-trust/issuer-grants.json --sequence <increasing-N> --output <private-publisher-dir>/bundle.jws
+       sudo "$CHALDEA_ACCESS_NODE" "$CHALDEA_ACCESS_RUNTIME" clock-health --output /run/chaldea-access-trust/clock-health.json
+       "$CHALDEA_ACCESS_NODE" "$CHALDEA_ACCESS_RUNTIME" sign-bundle --state-file <publisher-state-dir>/publisher.sqlite --clock-health-file /run/chaldea-access-trust/clock-health.json --key-file <deployment-private-path> --kid deployment-2026-10 --grants-file <fleet-checkout>/access-trust/issuer-grants.json --sequence <increasing-N> --output <private-publisher-dir>/bundle.jws
 
    Commit/review/push only the signed output as access-trust/bundle.jws with
    reviewed public grants. Retain the same durable publisher state and use
@@ -116,7 +126,7 @@ Later enrollment needs an explicit host list. No broad fleet apply.
    Never use unverified ssh-keyscan output or the operator's private key.
    Create /var/lib/chaldea-access-trust root:root 0700 and initialize once as root:
 
-       /opt/chaldea/node/bin/node /opt/chaldea/app/src/access/maintenance.ts initialize-state --state-file /var/lib/chaldea-access-trust/updater.sqlite
+       sudo "$CHALDEA_ACCESS_NODE" "$CHALDEA_ACCESS_RUNTIME" initialize-state --state-file /var/lib/chaldea-access-trust/updater.sqlite
 
    Initialization is exclusive. Convergence never creates/resets the DB.
    Preserve state through backup/reinstall; missing/corrupt state parks access.
@@ -137,8 +147,10 @@ Later enrollment needs an explicit host list. No broad fleet apply.
    Directories root:root 0755, files root:root 0644. If mount isolation is used,
    bind the **directories** read-only so atomic replacements stay visible.
    Config anchors must match the independently pinned keys.
-   Initialize Akasha's separate access_state once as its service UID with
-   initialize-state, in a service-owned 0700 directory, DB 0600.
+   Initialize Akasha's separate access_state once as its service UID with the
+   same bundled initialize-state command and chaldea_access_paths.verifier_state
+   (/var/lib/akasha/access-state.db). Its parent is service-owned 0700 and the DB
+   is 0600; the path is inside the unit's ReadWritePaths=/var/lib/akasha.
    Never share the root updater SQLite or restore older high-water state.
    Start Akasha only after current trust and health exist. Requests check
    clock/expiry immediately; Akasha reloads the public file every 120s.

@@ -1,4 +1,9 @@
 ---
+- name: Install the pinned host runtime artifact
+  ansible.builtin.include_role:
+    name: chaldea_host_artifact
+    public: true
+
 - name: Validate explicit trust enrollment
   ansible.builtin.assert:
     that:
@@ -10,6 +15,9 @@
       - chaldea_access_trust_state is match('^/[A-Za-z0-9/_.-]+$')
       - chaldea_access_trust_public is match('^/[A-Za-z0-9/_.-]+$')
       - chaldea_access_trust_run == '/run/chaldea-access-trust'
+      - chaldea_access_paths.updater_state == chaldea_access_trust_state ~ '/updater.sqlite'
+      - chaldea_access_paths.bundle == chaldea_access_trust_public ~ '/bundle.jws'
+      - chaldea_access_paths.clock_health == chaldea_access_trust_run ~ '/clock-health.json'
     quiet: true
 
 - name: Validate each independently provisioned public anchor
@@ -49,11 +57,13 @@
 - name: Install byte-only Git downloader
   become: true
   ansible.builtin.copy:
-    src: fetch.py
+    src: "{{ chaldea_host_artifact_root }}/chaldea-access-trust-fetch"
+    remote_src: true
     dest: "{{ chaldea_access_trust_fetcher }}"
     owner: root
     group: root
     mode: "0755"
+  when: chaldea_host_artifact_ready | bool
 
 - name: Install updater configuration
   become: true
@@ -88,7 +98,7 @@
   loop:
     - {path: "{{ chaldea_access_trust_ssh_key }}", mode: "0600"}
     - {path: "{{ chaldea_access_trust_known_hosts }}", mode: "0644"}
-    - {path: "{{ chaldea_access_trust_state }}/updater.sqlite", mode: "0600"}
+    - {path: "{{ chaldea_access_paths.updater_state }}", mode: "0600"}
   register: chaldea_access_trust_bootstrap
 
 - name: Require safe bootstrap before enabling timers

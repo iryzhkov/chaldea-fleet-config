@@ -1,6 +1,11 @@
-The role installs one host collector timer, disabled by default. The existing legacy wrapper remains installed until akasha_collector_enabled is explicitly set. That switch installs the enqueue-only wrapper and enables its collector; a missing or failing helper in that mode never switches back to legacy credentials. Merge alone preserves existing alert delivery. Deployment must
-supply the pinned Node executable, the Chaldea source tree containing
-src/events/collector.ts, HTTPS ingress, and an absolute token-helper executable.
+The role installs one host collector timer, disabled by default. The shared pinned
+host artifact supplies `akasha-collector.mjs` and one timer reporter.
+`akasha_collector_enabled` selects `queue` delivery in
+`~/.config/chaldea/timer-reporting.json` and enables the collector; the default is
+`feed`. A missing or failing helper in queue mode leaves events queued.
+Deployment must supply the pinned Node executable, HTTPS ingress, and an absolute
+token-helper executable. The artifact's bundled collector needs Node with SQLite;
+it does not need a Chaldea source checkout or installed npm dependencies.
 The helper receives --audience akasha --action append --source SOURCE --host HOST
 --kind KIND, writes only a compact JWT to stdout, and must grant a service
 principal with stable issuer/profile/project/source/host across fresh leases.

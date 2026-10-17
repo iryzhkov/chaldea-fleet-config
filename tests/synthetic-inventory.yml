@@ -11,6 +11,7 @@ all:
     agent_hosts:
       hosts:
         synthetic:
+          agent_config_huyang_plugin_url: "{{ 'file://' ~ lookup('ansible.builtin.env', 'HUYANG_PLUGIN_SOURCE') }}"
           fleet_home: "{{ playbook_dir }}/.ci-home"
           expected_hostname: "{{ ansible_facts.hostname }}"
           # The scratch data directory is not a mount point.

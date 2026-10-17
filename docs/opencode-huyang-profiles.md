@@ -11,10 +11,14 @@ is not evidence of runtime acceptance.
 ## Ownership and installation
 
 Omarchy owns `config/opencode/plugins/huyang-profiles.js` and
-`test/opencode-huyang.test.mjs`. Fleet carries byte-identical reviewed copies at
-`roles/agent_config/files/opencode/huyang-profiles.js` and
-`tests/opencode-huyang.test.mjs`. Update both sources together; never capture
-an installed plugin back into either repository.
+`test/opencode-huyang.test.mjs`. Fleet downloads the plugin from the public
+source at the exact commit and SHA-256 pinned in `inventory/group_vars/all.yml`.
+Commit `ebec80bca66d684d6fe47c5c57c7cf212b6558b2` was fetched with the
+GitHub API and compared byte-for-byte with the previous fleet copy
+(SHA-256 `e46883992727741758115492030f75bb26dbea14dccd3a4b4c3459cc5547f6c4`).
+Fleet retains `tests/opencode-huyang.test.mjs` and runs it against those downloaded
+bytes. Update the pin and contract tests together; never capture an installed plugin
+back into either repository.
 
 Only fleet's `agent_config` role installs this artifact, through
 `tasks/opencode-huyang.yml`, at the exact path
