@@ -39,9 +39,22 @@
   loop:
     - "{{ fleet_home }}/.ssh"
     - "{{ fleet_home }}/.local/state/chaldea/exec/ssh"
+    - "{{ fleet_home }}/.config/chaldea"
 
 - name: Install the isolated compute SSH config without importing user config
   ansible.builtin.template:
     src: chaldea-job.conf.j2
     dest: "{{ fleet_home }}/.ssh/chaldea-job.conf"
+    mode: "0600"
+
+# chaldea exec without --host tries these in order. A host never lists itself:
+# the names are inventory names, which the client cannot derive from its own
+# hostname.
+- name: Install the ordered fallback list of job hosts
+  ansible.builtin.copy:
+    content: |
+      {% for target in chaldea_job_client_targets if target.name != inventory_hostname %}
+      {{ target.name }}
+      {% endfor %}
+    dest: "{{ fleet_home }}/.config/chaldea/exec-hosts"
     mode: "0600"

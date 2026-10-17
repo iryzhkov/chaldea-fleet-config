@@ -9,6 +9,8 @@ Host *
     IdentityAgent none
     IdentitiesOnly yes
     BatchMode yes
+    # A powered-off host must not delay fallback to the next one.
+    ConnectTimeout 10
     PreferredAuthentications publickey
     PasswordAuthentication no
     KbdInteractiveAuthentication no
