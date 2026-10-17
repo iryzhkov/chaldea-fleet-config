@@ -176,7 +176,11 @@ def test_ufw_tasks_and_handlers_are_skipped_in_nft_mode_and_selector_is_not_over
     assert handlers[0]["name"] == "Reload job nft firewall"  # before sshd restart
     check = next(task for task in main if "nft table before starting" in task["name"])
     assert check["ansible.builtin.command"]["argv"] == ["/usr/bin/nft", "list", "table", "inet", "chaldea_job"]
-    assert main.index(check) < next(i for i,t in enumerate(main) if t["name"] == "Start the restricted job SSH daemon")
+    start = next(t for t in main if t["name"] == "Start the restricted job SSH daemon")
+    assert main.index(check) < main.index(start)
+    assert not enabled(start, ansible_check_mode=True)
+    restart = next(t for t in handlers if t["name"] == "Restart job sshd")
+    assert not enabled(restart, ansible_check_mode=True)
     inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
     assert inventory["all"]["children"]["agent_hosts"]["hosts"]["agent-a"]["chaldea_job_host_firewall"] == "nft"
 
