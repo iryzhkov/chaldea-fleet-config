@@ -16,6 +16,24 @@ def test_inventory_disabled_and_units_use_isolated_state():
     inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
     assert defaults["chaldea_access_trust_enabled"] is False
     assert inventory["chaldea_access_trust_enabled"] is False
+    assert inventory["chaldea_access_trust_repository"] == "ssh://git@github.com/iryzhkov/chaldea-trust.git"
+    assert inventory["chaldea_access_trust_bundle_path"] == "bundle.jws"
+    assert not (ROOT / "access-trust/bundle.jws").exists()
+    fetch_copy = next(t["ansible.builtin.copy"] for t in yaml.safe_load(
+        (ROLE / "tasks/main.yml").read_text()) if t["name"] == "Install byte-only Git downloader")
+    assert fetch_copy["src"] == "chaldea-access-trust-fetch"
+    assert "remote_src" not in fetch_copy
+    env = Environment(undefined=StrictUndefined)
+    env.filters["to_nice_json"] = json.dumps
+    config_vars = inventory | defaults | {
+        "chaldea_access_trust_state": "/scratch/state",
+        "chaldea_access_trust_root": "/scratch/config",
+        "chaldea_access_trust_runtime": "/scratch/runtime",
+        "chaldea_access_trust_ssh_key": "/scratch/read-key",
+        "chaldea_access_trust_known_hosts": "/scratch/known_hosts"}
+    updater_config = json.loads(env.from_string((ROLE / "templates/updater.json.j2").read_text()).render(config_vars))
+    assert updater_config["repository"] == inventory["chaldea_access_trust_repository"]
+    assert updater_config["bundle_path"] == "bundle.jws"
     # A source placeholder cannot become a valid public pin by accident.
     assert inventory["chaldea_deployment_anchor_kid"] == "deployment-2026-10b"
     key = inventory["chaldea_deployment_anchor_public_jwk"]

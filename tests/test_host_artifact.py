@@ -174,7 +174,12 @@ def test_actual_program_copy_tasks_install_and_dry_diff_in_scratch(tmp_path):
             source = spec["src"].split("/")[-1]
             dest, mode = expected[source]
             assert spec["dest"] == dest and spec["mode"] == mode
-            assert spec["remote_src"] is True
+            if source == "chaldea-access-trust-fetch":
+                assert "remote_src" not in spec
+                assert spec["src"] == source
+                spec["src"] = str(ROOT / "roles/chaldea_access_trust/files" / source)
+            else:
+                assert spec["remote_src"] is True
             assert spec["owner"] in ("root", "{{ chaldea_host_artifact_owner }}")
             assert spec["group"] in ("root", "{{ chaldea_host_artifact_group }}")
             if dest.startswith("/"):
@@ -215,7 +220,9 @@ def test_actual_program_copy_tasks_install_and_dry_diff_in_scratch(tmp_path):
             target = Path(pins["retention_script"])
         else:
             target = Path(dest.replace("{{ fleet_home }}", str(home)))
-        assert target.read_bytes() == (artifact / source).read_bytes()
+        expected_source = (ROOT / "roles/chaldea_access_trust/files" / source
+                           if source == "chaldea-access-trust-fetch" else artifact / source)
+        assert target.read_bytes() == expected_source.read_bytes()
         assert target.stat().st_mode & 0o777 == int(mode, 8)
         assert target.stat().st_uid == os.getuid()
         targets[source] = target
@@ -249,7 +256,10 @@ def test_actual_program_copy_tasks_install_and_dry_diff_in_scratch(tmp_path):
                 "source": source, "production_destination": dest,
                 "mode": mode, "production_owner": "root", "production_group": "root",
                 "effective_test_uid": os.getuid(), "effective_test_gid": os.getgid(),
-                "artifact_file_sha256": hashlib.sha256((artifact / source).read_bytes()).hexdigest(),
+                "source_kind": "role" if source == "chaldea-access-trust-fetch" else "artifact",
+                "source_file_sha256": hashlib.sha256((
+                    ROOT / "roles/chaldea_access_trust/files" / source
+                    if source == "chaldea-access-trust-fetch" else artifact / source).read_bytes()).hexdigest(),
                 "installed_bytes_matched": True,
             } for source, (dest, mode) in expected.items()],
         }, indent=2))
