@@ -40,19 +40,59 @@
   loop_control:
     label: "{{ item.item.unit }} credential {{ item.item.path }}"
 
+- name: Inspect current release link
+  ansible.builtin.stat:
+    path: "{{ chaldea_client_root }}/current"
+    follow: false
+  register: chaldea_client_old_current
+
+- name: Refuse to overwrite a non-link current path
+  ansible.builtin.assert:
+    that:
+      - not chaldea_client_old_current.stat.exists or chaldea_client_old_current.stat.islnk
+      - not chaldea_client_old_current.stat.exists or chaldea_client_old_current.stat.lnk_target | dirname == chaldea_client_root ~ '/releases'
+    fail_msg: Inspect the unexpected current path before migrating.
+    quiet: true
+
+- name: Inspect the legacy checkout
+  ansible.builtin.stat:
+    path: "{{ chaldea_client_root }}/app/.git"
+    follow: false
+  register: chaldea_client_legacy
+
+- name: Inspect the legacy backup destination
+  ansible.builtin.stat:
+    path: "{{ chaldea_client_root }}/app.pre-fleet"
+    follow: false
+  register: chaldea_client_legacy_backup
+
+- name: Refuse to overwrite an earlier legacy backup
+  ansible.builtin.assert:
+    that:
+      - not chaldea_client_legacy.stat.exists or not chaldea_client_legacy_backup.stat.exists
+    fail_msg: Both app and app.pre-fleet exist; inspect them before completing migration.
+    quiet: true
+
 - name: Create client directories without touching other config or state
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: u+rwx
+  loop:
+    - "{{ chaldea_client_root }}"
+    - "{{ fleet_home }}/.config/systemd/user"
+    - "{{ fleet_home }}/.local/state/chaldea"
+    - "{{ fleet_home }}/.local/bin"
+
+- name: Create private client-owned directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     mode: "0700"
   loop:
-    - "{{ chaldea_client_root }}"
     - "{{ chaldea_client_root }}/releases"
     - "{{ chaldea_client_cache }}"
     - "{{ fleet_home }}/.config/chaldea"
-    - "{{ fleet_home }}/.config/systemd/user"
-    - "{{ fleet_home }}/.local/state/chaldea"
-    - "{{ fleet_home }}/.local/bin"
 
 - name: Fetch pinned client archive
   ansible.builtin.get_url:
@@ -103,6 +143,35 @@
     msg: Client archive is not cached; apply will verify it before activating the client.
   when: ansible_check_mode and not chaldea_client_cached.stat.exists
 
+- name: Predict configuration changes before writing unit or config files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ fleet_home }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  check_mode: true
+  diff: false
+  loop:
+    - {src: chaldea-quota.service.j2, dest: .config/systemd/user/chaldea-quota.service, mode: "0644", enabled: true}
+    - {src: chaldea-waits.service.j2, dest: .config/systemd/user/chaldea-waits.service, mode: "0644", enabled: true}
+    - {src: waits.json.j2, dest: .config/chaldea/waits.json, mode: "0600", enabled: "{{ chaldea_client_waits_enabled }}"}
+    - {src: quota.json.j2, dest: .config/chaldea/quota.json, mode: "0600", enabled: "{{ chaldea_client_codex_home | length > 0 }}"}
+  when: item.enabled | bool
+  register: chaldea_client_predicted
+
+- name: Persist restart intent before changing definitions or release links
+  ansible.builtin.copy:
+    content: "Restart both enabled services after loading managed definitions.\n"
+    dest: "{{ chaldea_client_cache }}/restart-required"
+    mode: "0600"
+  when: >-
+    chaldea_client_predicted.changed or chaldea_client_legacy.stat.exists or
+    chaldea_client_old_current.stat.lnk_target | default('') != chaldea_client_root ~ '/releases/' ~ chaldea_client_version
+
+- name: Inspect durable restart intent from this or an interrupted run
+  ansible.builtin.stat:
+    path: "{{ chaldea_client_cache }}/restart-required"
+  register: chaldea_client_restart
+
 - name: Render waits configuration with a backup for migration
   ansible.builtin.template:
     src: waits.json.j2
@@ -130,28 +199,14 @@
   loop: [chaldea-quota, chaldea-waits]
   register: chaldea_client_units
 
-- name: Inspect current release link
-  ansible.builtin.stat:
-    path: "{{ chaldea_client_root }}/current"
-    follow: false
-  register: chaldea_client_old_current
-
-- name: Refuse to overwrite a non-link current path
-  ansible.builtin.assert:
-    that:
-      - not chaldea_client_old_current.stat.exists or chaldea_client_old_current.stat.islnk
-      - not chaldea_client_old_current.stat.exists or chaldea_client_old_current.stat.lnk_source | dirname == chaldea_client_root ~ '/releases'
-    fail_msg: Inspect the unexpected current path before migrating.
-    quiet: true
-
 - name: Retain the previously active release
   ansible.builtin.file:
-    src: "{{ chaldea_client_old_current.stat.lnk_source }}"
+    src: "{{ chaldea_client_old_current.stat.lnk_target }}"
     dest: "{{ chaldea_client_root }}/previous"
     state: link
   when:
     - chaldea_client_old_current.stat.exists
-    - chaldea_client_old_current.stat.lnk_source != chaldea_client_root ~ '/releases/' ~ chaldea_client_version
+    - chaldea_client_old_current.stat.lnk_target != chaldea_client_root ~ '/releases/' ~ chaldea_client_version
 
 - name: Activate the verified client after configuration and units are in place
   ansible.builtin.file:
@@ -172,32 +227,48 @@
     name: "{{ item.name }}.service"
     scope: user
     enabled: "{{ item.enabled }}"
-    daemon_reload: "{{ chaldea_client_units.changed }}"
-    state: "{{ ('restarted' if (chaldea_client_current.changed or chaldea_client_units.changed or
+    daemon_reload: true
+    state: "{{ ('restarted' if (chaldea_client_restart.stat.exists or chaldea_client_current.changed or chaldea_client_units.changed or
               chaldea_client_waits_config.changed or chaldea_client_quota_config.changed) else 'started') if item.enabled else 'stopped' }}"
   loop:
     - {name: chaldea-quota, enabled: "{{ chaldea_client_quota_enabled }}"}
     - {name: chaldea-waits, enabled: "{{ chaldea_client_waits_enabled }}"}
   when: not ansible_check_mode
 
-- name: Inspect the legacy checkout
-  ansible.builtin.stat:
-    path: "{{ chaldea_client_root }}/app/.git"
-    follow: false
-  register: chaldea_client_legacy
+- name: Verify active managed definitions after unit convergence
+  ansible.builtin.systemd_service:
+    name: "{{ item.name }}.service"
+    scope: user
+  loop:
+    - {name: chaldea-quota, enabled: "{{ chaldea_client_quota_enabled }}"}
+    - {name: chaldea-waits, enabled: "{{ chaldea_client_waits_enabled }}"}
+  register: chaldea_client_loaded
+  when: not ansible_check_mode
 
-- name: Inspect the legacy backup destination
-  ansible.builtin.stat:
-    path: "{{ chaldea_client_root }}/app.pre-fleet"
-    follow: false
-  register: chaldea_client_legacy_backup
-
-- name: Refuse to overwrite an earlier legacy backup
+- name: Require enabled services to be active with managed definitions loaded
   ansible.builtin.assert:
     that:
-      - not chaldea_client_legacy.stat.exists or not chaldea_client_legacy_backup.stat.exists
-    fail_msg: Both app and app.pre-fleet exist; inspect them before completing migration.
+      - item.status.ActiveState == 'active'
+      - "'/.local/share/chaldea/current/bin/chaldea' in item.status.ExecStart"
+    fail_msg: Managed service is not active with the current client definition; preserving legacy checkout and restart intent.
     quiet: true
+  loop: "{{ chaldea_client_loaded.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: not ansible_check_mode and item.item.enabled | bool
+
+- name: Clear restart intent only after successful service verification
+  ansible.builtin.file:
+    path: "{{ chaldea_client_cache }}/restart-required"
+    state: absent
+  when: not ansible_check_mode
+
+- name: Update only the Chaldea MCP registration before retiring the old checkout
+  ansible.builtin.include_role:
+    name: mcp_registrations
+    tasks_from: chaldea
+  vars:
+    mcp_registrations_chaldea_waits_enabled: "{{ chaldea_client_waits_enabled }}"
 
 - name: Preserve the legacy checkout after successful unit convergence
   ansible.builtin.command:
@@ -232,4 +303,25 @@
   when:
     - not ansible_check_mode
     - item.path != chaldea_client_root ~ '/releases/' ~ chaldea_client_version
-    - item.path != chaldea_client_previous.stat.lnk_source | default('')
+    - item.path != chaldea_client_previous.stat.lnk_target | default('')
+
+- name: Find managed client cache archives and manifests
+  ansible.builtin.find:
+    paths: "{{ chaldea_client_cache }}"
+    file_type: file
+    recurse: false
+    use_regex: true
+    patterns: ['^client-v[0-9]+[.][0-9]+[.][0-9]+[.](tar[.]gz|json)$']
+  register: chaldea_client_cached_releases
+
+- name: Remove caches for releases older than current and previous
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ chaldea_client_cached_releases.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when:
+    - not ansible_check_mode
+    - (item.path | basename | regex_replace('[.](tar[.]gz|json)$', '')) != chaldea_client_version
+    - (item.path | basename | regex_replace('[.](tar[.]gz|json)$', '')) != (chaldea_client_previous.stat.lnk_target | default('') | basename)

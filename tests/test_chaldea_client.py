@@ -46,6 +46,7 @@ def fixture(base, monkeypatch, version="client-v9.0.0"):
                                       "calls": []}))
     monkeypatch.setenv("PATH", str(ROOT / "tests/fake-bin") + ":" + os.environ["PATH"])
     monkeypatch.setenv("FAKE_SYSTEMCTL_STATE", str(manager))
+    monkeypatch.setenv("FAKE_SYSTEMCTL_UNIT_HOME", str(home))
     return {"fleet_home": str(home), "ansible_facts": {"user_uid": os.getuid()},
             "ansible_python_interpreter": sys.executable,
             "chaldea_node_version": "26.10.0", "chaldea_client_enabled": True,
@@ -53,7 +54,8 @@ def fixture(base, monkeypatch, version="client-v9.0.0"):
             "chaldea_client_archive_source": str(archive), "chaldea_client_manifest_source": str(manifest),
             "chaldea_client_waits_socket": str(home / ".cache/chaldea-waits.sock"),
             "chaldea_client_waits_environment": "fixture-environment",
-            "chaldea_client_codex_home": str(home / ".codex")}
+            "chaldea_client_codex_home": str(home / ".codex"),
+            "mcp_registrations_claude": [str(ROOT / "tests/fake-claude"), str(home / "claude-mcp.json")]}
 
 
 def run(base, variables, check=False):
@@ -154,13 +156,23 @@ def test_secret_refusal_precedes_writes_and_unit_calls(tmp_path, monkeypatch, fa
     assert not json.loads((tmp_path / "systemctl.json").read_text())["calls"]
 
 
-def test_disabled_units_need_no_secrets_and_upgrade_retains_one_previous(tmp_path, monkeypatch):
+@pytest.mark.parametrize("linked_parent", [False, True])
+def test_disabled_units_need_no_secrets_and_upgrade_retains_one_previous(tmp_path, monkeypatch, linked_parent):
+    if linked_parent:
+        safe(tmp_path)
+        home = Path.home()
+        (home / "share-data").mkdir()
+        (home / ".local").mkdir()
+        (home / ".local/share").symlink_to(home / "share-data", target_is_directory=True)
     for version in ("client-v9.0.0", "client-v9.0.1", "client-v9.0.2"):
         variables = fixture(tmp_path, monkeypatch, version)
         success(run(tmp_path, variables))
     root = Path.home() / ".local/share/chaldea"
     assert sorted(p.name for p in (root / "releases").iterdir()) == ["client-v9.0.1", "client-v9.0.2"]
     assert (root / "previous").resolve() == root / "releases/client-v9.0.1"
+    cache = Path.home() / ".cache/chaldea-client"
+    assert sorted(p.name for p in cache.iterdir()) == [
+        "client-v9.0.1.json", "client-v9.0.1.tar.gz", "client-v9.0.2.json", "client-v9.0.2.tar.gz"]
     assert not (Path.home() / ".config/chaldea/t3-token").exists()
     manager = json.loads((tmp_path / "systemctl.json").read_text())
     assert all(not u["enabled"] and not u["active"] for u in manager["units"].values())
@@ -200,6 +212,53 @@ def test_release_refusals_leave_current_and_legacy_untouched(tmp_path, monkeypat
     assert not (app.parent / "current").exists()
     assert app.exists()
     assert not json.loads((tmp_path / "systemctl.json").read_text())["calls"]
+
+
+def test_interrupted_unit_reload_retries_before_retiring_checkout(tmp_path, monkeypatch):
+    variables = fixture(tmp_path, monkeypatch)
+    variables |= {"chaldea_client_quota_enabled": True, "chaldea_client_waits_enabled": True}
+    provision()
+    home = Path.home()
+    app = home / ".local/share/chaldea/app"
+    (app / ".git").mkdir(parents=True)
+    failure = home / "fail-once"
+    failure.touch()
+    monkeypatch.setenv("FAKE_SYSTEMCTL_FAIL_ONCE", str(failure))
+    first = run(tmp_path, variables)
+    assert first.returncode != 0
+    assert app.exists()
+    marker = home / ".cache/chaldea-client/restart-required"
+    assert marker.exists()
+    assert "/current/bin/chaldea" in (home / ".config/systemd/user/chaldea-waits.service").read_text()
+    result = run(tmp_path, variables)
+    success(result)
+    assert not marker.exists()
+    assert not app.exists()
+    assert (app.parent / "app.pre-fleet/.git").exists()
+    calls = json.loads((tmp_path / "systemctl.json").read_text())["calls"]
+    assert sum(call[0] == "daemon-reload" for call in calls) >= 3
+    assert ["restart", "chaldea-quota.service"] in calls
+    assert ["restart", "chaldea-waits.service"] in calls
+    for config in (home / ".codex/config.toml", home / "claude-mcp.json"):
+        assert "/current/bin/chaldea" in config.read_text()
+    repeated = run(tmp_path, variables)
+    success(repeated)
+    assert "changed=0" in repeated.stdout, repeated.stdout
+
+
+def test_unexpected_current_refuses_before_replacing_units(tmp_path, monkeypatch):
+    variables = fixture(tmp_path, monkeypatch)
+    home = Path.home()
+    current = home / ".local/share/chaldea/current"
+    current.mkdir(parents=True)
+    units = home / ".config/systemd/user"
+    units.mkdir(parents=True)
+    old = units / "chaldea-quota.service"
+    old.write_text("hand-made unit")
+    result = run(tmp_path, variables)
+    assert result.returncode != 0
+    assert old.read_text() == "hand-made unit"
+    assert not (home / ".cache/chaldea-client").exists()
 
 
 def test_fresh_check_does_not_write_or_call_user_manager(tmp_path, monkeypatch):
