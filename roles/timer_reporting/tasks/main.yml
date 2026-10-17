@@ -15,7 +15,7 @@
 
 - name: Install the timer outcome wrapper
   ansible.builtin.copy:
-    src: chaldea-timer-report
+    src: "{{ (role_path ~ '/../akasha_collector/files/chaldea-timer-report') if akasha_collector_enabled | default(false) | bool else 'chaldea-timer-report' }}"
     dest: "{{ fleet_home }}/.local/bin/chaldea-timer-report"
     mode: "0755"
 

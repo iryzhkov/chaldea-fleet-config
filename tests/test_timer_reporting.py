@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "roles/timer_reporting/files/chaldea-timer-report"
+SCRIPT = ROOT / "roles/akasha_collector/files/chaldea-timer-report"
 CALLBACK = ROOT / "roles/timer_reporting/files/chaldea_outcome.py"
 
 
@@ -58,7 +58,7 @@ def run_job(home, status=0, changed=0):
 
 
 @pytest.mark.parametrize("changed,status", [(0, 0), (3, 0), (0, 2)])
-def test_each_run_has_one_safe_record_and_no_credential_never_calls_feed(home, changed, status):
+def test_each_queued_run_has_one_safe_record_and_never_calls_feed(home, changed, status):
     result = run_job(home, status, changed)
     assert result.returncode == status
     data = records(home)

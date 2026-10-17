@@ -21,7 +21,7 @@ def test_collector_is_disabled_and_uses_one_locked_scoped_service():
 def test_timer_reporting_includes_collector_and_has_no_network_delivery():
     tasks = yaml.safe_load((ROOT / "roles/timer_reporting/tasks/main.yml").read_text())
     assert tasks[0]["ansible.builtin.include_role"]["name"] == "akasha_collector"
-    script = (ROOT / "roles/timer_reporting/files/chaldea-timer-report").read_text()
-    enqueue = script[script.index("def feed_delivery"):script.index("def record_outcome")]
+    script = (ROOT / "roles/akasha_collector/files/chaldea-timer-report").read_text()
+    enqueue = script[script.index("def queue_delivery"):script.index("def record_outcome")]
     assert "subprocess." not in enqueue
     assert "8 * 1024 * 1024" in enqueue and "dropped" in enqueue

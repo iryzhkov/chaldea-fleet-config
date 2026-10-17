@@ -6,6 +6,7 @@ import fcntl
 import json
 import os
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -16,6 +17,7 @@ from pathlib import Path
 JOBS = ("chaldea-fleet-pull", "chaldea-retention")
 MAX_RECORDS = 50
 MAX_BYTES = 131072
+FEED_TIMEOUT = 8
 STATE = Path.home() / ".local/state/chaldea"
 
 
@@ -33,14 +35,7 @@ def write_json(path, data):
     with open(temporary, "w", opener=lambda p, flags: os.open(p, flags, 0o600)) as stream:
         json.dump(data, stream, separators=(",", ":"))
         stream.write("\n")
-        stream.flush()
-        os.fsync(stream.fileno())
     temporary.replace(path)
-    directory = os.open(path.parent, os.O_RDONLY)
-    try:
-        os.fsync(directory)
-    finally:
-        os.close(directory)
 
 
 def run_path(job):
@@ -77,37 +72,37 @@ def release_names(checkout=None):
 
 
 def feed_delivery(record):
-    """A bounded local enqueue only; network delivery belongs to the collector."""
     if record["severity"] == "info" and record["changed"] == 0:
         return "quiet"
-    spool = STATE / "timer-spool"
-    spool.mkdir(parents=True, exist_ok=True, mode=0o700)
-    path = spool / (record["job"] + "." + record["invocation"] + ".jsonl")
-    if path.exists():
-        return "queued"
-    # Eight MiB of immutable local inputs; status, database and rollback journal
-    # have separate budgets keeping all new host state below 64 MiB.
-    data = {k: record[k] for k in ("job", "invocation", "host", "timestamp", "outcome")}
-    encoded = (json.dumps(data, separators=(",", ":")) + "\n").encode()
-    used = sum(p.stat().st_size for p in spool.iterdir() if p.is_file())
-    count_path = STATE / "timer-spool-count.json"
-    counts = read_json(count_path, {})
-    if used + len(encoded) > 8 * 1024 * 1024 or sum(1 for _ in spool.iterdir()) >= 10000:
-        counts["dropped"] = min(int(counts.get("dropped", 0)) + 1, 2**53 - 1)
-        write_json(count_path, counts)
-        return "queue-full"
-    temporary = path.with_suffix(".new")
-    with open(temporary, "wb", opener=lambda p, flags: os.open(p, flags, 0o600)) as stream:
-        stream.write(encoded)
-        stream.flush()
-        os.fsync(stream.fileno())
-    temporary.replace(path)
-    directory = os.open(spool, os.O_RDONLY)
+    config = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+    key = Path(os.environ.get("FEED_KEY_FILE", str(config / "feed/key")))
+    if not os.environ.get("FEED_TOKEN") and not (key.is_file() and os.access(key, os.R_OK) and key.stat().st_size):
+        return "no-credential"
+    source = "chaldea-fleet" if record["job"] == "chaldea-fleet-pull" else "chaldea-retention"
+    title = f'{record["host"]}: {record["job"]} {record["outcome"]}; changed={record["changed"]}'
+    if record.get("task"):
+        title += "; task=" + record["task"]
+    if record.get("reason"):
+        title += "; " + record["reason"]
+    if record["releases"]:
+        title += "; releases=" + ",".join(record["releases"])
+        if record.get("releases_omitted"):
+            title += f' (+{record["releases_omitted"]} more)'
+    # Neither feed output nor raw child output is copied to the journal/status.
+    # A separate session lets the timeout kill curl and other descendants too.
+    process = None
     try:
-        os.fsync(directory)
-    finally:
-        os.close(directory)
-    return "queued"
+        process = subprocess.Popen(["feed", "post", title, "--source", source,
+                                    "--host", record["host"], "--severity", record["severity"]],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   start_new_session=True)
+        return "posted" if process.wait(timeout=FEED_TIMEOUT) == 0 else "feed-failed"
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+        return "feed-timeout"
+    except OSError:
+        return "feed-unavailable"
 
 
 def record_outcome(job, invocation, status, fallback_reason="", checkout=None):
@@ -145,14 +140,14 @@ def record_outcome(job, invocation, status, fallback_reason="", checkout=None):
         record["task"] = str(record["task"])[:160]
         record["reason"] = str(record["reason"])[:160]
         records = records[-(MAX_RECORDS - 1):] + [record]
-        # Make the immutable input durable before the status claim. A crash
-        # retries the same job/invocation key, never a fresh network operation.
-        record["delivery"] = feed_delivery(record)
+        # Claim before external delivery: OnFailure never retries an ambiguous
+        # POST (the server might have accepted it before a timeout/crash).
         while len(json.dumps(records).encode()) > MAX_BYTES and len(records) > 1:
             records.pop(0)
         write_json(path, records)
         print(json.dumps(record, separators=(",", ":")), flush=True)
-
+        record["delivery"] = feed_delivery(record)
+        write_json(path, records)
 
 
 def invocation_id(failure=False):
