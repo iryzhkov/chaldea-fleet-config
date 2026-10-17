@@ -20,6 +20,15 @@ loader.exec_module(manager)
 DEFAULTS = yaml.safe_load((ROLE / "defaults/main.yml").read_text())["chaldea_job_host_toolchain_versions"]
 
 
+@pytest.fixture(autouse=True)
+def restore_scratch_permissions(tmp_path):
+    """Keep immutable fixtures during assertions, then allow runner cleanup."""
+    import os
+    yield
+    for directory, _dirs, _files in os.walk(tmp_path, followlinks=False):
+        Path(directory).chmod(0o755)
+
+
 def bundle(tool):
     data = io.BytesIO()
     with tarfile.open(fileobj=data, mode="w:gz") as archive:
