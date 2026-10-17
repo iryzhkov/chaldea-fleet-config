@@ -389,27 +389,35 @@ check capacity on both. This is a planning allowance for the default version
 count, not a quota: additional inventory versions require a larger allowance.
 Snapshot retention can retain old toolchain blocks after live-tree pruning.
 
-Run the role unit tests through tools/ci.sh. For real toolchain acceptance,
-install the tree under the disk-backed scratch directory as an unprivileged
-user, then run (from the fleet-config checkout, after CI creates its venv):
+Run the role tests through Chaldea with tools/ci.sh. For the separate real
+toolchain SSH acceptance, use a disposable unprivileged CI runner with disk-backed
+scratch and an isolated HOME, rather than the operator workstation. Nested Chaldea
+jobs run as namespace root and cannot satisfy this SSH fixture's non-root guard.
+Use the installed, pinned host release and a Chaldea checkout at that release tag.
+From the fleet-config checkout, after CI prepares its Python environment:
 
     export TMPDIR=/home/igor/.cache/chaldea-scratch/toolchains
     toolchain_versions=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all.yml"))["chaldea_job_host_toolchain_versions"]))')
     toolchain_checksums=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all.yml"))["chaldea_job_host_toolchain_checksums"]))')
-    python3 -I roles/chaldea_job_host/files/chaldea-job-toolchains --root "$TMPDIR/tree" --architecture x86_64 --versions "$toolchain_versions" --checksums "$toolchain_checksums"
-    .venv-ci/bin/python tests/job_toolchains_e2e.py --chaldea "$TMPDIR/chaldea" --tree "$TMPDIR/tree"
+    export HOME="$TMPDIR/home"
+    test "$HOME" = "$TMPDIR/home"
+    mkdir -p "$HOME"
+    CHALDEA_HOST_VERSION=<inventory-chaldea_host_version>
+    python3 -I "/opt/chaldea-host/releases/$CHALDEA_HOST_VERSION/host/chaldea-job-toolchains" --root "$TMPDIR/tree" --architecture x86_64 --versions "$toolchain_versions" --checksums "$toolchain_checksums"
+    .venv-ci/bin/python -c 'import json,sys; print(json.dumps({tool: versions[0] for tool, versions in json.loads(sys.argv[1]).items()}))' "$toolchain_versions" > "$TMPDIR/selected-versions.json"
+    .venv-ci/bin/python "$TMPDIR/chaldea/host/tests/job_toolchains_e2e.py" --chaldea "$TMPDIR/chaldea" --tree "$TMPDIR/tree" --versions "$TMPDIR/selected-versions.json"
 
 The chaldea argument must name a clone of iryzhkov/chaldea with npm ci completed.
-The test starts an ephemeral rootless SSH daemon using this role's shipped
-templates and server, invokes chaldea exec, checks all tool versions, runs npm ci
+The test starts an ephemeral rootless SSH daemon using Chaldea's frozen deployment
+fixtures and in-tree server (fleet CI checks the fixtures against this role), invokes chaldea exec, checks all tool versions, runs npm ci
 and a tiny npm build, checks cc --version and an offline cargo new/build,
 compiles/runs Go and Cargo programs, verifies read-only alternatives and hidden
 host credential paths, creates a uv venv, and
 extracts a tar with unmapped owner IDs without a command-line ownership flag.
 It also checks that extraction fails with TAR_OPTIONS unset and verifies
 workspace/cache removal. No real host is enrolled or changed. The existing
-chaldea exec:e2e suite can also run against CHALDEA_JOB_SERVER pointing at this
-role, with CHALDEA_TEST_PYTHON pointing at .venv-ci/bin/python.
+chaldea exec:e2e suite runs in Chaldea's hosted CI directly against host/chaldea-job-server,
+with real SSH, bubblewrap and a compatible checksum-pinned pasta build.
 
 ## Validation boundary
 

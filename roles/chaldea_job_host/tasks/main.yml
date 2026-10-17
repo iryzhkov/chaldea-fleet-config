@@ -221,6 +221,17 @@
     mode: "0700"
   when: chaldea_job_host_mount_ready.rc == 0
 
+- name: Install the server's protocol definition alongside the server
+  become: true
+  ansible.builtin.copy:
+    src: "{{ chaldea_host_artifact_root }}/exec-protocol.json"
+    remote_src: true
+    dest: "{{ chaldea_job_host_server | dirname }}/exec-protocol.json"
+    owner: root
+    group: root
+    mode: "0644"
+  when: chaldea_host_artifact_ready | bool
+
 - name: Install the self-contained protocol version one server
   become: true
   ansible.builtin.copy:
@@ -230,17 +241,6 @@
     owner: root
     group: root
     mode: "0755"
-  when: chaldea_host_artifact_ready | bool
-
-- name: Install the server's protocol definition alongside the server
-  become: true
-  ansible.builtin.copy:
-    src: "{{ chaldea_host_artifact_root }}/exec-protocol.json"
-    remote_src: true
-    dest: /usr/local/libexec/exec-protocol.json
-    owner: root
-    group: root
-    mode: "0644"
   when: chaldea_host_artifact_ready | bool
 
 - name: Provision pinned job toolchains

@@ -21,7 +21,7 @@ policy retain their roles and destinations. No host has been enrolled by this ch
 
 | Program | Before | After | Mode | Production ownership |
 | --- | --- | --- | --- | --- |
-| job server | /usr/local/libexec/chaldea-job-server | same | 0755 | root:root, preserved |
+| job server | /usr/local/libexec/chaldea-job-server-v1 | same | 0755 | root:root, preserved |
 | toolchains | /usr/local/libexec/chaldea-job-toolchains | same | 0755 | root:root, preserved |
 | image helper | Ansible script module's temporary upload | /usr/local/libexec/chaldea-job-image | 0755 | new root:root command |
 | trust fetcher | /usr/local/libexec/chaldea-access-trust-fetch | same | 0755 | root:root, preserved |
@@ -33,6 +33,9 @@ policy retain their roles and destinations. No host has been enrolled by this ch
 | collector | ~/.local/share/agent-tools/current/chaldea/src/events/collector.ts | /opt/chaldea-host/releases/VERSION/host/akasha-collector.mjs | release payload | root:root |
 
 The default job server and fetcher destinations remain configurable as before.
+The protocol JSON is installed first and follows the configured server's directory.
+Extraction preserves archived permissions regardless of the invoking user's umask;
+the extracted host directory is explicitly secured to 0755.
 The image call now invokes `python3 -I /usr/local/libexec/chaldea-job-image` as root.
 The callback stays at its existing path and the reporter needs no wrapper.
 

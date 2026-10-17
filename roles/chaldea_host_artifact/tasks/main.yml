@@ -125,9 +125,20 @@
         src: "{{ chaldea_host_artifact_cache }}/{{ chaldea_host_version }}.tar.gz"
         dest: "{{ chaldea_host_artifact_release_dir }}"
         remote_src: true
+        extra_opts: [--preserve-permissions]
         owner: "{{ chaldea_host_artifact_owner }}"
         group: "{{ chaldea_host_artifact_group }}"
       when: not ansible_check_mode
+
+- name: Secure the extracted host payload directory explicitly
+  become: "{{ chaldea_host_artifact_become }}"
+  ansible.builtin.file:
+    path: "{{ chaldea_host_artifact_root }}"
+    state: directory
+    owner: "{{ chaldea_host_artifact_owner }}"
+    group: "{{ chaldea_host_artifact_group }}"
+    mode: "0755"
+  when: not ansible_check_mode
 
 - name: Inspect the installed host payload
   become: "{{ chaldea_host_artifact_become }}"

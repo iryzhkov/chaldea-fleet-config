@@ -44,7 +44,7 @@ def test_install_checks_exact_payload_and_is_idempotent(tmp_path):
     assert "changed=0" in check.stdout
     second = run_role(tmp_path, pins)
     assert second.returncode == 0, second.stdout + second.stderr
-    assert "changed=0" in second.stdout
+    assert "changed=0" in second.stdout, second.stdout + second.stderr
     assert before == {str(p.relative_to(installed)): p.read_bytes() for p in installed.rglob("*") if p.is_file()}
 
 
@@ -128,7 +128,8 @@ def test_role_program_paths_and_access_contract_are_canonical():
     job = yaml.safe_load((ROOT / "roles/chaldea_job_host/tasks/main.yml").read_text())
     protocol = next(t["ansible.builtin.copy"] for t in job if t["name"] == "Install the server's protocol definition alongside the server")
     assert protocol["src"] == "{{ chaldea_host_artifact_root }}/exec-protocol.json"
-    assert protocol["dest"] == "/usr/local/libexec/exec-protocol.json"
+    assert protocol["dest"] == "{{ chaldea_job_host_server | dirname }}/exec-protocol.json"
+    assert next(i for i, t in enumerate(job) if t["name"] == "Install the server\'s protocol definition alongside the server") < next(i for i, t in enumerate(job) if t["name"] == "Install the self-contained protocol version one server")
     assert protocol["owner"] == "root" and protocol["mode"] == "0644"
 
 def test_actual_program_copy_tasks_install_and_dry_diff_in_scratch(tmp_path):
@@ -157,7 +158,7 @@ def test_actual_program_copy_tasks_install_and_dry_diff_in_scratch(tmp_path):
     expected = {
         "chaldea-job-image": ("/usr/local/libexec/chaldea-job-image", "0755"),
         "chaldea-job-server": ("{{ chaldea_job_host_server }}", "0755"),
-        "exec-protocol.json": ("/usr/local/libexec/exec-protocol.json", "0644"),
+        "exec-protocol.json": ("{{ chaldea_job_host_server | dirname }}/exec-protocol.json", "0644"),
         "chaldea-job-toolchains": ("/usr/local/libexec/chaldea-job-toolchains", "0755"),
         "chaldea-access-trust-fetch": ("{{ chaldea_access_trust_fetcher }}", "0755"),
         "chaldea-retention": ("{{ retention_script }}", "0755"),
@@ -202,7 +203,9 @@ def test_actual_program_copy_tasks_install_and_dry_diff_in_scratch(tmp_path):
     artifact = tmp_path / "releases" / pins["chaldea_host_version"] / "host"
     targets = {}
     for source, (dest, mode) in expected.items():
-        if dest.startswith("/"):
+        if source == "exec-protocol.json":
+            target = Path(pins["chaldea_job_host_server"]).with_name("exec-protocol.json")
+        elif dest.startswith("/"):
             target = rootfs / dest.lstrip("/")
         elif "chaldea_job_host_server" in dest:
             target = Path(pins["chaldea_job_host_server"])
