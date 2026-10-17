@@ -12,6 +12,8 @@ Chaldea adds fleet compute, durable waits and a decision inbox to T3. Keep using
 T3's native delegation completion and `watch_pull_request` for child tasks and CI;
 use the `review-delegation` skill for reviews.
 
+Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
+
 `chaldea quota status` (or `--json`) reads the observer’s cached included-usage windows, aggregate Codex credits and advisory manual-reset inventory with per-metric freshness; it never spends credits or redeems resets.
 
 ## Run work on a job host
@@ -53,9 +55,10 @@ unreachable. There are no credentials inside jobs. Keep secrets out of tracked
 and non-ignored input files and do not forward tokens, keys or agents.
 
 A disconnect or interruption without a confirmed result leaves the job
-`uncertain`. Never re-run an uncertain job. Inspect the reported journal entry
-under `~/.local/state/chaldea/exec/journal/` and report the uncertainty. A
-definitive refusal or preemption is recorded separately.
+`uncertain`. After a failure, preemption or lost client, run `chaldea exec show <job-id>`
+(or `show <job-id> --full`) to inspect the retained log and outcome, or `chaldea exec fetch <job-id>`
+to recover output and requested artifacts from the original host within three days, instead of re-running the job.
+Never re-run an uncertain job; report the uncertainty if recovery cannot confirm its outcome.
 
 ## Availability and identity
 
