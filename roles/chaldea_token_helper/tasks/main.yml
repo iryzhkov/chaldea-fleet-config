@@ -1,0 +1,203 @@
+---
+- name: Validate helper enrollment and independent release pins
+  ansible.builtin.assert:
+    that:
+      - chaldea_token_helper_enabled | bool
+      - chaldea_access_trust_enabled | bool
+      - chaldea_token_helper_root == '/opt/chaldea-token-helper'
+      - chaldea_token_helper_client_version is match('^client-v[0-9]+[.][0-9]+[.][0-9]+$')
+      - chaldea_token_helper_client_sha256 is match('^[a-f0-9]{64}$')
+      - chaldea_token_helper_node_version in chaldea_job_host_toolchain_checksums.node
+      - chaldea_token_helper_node_version is match('^[0-9]+[.][0-9]+[.][0-9]+$')
+      - ansible_facts.architecture in ['x86_64', 'aarch64']
+      - chaldea_token_helper_issuer.keys() | sort == ['key_file', 'kid', 'name', 'uid']
+      - chaldea_token_helper_issuer.uid is integer
+      - chaldea_token_helper_issuer.uid > 0
+      - chaldea_token_helper_issuer.uid < 4294967295
+      - chaldea_token_helper_issuer.key_file is match('^/[A-Za-z0-9/_.-]+$')
+      - chaldea_token_helper_issuer.name == 'chaldea:' ~ inventory_hostname
+      - chaldea_token_helper_issuer.kid is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+      - chaldea_token_helper_state is match('^/[A-Za-z0-9/_.-]+$')
+      - chaldea_token_helper_grants | length > 0
+      - chaldea_token_helper_grants | length <= 128
+    fail_msg: Enroll only after Akasha activation, independent release pins and operator bootstrap.
+    quiet: true
+
+- name: Validate every exact sudo selector before rendering sudoers
+  ansible.builtin.assert:
+    that:
+      - item.keys() | sort == ['action', 'audience', 'host', 'kind', 'profile', 'project', 'source', 'uid']
+      - item.uid is integer
+      - item.uid >= 0
+      - item.uid < 4294967295
+      - item.uid != chaldea_token_helper_issuer.uid
+      - item.audience == 'akasha'
+      - item.action in ['append', 'read']
+      - item.host == inventory_hostname
+      - item.source is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+      - item.kind is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+      - item.profile is match('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$')
+      - item.project is match('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$')
+    quiet: true
+  loop: "{{ chaldea_token_helper_grants }}"
+
+- name: Inspect fixed launcher ancestors without following links
+  become: true
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop: [/opt, /usr, /usr/local, /usr/local/bin, /usr/local/libexec, /etc, /etc/sudoers.d, /etc/chaldea, "{{ chaldea_token_helper_root }}", "{{ chaldea_token_helper_root }}/releases", "{{ chaldea_token_helper_root }}/releases/{{ chaldea_token_helper_client_version }}"]
+  register: chaldea_token_helper_ancestors
+
+- name: Refuse writable or linked launcher ancestors
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or item.stat.isdir | default(false)
+      - not item.stat.exists or item.stat.uid == 0
+      - not item.stat.exists or item.stat.mode[-2] not in ['2', '3', '6', '7']
+      - not item.stat.exists or item.stat.mode[-1] not in ['2', '3', '6', '7']
+    quiet: true
+  loop: "{{ chaldea_token_helper_ancestors.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Look up the separately provisioned issuer account
+  ansible.builtin.getent:
+    database: passwd
+    key: chaldea-issuer
+
+- name: Require the configured issuer UID and no login shell
+  ansible.builtin.assert:
+    that:
+      - getent_passwd['chaldea-issuer'][1] | int == chaldea_token_helper_issuer.uid
+      - getent_passwd['chaldea-issuer'][-1] in ['/usr/sbin/nologin', '/sbin/nologin', '/bin/false']
+    quiet: true
+
+- name: Inspect bootstrap key and private access state without reading them
+  become: true
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: ["{{ chaldea_token_helper_issuer.key_file }}", "{{ chaldea_token_helper_state }}"]
+  register: chaldea_token_helper_bootstrap
+
+- name: Require issuer-owned private bootstrap files
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - item.stat.uid | default(-1) == chaldea_token_helper_issuer.uid
+      - item.stat.mode | default('') == '0600'
+      - item.stat.nlink | default(0) == 1
+    quiet: true
+  loop: "{{ chaldea_token_helper_bootstrap.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Set root-owned runtime paths
+  ansible.builtin.set_fact:
+    chaldea_token_helper_release: "{{ chaldea_token_helper_root }}/releases/{{ chaldea_token_helper_client_version }}"
+    chaldea_token_helper_node_archive: "node-v{{ chaldea_token_helper_node_version }}-linux-{{ 'x64' if ansible_facts.architecture == 'x86_64' else 'arm64' }}"
+
+- name: Set fixed Node executable path
+  ansible.builtin.set_fact:
+    chaldea_token_helper_node: "{{ chaldea_token_helper_root }}/{{ chaldea_token_helper_node_archive }}/bin/node"
+
+- name: Create root-owned protected helper directories
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: ["{{ chaldea_token_helper_root }}", "{{ chaldea_token_helper_root }}/releases", /etc/chaldea, /usr/local/libexec, /etc/sudoers.d]
+
+- name: Fetch independent checksum-pinned client archive and manifest
+  become: true
+  ansible.builtin.get_url:
+    url: "https://github.com/iryzhkov/chaldea/releases/download/{{ chaldea_token_helper_client_version }}/{{ item.name }}"
+    dest: "{{ chaldea_token_helper_root }}/{{ item.name }}"
+    checksum: "{{ item.checksum | default(omit) }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop:
+    - {name: chaldea-client.tar.gz, checksum: "sha256:{{ chaldea_token_helper_client_sha256 }}"}
+    - {name: manifest.json}
+
+- name: Install the independently verified client as root
+  become: true
+  chaldea_client_release:
+    root: "{{ chaldea_token_helper_root }}/releases"
+    archive: "{{ chaldea_token_helper_root }}/chaldea-client.tar.gz"
+    manifest: "{{ chaldea_token_helper_root }}/manifest.json"
+    version: "{{ chaldea_token_helper_client_version }}"
+    sha256: "{{ chaldea_token_helper_client_sha256 }}"
+  when: not ansible_check_mode
+
+- name: Make verified release traversable by the issuer
+  become: true
+  ansible.builtin.file:
+    path: "{{ chaldea_token_helper_release }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: not ansible_check_mode
+
+- name: Fetch checksum-pinned Node for the privileged helper
+  become: true
+  ansible.builtin.get_url:
+    url: "https://nodejs.org/dist/v{{ chaldea_token_helper_node_version }}/{{ chaldea_token_helper_node_archive }}.tar.xz"
+    dest: "{{ chaldea_token_helper_root }}/node.tar.xz"
+    checksum: "sha256:{{ chaldea_job_host_toolchain_checksums.node[chaldea_token_helper_node_version][ansible_facts.architecture][chaldea_token_helper_node_archive ~ '.tar.xz'] }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Extract the verified Node archive as root
+  become: true
+  ansible.builtin.unarchive:
+    src: "{{ chaldea_token_helper_root }}/node.tar.xz"
+    dest: "{{ chaldea_token_helper_root }}"
+    remote_src: true
+    owner: root
+    group: root
+  when: not ansible_check_mode
+
+- name: Install the release launcher and cleared-environment issuer wrapper
+  become: true
+  block:
+    - name: Copy the verified client release launcher
+      ansible.builtin.copy:
+        src: "{{ chaldea_token_helper_release }}/bin/chaldea-token-helper"
+        dest: /usr/local/bin/chaldea-token-helper
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+      when: not ansible_check_mode
+    - name: Render the fixed issuer command
+      ansible.builtin.template:
+        src: issuer-command.j2
+        dest: /usr/local/libexec/chaldea-token-helper-issuer
+        owner: root
+        group: root
+        mode: "0755"
+    - name: Render the protected issuer identity and producer grants
+      ansible.builtin.template:
+        src: token-helper.json.j2
+        dest: /etc/chaldea/token-helper.json
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Install exact sudo grants only after visudo validation
+      ansible.builtin.template:
+        src: sudoers.j2
+        dest: /etc/sudoers.d/chaldea-token-helper
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s

@@ -53,9 +53,12 @@ def install(module):
             if destination.is_symlink() or not destination.is_dir():
                 raise ValueError("installed release must be a real directory")
             actual = {}
-            for path in destination.rglob("*"):
+            for path in [destination, *destination.rglob("*")]:
                 if path.is_symlink():
                     raise ValueError("installed release contains a symlink")
+                stat = path.stat()
+                if stat.st_uid != os.geteuid() or stat.st_mode & 0o022:
+                    raise ValueError("installed release has unsafe ownership or write permissions")
                 if path.is_file():
                     actual[path.relative_to(destination).as_posix()] = digest(path)
             if actual != expected:
