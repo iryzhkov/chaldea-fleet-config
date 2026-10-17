@@ -1,4 +1,8 @@
 ---
+- name: Install the disabled-by-default host event collector
+  ansible.builtin.include_role:
+    name: akasha_collector
+
 - name: Create the timer reporting directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -11,7 +15,7 @@
 
 - name: Install the timer outcome wrapper
   ansible.builtin.copy:
-    src: chaldea-timer-report
+    src: "{{ (role_path ~ '/../akasha_collector/files/chaldea-timer-report') if akasha_collector_enabled | default(false) | bool else 'chaldea-timer-report' }}"
     dest: "{{ fleet_home }}/.local/bin/chaldea-timer-report"
     mode: "0755"
 

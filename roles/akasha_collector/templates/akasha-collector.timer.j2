@@ -1,0 +1,9 @@
+# Managed by chaldea-fleet-config. Never enabled by inventory in this lane.
+[Unit]
+Description=Drain the host's Akasha queue
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=30s
+RandomizedDelaySec=5s
+[Install]
+WantedBy=timers.target
