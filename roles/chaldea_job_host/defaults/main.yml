@@ -42,3 +42,6 @@ chaldea_job_host_toolchain_versions:
   go: ["1.27.0"]
   rust: ["1.99.0"]
   uv: ["0.12.10"]
+
+# Every selected archive needs a reviewed inventory pin; no online checksum lookup.
+chaldea_job_host_toolchain_checksums: {}

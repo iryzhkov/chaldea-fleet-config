@@ -31,7 +31,7 @@ def main():
     scratch_root = Path(os.environ["TMPDIR"])
     assert scratch_root.is_absolute() and str(scratch_root) != "/tmp"
     assert os.getuid() != 0, "run unprivileged; no real host enrollment"
-    defaults = yaml.safe_load((ROLE / "defaults/main.yml").read_text())
+    defaults = yaml.safe_load((ROLE.parents[1] / "inventory/group_vars/all.yml").read_text())
     selected = {tool: versions[0] for tool, versions in defaults["chaldea_job_host_toolchain_versions"].items()}
     with tempfile.TemporaryDirectory(prefix="tc-", dir=scratch_root) as temporary:
         scratch = Path(temporary)

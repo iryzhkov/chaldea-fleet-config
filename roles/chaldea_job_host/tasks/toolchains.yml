@@ -24,20 +24,6 @@
     group: root
     mode: "0755"
 
-- name: Create the job-owned admission lock before provisioning
-  become: true
-  ansible.builtin.file:
-    path: "{{ chaldea_job_host_state_root }}/admission.lock"
-    state: touch
-    owner: "{{ chaldea_job_host_user }}"
-    group: "{{ chaldea_job_host_user }}"
-    mode: "0600"
-    access_time: preserve
-    modification_time: preserve
-  when:
-    - not ansible_check_mode
-    - chaldea_job_host_mount_ready.rc == 0
-
 - name: Install missing verified versions and prune all but one previous per tool
   become: true
   ansible.builtin.command:
@@ -51,6 +37,8 @@
       - "{{ ansible_facts.architecture }}"
       - --versions
       - "{{ chaldea_job_host_toolchain_versions | to_json }}"
+      - --checksums
+      - "{{ chaldea_job_host_toolchain_checksums | to_json }}"
       - --active-config
       - /etc/chaldea-job.json
       - --admission-lock

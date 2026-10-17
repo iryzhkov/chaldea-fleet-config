@@ -286,28 +286,41 @@ cargo to 1.99.0. Go and uv were absent from mise's current list; the installed
 pin upstream Node 26.12.0, Go 1.27.0, Rust 1.99.0 and uv 0.12.10. The upstream Go
 build does not include the distro's X:nodwarf5 experiment suffix.
 
-Installation downloads only missing versions over verified HTTPS, checks each
-archive's SHA256 against the publisher's release metadata, then extracts into
-private staging inside the toolchain root and publishes by rename. Node uses
-nodejs.org/dist/vVERSION/SHASUMS256.txt; Go uses dl.google.com/go's archive.sha256
-(the official Go download CDN); uv uses the matching GitHub release
-archive.sha256 asset. Rust uses static.rust-lang.org/dist's versioned rustc,
-cargo and rust-std standalone component archives and their .sha256 files.
-All three Rust components are verified before their install.sh scripts run,
-with a private prefix and --disable-ldconfig. This gives a minimal compiler,
-Cargo and native standard library without rustup, mutable channels, global
-state, or documentation downloads. Cargo writes only to the job's own home and
-workspace. Rust components require distro C/linker tools, already exposed under
-/usr; cross compilation, rustfmt and clippy are outside this initial toolchain.
+Versions and SHA256 pins live together in inventory/group_vars/all.yml.
+chaldea_job_host_toolchain_checksums maps tool -> version -> architecture ->
+archive filename -> lowercase SHA256. The pins were generated once from the
+publishers' release metadata and committed for review: Node from
+nodejs.org/dist/vVERSION/SHASUMS256.txt; Go from dl.google.com/go/*.sha256
+(the official Go download CDN); uv from its GitHub release archive.sha256
+assets; Rust from static.rust-lang.org/dist/*.sha256 for rustc, cargo and
+rust-std. Changing or adding a version requires reviewing pins for every
+selected architecture and every archive. Missing/malformed pins fail closed
+before any download. The installer never downloads checksum files.
+
+Installation downloads only missing archives over verified HTTPS, refuses
+redirects to non-HTTPS URLs, compares each archive against the committed
+inventory pin, then extracts into private staging and publishes by rename.
+All three Rust archives are verified before copying their component payloads.
+Python copies only files/directories listed in the installer-format v3
+manifest.in files; install.sh is never invoked. **Nothing from any archive
+executes as root during provisioning.** This gives a compiler, Cargo and native
+standard library without rustup or mutable channels. Cargo writes only to the
+job's own home and workspace. Rust requires the exposed distro C/linker tools;
+cross compilation, rustfmt and clippy are outside this initial toolchain.
 
 The installed manifest records tool, version, architecture and verified digests.
 An existing completed version is left untouched and causes no network request;
-an incompatible/incomplete destination is refused rather than overwritten.
+an incompatible/incomplete destination or manifest whose digests differ from
+the reviewed inventory pins is refused rather than overwritten.
 Installed directories and executable files are 0555; other files are 0444.
 Ansible runs the manager as root; the parent directories are root-owned 0755.
 Check mode reports intended versions without downloads or installation.
-Apply holds the existing job admission lock while installing and pruning; a
-busy host refuses promptly and can be retried by the orchestrator. A separate
+Apply holds the existing job admission lock while installing and pruning.
+The lock is opened read-only with O_NOFOLLOW | O_NONBLOCK; fstat must confirm
+a regular file before flock. The role never touches or chowns a path in the
+job-owned directory. A missing lock means no server has run and is skipped
+without creating it. **A busy host stops the apply; retry it after the job
+finishes**, including when convergence is driven by the orchestrator. A separate
 installer lock prevents competing applies. Abandoned staging is removed on
 the next apply. No provisioning runs in a job or on the client.
 
@@ -330,8 +343,8 @@ GOTOOLCHAIN=local prevents Go from silently downloading another compiler.
 The fresh home, caches, build outputs and temporary files are removed with the
 workspace. There are no shared writable caches.
 
-The measured x86_64 tree for these defaults occupies 1,194,176,512 allocated
-bytes (1.12 GiB; apparent size 1,138,084,486 bytes). Budget **6 GiB per host for
+The measured x86_64 tree for these defaults occupies 1,194,033,152 allocated
+bytes (1.12 GiB; apparent size 1,137,962,712 bytes). Budget **6 GiB per host for
 the toolchain tree, one previous set and installation staging**, in addition
 to the default 20 GiB job image and 16 MiB journal: about 26 GiB total.
 The /opt tree uses the root filesystem even when the job image uses /srv/agent;
@@ -344,7 +357,9 @@ install the tree under the disk-backed scratch directory as an unprivileged
 user, then run (from the fleet-config checkout, after CI creates its venv):
 
     export TMPDIR=/home/igor/.cache/chaldea-scratch/toolchains
-    python3 -I roles/chaldea_job_host/files/chaldea-job-toolchains --root "$TMPDIR/tree" --architecture x86_64 --versions '{"node":["26.12.0"],"go":["1.27.0"],"rust":["1.99.0"],"uv":["0.12.10"]}'
+    toolchain_versions=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all.yml"))["chaldea_job_host_toolchain_versions"]))')
+    toolchain_checksums=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all.yml"))["chaldea_job_host_toolchain_checksums"]))')
+    python3 -I roles/chaldea_job_host/files/chaldea-job-toolchains --root "$TMPDIR/tree" --architecture x86_64 --versions "$toolchain_versions" --checksums "$toolchain_checksums"
     .venv-ci/bin/python tests/job_toolchains_e2e.py --chaldea "$TMPDIR/chaldea" --tree "$TMPDIR/tree"
 
 The chaldea argument must name a clone of iryzhkov/chaldea with npm ci completed.
