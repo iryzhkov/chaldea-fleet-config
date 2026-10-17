@@ -6,8 +6,8 @@
     mode: u+rwx
 
 - name: Install the pinned Chaldea launcher
-  ansible.builtin.copy:
-    src: chaldea
+  ansible.builtin.template:
+    src: chaldea.j2
     dest: "{{ fleet_home }}/.local/bin/chaldea"
     mode: "0755"
 

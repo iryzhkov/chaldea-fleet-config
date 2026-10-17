@@ -96,6 +96,7 @@ node --version
 go version
 rustc --version
 cargo --version
+cc --version
 uv --version
 node -e "try { require('fs').writeFileSync(require('path').join(require('path').dirname(process.execPath),'should-not-exist'),'x'); process.exit(1); } catch (e) { if(e.code !== 'EROFS') throw e; console.log('readonly-tools-ok'); }"
 npm ci --no-audit --no-fund
@@ -105,6 +106,22 @@ go build -o hello hello.go
 ./hello
 cargo build --offline
 ./target/debug/job-smoke
+cargo new --vcs none --bin tiny-cargo
+cargo build --offline --manifest-path tiny-cargo/Cargo.toml
+./tiny-cargo/target/debug/tiny-cargo
+python3 - <<'PY'
+import errno
+from pathlib import Path
+assert not any(Path(p).exists() for p in ("/etc/shadow", "/etc/sudoers", "/root/.ssh", "/home/igor/.ssh"))
+if Path("/etc/alternatives").exists():
+    try:
+        Path("/etc/alternatives/chaldea-write-probe").write_text("forbidden")
+    except OSError as error:
+        assert error.errno == errno.EROFS, error
+    else:
+        raise AssertionError("alternatives is writable")
+print("alternatives-isolation-ok")
+PY
 uv venv --python /usr/bin/python3 --no-managed-python .venv
 mkdir extracted-dir refused-dir
 if env -u TAR_OPTIONS tar xf owned.tar -C refused-dir 2>/dev/null; then
@@ -139,7 +156,8 @@ python3 -c 'import os,pathlib; assert all(os.environ[k].startswith("/home/job/")
                 assert all(token in result.stdout for token in
                            ("v" + selected["node"], "go" + selected["go"],
                             "cargo " + selected["rust"], "uv " + selected["uv"],
-                            "npm-build-ok", "go-build-ok", "cargo-build-ok", "tar-ok", "private-caches-ok", "readonly-tools-ok"))
+                            "npm-build-ok", "go-build-ok", "cargo-build-ok", "Hello, world!",
+                            "alternatives-isolation-ok", "tar-ok", "private-caches-ok", "readonly-tools-ok"))
                 assert not [p for p in jobs.iterdir() if p.name != "admission.lock"], "workspace/caches survived"
                 print("exec-toolchains-ok; workspace and caches removed")
             except subprocess.CalledProcessError as error:

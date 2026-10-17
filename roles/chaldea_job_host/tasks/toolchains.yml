@@ -1,4 +1,13 @@
 ---
+- name: Require inventory toolchain versions
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_host_toolchain_versions is defined
+      - chaldea_job_host_toolchain_versions is mapping
+      - chaldea_job_host_toolchain_versions | length > 0
+    fail_msg: Set chaldea_job_host_toolchain_versions in inventory alongside the reviewed checksum pins.
+    quiet: true
+
 - name: Validate the managed toolchain location and architecture
   ansible.builtin.assert:
     that:
@@ -48,6 +57,11 @@
   when:
     - not ansible_check_mode
     - chaldea_job_host_mount_ready.rc == 0
+
+- name: Report deferred toolchain pruning
+  ansible.builtin.debug:
+    msg: "{{ chaldea_job_host_toolchain_install.stderr }}"
+  when: chaldea_job_host_toolchain_install.stderr | default('') | length > 0
 
 - name: Explain toolchain provisioning in check mode
   ansible.builtin.debug:

@@ -6,10 +6,16 @@
   gather_facts: true
   gather_subset: [min]
   vars:
+    chaldea_node_version: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/group_vars/all.yml') | from_yaml).chaldea_node_version }}"
     fleet_home: "{{ playbook_dir }}/../.ci-home/job-client"
     chaldea_job_client_enabled: true
     chaldea_job_client_targets:
       - {name: fixture, address: 192.0.2.123, port: 2222}
+  pre_tasks:
+    - name: Require an isolated client fixture home
+      ansible.builtin.assert:
+        that: fleet_home == (playbook_dir ~ '/../.ci-home/job-client')
+        quiet: true
   tasks:
     - name: Create fixture SSH directory
       ansible.builtin.file:
@@ -73,9 +79,15 @@
   connection: local
   gather_facts: false
   vars:
+    chaldea_node_version: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/group_vars/all.yml') | from_yaml).chaldea_node_version }}"
     fleet_home: "{{ playbook_dir }}/../.ci-home/waits-only"
     chaldea_job_client_enabled: false
     mcp_registrations_chaldea_waits_enabled: true
+  pre_tasks:
+    - name: Require an isolated waits fixture home
+      ansible.builtin.assert:
+        that: fleet_home == (playbook_dir ~ '/../.ci-home/waits-only')
+        quiet: true
   tasks:
     - name: Configure the launcher on a waits-only host
       ansible.builtin.include_role:

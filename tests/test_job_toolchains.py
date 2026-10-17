@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 from unittest.mock import patch
 import urllib.request
@@ -231,20 +232,65 @@ def test_abandoned_staging_is_pruned_on_apply(tmp_path):
     assert not abandoned.parent.exists()
 
 
-def test_busy_job_refuses_before_install_or_prune(tmp_path):
+def test_busy_job_installs_and_defers_prune_then_idle_host_prunes(tmp_path, monkeypatch, capsys):
     import fcntl
-    import sys
+
+    root = tmp_path / "tree"
+    old = root / "node"
+    old.mkdir(parents=True)
+    for version in ("20.1.0", "22.1.0", "24.1.0"):
+        (old / version).mkdir()
+    active = tmp_path / "active.json"
+    active.write_text(json.dumps({"toolchain_defaults": {"node": "22.1.0"}}))
+    pins = {tool: fixture_pins(tool)[tool] for tool in manager.TOOLS}
+    payloads = {name: archive_payload(tool, name)
+                for tool in manager.TOOLS
+                for _url, name in manager.release(tool, DEFAULTS[tool][0], "x86_64")}
+    monkeypatch.setattr(manager, "fetch", lambda url, dest: dest.write_bytes(payloads[dest.name]))
     lock = tmp_path / "admission.lock"
+    monkeypatch.setattr(sys, "argv", [
+        "chaldea-job-toolchains", "--root", str(root), "--versions", json.dumps(DEFAULTS),
+        "--checksums", json.dumps(pins), "--architecture", "x86_64",
+        "--admission-lock", str(lock), "--active-config", str(active)])
+
     with lock.open("a") as held:
         fcntl.flock(held, fcntl.LOCK_EX)
-        result = subprocess.run(
-            [sys.executable, "-I", str(ROLE / "files/chaldea-job-toolchains"),
-             "--root", str(tmp_path / "tree"), "--versions", json.dumps(DEFAULTS),
-             "--checksums", json.dumps(PINS), "--architecture", "x86_64",
-             "--admission-lock", str(lock)], text=True, capture_output=True, timeout=5)
-    assert result.returncode != 0
-    assert "apply stopped; retry" in result.stderr
-    assert not (tmp_path / "tree").exists()
+        manager.main()
+        output = capsys.readouterr()
+        result = json.loads(output.out)
+        assert result["changed"]
+        assert set(result["changes"]) == {f"install {t}@{v[0]}" for t, v in DEFAULTS.items()}
+        assert "pruning deferred to the next run" in output.err
+        assert {p.name for p in old.iterdir()} == {"20.1.0", "22.1.0", "24.1.0", *DEFAULTS["node"]}
+        for tool, versions in DEFAULTS.items():
+            assert (root / tool / versions[0] / "bin").is_dir()
+
+        manager.main()
+        output = capsys.readouterr()
+        assert json.loads(output.out) == {"changed": False, "changes": []}
+        assert "pruning deferred" in output.err
+
+    manager.main()
+    output = capsys.readouterr()
+    result = json.loads(output.out)
+    assert result["changed"]
+    assert set(result["changes"]) == {"prune " + str(old / v) for v in ("20.1.0", "24.1.0")}
+    assert not output.err
+    assert {p.name for p in old.iterdir()} == {"22.1.0", *DEFAULTS["node"]}
+    manager.main()
+    assert json.loads(capsys.readouterr().out) == {"changed": False, "changes": []}
+
+
+def test_missing_admission_lock_installs_but_defers_prune(tmp_path, capsys):
+    lock = tmp_path / "missing"
+    with patch.object(manager, "install", return_value=True) as install:
+        with patch.object(manager, "prune", side_effect=AssertionError("pruning without lock")):
+            changes = manager.reconcile(tmp_path / "tree", DEFAULTS, "x86_64", PINS,
+                                        admission_lock_path=lock)
+    assert install.call_count == 4
+    assert len(changes) == 4
+    assert "pruning deferred to the next run" in capsys.readouterr().err
+    assert not lock.exists()
 
 
 def test_admission_lock_missing_is_skipped_without_creating(tmp_path):
@@ -293,6 +339,25 @@ def test_https_redirects_remain_supported():
     redirected = manager.HTTPSRedirects().redirect_request(
         request, None, 302, "Found", {}, "https://cdn.example.com/archive")
     assert redirected.full_url == "https://cdn.example.com/archive"
+
+
+def test_role_fails_clearly_when_inventory_versions_are_unset(tmp_path):
+    defaults = yaml.safe_load((ROLE / "defaults/main.yml").read_text())
+    assert "chaldea_job_host_toolchain_versions" not in defaults
+    tasks = yaml.safe_load((ROLE / "tasks/toolchains.yml").read_text())
+    play = tmp_path / "play.yml"
+    play.write_text(yaml.safe_dump([{
+        "name": "Check required inventory versions", "hosts": "localhost",
+        "gather_facts": False, "tasks": [tasks[0]],
+    }]))
+    result = subprocess.run(["ansible-playbook", "-i", "localhost,", str(play)],
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode != 0
+    assert "Set chaldea_job_host_toolchain_versions in inventory" in result.stdout
+    result = subprocess.run(["ansible-playbook", "-i", "localhost,", str(play),
+                             "-e", json.dumps({"chaldea_job_host_toolchain_versions": DEFAULTS})],
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_role_passes_pins_and_never_touches_job_owned_lock_path():

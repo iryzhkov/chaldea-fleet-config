@@ -7,13 +7,19 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
+from jinja2 import Environment, StrictUndefined
 
 ROOT = Path(__file__).resolve().parents[1]
-LAUNCHER = ROOT / "roles/chaldea_job_client/files/chaldea"
+LAUNCHER = ROOT / "roles/chaldea_job_client/templates/chaldea.j2"
+NODE_VERSION = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())["chaldea_node_version"]
 
 
 def invoke(home, *args):
-    return subprocess.run(["sh", str(LAUNCHER), *args], env={**os.environ, "HOME": str(home)},
+    launcher = home / "launcher"
+    launcher.write_text(Environment(undefined=StrictUndefined).from_string(LAUNCHER.read_text()).render(
+        chaldea_node_version=NODE_VERSION))
+    return subprocess.run(["sh", str(launcher), *args], env={**os.environ, "HOME": str(home)},
                           capture_output=True, text=True)
 
 
@@ -30,7 +36,7 @@ def test_launcher_explains_a_missing_pinned_node(tmp_path):
     entry.write_text("fixture")
     result = invoke(tmp_path, "wait", "--help")
     assert result.returncode == 69
-    assert "pinned Node 26.10.0 is missing" in result.stderr
+    assert f"pinned Node {NODE_VERSION} is missing" in result.stderr
 
 
 @pytest.mark.parametrize("args", [
@@ -42,7 +48,7 @@ def test_launcher_uses_bin_dispatcher_and_preserves_status_and_arguments(tmp_pat
     entry = tmp_path / ".local/share/chaldea/app/bin/chaldea"
     entry.parent.mkdir(parents=True)
     entry.write_text("fixture")
-    node = tmp_path / ".local/share/mise/installs/node/26.10.0/bin/node"
+    node = tmp_path / f".local/share/mise/installs/node/{NODE_VERSION}/bin/node"
     node.parent.mkdir(parents=True)
     node.write_text(f"#!{sys.executable}\nimport json, sys\n"
                     "print(json.dumps(sys.argv[1:]))\n"

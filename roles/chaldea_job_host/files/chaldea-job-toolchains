@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import shutil
 import stat
+import sys
 import tarfile
 import tempfile
 import urllib.request
@@ -238,7 +239,8 @@ def prune(root, tool, configured, previous=None, dry_run=False):
     return [str(path) for path in removed]
 
 
-def reconcile(root, versions, architecture, sha256, previous=None, dry_run=False):
+def reconcile(root, versions, architecture, sha256, previous=None, dry_run=False,
+              admission_lock_path=None):
     validate(versions, architecture)
     for tool, values in versions.items():
         for version in values:
@@ -260,14 +262,29 @@ def reconcile(root, versions, architecture, sha256, previous=None, dry_run=False
                     changes.append("install " + tool + "@" + version)
             elif install(root, tool, version, architecture, sha256):
                 changes.append("install " + tool + "@" + version)
-        changes.extend("prune " + p for p in prune(root, tool, values,
-                       (previous or {}).get(tool), dry_run=dry_run))
+    # Installs only publish complete new directories; running jobs can keep using
+    # the immutable tree. Only removing versions needs to exclude admission.
+    lock = None
+    if admission_lock_path is not None and not dry_run:
+        lock = admission_lock(admission_lock_path)
+        if lock is None:
+            print("toolchain pruning deferred to the next run: admission lock busy or absent",
+                  file=sys.stderr)
+            return changes
+    try:
+        for tool, values in versions.items():
+            changes.extend("prune " + p for p in prune(root, tool, values,
+                           (previous or {}).get(tool), dry_run=dry_run))
+    finally:
+        if lock is not None:
+            os.close(lock)
     return changes
 
 
 def admission_lock(path):
     # The job owns the parent directory. Never follow its symlinks, mutate the
-    # lock, or block opening a FIFO/device. No lock means no server has run yet.
+    # lock, or block opening a FIFO/device. An absent lock defers pruning too:
+    # the first server could create and acquire it at any time.
     try:
         descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except FileNotFoundError:
@@ -277,8 +294,9 @@ def admission_lock(path):
             raise ValueError("admission lock must be a regular file")
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise ValueError("job host busy: apply stopped; retry after the job finishes") from exc
+        except BlockingIOError:
+            os.close(descriptor)
+            return None
         return descriptor
     except BaseException:
         os.close(descriptor)
@@ -298,23 +316,15 @@ def main():
     previous = {}
     if args.active_config and args.active_config.exists():
         previous = json.loads(args.active_config.read_text()).get("toolchain_defaults", {})
-    # Role supplies the existing job-owned admission lock: no pruning while a
-    # job is running; fail promptly so the next orchestrator apply can retry.
-    lock = None
-    if args.admission_lock and not args.plan:
-        lock = admission_lock(args.admission_lock)
-    try:
-        if not args.plan:
-            args.root.mkdir(parents=True, exist_ok=True)
-            with (args.root / ".install.lock").open("a") as install_lock:
-                fcntl.flock(install_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                changes = reconcile(args.root, args.versions, args.architecture, args.checksums, previous)
-        else:
-            changes = reconcile(args.root, args.versions, args.architecture, args.checksums, previous, dry_run=True)
-        print(json.dumps({"changed": bool(changes), "changes": changes}))
-    finally:
-        if lock is not None:
-            os.close(lock)
+    if not args.plan:
+        args.root.mkdir(parents=True, exist_ok=True)
+        with (args.root / ".install.lock").open("a") as install_lock:
+            fcntl.flock(install_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            changes = reconcile(args.root, args.versions, args.architecture, args.checksums,
+                                previous, admission_lock_path=args.admission_lock)
+    else:
+        changes = reconcile(args.root, args.versions, args.architecture, args.checksums, previous, dry_run=True)
+    print(json.dumps({"changed": bool(changes), "changes": changes}))
 
 
 if __name__ == "__main__":
