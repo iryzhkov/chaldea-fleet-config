@@ -80,8 +80,7 @@ An optional `deadline` bounds the wait. Omitting `runId` pins the latest accepte
 run at registration; it does not wait for a future run. Quota pauses remain
 pending through recovery.
 
-Registration returns immediately. End the turn after registering a wait;
-exactly one marked queued wake message arrives when it resolves. Do not sleep,
+Registration returns immediately; up to eight active waits per thread are allowed, and pending wakes combine into one queued message listing every wait ID and outcome while each wait retains its own delivery record. For waits, `requestId` is optional (the server generates `<epoch milliseconds>:<random>`); save an explicit key for idempotent retries, then end the turn when ready. Do not sleep,
 poll status or add another watcher. Read an outcome with `chaldea_wait_status`
 (`id`); cancel an unwanted wait with `chaldea_wait_cancel` (`id`). Cancellation
 before resolution sends no wake; it cannot retract an already accepted message.
