@@ -12,6 +12,8 @@ Chaldea adds fleet compute, durable waits and a decision inbox to T3. Keep using
 T3's native delegation completion and `watch_pull_request` for child tasks and CI;
 use the `review-delegation` skill for reviews.
 
+Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
+
 ## Run work on a job host
 
 From inside a Git worktree, use:
