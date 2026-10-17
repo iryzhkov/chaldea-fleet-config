@@ -1,6 +1,9 @@
 <!-- fleet:start -->
 # Global agent instructions
 
+Read the `fleet-tools` skill for installed custom CLI tools, their read/write commands,
+and full-help commands for the session profile.
+
 The shared instructions for harnesses that do not read ~/.claude/CLAUDE.md, including
 OpenCode. Managed by chaldea-fleet-config's agent_config role; edit the repository copy
 rather than an installed file.

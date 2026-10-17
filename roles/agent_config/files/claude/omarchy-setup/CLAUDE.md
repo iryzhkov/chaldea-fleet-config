@@ -1,3 +1,6 @@
+Read the `fleet-tools` skill for installed custom CLI tools, their read/write commands,
+and full-help commands for the session profile.
+
 # Response style
 
 Default register: compressed technical English. Compress the prose, never the substance.
@@ -71,9 +74,7 @@ Namespaces, document shape, the tool-by-tool procedure and curation passes: the 
 
 # Fleet feed
 
-`feed` is the chronological record of what the agents and scheduled jobs on this network
-actually did: `feed recent --since 7d`, filtered with `--host`, `--source`, `--tag`,
-`--severity` or `--grep`, and `--full` for bodies. It runs on homelab, port 1934.
+The fleet feed runs on homelab, port 1934.
 
 Read it before answering anything about recent homelab activity — what a scheduled job found,
 whether a service was updated or held, what broke last night — because the detail lives in T3
@@ -81,9 +82,9 @@ threads on four different machines and the feed is the only place they meet. It 
 rather than replacing it: OV holds durable knowledge and is searched by meaning, the feed holds
 dated events and is read newest-first.
 
-Write to it with `feed post` when an unattended run produced something a later session would
-want to know. Never copy feed entries into OV as if they were established facts; promoting an
-event to knowledge is a decision, not a sync.
+Record an event when an unattended run produced something a later session would want to know.
+Never copy feed entries into OV as if they were established facts; promoting an event to
+knowledge is a decision, not a sync.
 
 # Interactive work and delegation
 
@@ -147,13 +148,10 @@ A test overwrote a real key on 2026-10-17.
 
 # Working documents: Jocasta
 
-Jocasta stores shared plans, handoffs, research and prompts. Use its CLI on any fleet host:
-`jocasta search 'rough plan name' --json`, then `jocasta get PROJECT/plans/FILE.md --output
-~/.cache/jocasta/plan.md --json`. Search is lexical, so a bounded search is not proof of
-absence. Use exact `jocasta:DOCUMENT_ID@REVISION` references in handoffs.
-
-Create with `jocasta put PROJECT/handoffs/FILE.md --file ~/.cache/jocasta/handoff.md --create`.
-For updates, fetch the full document, reconcile changes, and use `--if-revision N`.
+Use Jocasta for shared plans, handoffs, research and prompts. Search before creating a document.
+Search is lexical, so a bounded search is not proof of absence. Use exact
+`jocasta:DOCUMENT_ID@REVISION` references in handoffs. Before updating, fetch the full document,
+reconcile changes, and use `--if-revision N`.
 Never write back a partial line range, guess a mutation target from search, or retry a
 conflict by replacing the newer revision.
 

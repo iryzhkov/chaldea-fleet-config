@@ -1,4 +1,24 @@
 ---
+
+# One complete profile object per session/environment. Restricted profiles must
+# supply explicit tool/access grants and MCP grants; an empty map exposes no tools.
+# This is instruction filtering, not command authorization.
+agent_config_fleet_tools_profile:
+  name: interactive-operator
+  tools: {"*": [read, write]}
+  mcp: [ov-memory]
+agent_config_fleet_tools_directories: []
+# The same command list that agent_tools installs, checked for actual executability.
+agent_config_fleet_tools_executables: >-
+  {{ (agent_tools_homelab_cli_commands | default([])
+      | map('regex_replace', '^', (agent_tools_bin_dir | default(fleet_home ~ '/.local/bin')) ~ '/') | list)
+     + [fleet_home ~ '/.local/bin/jocasta', fleet_home ~ '/.local/bin/chaldea'] }}
+# .agents/skills is shared by Codex and OpenCode; Claude uses .claude/skills.
+agent_config_fleet_tools_skill_dirs:
+  - .claude/skills
+  - .agents/skills
+  - .codex/skills
+
 agent_config_huyang_plugin_url: "https://raw.githubusercontent.com/iryzhkov/omarchy-setup/{{ agent_config_huyang_plugin_ref }}/config/opencode/plugins/huyang-profiles.js"
 # Shared instruction files, relative to the home directory. Per-host files such
 # as ~/.claude/CLAUDE.md and ~/.claude.json are deliberately not managed.
