@@ -109,7 +109,10 @@
   failed_when: chaldea_job_host_data_mount.stdout != '/srv/agent'
   when: chaldea_job_host_state_root is match('^/srv/agent/')
 
+# The state root can sit under /home/chaldea-job (mode 0700), which the
+# operator cannot traverse, so both mount checks must run as root.
 - name: Inspect the optional image mount before creating its mountpoint
+  become: true
   ansible.builtin.command:
     argv: [mountpoint, -q, "{{ chaldea_job_host_state_root }}"]
   register: chaldea_job_host_was_mounted
@@ -174,6 +177,7 @@
   failed_when: false
 
 - name: Check whether job storage is actually mounted
+  become: true
   ansible.builtin.command:
     argv: [mountpoint, -q, "{{ chaldea_job_host_state_root }}"]
   register: chaldea_job_host_mount_ready
