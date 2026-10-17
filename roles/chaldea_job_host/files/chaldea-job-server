@@ -1,6 +1,7 @@
 #!/usr/bin/python3 -I
 """Chaldea SSH job protocol 1. Standard library only; no client shell."""
 import argparse
+from contextlib import contextmanager
 import fcntl
 import hashlib
 import ipaddress
@@ -334,6 +335,8 @@ def connected_subnets(rows=None, defaults=None):
         if row["ifname"] in interfaces or "LOOPBACK" in row.get("flags", []):
             continue
         for address in row["addr_info"]:
+            if address.get("scope") == "link":
+                continue
             networks.add(ipaddress.ip_network(address["local"].split("%")[0] + "/" +
                                                str(address["prefixlen"]), strict=False))
     return sorted(map(str, networks))
@@ -454,11 +457,21 @@ def prepare_launch(request, workspace, config):
     return wrapped, launch
 
 
+@contextmanager
+def admission_lock(root):
+    with (root / "admission.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise Refused("host busy: one job already running; retry explicitly") from exc
+        yield
+
+
 def smoke_test(config):
     """Run the same trusted launch path as jobs, as the actual job account."""
     root = Path(config["state_root"])
     admission(root, config)
-    with tempfile.TemporaryDirectory(prefix="smoke-", dir=root) as temporary:
+    with admission_lock(root), tempfile.TemporaryDirectory(prefix="smoke-", dir=root) as temporary:
         workspace = Path(temporary) / "work"
         workspace.mkdir()
         request = {"jobId": str(uuid.uuid4()), "argv": ["/usr/bin/python3", "-c",
@@ -623,11 +636,7 @@ def main():
     if config.get("require_mount", True) and not os.path.ismount(root):
         raise Refused("job storage unavailable: image is not mounted; host remains available")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with (root / "admission.lock").open("a") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise Refused("host busy: one job already running; retry explicitly") from exc
+    with admission_lock(root):
         cleanup(root)
         send("H", encode({"version": VERSION}))
         signal.alarm(120)
