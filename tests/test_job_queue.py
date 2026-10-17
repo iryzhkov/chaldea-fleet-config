@@ -177,3 +177,62 @@ def test_killed_server_releases_ready_slot_and_launches_nothing(tmp_path):
     subprocess.run(["flock", "-x", str(tmp_path / "jobs/admission.lock"), "true"],
                    check=True, timeout=3)
     assert not (tmp_path / "launches").exists()
+
+def test_winning_helper_death_does_not_release_the_servers_slot(tmp_path):
+    import signal
+    import pytest
+    child = start(tmp_path)
+    try:
+        assert receive(child)[0] == "Y"
+        helpers = Path(f"/proc/{child.pid}/task/{child.pid}/children").read_text().split()
+        assert len(helpers) == 1
+        descriptor = os.pidfd_open(int(helpers[0]))
+        try:
+            os.kill(int(helpers[0]), signal.SIGKILL)
+            assert select.select([descriptor], [], [], 3)[0], "helper did not die"
+        finally:
+            os.close(descriptor)
+        with (tmp_path / "jobs/admission.lock").open("a") as probe:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        send(child, "G")
+        send(child, "Q", REQUEST)
+        send(child, "E")
+        assert receive(child)[0] == "X"
+    finally:
+        close(child)
+    with lock(tmp_path):
+        pass
+
+
+def test_two_pending_clients_serialize_one_slot(tmp_path):
+    first = start(tmp_path)
+    second = None
+    try:
+        assert receive(first)[0] == "Y"
+        second = start(tmp_path)
+        assert not select.select([second.stdout], [], [], .1)[0]
+        close(first)
+        assert receive(second)[0] == "Y"
+        send(second, "C")
+        assert receive(second)[0] == "R"
+        assert not (tmp_path / "launches").exists()
+    finally:
+        if first.stdin and not first.stdin.closed:
+            close(first)
+        if second:
+            close(second)
+
+
+def test_cancel_while_waiting_on_game_gate_releases_slot(tmp_path):
+    (tmp_path / "game").touch()
+    child = start(tmp_path)
+    try:
+        assert not select.select([child.stdout], [], [], .1)[0]
+        send(child, "C")
+        assert receive(child)[0] == "R"
+    finally:
+        close(child)
+    with lock(tmp_path):
+        pass
+    assert not (tmp_path / "launches").exists()
