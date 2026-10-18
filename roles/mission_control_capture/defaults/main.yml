@@ -1,6 +1,6 @@
 ---
 mission_control_capture_enabled: false
 mission_control_capture_home: /home/igor
-mission_control_capture_t3_base_dir: /home/igor/.config/t3-code
+mission_control_capture_t3_base_dir: /home/igor/.t3
 mission_control_capture_token_file: /home/igor/.config/chaldea/t3-token
 mission_control_capture_snapshot_file: /home/igor/.local/state/chaldea/mission-control/latest.json

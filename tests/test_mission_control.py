@@ -106,15 +106,15 @@ def fixture_role(tmp_path, name):
             if "ansible.builtin.systemd_service" in row:
                 row = dict(name=row["name"], **{"ansible.builtin.fail": dict(msg="unit manager must not run in cold check")},
                            when=row.get("when"))
-            for module in ("ansible.builtin.file", "ansible.builtin.template"):
+            for module in ("ansible.builtin.file", "ansible.builtin.template", "ansible.builtin.copy", "ansible.builtin.get_url"):
                 if module in row:
                     for field in ("owner", "group"):
                         if field in row[module]:
-                            row[module][field] = "root"
+                            row[module][field] = str(os.getuid() if field == "owner" else os.getgid())
             if "loop" in row and isinstance(row["loop"], list):
                 for item in row["loop"]:
                     if isinstance(item, dict) and "owner" in item:
-                        item["owner"] = "root"
+                        item["owner"] = str(os.getuid())
             kept.append(row)
         return kept
     tasks_file.write_text(yaml.safe_dump(relocate(tasks)))
