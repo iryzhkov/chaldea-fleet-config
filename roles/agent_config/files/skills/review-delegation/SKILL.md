@@ -14,11 +14,12 @@ reviews, but every review must use T3 `delegate_task`.
 Review the final commit of each milestone of an agreed plan:
 
 - A main review by a strong model from the provider that did not write the
-  change: Sol 6.1 reviews work written by Claude, Opus 5.5 reviews work written
-  by Codex, subject only to the quota exception below.
+  change, selected through FATE's `builder` role, subject only to the quota
+  exception below.
 - Add at most one narrow fan-out review, only for security- or data-sensitive
   work, with exactly one target area such as data safety or credential handling.
-- A critical-review model (Astra or Fable) only for a consequential design
+  Conserve Claude for required main reviews; no optional Claude fan-outs.
+- The `critical-review` role only for a consequential design
   decision or a disputed finding, or the quota exception below.
 
 OpenCode models are not used for reviews. Reviews stay within the brief. Report
@@ -26,14 +27,32 @@ each reviewer's thread ID, model and verdict in the reply and as a PR comment.
 
 ## How to run a round
 
-Before each delegation, call `chaldea_route` or `chaldea route --role ROLE` and pass
-its `providerInstanceId`, `model` and `options` as the T3 `delegate_task` target.
-Use `builder` for main diff reviews, `critical-review` for consequential design or
-disputed findings, `bulk-read` for readers and `general` for other work. For reviews,
-pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`, or CLI
-`--author-provider`, to require the other provider. Honor explicit session model
-restrictions. If routing is unavailable, use the CLAUDE.md model roles and
-`orchestrator_capabilities` IDs, applying the provider rule and quota exception below.
+Before each delegation, call FATE through `chaldea_route` or
+`chaldea route --role ROLE`. Pass the selected `providerInstanceId`, `model`
+and `options` exactly as the T3 `delegate_task` target, including effort.
+Use `builder` for main diff reviews, `critical-review` for consequential design
+or disputed findings, `bulk-read` for readers and `general` for other work.
+For reviews, pass the writer's driver as `authorProvider`, `claudeAgent` or
+`codex`, or CLI `--author-provider`, to require the other provider. Honor
+explicit user/model overrides. If MCP rejects newer configuration keys,
+use the installed CLI with the same constraints, without restarting T3.
+
+For a Codex author, normally run
+`chaldea route --role builder --author-provider codex`. A Codex builder pin
+may refuse because it cannot satisfy provider separation. If FATE cannot
+recommend a target, record the refusal and use the approved main-review
+fallback from the live `orchestrator_capabilities` catalog: Opus 5.5 high
+for Codex-authored work, Sol 6.1 high for Claude-authored work. Pass the
+catalog's exact provider/model IDs and high-effort option. This is an
+other-provider fallback, not a quota waiver. Do not retry a pin indefinitely.
+Reject a same-provider target unless the quota exception qualifies. Compare
+underlying provider drivers in the live catalog before launching, even if FATE
+returned a target despite authorProvider. Such a recommendation is unusable
+for the requested cross-provider review; record it and use the fallback.
+Keep Claude use to required main reviews. If that fallback cannot run,
+defer the review unless the quota exception below actually qualifies.
+For other outage roles, use the `chaldea` skill's documented fallback.
+Never use max, ultra, ultrathink, ultracode or higher effort.
 
 Start every review round, including re-reviews, as a fresh
 `delegate_task` that carries the brief, the prior findings and the responses to

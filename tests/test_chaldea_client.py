@@ -146,6 +146,31 @@ def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
     assert "/current/bin/chaldea" in (home / ".local/bin/chaldea").read_text()
 
 
+def test_route_target_overrides_render_once(tmp_path, monkeypatch):
+    variables = fixture(tmp_path, monkeypatch)
+    variables["chaldea_client_route_targets"] = {
+        "minimumTurns": 200, "failureMargin": 0.05,
+        "pins": {"bulk-read": {"model": "gpt-6-luna"}},
+        "bans": ["*sonnet*"], "probationShare": 0.2,
+    }
+    success(run(tmp_path, variables))
+
+    def unique(items):
+        result = {}
+        for key, value in items:
+            assert key not in result, f"duplicate route key: {key}"
+            result[key] = value
+        return result
+
+    route = json.loads((Path.home() / ".config/chaldea/route.json").read_text(),
+                       object_pairs_hook=unique)
+    assert route["minimumTurns"] == 200
+    assert route["failureMargin"] == 0.05
+    assert route["pins"]["bulk-read"]["model"] == "gpt-6-luna"
+    assert route["probationShare"] == 0.2
+    assert route["paceMargin"] == 0.10
+
+
 @pytest.mark.parametrize("failure", ["missing", "mode", "symlink", "owner"])
 def test_secret_refusal_precedes_writes_and_unit_calls(tmp_path, monkeypatch, failure):
     variables = fixture(tmp_path, monkeypatch)

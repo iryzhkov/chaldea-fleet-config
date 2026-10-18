@@ -76,12 +76,22 @@ making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta 
 out in the session; do not ask again for routine work inside that agreement.
 When carrying out an agreed roadmap, load the roadmap-executor skill first.
 
-Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,
-`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and
-`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the
-writer's driver, `claudeAgent` or `codex`, to require the other provider. If routing is
-unavailable, use the model roles below. Cross-provider review is the default; the only
-quota exception is defined in `review-delegation`, under "Quota exception".
+Before each T3 `delegate_task`, call FATE through `chaldea_route` or
+`chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,
+`critical-review` for consequential design or disputed findings, `bulk-read` for readers
+and `general` for other work. Pass the selected `providerInstanceId`, `model` and
+`options` exactly as the delegate target, including effort. Honor explicit user overrides.
+For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,
+or CLI `--author-provider`, to require the other provider. Reject a same-provider target
+unless the quota exception qualifies; compare underlying provider drivers in the live catalog.
+A recommendation that violates review separation is unusable; apply the fallback below.
+
+If a long-lived MCP rejects newer configuration keys, use the installed CLI before
+declaring routing unavailable. No T3 restart is needed. If neither can recommend a
+target, use the `chaldea` skill's documented outage fallback with live catalog IDs.
+A Codex builder pin may refuse a Codex author's main review; use the approved
+other-provider main-review fallback in `review-delegation`, not repeated pin retries.
+Cross-provider review remains the default. Only its "Quota exception" permits a waiver.
 
 Delegate through T3's own tools rather than a separate scheduler:
 
@@ -102,9 +112,11 @@ review, the orchestrator verifies a change of under about 50 lines without anoth
 T3 tools act only on the host's own T3 server. There is no agent-driven launch on another
 host yet; ask Igor to start work there from the T3 app.
 
-Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or
-Astra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file
-directly.
+FATE owns normal model selection. Fixed model pairs apply only in the documented
+outage fallback; explicit user overrides still apply. Sonnet is excluded; Haiku is
+allowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.
+Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.
+Read a quick lookup in a known file directly.
 
 Ask first when the estimated cost is large, the work needs operator-level access, or it
 changes more than one host.
