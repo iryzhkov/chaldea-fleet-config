@@ -25,5 +25,10 @@ timer input to 8 MiB. Together these new event states stay below 64 MiB.
 Raw toolfeedback remains best-effort instrumentation input, not a byte-capped
 queue; it is pruned at 90 days and expired unshipped complete lines are counted.
 Collector offsets advance only on a visible central receipt, independently of
-the old Loki shipper. Leave that shipper running until parity and retirement
-approval; this role does not disable it. No host was deployed by this PR.
+the old Loki shipper. The akasha-collector command shares the timer's lock and
+database, so toolfeedback ship cannot race it or create a second cursor store.
+The cutover needs a host artifact containing collector CLI flags, plus the new
+homelab-cli pin. Do not enable before issuer enrollment and HTTPS ingress.
+Igor dropped shadow/parity on 2026-10-18. Stop and disable the old shippers at
+cutover; retain their state for rollback. This role does not disable them or
+enroll hosts. See homelab-infra docs/akasha-cutover.md. No host was deployed.

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Same lock and database as akasha-collector.service. Never a second shipper.
+set -eu
+export AKASHA_URL="{{ akasha_collector_url }}"
+export AKASHA_TOKEN_HELPER="${AKASHA_TOKEN_HELPER:-{{ akasha_collector_token_helper }}}"
+export AKASHA_STATE_FILE="{{ fleet_home }}/.local/state/chaldea/events/collector.db"
+export AKASHA_TIMER_SPOOL="{{ fleet_home }}/.local/state/chaldea/timer-spool"
+export AKASHA_SPOOL="${AKASHA_SPOOL:-{{ fleet_home }}/.local/share/toolfeedback}"
+unset FEED_TOKEN FEED_KEY_FILE FEED_CONFIG
+exec /usr/bin/flock --nonblock "{{ fleet_home }}/.local/state/chaldea/events/collector.lock" "{{ akasha_collector_node }}" "{{ akasha_collector_script }}" "$@"
