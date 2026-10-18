@@ -1,4 +1,9 @@
 ---
+- name: Load trusted pinned normal inventory for account and persistence bindings
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../inventory/hosts.yml"
+    name: akasha_quota_normal_inventory
+
 - name: Inspect the existing normal quota observer
   ansible.builtin.command:
     argv: [systemctl, --user, show, chaldea-quota.service, --property=LoadState, --property=ActiveState, --property=UnitFileState, --property=ExecStart]

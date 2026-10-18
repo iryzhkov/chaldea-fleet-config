@@ -37,7 +37,7 @@ def run(tmp_path, host, tasks, values, state="inactive", enabled="disabled", uni
 @pytest.mark.parametrize("state,enabled,passes", [
     ("active", "disabled", False), ("inactive", "enabled", False), ("inactive", "disabled", True)])
 def test_laptop_normal_observer_must_be_disabled_and_inactive(tmp_path, state, enabled, passes):
-    result = run(tmp_path, "omarchy-macbook-air-igor", PREFLIGHT[:2],
+    result = run(tmp_path, "omarchy-macbook-air-igor", [t for t in PREFLIGHT if t["name"] in ["Inspect the existing normal quota observer", "Keep laptop normal ownership disabled before sharing"]],
                  dict(akasha_quota_normal_host=dict(chaldea_client_quota_enabled=False)), state, enabled)
     assert (result.returncode == 0) is passes, result.stdout + result.stderr
     assert "changed=0" in result.stdout
@@ -51,7 +51,7 @@ def test_pc_reader_never_turns_actual_observer_into_publisher(tmp_path, fleet, u
     directory.mkdir(parents=True)
     (directory / "quota.json").write_text(json.dumps(dict(fleet=dict(enabled=fleet))))
     before = (directory / "quota.json").read_bytes()
-    result = run(tmp_path, "omarchy-pc", [PREFLIGHT[0], *PREFLIGHT[-2:]],
+    result = run(tmp_path, "omarchy-pc", [t for t in PREFLIGHT if t["name"] in ["Inspect the existing normal quota observer", "Read existing PC observer configuration without exposing its contents", "Keep the actual PC observer out of source quota publishing"]],
         dict(akasha_quota_normal_host=dict(chaldea_client_route_targets=dict(
             quotaConfigFile=str(directory / "quota-fleet-reader.json") if persistent else ""))), unit=unit)
     assert (result.returncode == 0) is passes, result.stdout + result.stderr

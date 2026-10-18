@@ -68,3 +68,44 @@ actual PC observer has no fleet publication, router reads the separate file,
 laptop emits only source quota, native/account hashes and freshness match, and
 there are zero denied/unintended appends or session mutations. No broker, extra
 signer, token copying, helper migration or replacement UI is part of this work.
+
+## Exact future laptop archive staging
+
+These are proposed operator commands after joint source acceptance and parent
+release of quota installation scope. They are not run by this source change.
+Use only the laptop igor UID1001, existing protected bootstrap layout and the
+exact accepted main checkout. They stage public files only, without installing
+a runtime tree, minting, creating keys or enabling services. The following
+canonical verifier CHECK in the enrollment play then has real cached inputs.
+
+```sh
+set -eu
+test "$(hostname --short)" = omarchy-macbook-air-igor
+test "$(id -u)" = 1001
+test "$HOME" = /home/igor
+test "$(git rev-parse HEAD)" = "${REVIEWED_MAIN_SHA:?exact merged source pin}"
+export TMPDIR="$HOME/.cache/chaldea-scratch/akasha-quota-sharing-20261018"
+mkdir -p "$TMPDIR"
+sudo test -d /opt/chaldea-token-helper/releases
+sudo test ! -L /opt/chaldea-token-helper/quota-client-v0.4.2.tar.gz
+sudo test ! -L /opt/chaldea-token-helper/quota-client-v0.4.2.json
+if ! sudo test -e /opt/chaldea-token-helper/quota-client-v0.4.2.tar.gz; then
+  sudo curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --max-time 120 \
+    https://github.com/iryzhkov/chaldea/releases/download/client-v0.4.2/chaldea-client.tar.gz \
+    --output /opt/chaldea-token-helper/quota-client-v0.4.2.tar.gz
+fi
+printf '%s  %s\n' 40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a /opt/chaldea-token-helper/quota-client-v0.4.2.tar.gz | sudo sha256sum --check -
+if ! sudo test -e /opt/chaldea-token-helper/quota-client-v0.4.2.json; then
+  sudo curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --max-time 120 \
+    https://github.com/iryzhkov/chaldea/releases/download/client-v0.4.2/manifest.json \
+    --output /opt/chaldea-token-helper/quota-client-v0.4.2.json
+fi
+printf '%s  %s\n' 80d1300524ae52e789388fd72cdc774058ed019247debf34d5bf2840066a4d45 /opt/chaldea-token-helper/quota-client-v0.4.2.json | sudo sha256sum --check -
+sudo chmod 0600 /opt/chaldea-token-helper/quota-client-v0.4.2.tar.gz /opt/chaldea-token-helper/quota-client-v0.4.2.json
+```
+
+Refuse an existing mismatched file rather than replacing it. Continue with the
+existing explicit laptop enrollment wrapper in stage --check mode and the exact
+approved public input file. Its canonical quota-runtime CHECK verifies both
+archive and immutable-tree state without installation. The later accepted
+activation invokes the same role subset for the actual immutable install.
