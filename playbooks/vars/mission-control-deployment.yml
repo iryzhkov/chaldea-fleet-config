@@ -16,5 +16,7 @@ mission_control_reader_allowed_source_ids: [agent-a--mission-control]
 # the canonical native render, never this one-row assertion list.
 mission_control_reader_grants:
   - {uid: 940, audience: akasha, action: read, source: mission-control-reader, host: omarchy-normandy, kind: agent_status, profile: mission-control-reader, project: chaldea}
-# Keep the collector opt-in absent until the agent-a-only reviewed phase.
+# HELD runtime/reader/web phase extra-vars only: this empty value overrides inventory.
+# In agent-a collector phases OMIT this file or explicitly override the value below
+# with /home/igor/.local/state/chaldea/mission-control/latest.json; preserve its inventory input.
 akasha_collector_mission_control_snapshot_file: ""
