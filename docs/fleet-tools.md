@@ -50,7 +50,7 @@ installers may only be simulated.
 No release or host converge is part of this change. Merge the homelab-cli,
 Jocasta and Chaldea source PRs after accepted review and CI. Publish the normal
 agent-tools release/source pin containing the new homelab-cli commit in
-`agent_tools_sources` in `inventory/group_vars/all.yml`. Jocasta is not built by
+`agent_tools_sources` in `inventory/group_vars/all/main.yml`. Jocasta is not built by
 that role: publish/install its reviewed CLI through its owning deployment workflow
 (currently documented as UpKeeper). Pin the reviewed Chaldea app commit via its
 owning deployment workflow. Do not

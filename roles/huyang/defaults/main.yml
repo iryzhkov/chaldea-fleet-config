@@ -1,0 +1,28 @@
+---
+huyang_enabled: false
+huyang_root: "{{ fleet_home }}/.local/share/huyang"
+huyang_cache: "{{ fleet_home }}/.cache/huyang-releases"
+huyang_version: ""
+huyang_sha256: {}
+huyang_architecture: "{{ {'x86_64': 'x64', 'aarch64': 'arm64'}[ansible_facts.architecture] }}"
+huyang_archive_url: "https://github.com/iryzhkov/huyang/releases/download/{{ huyang_version }}/huyang-linux-{{ huyang_architecture }}.tar.gz"
+# Offline fixture injection for isolated installer tests, never a live fallback.
+huyang_archive_source: ""
+huyang_state_dir: "{{ fleet_home }}/.local/state/huyang"
+huyang_socket: "/run/user/{{ ansible_facts.user_uid }}/huyang/control.sock"
+huyang_memory_high: 2G
+
+huyang_languages: [go, rust, python, typescript, javascript, java, cpp, c, bash]
+huyang_toolchain_root: "{{ fleet_home }}/.local/share/huyang-toolchain"
+# Release versions and SHA256 pins belong in inventory/group_vars/all/huyang-toolchain.yml.
+huyang_toolchain_pins: {}
+huyang_toolchain_servers:
+  go: {config: gopls, executable: gopls, filetype: go}
+  rust: {config: rust_analyzer, executable: rust-analyzer, filetype: rust}
+  python: {config: pyright, executable: pyright-langserver, filetype: python}
+  typescript: {config: ts_ls, executable: typescript-language-server, filetype: typescript}
+  javascript: {config: ts_ls, executable: typescript-language-server, filetype: javascript}
+  java: {config: jdtls, executable: jdtls, filetype: java}
+  cpp: {config: clangd, executable: clangd, filetype: cpp}
+  c: {config: clangd, executable: clangd, filetype: c}
+  bash: {config: bashls, executable: bash-language-server, filetype: sh}

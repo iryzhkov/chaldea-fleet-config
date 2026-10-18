@@ -110,7 +110,7 @@ def test_timer_roles_install_artifact_bytes_and_delivery_config(tmp_path, monkey
 
 
 def test_role_program_paths_and_access_contract_are_canonical():
-    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
+    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     assert inventory["chaldea_access_paths"] == {
         "root": "/etc/chaldea-access-trust",
         "state": "/var/lib/chaldea-access-trust",

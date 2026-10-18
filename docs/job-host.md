@@ -199,7 +199,7 @@ baseline packages exist.
    ~/.ssh/chaldea-job_ed25519 **only if absent**:
    `umask 077; ssh-keygen -t ed25519 -f ~/.ssh/chaldea-job_ed25519 -N ''`.
    Keep its private half mode 0600. Copy only .pub and its fixed source IP into
-   chaldea_job_host_sources in inventory/group_vars/all.yml. Replace every
+   chaldea_job_host_sources in inventory/group_vars/all/main.yml. Replace every
    PLACEHOLDER/TEST-NET value. chaldea_job_client_targets lists actual destination
    addresses and port 2222. No new repository deploy key is needed for job hosts.
 2. In inventory/hosts.yml enable chaldea_job_host_enabled and
@@ -315,7 +315,7 @@ cargo to 1.99.0. Go and uv were absent from mise's current list; the installed
 pin upstream Node 26.12.0, Go 1.27.0, Rust 1.99.0 and uv 0.12.10. The upstream Go
 build does not include the distro's X:nodwarf5 experiment suffix.
 
-Versions and SHA256 pins live together in inventory/group_vars/all.yml.
+Versions and SHA256 pins live together in inventory/group_vars/all/main.yml.
 chaldea_job_host_toolchain_checksums maps tool -> version -> architecture ->
 archive filename -> lowercase SHA256. The pins were generated once from the
 publishers' release metadata and committed for review: Node from
@@ -401,8 +401,8 @@ Use the installed, pinned host release and a Chaldea checkout at that release ta
 From the fleet-config checkout, after CI prepares its Python environment:
 
     export TMPDIR=/home/igor/.cache/chaldea-scratch/toolchains
-    toolchain_versions=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all.yml"))["chaldea_job_host_toolchain_versions"]))')
-    toolchain_checksums=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all.yml"))["chaldea_job_host_toolchain_checksums"]))')
+    toolchain_versions=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all/main.yml"))["chaldea_job_host_toolchain_versions"]))')
+    toolchain_checksums=$(.venv-ci/bin/python -c 'import json,yaml; print(json.dumps(yaml.safe_load(open("inventory/group_vars/all/main.yml"))["chaldea_job_host_toolchain_checksums"]))')
     export HOME="$TMPDIR/home"
     test "$HOME" = "$TMPDIR/home"
     mkdir -p "$HOME"

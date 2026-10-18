@@ -14,7 +14,7 @@ import yaml
 from test_mcp_registration import FAKE_CLAUDE, call
 
 ROOT = Path(__file__).resolve().parents[1]
-NODE_VERSION = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())["chaldea_node_version"]
+NODE_VERSION = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())["chaldea_node_version"]
 
 
 def chaldea(home):

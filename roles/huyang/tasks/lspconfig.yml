@@ -1,0 +1,109 @@
+---
+# Toolchain settings are role defaults; host inventory retains precedence.
+- name: Validate Huyang toolchain selection
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.architecture in ['x86_64', 'aarch64']
+      - huyang_toolchain_pins.schema | default(0) == 1
+      - huyang_languages is sequence and huyang_languages is not string
+      - huyang_languages | length > 0
+      - huyang_languages | unique | length == huyang_languages | length
+      - huyang_languages | difference(huyang_toolchain_servers.keys() | list) | length == 0
+      - huyang_toolchain_root.startswith(fleet_home ~ '/')
+      - "'/../' not in huyang_toolchain_root"
+    fail_msg: Set the reviewed Huyang toolchain pins and a unique subset of the strict nine languages.
+    quiet: true
+
+- name: Expose the stable Huyang toolchain interface
+  ansible.builtin.set_fact:
+    huyang_toolchain_bin: "{{ huyang_toolchain_root }}/current/bin"
+    huyang_headless_init: "{{ huyang_toolchain_root }}/current/headless-init.lua"
+    huyang_java_home: "{{ (huyang_toolchain_root ~ '/current/jdk') if 'java' in huyang_languages else '' }}"
+    huyang_expected_language_servers: "{{ dict(huyang_languages | zip(huyang_languages | map('extract', huyang_toolchain_servers))) }}"
+    huyang_toolchain_changed: false
+
+- name: Provision the isolated Huyang toolchain outside check mode
+  when: not ansible_check_mode
+  block:
+    - name: Refuse symlinked toolchain paths before writing inputs
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_facts.python.executable | default('/usr/bin/python3') }}"
+          - -I
+          - -c
+          - |
+            from pathlib import Path
+            import stat
+            import sys
+            root = Path(sys.argv[1])
+            paths = [root] + [root / name for name in
+                ('inputs', 'releases', 'downloads', 'receipts', 'state')]
+            paths += [root / 'inputs' / name for name in
+                ('huyang-toolchain.py', 'huyang-toolchain-package.json',
+                 'huyang-toolchain-package-lock.json', 'headless-init.lua', 'pins.json')]
+            for path in paths:
+                for entry in [path, *path.parents]:
+                    try:
+                        info = entry.lstat()
+                    except FileNotFoundError:
+                        continue
+                    if stat.S_ISLNK(info.st_mode):
+                        raise SystemExit('Refusing symlinked Huyang path: ' + str(entry))
+          - "{{ huyang_toolchain_root }}"
+      changed_when: false
+
+    - name: Create Huyang toolchain input directory
+      ansible.builtin.file:
+        path: "{{ huyang_toolchain_root }}/inputs"
+        state: directory
+        mode: "0700"
+
+    - name: Install the reviewed Huyang toolchain manager and npm lock
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ huyang_toolchain_root }}/inputs/{{ item }}"
+        mode: "0600"
+      loop:
+        - huyang-toolchain.py
+        - huyang-toolchain-package.json
+        - huyang-toolchain-package-lock.json
+
+    - name: Render the fleet headless init
+      ansible.builtin.template:
+        src: headless-init.lua.j2
+        dest: "{{ huyang_toolchain_root }}/inputs/headless-init.lua"
+        mode: "0600"
+
+    - name: Write reviewed Huyang toolchain pins
+      ansible.builtin.copy:
+        content: "{{ huyang_toolchain_pins | to_nice_json }}\n"
+        dest: "{{ huyang_toolchain_root }}/inputs/pins.json"
+        mode: "0600"
+
+    - name: Install and verify Huyang servers and parsers before switching current
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_facts.python.executable | default('/usr/bin/python3') }}"
+          - -I
+          - "{{ huyang_toolchain_root }}/inputs/huyang-toolchain.py"
+          - --root
+          - "{{ huyang_toolchain_root }}"
+          - --architecture
+          - "{{ ansible_facts.architecture }}"
+          - --pins
+          - "{{ huyang_toolchain_root }}/inputs/pins.json"
+          - --languages
+          - "{{ huyang_languages | to_json }}"
+          - --inputs
+          - "{{ huyang_toolchain_root }}/inputs"
+      register: huyang_toolchain_install
+      changed_when: (huyang_toolchain_install.stdout | from_json).changed
+
+    - name: Report the staged Huyang toolchain change
+      ansible.builtin.set_fact:
+        huyang_toolchain_changed: "{{ (huyang_toolchain_install.stdout | from_json).changed }}"
+
+- name: Explain deferred Huyang toolchain provisioning
+  ansible.builtin.debug:
+    msg: "Would provision and verify {{ huyang_languages | join(', ') }} under {{ huyang_toolchain_root }}. No toolchain writes, downloads, or processes run in check mode."
+  when: ansible_check_mode

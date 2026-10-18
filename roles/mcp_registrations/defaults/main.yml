@@ -17,7 +17,7 @@ mcp_registrations_servers:
       - --config
       - "{{ fleet_home }}/.config/chaldea/{{ 'waits' if mcp_registrations_chaldea_waits_enabled | bool else 'mcp' }}.json"
   - name: huyang
-    command: "{{ fleet_home }}/.local/share/huyang/bin/huyang"
+    command: "{{ fleet_home }}/.local/share/huyang/{{ 'current/' if huyang_enabled | default(false) | bool else '' }}bin/huyang"
     args: [mcp, --profile, full]
     claude: {alwaysLoad: true}
     codex: {env_vars: [XDG_RUNTIME_DIR, HUYANG_SOCKET]}

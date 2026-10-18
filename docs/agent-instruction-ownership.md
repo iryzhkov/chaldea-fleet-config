@@ -1,54 +1,52 @@
 # Shared instruction ownership
 
-OpenCode's Huyang V2 plugin has a separate narrow installation seam. Omarchy owns its
-source, and `agent_config` installs the reviewed copy without changing OpenCode JSON,
-other plugins or the wrapper. See [OpenCode Huyang profiles](opencode-huyang-profiles.md)
-for supported version, paths, guards and deferred integration checks.
+chaldea-fleet-config is the canonical home for agent tooling. Omarchy setup
+only bootstraps a fresh desktop. Edit role sources, never installed copies.
 
-The `agent_config` role owns installed shared instructions and fleet skills. Edit
-`roles/agent_config/files/`, not installed files. Its defaults map source paths to
-destinations; its tasks copy those reviewed bytes directly.
+The agent_config role copies the maintained instruction files and complete
+skill trees from roles/agent_config/files/. Its defaults map every destination.
+The historical claude/omarchy-setup path stays in place because existing
+host-local Claude imports name it. That path no longer describes ownership.
 
-Fleet skills are registered in `agent_config_skills` and installed in
-`~/.claude/skills` and `~/.agents/skills` for Claude, Codex and OpenCode.
-Supporting files travel with each skill. Keep ordinary sessions free of extra
-startup ceremony; roadmap execution and audit workflows load on demand.
+The OpenCode Huyang plugin is a fleet-owned file at
+roles/agent_config/files/opencode/huyang-profiles.js. Installation uses copy,
+with the same collision and symlink guards. It no longer fetches from Omarchy.
+Its bytes match the former ebec80b source, SHA-256
+e46883992727741758115492030f75bb26dbea14dccd3a4b4c3459cc5547f6c4.
+See [the plugin contract](opencode-huyang-profiles.md).
 
-The role retires only these exact real directories: find-skills,
+Fleet skills install in ~/.claude/skills and ~/.agents/skills. Existing unrelated
+skills stay unmanaged. Retirement remains limited to find-skills,
 improve-codebase-architecture, domain-modeling, prototype, code-review and
-implementation-session. Symlinks, regular files and unrelated skills stay.
-`synced` is an unmanaged sync store, not a skill.
+implementation-session. Only safety-critical-code and unslop can migrate
+validated, recursively matching symlinks; mismatches stop before any unlink.
 
-Only safety-critical-code and unslop may migrate from existing symlinks.
-Before unlinking either, the host-side role requires a directory target and a
-recursive match with the managed source, including supporting files and extra
-entries. A mismatch or any other managed-skill symlink stops installation.
-Every candidate is validated before any link is removed; check mode compares
-without unlinking. The target is preserved when the link becomes a managed copy.
+The maintained Huyang reference combines the Claude reading/editing section
+and Huyang skill body. Keep these sources aligned manually. The old Omarchy
+generator and obsolete Steward projection are retired; they are not needed
+to install these directly maintained sources.
 
-For Huyang, keep these role inputs consistent:
+The laptop/reaper utilities, Claude settings and third-party skills list are
+preserved under tooling/legacy-bootstrap/. No task installs them in this change.
+Their historical tests and laptop isolation document travel with them.
 
-- `agents/AGENTS.md` contains the resident summary.
-- `codex/AGENTS.md` contains that same summary inside the fleet fence.
-- `claude/omarchy-setup/CLAUDE.md` contains the detailed reading/editing rule.
-- `skills/huyang/SKILL.md` contains the tool workflow and prepare/trust constraints.
-- `agents/huyang.md` combines the role's Claude reading/editing section and skill
-  body, without skill front matter.
+## Byte compatibility
 
-Omarchy still carries overlapping bootstrap/policy sources in
-`config/claude/CLAUDE.md`, `config/claude/skills/huyang/SKILL.md` and
-`config/bin/agents-instructions-gen`. Update shared Huyang guidance there in the
-same window. Its `docs/agent-instruction-ownership.md` documents the overlap.
-Do not run that generator over fleet-managed installed files or copy its entire
-resident output over these role inputs: the repositories have different publishing
-and delegation rules that must be preserved. Other ownership migration is separate.
+tests/fixtures/agent_config_before.json records all source hashes from fleet
+main 7185b506, plus the former downloaded plugin hash. The render test installs
+the agent_config role for agent-a, agent-b, omarchy-pc and laptop into disposable
+homes, and compares every managed file and skill against this baseline.
+Only the exact ownership header blocks listed in test_agent_source_migration.py
+may differ, as authorized by Igor on 2026-10-18:
 
-Huyang supplies source reads and guarded edits. Builds and tests use the repository's
-commands through `chaldea exec --host agent-a`; every Go test sets
-`HUYANG_FRICTION=0` inside the job. `change_plan` prepare still owns its sandbox
-format/parser/check/test gates, project-command trust and prepared revision evidence.
-Independent Chaldea verification does not relax those gates.
+- agents/jocasta.md lines 3-4 now identify the maintained fleet source.
+- agents/ov-memory.md lines 3-5 now identify fleet sources and aligned skills.
+- agents/huyang.md lines 5-8 replace the obsolete Omarchy generator overlap
+  claim with fleet ownership and the retired-generator note.
 
-`tests/test_huyang_instructions.py` checks the maintained copies without installing
-anything. Run checks and any generation only in isolated Chaldea jobs with disk-backed
-scratch and a disposable HOME. Source synchronization does not deploy or prove convergence.
+All other deployed bytes, destinations and the plugin bytes must match.
+The Huyang role is disabled on every host and adds no deployed runtime changes.
+
+Huyang still supplies source reads and guarded edits. Builds and tests run
+through Chaldea; every Go test sets HUYANG_FRICTION=0. A separate verification
+does not relax change_plan trust or prepared-revision evidence rules.
