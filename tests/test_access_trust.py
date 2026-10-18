@@ -89,6 +89,7 @@ def test_inventory_disabled_and_units_use_isolated_state():
         ("fleet-timers", "chaldea", "agent-a.fleet"),
         ("toolfeedback", "chaldea", "agent-a.toolfeedback"),
         ("feed-writer", "chaldea", "feed"),
+        ("mission-control-publisher", "chaldea", "agent-a.mission-control"),
     }
     for ceiling in key["ceilings"]:
         assert ceiling["audience"] == "akasha"
