@@ -128,6 +128,11 @@
         path: "{{ huyang_root }}/restart-required"
       register: huyang_restart
 
+    - name: Inspect pending health from an earlier activation
+      ansible.builtin.stat:
+        path: "{{ huyang_root }}/health-pending"
+      register: huyang_health_pending
+
     - name: Load a changed Huyang unit
       ansible.builtin.systemd_service:
         scope: user
@@ -150,54 +155,16 @@
         state: started
       when: not huyang_restart.stat.exists
 
-    - name: Wait for the private Huyang control socket
-      ansible.builtin.wait_for:
-        path: "{{ huyang_socket }}"
-        timeout: 30
-
-    - name: Install the read-only health client
-      ansible.builtin.copy:
-        src: huyang_health.py
-        dest: "{{ huyang_root }}/health-check.py"
-        mode: "0644"
-
-    - name: Create the controlled health sample directories
-      ansible.builtin.file:
-        path: "{{ huyang_root }}/health/{{ item | dirname }}"
-        state: directory
-        mode: "0755"
-      loop: "{{ (lookup('ansible.builtin.file', role_path ~ '/files/health-fixtures.json') | from_json).keys() | list }}"
-
-    - name: Install controlled health samples from inert fixture data
-      ansible.builtin.copy:
-        content: "{{ item.value }}"
-        dest: "{{ huyang_root }}/health/{{ item.key }}"
-        mode: "0644"
-      loop: "{{ lookup('ansible.builtin.file', role_path ~ '/files/health-fixtures.json') | from_json | dict2items }}"
-      loop_control:
-        label: "{{ item.key }}"
-
-    - name: Inspect workspace health and selected language server presence
+    - name: Persist pending health after the release restart
       ansible.builtin.command:
         argv:
-          - /usr/bin/python3
-          - "{{ huyang_root }}/health-check.py"
-          - --binary
-          - "{{ huyang_root }}/current/bin/huyang"
-          - --socket
-          - "{{ huyang_socket }}"
-          - --root
-          - "{{ huyang_root }}/health"
-          - --languages
-          - "{{ huyang_languages | to_json }}"
-      changed_when: false
-      register: huyang_health
+          - /usr/bin/mv
+          - --
+          - "{{ huyang_root }}/restart-required"
+          - "{{ huyang_root }}/health-pending"
+      changed_when: true
+      when: huyang_restart.stat.exists
 
-    - name: Report the expected language server health
-      ansible.builtin.debug:
-        msg: "{{ huyang_health.stdout | from_json }}"
-
-    - name: Clear restart intent only after successful health verification
-      ansible.builtin.file:
-        path: "{{ huyang_root }}/restart-required"
-        state: absent
+    - name: Verify release activation or retry pending health without restarting
+      ansible.builtin.include_tasks: health.yml
+      when: huyang_restart.stat.exists or huyang_health_pending.stat.exists

@@ -34,15 +34,21 @@ huyang_languages defaults to the strict suite's nine languages. Inventory
 can omit java or rust on a memory-constrained host. MemoryHigh is explicit
 per host: agent-a 4G, agent-b 2G, omarchy-pc 2G, laptop 1G.
 
-Only a changed release pin creates restart intent. Intent survives a failed
-restart or health check, so the next converge retries it. Check mode performs
-no install, migration, service operation or MCP health request. Unit/toolchain
-configuration changes alone are staged for the next pin-driven restart.
+Only a changed release pin creates restart intent. A failed restart retains
+that intent. A successful restart replaces it with pending health evidence;
+a later health retry does not restart again. Check mode performs no install,
+migration, service operation or MCP health request. Steady converges make no
+MCP calls, so they do not replace active workspace providers with health samples.
+Unit configuration changes, including huyang_socket, require a release pin bump
+to take effect in the running service. A toolchain current switch is visible to
+new providers immediately; existing providers keep their loaded processes.
 After restart the role waits for the socket and calls workspace_inspect and
 language_server_status for every selected language using controlled samples.
-It reports expected languages; only missing required servers fail the language
-presence gate. Slow initialization, capacity delays and unrelated project
-diagnostics do not fail that gate.
+It checks required server executables and reports expected languages. Missing
+required servers fail the language presence gate. Provider capacity delays keep
+health pending for the next converge, without another restart or a false missing
+server failure. Slow initialization and unrelated project diagnostics do not
+fail the presence gate.
 
 ## Orchestrator commands
 

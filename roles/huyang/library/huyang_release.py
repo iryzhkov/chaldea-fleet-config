@@ -111,8 +111,9 @@ def install(module):
     safe_directory(root)
     safe_directory(root / "releases")
     marker = root / "restart-required"
-    if marker.is_symlink() or (marker.exists() and not marker.is_file()):
-        raise ValueError("unsafe restart intent path")
+    for intent in (marker, root / "health-pending"):
+        if intent.is_symlink() or (intent.exists() and not intent.is_file()):
+            raise ValueError("unsafe restart or health intent path")
     files = inspect_archive(Path(p["archive"]), p["sha256"], version, p["architecture"])
     backup = root.with_name(root.name + ".pre-fleet")
     legacy = (root / ".git").exists()
@@ -146,8 +147,8 @@ def install(module):
             if stage.exists():
                 shutil.rmtree(stage)
     if p["activate"] and target != destination:
-        # Keep intent until the service restart and health checks complete. A failed
-        # restart or interrupted converge is retried even after current was switched.
+        # Keep restart intent until a successful restart records health-pending.
+        # A failed restart is retried even after current was switched.
         marker.write_text(version + "\n")
         marker.chmod(0o600)
         if target:

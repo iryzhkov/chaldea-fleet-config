@@ -15,7 +15,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 FAKE_MCP = b"""#!/usr/bin/python3
-import json, sys
+import json, os, sys
 servers = {"go": "gopls", "rust": "rust_analyzer", "python": "pyright", "java": "jdtls",
            "typescript": "ts_ls", "javascript": "ts_ls", "cpp": "clangd", "c": "clangd", "bash": "bashls"}
 for line in sys.stdin:
@@ -26,12 +26,24 @@ for line in sys.stdin:
     if request["method"] == "tools/call":
         params = request["params"]
         language = params["arguments"]["root"].rsplit("/", 1)[-1]
+        trace = os.environ.get("FAKE_MCP_CALLS")
+        if trace:
+            scratch = os.environ["FAKE_SCRATCH_ROOT"]
+            assert os.path.commonpath([trace, scratch]) == scratch
+            assert os.path.commonpath([os.environ["HOME"], scratch]) == scratch
+            with open(trace, "a") as stream:
+                stream.write(params["name"] + ":" + language + "\\n")
         data = {"semantic_provider": {"state": "healthy"}}
         if params["name"] == "language_server_status":
             data = {"language_servers": {"languages": [{
                 "filetype": "sh" if language == "bash" else language,
                 "lsp": servers[language], "attach": "attached", "treesitter_parser": True}]}}
-        result = {"structuredContent": {"outcome": "ok", "data": data}}
+        envelope = {"outcome": "ok", "data": data}
+        pending = os.environ.get("FAKE_MCP_CAPACITY")
+        if params["name"] == "language_server_status" and pending and os.path.exists(pending):
+            envelope = {"outcome": "failed", "code": "semantic_provider_start_failed",
+                        "summary": "semantic provider capacity exhausted", "data": None}
+        result = {"structuredContent": envelope}
     print(json.dumps({"jsonrpc": "2.0", "id": request["id"], "result": result}), flush=True)
 """
 
@@ -41,6 +53,15 @@ def fixture(tmp_path, monkeypatch, version="huyang-v9.0.0"):
     assert home.is_relative_to(Path(os.environ["TMPDIR"]))
     assert tmp_path.is_relative_to(Path(os.environ["TMPDIR"]))
     assert "/tmp/" not in str(home)
+    binaries = home / "toolchain/bin"
+    binaries.mkdir(parents=True, exist_ok=True)
+    for name in ("gopls", "bash-language-server"):
+        binary = binaries / name
+        binary.write_text("#!/bin/sh\nexit 0\n")
+        binary.chmod(0o755)
+    # Ansible changes TMPDIR for modules; retain the asserted test scratch root.
+    monkeypatch.setenv("FAKE_SCRATCH_ROOT", os.environ["TMPDIR"])
+    monkeypatch.setenv("FAKE_MCP_CALLS", str(tmp_path / "mcp-calls.log"))
     roles = tmp_path / "roles"
     if not roles.exists():
         shutil.copytree(ROOT / "roles/huyang", roles / "huyang")
@@ -132,13 +153,30 @@ def test_role_check_real_second_real_pin_restart_and_state_preservation(tmp_path
     assert "current/bin/huyang serve" in unit and "MemoryHigh=1G" in unit
     assert "UnsetEnvironment=HUYANG_RUNTIME_PATH AGENT99_RUNTIME_PATH" in unit
     assert (checkout / "bin/huyang").resolve() == checkout / "releases/huyang-v9.0.0/bin/huyang"
+    trace = tmp_path / "mcp-calls.log"
+    first_calls = trace.read_bytes()
     second = apply(tmp_path, variables, roles)
     success(second)
+    assert trace.read_bytes() == first_calls, "steady converge must not probe or evict user providers"
     assert "changed=0" in second.stdout
     assert json.loads(manager.read_text())["calls"].count(["restart", "huyang.service"]) == 1
     variables, roles, manager = fixture(tmp_path, monkeypatch, version="huyang-v9.1.0")
-    success(apply(tmp_path, variables, roles))
+    capacity = tmp_path / "capacity-pending"
+    capacity.touch()
+    monkeypatch.setenv("FAKE_MCP_CAPACITY", str(capacity))
+    deferred = apply(tmp_path, variables, roles)
+    success(deferred)
+    assert "deferred_capacity" in deferred.stdout
+    assert (checkout / "health-pending").is_file() and not (checkout / "restart-required").exists()
     assert json.loads(manager.read_text())["calls"].count(["restart", "huyang.service"]) == 2
+    capacity.unlink()
+    success(apply(tmp_path, variables, roles))
+    assert not (checkout / "health-pending").exists()
+    assert json.loads(manager.read_text())["calls"].count(["restart", "huyang.service"]) == 2
+    verified_calls = trace.read_bytes()
+    steady = apply(tmp_path, variables, roles)
+    success(steady)
+    assert "changed=0" in steady.stdout and trace.read_bytes() == verified_calls
     assert (checkout / "previous").resolve() == checkout / "releases/huyang-v9.0.0"
 
 

@@ -12,13 +12,16 @@ FILETYPES = {"bash": "sh"}
 SERVERS = {"go": "gopls", "rust": "rust_analyzer", "python": "pyright",
            "typescript": "ts_ls", "javascript": "ts_ls", "java": "jdtls",
            "cpp": "clangd", "c": "clangd", "bash": "bashls"}
+EXECUTABLES = dict(SERVERS, rust="rust-analyzer", python="pyright-langserver",
+                   typescript="typescript-language-server", javascript="typescript-language-server",
+                   bash="bash-language-server")
 
 
 class Client:
     def __init__(self, binary, socket):
         self.process = subprocess.Popen(
             [binary, "mcp", "--socket", socket, "--profile", "full", "--reply-style", "json"],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         self.sequence = 0
         self.pending = b""
 
@@ -88,9 +91,52 @@ def presence(language, reply):
             "parser": row.get("treesitter_parser_installed", row.get("treesitter_parser"))}
 
 
-def check(binary, socket, root, languages):
+def is_capacity(reply):
+    message = str(reply.get("code", "")) + " " + str(reply.get("summary", ""))
+    return any(term in message.lower() for term in
+               ("provider capacity", "provider_capacity", "language_server_capacity", "capacity exhausted"))
+
+
+def require_executables(toolchain_bin, languages):
+    directory = Path(toolchain_bin)
+    if not directory.is_absolute():
+        raise ValueError("toolchain bin must be absolute")
+    for language in languages:
+        executable = directory / EXECUTABLES[language]
+        if not executable.is_file() or not os.access(executable, os.X_OK):
+            raise ValueError("missing required server executable for " + language + ": " + str(executable))
+
+
+def probe_language(client, arguments, language):
+    for attempt in range(3):
+        opened = client.call("workspace_open", arguments)
+        if not is_capacity(opened):
+            if opened.get("outcome") in ("failed", "unavailable", "conflict"):
+                raise ValueError("health workspace could not open: " + opened.get("summary", ""))
+            inspection = client.call("workspace_inspect", arguments)
+            status = client.call("language_server_status", dict(
+                arguments, languages=[FILETYPES.get(language, language)]))
+            if not is_capacity(inspection) and not is_capacity(status):
+                provider = (inspection.get("data") or {}).get("semantic_provider") or {}
+                if inspection.get("outcome") in ("failed", "unavailable"):
+                    raise ValueError("workspace_inspect health failed: " + inspection.get("summary", ""))
+                if provider.get("state") == "healthy":
+                    return presence(language, status)
+                # The status call may acquire a slot after inspect was refused.
+                live = (status.get("data") or {}).get("provider") or {}
+                if live.get("state") != "healthy":
+                    raise ValueError("workspace_inspect provider is unhealthy")
+        if attempt < 2:
+            time.sleep(0.25)
+    # Installation already proved executable/config/parser presence. Capacity is
+    # pending runtime evidence, never evidence that a required server is absent.
+    return {"language": language, "server": SERVERS[language], "attach": "deferred_capacity"}
+
+
+def check(binary, socket, root, languages, toolchain_bin):
     if not languages or len(set(languages)) != len(languages) or set(languages) - SERVERS.keys():
         raise ValueError("expected a unique nonempty subset of the strict nine languages")
+    require_executables(toolchain_bin, languages)
     client = Client(binary, socket)
     try:
         client.rpc("initialize", {"protocolVersion": "2025-03-26", "capabilities": {},
@@ -100,28 +146,22 @@ def check(binary, socket, root, languages):
         checked = []
         for language in languages:
             arguments = {"root": str(Path(root) / language)}
-            opened = client.call("workspace_open", arguments)
-            if opened.get("outcome") in ("failed", "unavailable", "conflict"):
-                raise ValueError("health workspace could not open: " + opened.get("summary", ""))
-            inspection = client.call("workspace_inspect", arguments)
-            provider = (inspection.get("data") or {}).get("semantic_provider") or {}
-            if (inspection.get("outcome") in ("failed", "unavailable")
-                    or provider.get("state") != "healthy"):
-                raise ValueError("workspace_inspect health failed: " + inspection.get("summary", ""))
-            status = client.call("language_server_status", dict(arguments, languages=[FILETYPES.get(language, language)]))
-            checked.append(presence(language, status))
-        return {"expected_languages": languages, "servers": checked}
+            checked.append(probe_language(client, arguments, language))
+        deferred = [entry["language"] for entry in checked if entry["attach"] == "deferred_capacity"]
+        return {"expected_languages": languages, "servers": checked, "complete": not deferred,
+                "deferred_languages": deferred,
+                "warnings": ["Provider capacity delayed health; the next converge retries without restart."] if deferred else []}
     finally:
         client.close()
 
 
 def main():
     parser = argparse.ArgumentParser()
-    for name in ("binary", "socket", "root", "languages"):
+    for name in ("binary", "socket", "root", "languages", "toolchain-bin"):
         parser.add_argument("--" + name, required=True)
     args = parser.parse_args()
     try:
-        print(json.dumps(check(args.binary, args.socket, args.root, json.loads(args.languages))))
+        print(json.dumps(check(args.binary, args.socket, args.root, json.loads(args.languages), args.toolchain_bin)))
     except (OSError, ValueError, KeyError, TypeError) as error:
         parser.exit(1, str(error) + "\n")
 

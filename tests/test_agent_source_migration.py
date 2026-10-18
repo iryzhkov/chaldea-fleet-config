@@ -62,7 +62,8 @@ def compare(relative, data):
 
 
 def test_source_only_move_recovers_all_pre_move_bytes():
-    paths = {p.relative_to(ROOT).as_posix() for p in FILES.rglob("*") if p.is_file()}
+    paths = {p.relative_to(ROOT).as_posix() for p in FILES.rglob("*")
+             if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
     assert paths == BEFORE["files"].keys()
     for path in paths:
         compare(Path(path).relative_to("roles/agent_config/files").as_posix(), (ROOT / path).read_bytes())

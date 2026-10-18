@@ -172,5 +172,7 @@ def test_every_real_host_is_disabled_and_has_a_memory_budget():
     tasks = yaml.safe_load((ROOT / "roles/huyang/tasks/main.yml").read_text())
     installation = next(task for task in tasks if "block" in task)
     assert installation["when"] == "not ansible_check_mode"
-    restarts = [task for task in installation["block"] if "systemd_service" in str(task)]
-    assert all("systemd_service" in str(task) for task in restarts)
+    restart = next(task for task in installation["block"] if task["name"].startswith("Restart Huyang"))
+    assert restart["when"] == "huyang_restart.stat.exists"
+    probe = next(task for task in installation["block"] if task.get("ansible.builtin.include_tasks") == "health.yml")
+    assert probe["when"] == "huyang_restart.stat.exists or huyang_health_pending.stat.exists"
