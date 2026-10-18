@@ -1,0 +1,13 @@
+---
+# Dedicated local inventory. No agent_hosts membership or recurring pull ownership.
+all:
+  vars:
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  hosts:
+    agent-a: {}
+    agent-b: {}
+    omarchy-pc: {}
+    omarchy-macbook-air-igor: {}
+    homelab: {}
+    omarchy-normandy: {}
