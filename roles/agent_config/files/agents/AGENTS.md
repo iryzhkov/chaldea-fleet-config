@@ -81,10 +81,11 @@ Before each T3 `delegate_task`, call FATE through `chaldea_route` or
 `critical-review` for consequential design or disputed findings, `bulk-read` for readers
 and `general` for other work. Pass the selected `providerInstanceId`, `model` and
 `options` exactly as the delegate target, including effort. Honor explicit user overrides.
-For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,
-or CLI `--author-provider`, to require the other provider. Reject a same-provider target
-unless the quota exception qualifies; compare underlying provider drivers in the live catalog.
-A recommendation that violates review separation is unusable; apply the fallback below.
+For the main other-provider review pass the writer's driver as `authorProvider`,
+`claudeAgent` or `codex`, or CLI `--author-provider`. Compare underlying provider drivers
+in the live catalog. Reject a same-provider target for that review unless the quota
+exception qualifies. Route the independent peer under `review-delegation`'s pair rule.
+A recommendation that violates the requested separation is unusable; apply the fallback below.
 
 If a long-lived MCP rejects newer configuration keys, use the installed CLI before
 declaring routing unavailable. No T3 restart is needed. If neither can recommend a
@@ -103,18 +104,25 @@ Delegate through T3's own tools rather than a separate scheduler:
   `schedule_task` for recurring work, and `watch_pull_request` for following CI.
 - Native same-provider subagents are for quick bounded reading and searching.
 
-Builders may launch their own reviews, using T3 `delegate_task` only. Review the final
-commit with one main reviewer under `review-delegation`'s provider rule, plus at most one narrow fan-out
-for security- or data-sensitive work. Allow at most two fix rounds. Report every
-reviewer's thread ID, model and verdict in the reply and a PR comment. After an accepted
-review, the orchestrator verifies a change of under about 50 lines without another review.
+Builders may launch their own reviews, using fresh T3 `delegate_task` contexts only.
+Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,
+with the main reviewer on the other provider whenever quota allows. When quota is tight,
+two different models on the same provider are allowed with fresh quota evidence and an
+honestly labeled exception. One independent review is acceptable when quota or availability
+prevents the pair. Follow `review-delegation` for routing and evidence. Optional Luna/Haiku
+lenses need a concrete risk and a bounded target; no default swarm. Allow at most two fix
+rounds. Report every reviewer's thread ID, model and verdict in the reply and a PR comment.
+After an accepted review, the orchestrator verifies a change of under about 50 lines
+without another review.
 
 T3 tools act only on the host's own T3 server. There is no agent-driven launch on another
 host yet; ask Igor to start work there from the T3 app.
 
-FATE owns normal model selection. Fixed model pairs apply only in the documented
-outage fallback; explicit user overrides still apply. Sonnet is excluded; Haiku is
-allowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.
+FATE selects targets within the adopted review pair and role rules; explicit user
+model overrides still apply. Use the documented outage fallback when routing is unavailable. Sonnet is excluded; Haiku is
+allowed when selected. Maximum effort is high; only Luna/Haiku may use xhigh.
+These are ceilings, not defaults. Choose only available live-catalog models/options;
+Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode.
 Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.
 Read a quick lookup in a known file directly.
 

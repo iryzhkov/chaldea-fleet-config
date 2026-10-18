@@ -443,7 +443,242 @@ QUOTA_REVIEW_CHANGES = [
 ]
 
 
+# Exact review-pair guidance adopted by Igor, 2026-10-18.
+# Reverse this layer first; historical policy mappings and byte fixtures stay unchanged.
+REVIEW_PAIR_CHANGES = {
+    "agents/AGENTS.md": [
+        [
+            "For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\nor CLI `--author-provider`, to require the other provider. Reject a same-provider target\nunless the quota exception qualifies; compare underlying provider drivers in the live catalog.\nA recommendation that violates review separation is unusable; apply the fallback below.",
+            "For the main other-provider review pass the writer's driver as `authorProvider`,\n`claudeAgent` or `codex`, or CLI `--author-provider`. Compare underlying provider drivers\nin the live catalog. Reject a same-provider target for that review unless the quota\nexception qualifies. Route the independent peer under `review-delegation`'s pair rule.\nA recommendation that violates the requested separation is unusable; apply the fallback below."
+        ],
+        [
+            "Builders may launch their own reviews, using T3 `delegate_task` only. Review the final\ncommit with one main reviewer under `review-delegation`'s provider rule, plus at most one narrow fan-out\nfor security- or data-sensitive work. Allow at most two fix rounds. Report every\nreviewer's thread ID, model and verdict in the reply and a PR comment. After an accepted\nreview, the orchestrator verifies a change of under about 50 lines without another review.",
+            "Builders may launch their own reviews, using fresh T3 `delegate_task` contexts only.\nPrefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 high,\nwith the main reviewer on the other provider whenever quota allows. When quota is tight,\ntwo different models on the same provider are allowed with fresh quota evidence and an\nhonestly labeled exception. One independent review is acceptable when quota or availability\nprevents the pair. Follow `review-delegation` for routing and evidence. Optional Luna/Haiku\nlenses need a concrete risk and a bounded target; no default swarm. Allow at most two fix\nrounds. Report every reviewer's thread ID, model and verdict in the reply and a PR comment.\nAfter an accepted review, the orchestrator verifies a change of under about 50 lines\nwithout another review."
+        ],
+        [
+            "FATE owns normal model selection. Fixed model pairs apply only in the documented\noutage fallback; explicit user overrides still apply.",
+            "FATE selects targets within the adopted review pair and role rules; explicit user\nmodel overrides still apply. Use the documented outage fallback when routing is unavailable."
+        ]
+    ],
+    "codex/AGENTS.md": [
+        [
+            "For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\nor CLI `--author-provider`, to require the other provider. Reject a same-provider target\nunless the quota exception qualifies; compare underlying provider drivers in the live catalog.\nA recommendation that violates review separation is unusable; apply the fallback below.",
+            "For the main other-provider review pass the writer's driver as `authorProvider`,\n`claudeAgent` or `codex`, or CLI `--author-provider`. Compare underlying provider drivers\nin the live catalog. Reject a same-provider target for that review unless the quota\nexception qualifies. Route the independent peer under `review-delegation`'s pair rule.\nA recommendation that violates the requested separation is unusable; apply the fallback below."
+        ],
+        [
+            "Builders may launch their own reviews, using T3 `delegate_task` only. Review the final\ncommit with one main reviewer under `review-delegation`'s provider rule, plus at most one narrow fan-out\nfor security- or data-sensitive work. Allow at most two fix rounds. Report every\nreviewer's thread ID, model and verdict in the reply and a PR comment. After an accepted\nreview, the orchestrator verifies a change of under about 50 lines without another review.",
+            "Builders may launch their own reviews, using fresh T3 `delegate_task` contexts only.\nPrefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 high,\nwith the main reviewer on the other provider whenever quota allows. When quota is tight,\ntwo different models on the same provider are allowed with fresh quota evidence and an\nhonestly labeled exception. One independent review is acceptable when quota or availability\nprevents the pair. Follow `review-delegation` for routing and evidence. Optional Luna/Haiku\nlenses need a concrete risk and a bounded target; no default swarm. Allow at most two fix\nrounds. Report every reviewer's thread ID, model and verdict in the reply and a PR comment.\nAfter an accepted review, the orchestrator verifies a change of under about 50 lines\nwithout another review."
+        ],
+        [
+            "FATE owns normal model selection. Fixed model pairs apply only in the documented\noutage fallback; explicit user overrides still apply.",
+            "FATE selects targets within the adopted review pair and role rules; explicit user\nmodel overrides still apply. Use the documented outage fallback when routing is unavailable."
+        ]
+    ],
+    "claude/omarchy-setup/CLAUDE.md": [
+        [
+            "For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\nor CLI `--author-provider`, to require the other provider. Reject a same-provider target\nunless the quota exception qualifies; compare underlying provider drivers in the live catalog.\nA recommendation that violates review separation is unusable; apply the fallback below.",
+            "For the main other-provider review pass the writer's driver as `authorProvider`,\n`claudeAgent` or `codex`, or CLI `--author-provider`. Compare underlying provider drivers\nin the live catalog. Reject a same-provider target for that review unless the quota\nexception qualifies. Route the independent peer under `review-delegation`'s pair rule.\nA recommendation that violates the requested separation is unusable; apply the fallback below."
+        ],
+        [
+            "Builders may launch their own reviews, using T3 `delegate_task` only. Review the final\ncommit with one main reviewer under `review-delegation`'s provider rule, plus at most one narrow fan-out\nfor security- or data-sensitive work. Allow at most two fix rounds. Report every\nreviewer's thread ID, model and verdict in the reply and a PR comment. After an accepted\nreview, the orchestrator verifies a change of under about 50 lines without another review.",
+            "Builders may launch their own reviews, using fresh T3 `delegate_task` contexts only.\nPrefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 high,\nwith the main reviewer on the other provider whenever quota allows. When quota is tight,\ntwo different models on the same provider are allowed with fresh quota evidence and an\nhonestly labeled exception. One independent review is acceptable when quota or availability\nprevents the pair. Follow `review-delegation` for routing and evidence. Optional Luna/Haiku\nlenses need a concrete risk and a bounded target; no default swarm. Allow at most two fix\nrounds. Report every reviewer's thread ID, model and verdict in the reply and a PR comment.\nAfter an accepted review, the orchestrator verifies a change of under about 50 lines\nwithout another review."
+        ],
+        [
+            "FATE owns normal model selection. Fixed model pairs apply only in the documented\noutage fallback; explicit user overrides still apply.",
+            "FATE selects targets within the adopted review pair and role rules; explicit user\nmodel overrides still apply. Use the documented outage fallback when routing is unavailable."
+        ]
+    ],
+    "skills/review-delegation/SKILL.md": [
+        [
+            "- A main review by a strong model from the provider that did not write the\n  change, selected through FATE's `builder` role, subject only to the quota\n  exception below.\n- Add at most one narrow fan-out review, only for security- or data-sensitive\n  work, with exactly one target area such as data safety or credential handling.\n  Conserve Claude for required main reviews; no optional Claude fan-outs.\n- The `critical-review` role only for a consequential design\n  decision or a disputed finding, or the quota exception below.\n",
+            "- Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 high,\n  using both providers whenever quota allows. The main reviewer uses the provider\n  that did not write the change. Route the independent peer on its own provider.\n- When quota is tight, two different models on the same provider are allowed,\n  for example Sol and Astra, under the quota exception below. One independent\n  review is acceptable when quota or availability prevents the desired pair.\n- Use Astra/Fable for consequential design, disputed findings or a stronger\n  available-provider peer when conserving the other provider. They are not\n  mandatory normal reviewers.\n- Add at most one optional Luna/Haiku lens, with a concrete risk and exactly one\n  bounded target, such as data safety or credential handling. No default review swarm. Conserve\n  Claude; avoid optional Claude fan-outs.\n"
+        ],
+        [
+            "For reviews, pass the writer's driver as `authorProvider`, `claudeAgent` or\n`codex`, or CLI `--author-provider`, to require the other provider. Honor",
+            "For the main other-provider review, pass the writer's driver as `authorProvider`,\n`claudeAgent` or `codex`, or CLI `--author-provider`. Route the independent peer\nwithout that author-provider exclusion, under the pair or quota rule. Honor"
+        ],
+        [
+            "Keep Claude use to required main reviews. If that fallback cannot run,\ndefer the review unless the quota exception below actually qualifies.",
+            "Keep Claude use to the preferred pair and required main review. If the other-provider\nfallback cannot run, record the evidence and apply the quota or single-review rule."
+        ],
+        [
+            "each round its own `clientRequestId`. Launch the main review and any permitted fan-out of a\nround together; a finished child wakes the parent, so never poll.",
+            "each round its own `clientRequestId`. Launch the independent pair and any justified\nbounded lens together; a finished child wakes the parent, so never poll."
+        ],
+        [
+            "Cross-provider review remains the default. Only an observed quota stop on the\nother provider with a reliable reset more than one hour away at review selection\npermits a waiver.\nUnknown quota/reset, a reset at most one hour away, routing preference or a\nmissing recommendation does not qualify. Honor explicit user/model overrides.\n\nKeep a fresh independent context through a new T3 `delegate_task`. Select a more\ncapable available model at high reasoning; for Sol-authored Codex work, prefer\n`gpt-6-astra` with `reasoningEffort=high`. This is a same-provider exception,\nnot a cross-provider review. Keep normal FATE/role selection otherwise.\n\nRoute first with `authorProvider` as usual. If that strict filter has no candidate\nunder a qualifying stop, record the explicit waiver, then resolve an appropriate\navailable target and high-effort option from `orchestrator_capabilities`. Do not\nweaken the router's filter or change routing code. Record the exception reason,\nobserved stop and reset timestamps with their evidence, reviewer thread ID,\nprovider/model/effort and verdict in both the PR comment and checkpoint.\nNo spending, reset redemption or authentication changes are authorized.\n\nThe exact reviewed commit, clean-tree acceptance, citation/location blocking\nrule and two-fix-round limit below still apply. Existing reviews on an available\nother provider continue; this exception applies to future qualifying stops.\n\n",
+            "Use both providers whenever quota allows. When quota is tight, two independent\nreviews on the same provider with different models are allowed. Keep a fresh independent context\nthrough a new T3 `delegate_task` for each reviewer. For\nSol-authored Codex work, Sol 6.1 high plus Astra high is an available-provider\npair, not a cross-provider review.\n\nRecord fresh quota evidence supporting pressure or a stop at selection, the\nexception reason and reviewer provider/model/effort. A stop and a reset more\nthan one hour away are not prerequisites. Unknown quota, routing preference,\na missing recommendation or a collector HTTP 429 alone grant no waiver.\nNever invent a reset timestamp. If quota or availability prevents two reviews,\none independent review is acceptable; record why the pair could not run.\n\nCall FATE before every delegation. Route the main other-provider review with\n`authorProvider` first. If that strict filter has no candidate under evidenced\nquota pressure, record the exception, then resolve an appropriate available\ntarget and effort from `orchestrator_capabilities`. Do not weaken the router's\nfilter or change routing code. Report each reviewer's thread ID, model, verdict\nand exact reviewed commit in the reply and PR comment; record exception evidence\nand review details in the checkpoint too.\nNo spending, reset redemption or authentication changes are authorized.\n\nThe exact reviewed commit, clean-tree acceptance, citation/location blocking\nrule and two-fix-round limit below still apply. Existing reviews on an available\nother provider continue.\n\n"
+        ],
+        [
+            "and `options` exactly as the T3 `delegate_task` target, including effort.",
+            "and `options` exactly as the T3 `delegate_task` target, including effort.\nEach route returns one target plus alternatives/byProvider, not a review pair.\nThe orchestrator selects each reviewer separately, calls FATE for each delegation\nand launches two fresh contexts. Current pins still apply; this guidance adds no\nautomatic pair selection or joint model/effort optimizer."
+        ]
+    ],
+    "skills/chaldea/SKILL.md": [
+        [
+            "For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or\n`codex`, or CLI `--author-provider`, to require the other provider.",
+            "For the main other-provider review pass the writer's driver as `authorProvider`,\n`claudeAgent` or `codex`, or CLI `--author-provider`. Route the independent peer\nunder `review-delegation`'s pair rule."
+        ],
+        [
+            "If the fallback is unavailable, defer that dependent work and report why.",
+            "If the fallback is unavailable, report why and apply `review-delegation`'s\nquota or single-review rule for reviews; defer other dependent work."
+        ],
+        [
+            "Cross-provider review remains the default. Only `review-delegation`'s \"Quota\nexception\" permits a fresh stronger same-provider reviewer after an observed\nother-provider quota stop with a reliable reset more than one hour away.\nUnknown windows/reset or a collector HTTP 429 alone grant no waiver.",
+            "Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 high,\nusing both providers whenever quota allows. `review-delegation`'s \"Quota exception\"\nallows two different models on the same provider when quota is tight, with fresh\nquota evidence and honest labeling. One independent review is acceptable when\nquota or availability prevents the pair. Astra/Fable serve consequential design,\ndisputed findings or a stronger available-provider peer, not mandatory normal reviews.\nUnknown quota, missing routing recommendations or a collector HTTP 429 alone grant no waiver."
+        ]
+    ],
+    "skills/roadmap-executor/SKILL.md": [
+        [
+            "  for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`\n  or `codex`, or CLI `--author-provider`, to require the other provider. Honor",
+            "  for other work. Main other-provider reviews pass the writer's driver as\n  `authorProvider`, `claudeAgent` or `codex`, or CLI `--author-provider`. Route the\n  independent peer under `review-delegation`'s pair rule. Honor"
+        ],
+        [
+            "- Load review-delegation for self-contained worker briefs, worktree isolation\n  and review rules.",
+            "- Load review-delegation for self-contained worker briefs, worktree isolation\n  and review rules. Prefer independent Sol 6.1 high and Opus 5.5 high reviews with\n  both providers whenever quota allows. Its \"Quota exception\" allows two different\n  models on one provider when quota is tight, with fresh evidence and honest labeling;\n  one independent review is acceptable if quota or availability prevents the pair."
+        ]
+    ]
+}
+
+
+# Effort ceilings adopted by Igor after the review-pair decision, 2026-10-18.
+EFFORT_CEILING_CHANGES = {
+    "agents/AGENTS.md": [
+        [
+            "Never use max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "codex/AGENTS.md": [
+        [
+            "Never use max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "claude/omarchy-setup/CLAUDE.md": [
+        [
+            "Never use max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "skills/chaldea/SKILL.md": [
+        [
+            "Never\nuse max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "skills/review-delegation/SKILL.md": [
+        [
+            "Never use max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "skills/roadmap-executor/SKILL.md": [
+        [
+            "Never use max effort or above.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\n  These are ceilings, not defaults. Choose only available live-catalog models/options;\n  Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ]
+}
+
+
+# Basic/critical anchor clarification adopted by Igor, 2026-10-18.
+MODEL_ANCHOR_CHANGES = {
+    "agents/AGENTS.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ]
+    ],
+    "codex/AGENTS.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ]
+    ],
+    "claude/omarchy-setup/CLAUDE.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ]
+    ],
+    "skills/roadmap-executor/SKILL.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ]
+    ],
+    "skills/chaldea/SKILL.md": [
+        [
+            "Sol 6.1 high for builders, Luna 6 medium for bulk reading and Sol 6.1 medium",
+            "Sol 6.1 high or Opus 5.5 medium for builders, Luna 6 medium for bulk reading and Sol 6.1 medium"
+        ],
+        [
+            "approved Opus 5.5 high / Sol 6.1 high pair",
+            "approved Opus 5.5 medium / Sol 6.1 high pair"
+        ],
+        [
+            "or disputed findings use Fable 5.1 / Astra medium on the required other provider.",
+            "or disputed findings use Opus 5.5 high / Astra medium on the required other provider.\nThese are adopted outage anchors and explicit user overrides, not deployed router\nchanges; current critical-review routing still selects Fable until separate code changes.\nFable remains an optional explicit alternative."
+        ],
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ],
+        [
+            "quota or availability prevents the pair. Astra/Fable serve consequential design,\ndisputed findings or a stronger available-provider peer, not mandatory normal reviews.",
+            "quota or availability prevents the pair. Critical anchors are Opus 5.5 high and\nAstra medium. Astra or an explicitly selected Fable can provide a stronger\navailable-provider peer; neither is a mandatory normal reviewer."
+        ]
+    ],
+    "skills/review-delegation/SKILL.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ],
+        [
+            "- Use Astra/Fable for consequential design, disputed findings or a stronger\n  available-provider peer when conserving the other provider. They are not\n  mandatory normal reviewers.",
+            "- For consequential design or disputed findings, use the adopted critical anchors,\n  Opus 5.5 high and Astra medium, through explicit user overrides or the documented\n  outage fallback. Fable remains an optional explicit alternative or a stronger\n  available-provider peer. Astra/Fable are not mandatory normal reviewers.\n  Current router critical-review defaults still use Fable until separate code changes."
+        ],
+        [
+            "catalog: Opus 5.5 high\nfor Codex-authored work, Sol 6.1 high for Claude-authored work.",
+            "catalog: Opus 5.5 medium\nfor Codex-authored work, Sol 6.1 high for Claude-authored work."
+        ],
+        [
+            "catalog's exact provider/model IDs and high-effort option.",
+            "catalog's exact provider/model IDs and the matching medium/high effort option."
+        ],
+        [
+            "Sol-authored Codex work, Sol 6.1 high plus Astra high",
+            "Sol-authored Codex work, Sol 6.1 high plus Astra medium"
+        ]
+    ]
+}
+
+
+# Review-note triage guidance adopted by Igor, plan revision 54.
+REVIEW_NOTE_INSERTIONS = {
+    "skills/roadmap-executor/SKILL.md": "## Use review notes when selecting work\n\nAt kickoff/resume, audit boundaries and before selecting the next milestone, read a\nbounded set of untriaged review notes through authorized Akasha reads when available;\notherwise use linked PR/Jocasta records and report the collection gap. Retain the\nlast triage references in the existing checkpoint/backlog; do not reread all history\nevery turn or add polling/cron.\n\nAggregate and deduplicate underlying issues before selecting work. Preserve exact\nreviewed heads, task/thread IDs, reviewer models, citations/locations and source links.\nRevalidate against current code for fixes or superseded findings. Rank by roadmap fit,\nconcrete benefit/risk, effort and dependencies.\n\nSelect useful bounded work within existing roadmap/autonomy authority. Record a brief\ndisposition, reason and adopted work's PR/milestone link in the existing checkpoint or\nbacklog. Notes do not reopen accepted reviews or block a milestone by default. New\nmilestones, out-of-scope work, large cost, security/credential changes or multi-host\nwork require separate authority when not already authorized. No new tracking database.\n\n",
+    "skills/review-delegation/SKILL.md": "## Preserve review notes\n\nAt review completion, the root/worker preserves notes and verdict links in the PR and\nexisting Jocasta checkpoint/backlog, with exact reviewed heads, task/thread IDs, models,\ncitations/locations and source links. Publish native Akasha review notes/verdicts only\nthrough a known authorized producer/path and retain its committed receipt. Schema support\nalone does not prove delivery. If that path is unavailable, retain PR/Jocasta references\nand report the collection gap. Never add grants silently or treat generic `feed_post`\nas `review_note`. This guidance does not implement a collection pipeline.\n\n"
+}
+
+
 def old_bytes(relative, data):
+    if relative in REVIEW_NOTE_INSERTIONS:
+        insertion = REVIEW_NOTE_INSERTIONS[relative].encode()
+        assert data.count(insertion) == 1, relative
+        data = data.replace(insertion, b"", 1)
+    for before, after in reversed(MODEL_ANCHOR_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
+    for before, after in reversed(EFFORT_CEILING_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
+    for before, after in reversed(REVIEW_PAIR_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(FATE_GUIDANCE_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
@@ -530,15 +765,26 @@ def assert_delegation_contract(read):
         assert "installed CLI" in text and "Quota exception" in text
         assert "Reject a same-provider target" in text
         assert "underlying provider drivers" in text
+        assert "Maximum effort is high; only Luna/Haiku may use xhigh." in text
+        assert "These are ceilings, not defaults." in text
+        assert "Haiku needs an available catalog target." in text
+        assert "Never use max, ultra, ultrathink or ultracode." in text
         assert "The client pins builder to" not in text
         assert "Model roles:" not in text
     review = skills[1]
-    for required in ("builder --author-provider codex", "Opus 5.5 high",
-                     "Sol 6.1 high", "reliable reset more than one hour",
+    for required in ("builder --author-provider codex", "Opus 5.5 medium",
+                     "Opus 5.5 high and Astra medium",
+                     "Sol 6.1 high", "two different models on the same provider",
+                     "fresh quota evidence", "one independent review is acceptable",
                      "fresh independent context", "At most two fix rounds",
                      "No spending, reset redemption or authentication changes"):
         assert required in review
     assert "HTTP 429 alone grant no waiver" in skills[0]
+    assert "Never invent a reset timestamp" in review
+    assert "Astra/Fable are not mandatory normal reviewers." in review
+    assert "Current router critical-review defaults still use Fable" in review
+    assert "one target plus alternatives/byProvider" in review
+    assert "mandatory normal reviewers" in review
 
 
 def test_canonical_delegation_contract():
