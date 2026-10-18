@@ -27,7 +27,8 @@ For reviews, supply the writer's driver as `authorProvider`, `claudeAgent` or `c
 or CLI `--author-provider`, so routing requires the other provider. Main diff reviews
 use `builder` to retain the Opus/Sol pair; consequential design or disputed findings
 use `critical-review` for Fable/Astra. If the tool or CLI cannot recommend a target,
-use the shared CLAUDE.md model roles and keep reviews on the other provider.
+use the shared CLAUDE.md model roles. Apply the provider rule and "Quota exception"
+in `review-delegation`; an unavailable recommendation alone grants no waiver.
 
 The client pins builder to Opus 5.5/Sol 6.1 high, critical-review to Fable 5.1/Astra
 medium, bulk-read to Sonnet 5.5/Luna 6 medium, and general to Opus 5.5/Sol 6.1 medium.

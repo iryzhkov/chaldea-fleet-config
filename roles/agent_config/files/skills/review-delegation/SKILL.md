@@ -15,11 +15,11 @@ Review the final commit of each milestone of an agreed plan:
 
 - A main review by a strong model from the provider that did not write the
   change: Sol 6.1 reviews work written by Claude, Opus 5.5 reviews work written
-  by Codex.
+  by Codex, subject only to the quota exception below.
 - Add at most one narrow fan-out review, only for security- or data-sensitive
   work, with exactly one target area such as data safety or credential handling.
 - A critical-review model (Astra or Fable) only for a consequential design
-  decision or a disputed finding, never as a routine reviewer.
+  decision or a disputed finding, or the quota exception below.
 
 OpenCode models are not used for reviews. Reviews stay within the brief. Report
 each reviewer's thread ID, model and verdict in the reply and as a PR comment.
@@ -33,13 +33,38 @@ disputed findings, `bulk-read` for readers and `general` for other work. For rev
 pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`, or CLI
 `--author-provider`, to require the other provider. Honor explicit session model
 restrictions. If routing is unavailable, use the CLAUDE.md model roles and
-`orchestrator_capabilities` IDs, preserving cross-provider review.
+`orchestrator_capabilities` IDs, applying the provider rule and quota exception below.
 
 Start every review round, including re-reviews, as a fresh
 `delegate_task` that carries the brief, the prior findings and the responses to
 them; do not continue a review through `t3_thread_send` on a child thread. Give
 each round its own `clientRequestId`. Launch the main review and any permitted fan-out of a
 round together; a finished child wakes the parent, so never poll.
+
+## Quota exception
+
+Cross-provider review remains the default. Only an observed quota stop on the
+other provider with a reliable reset more than one hour away at review selection
+permits a waiver.
+Unknown quota/reset, a reset at most one hour away, routing preference or a
+missing recommendation does not qualify. Honor explicit user/model overrides.
+
+Keep a fresh independent context through a new T3 `delegate_task`. Select a more
+capable available model at high reasoning; for Sol-authored Codex work, prefer
+`gpt-6-astra` with `reasoningEffort=high`. This is a same-provider exception,
+not a cross-provider review. Keep normal FATE/role selection otherwise.
+
+Route first with `authorProvider` as usual. If that strict filter has no candidate
+under a qualifying stop, record the explicit waiver, then resolve an appropriate
+available target and high-effort option from `orchestrator_capabilities`. Do not
+weaken the router's filter or change routing code. Record the exception reason,
+observed stop and reset timestamps with their evidence, reviewer thread ID,
+provider/model/effort and verdict in both the PR comment and checkpoint.
+No spending, reset redemption or authentication changes are authorized.
+
+The exact reviewed commit, clean-tree acceptance, citation/location blocking
+rule and two-fix-round limit below still apply. Existing reviews on an available
+other provider continue; this exception applies to future qualifying stops.
 
 ## What blocks
 
