@@ -14,7 +14,7 @@ Any other input, wrong owner, broken/unexpected link or unsafe ancestor stops.
 There is no generic local-content exception.
 
 Run the explicit tools/restore-laptop-tdd.yml play from the parent-verified merged
-checkout, with the laptop inventory and pinned Ansible2.19.14. It first verifies
+checkout, with the laptop inventory and pinned Ansible 2.19.14. It first verifies
 the recorded .claude/skills/tdd -> ../../.agents/skills/tdd link and all owned
 target ancestors/tree. It verifies the original hash, exact footer and pinned
 source hash before creating any backup. No link is removed by this play.
@@ -50,7 +50,7 @@ hashes before restoration. Inspect the restoration check, run it once for real,
 and verify preserved backup and canonical TDD hash. Then run pinned ansible-pull
 at the same accepted merged revision with --limit laptop --tags agent_config
 --check --diff. Inspect its diff before real apply. Run real apply twice; require
-the second recap changed0, failed0 and unreachable0. The seven validated links
+the second recap `changed=0 failed=0 unreachable=0`. The seven validated links
 become managed directories only after every link validation passes. Existing
 canonical .agents target bytes must remain unchanged by that migration.
 

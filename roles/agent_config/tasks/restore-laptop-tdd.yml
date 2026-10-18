@@ -93,6 +93,7 @@
     content: "{{ agent_config_tdd_original.stat | to_nice_json }}\n"
     dest: "{{ fleet_home }}/.cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical/metadata.json"
     mode: "0600"
+    force: false
   when: not ansible_check_mode
 
 - name: Inspect the preserved backup
@@ -101,6 +102,12 @@
     follow: false
     checksum_algorithm: sha256
   register: agent_config_tdd_backup
+  when: not ansible_check_mode
+
+- name: Read back the saved nonsecret original metadata
+  ansible.builtin.slurp:
+    src: "{{ fleet_home }}/.cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical/metadata.json"
+  register: agent_config_tdd_backup_metadata
   when: not ansible_check_mode
 
 - name: Require verified backup content and preserved metadata before restoration
@@ -113,6 +120,7 @@
       - agent_config_tdd_backup.stat.uid == agent_config_tdd_original.stat.uid
       - agent_config_tdd_backup.stat.gid == agent_config_tdd_original.stat.gid
       - agent_config_tdd_backup.stat.mtime == agent_config_tdd_original.stat.mtime
+      - (agent_config_tdd_backup_metadata.content | b64decode | from_json) == agent_config_tdd_original.stat
     quiet: true
   when: not ansible_check_mode
 
@@ -120,7 +128,7 @@
   ansible.builtin.copy:
     src: skills/tdd/SKILL.md
     dest: "{{ fleet_home }}/.agents/skills/tdd/SKILL.md"
-    mode: preserve
+    mode: "0644"
 
 - name: Verify the restored full target tree without migrating the link
   ansible.builtin.include_tasks: validate-skill-link.yml
