@@ -83,7 +83,9 @@ Before each T3 `delegate_task`, call FATE through `chaldea_route` or
 and `general` for other work. Pass the selected `providerInstanceId`, `model` and
 `options` exactly as the delegate target, including effort. Honor explicit user overrides.
 For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,
-or CLI `--author-provider`, to require the other provider.
+or CLI `--author-provider`, to require the other provider. Reject a same-provider target
+unless the quota exception qualifies; compare underlying provider drivers in the live catalog.
+A recommendation that violates review separation is unusable; apply the fallback below.
 
 If a long-lived MCP rejects newer configuration keys, use the installed CLI before
 declaring routing unavailable. No T3 restart is needed. If neither can recommend a

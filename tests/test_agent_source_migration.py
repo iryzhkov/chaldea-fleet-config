@@ -92,6 +92,13 @@ FATE_GUIDANCE_CHANGES = {
             "Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\n"
             "Read a quick lookup in a known file directly."
         )),
+        ((
+            "or CLI `--author-provider`, to require the other provider."
+        ), (
+            "or CLI `--author-provider`, to require the other provider. Reject a same-provider target\n"
+            "unless the quota exception qualifies; compare underlying provider drivers in the live catalog.\n"
+            "A recommendation that violates review separation is unusable; apply the fallback below."
+        )),
     ],
     "codex/AGENTS.md": [
         ((
@@ -128,6 +135,13 @@ FATE_GUIDANCE_CHANGES = {
             "Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\n"
             "Read a quick lookup in a known file directly."
         )),
+        ((
+            "or CLI `--author-provider`, to require the other provider."
+        ), (
+            "or CLI `--author-provider`, to require the other provider. Reject a same-provider target\n"
+            "unless the quota exception qualifies; compare underlying provider drivers in the live catalog.\n"
+            "A recommendation that violates review separation is unusable; apply the fallback below."
+        )),
     ],
     "claude/omarchy-setup/CLAUDE.md": [
         ((
@@ -163,6 +177,13 @@ FATE_GUIDANCE_CHANGES = {
             "allowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.\n"
             "Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\n"
             "Read a quick lookup in a known file directly."
+        )),
+        ((
+            "or CLI `--author-provider`, to require the other provider."
+        ), (
+            "or CLI `--author-provider`, to require the other provider. Reject a same-provider target\n"
+            "unless the quota exception qualifies; compare underlying provider drivers in the live catalog.\n"
+            "A recommendation that violates review separation is unusable; apply the fallback below."
         )),
     ],
     "skills/chaldea/SKILL.md": [
@@ -250,6 +271,14 @@ FATE_GUIDANCE_CHANGES = {
             "quota and automatic provider switching remain off. Report distribution and\n"
             "verification per host when this guidance changes."
         )),
+        ((
+            "or silently waive provider separation."
+        ), (
+            "or silently waive provider separation. Reject a same-provider target unless\n"
+            "that quota exception qualifies. Compare underlying provider drivers in the live\n"
+            "catalog before launching; a recommendation violating separation is unusable\n"
+            "and requires the documented other-provider fallback."
+        )),
     ],
     "skills/review-delegation/SKILL.md": [
         ((
@@ -305,6 +334,15 @@ FATE_GUIDANCE_CHANGES = {
         ), (
             "The `critical-review` role only for a consequential design"
         )),
+        ((
+            "other-provider fallback, not a quota waiver. Do not retry a pin indefinitely."
+        ), (
+            "other-provider fallback, not a quota waiver. Do not retry a pin indefinitely.\n"
+            "Reject a same-provider target unless the quota exception qualifies. Compare\n"
+            "underlying provider drivers in the live catalog before launching, even if FATE\n"
+            "returned a target despite authorProvider. Such a recommendation is unusable\n"
+            "for the requested cross-provider review; record it and use the fallback."
+        )),
     ],
     "skills/roadmap-executor/SKILL.md": [
         ((
@@ -331,6 +369,13 @@ FATE_GUIDANCE_CHANGES = {
             "  a Codex builder pin refusal uses `review-delegation`'s approved other-provider\n"
             "  main-review fallback. Apply its provider rule and \"Quota exception\", including\n"
             "  its PR comment and checkpoint evidence. Never use max effort or above."
+        )),
+        ((
+            "  its PR comment and checkpoint evidence. Never use max effort or above."
+        ), (
+            "  its PR comment and checkpoint evidence. Reject a same-provider target unless\n"
+            "  that quota exception qualifies; compare underlying provider drivers in the live\n"
+            "  catalog. Never use max effort or above."
         )),
     ],
 }
@@ -482,6 +527,8 @@ def assert_delegation_contract(read):
         assert "--author-provider" in text
         assert "exactly as" in text and "including effort" in text
         assert "installed CLI" in text and "Quota exception" in text
+        assert "Reject a same-provider target" in text
+        assert "underlying provider drivers" in text
         assert "The client pins builder to" not in text
         assert "Model roles:" not in text
     review = skills[1]

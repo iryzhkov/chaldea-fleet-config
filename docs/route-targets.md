@@ -20,7 +20,11 @@ restart is required. A Codex builder pin may refuse a Codex author's review.
 When FATE cannot recommend a target, the documented main-review fallback
 uses live catalog IDs for Opus 5.5 high on Claude or Sol 6.1 high on Codex,
 always on the other provider. Record the fallback reason; do not retry the
-pin indefinitely or silently select the author's provider. The chaldea skill
+pin indefinitely or silently select the author's provider. Before launch, compare
+underlying provider drivers from the live catalog. Reject a same-provider target
+unless the quota exception qualifies, even if FATE returned it despite the
+requested author-provider constraint. Treat it as an unusable recommendation
+and use the documented other-provider fallback. The chaldea skill
 documents the other outage roles. Conserve Claude for required main reviews.
 
 Only an observed other-provider quota stop with a reliable reset more than

@@ -38,7 +38,9 @@ sessions. Continue routine work inside Igor's agreement without asking again.
   `chaldea` skill's documented outage fallback and live catalog IDs. For main reviews,
   a Codex builder pin refusal uses `review-delegation`'s approved other-provider
   main-review fallback. Apply its provider rule and "Quota exception", including
-  its PR comment and checkpoint evidence. Never use max effort or above.
+  its PR comment and checkpoint evidence. Reject a same-provider target unless
+  that quota exception qualifies; compare underlying provider drivers in the live
+  catalog. Never use max effort or above.
 - Load review-delegation for self-contained worker briefs, worktree isolation
   and review rules. Builders may run their own compliant T3 reviews; reuse
   their final-commit acceptance rather than repeating it. Do not restate or

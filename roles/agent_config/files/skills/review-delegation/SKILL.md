@@ -45,6 +45,10 @@ fallback from the live `orchestrator_capabilities` catalog: Opus 5.5 high
 for Codex-authored work, Sol 6.1 high for Claude-authored work. Pass the
 catalog's exact provider/model IDs and high-effort option. This is an
 other-provider fallback, not a quota waiver. Do not retry a pin indefinitely.
+Reject a same-provider target unless the quota exception qualifies. Compare
+underlying provider drivers in the live catalog before launching, even if FATE
+returned a target despite authorProvider. Such a recommendation is unusable
+for the requested cross-provider review; record it and use the fallback.
 Keep Claude use to required main reviews. If that fallback cannot run,
 defer the review unless the quota exception below actually qualifies.
 For other outage roles, use the `chaldea` skill's documented fallback.

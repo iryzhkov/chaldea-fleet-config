@@ -31,7 +31,10 @@ normally uses `chaldea route --role builder --author-provider codex` for a
 Codex author. Consequential design uses `critical-review`. A Codex-only builder
 pin can legitimately refuse that main review. Use the approved other-provider
 fallback below and in `review-delegation`; do not retry the pin indefinitely
-or silently waive provider separation.
+or silently waive provider separation. Reject a same-provider target unless
+that quota exception qualifies. Compare underlying provider drivers in the live
+catalog before launching; a recommendation violating separation is unusable
+and requires the documented other-provider fallback.
 
 ### CLI and outage fallback
 
