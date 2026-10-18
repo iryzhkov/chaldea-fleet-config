@@ -89,3 +89,58 @@
         group: root
         mode: "0755"
       when: not ansible_check_mode or mission_control_archive.stat.exists
+    - name: Find managed Mission Control releases without following links
+      ansible.builtin.find:
+        paths: "{{ mission_control_release_root }}/releases"
+        file_type: directory
+        recurse: false
+        follow: false
+        use_regex: true
+        patterns: ['^client-v[0-9]+[.][0-9]+[.][0-9]+$']
+      register: mission_control_releases
+      when: not ansible_check_mode
+    - name: Retain the selected release and newest prior release
+      ansible.builtin.set_fact:
+        mission_control_retained_paths: >-
+          {{ [mission_control_release_root ~ '/releases/' ~ mission_control_version] +
+             (mission_control_releases.files | rejectattr('path', 'equalto', mission_control_release_root ~ '/releases/' ~ mission_control_version)
+              | sort(attribute='mtime', reverse=true) | map(attribute='path') | list)[:1] }}
+      when: not ansible_check_mode
+    - name: Find inactive releases older than fourteen days
+      ansible.builtin.find:
+        paths: "{{ mission_control_release_root }}/releases"
+        file_type: directory
+        recurse: false
+        follow: false
+        use_regex: true
+        patterns: ['^client-v[0-9]+[.][0-9]+[.][0-9]+$']
+        age: 14d
+        age_stamp: mtime
+      register: mission_control_old_releases
+      when: not ansible_check_mode
+    - name: Prune only expired inactive Mission Control releases
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ mission_control_old_releases.files | default([]) }}"
+      when: not ansible_check_mode and item.path not in mission_control_retained_paths
+    - name: Find managed cached artifacts older than fourteen days
+      ansible.builtin.find:
+        paths: "{{ mission_control_release_root }}/cache"
+        file_type: file
+        recurse: false
+        follow: false
+        use_regex: true
+        patterns: ['^client-v[0-9]+[.][0-9]+[.][0-9]+[.](tar[.]gz|json)$']
+        age: 14d
+        age_stamp: mtime
+      register: mission_control_old_cache
+      when: not ansible_check_mode
+    - name: Prune only expired inactive Mission Control artifact cache
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ mission_control_old_cache.files | default([]) }}"
+      when:
+        - not ansible_check_mode
+        - (item.path | basename | regex_replace('[.](tar[.]gz|json)$', '')) not in (mission_control_retained_paths | map('basename') | list)

@@ -158,6 +158,11 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
 def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
     variables = stage(tmp_path / "artifact")
     role = fixture_role(tmp_path, "mission_control_runtime")
+    for version, stamp in (("client-v0.0.1", 1), ("client-v0.0.2", 2)):
+        old = tmp_path / "runtime/releases" / version
+        old.mkdir(parents=True)
+        (old / "sentinel").write_text(version)
+        os.utime(old, (stamp, stamp))
     helper = tmp_path / "helper/client-v0.4.0"
     helper.mkdir(parents=True)
     (helper / "sentinel").write_bytes(b"old helper unchanged")
@@ -172,6 +177,8 @@ def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
     ok(again)
     assert "changed=0" in again.stdout
     assert (helper / "sentinel").read_bytes() == b"old helper unchanged"
+    assert not (tmp_path / "runtime/releases/client-v0.0.1").exists()
+    assert (tmp_path / "runtime/releases/client-v0.0.2/sentinel").exists()
     assert (tmp_path / "runtime/releases/client-v9.8.7/bin/chaldea").exists()
     drift = tmp_path / "runtime/releases/client-v9.8.7/src/cli.ts"
     drift.write_text("drift")
