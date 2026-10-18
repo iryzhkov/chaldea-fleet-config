@@ -14,7 +14,8 @@ def test_omarchy_reader_and_conservative_pins(tmp_path, monkeypatch):
     assert host["chaldea_client_version"] == "client-v0.4.2"
     assert host["chaldea_client_sha256"] == "40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a"
     for key in ("chaldea_client_claude_usage_enabled", "chaldea_client_claude_usage_source",
-                "chaldea_client_claude_contexts", "chaldea_client_route_targets"):
+                "chaldea_client_claude_contexts", "chaldea_client_route_targets",
+                "chaldea_client_analytics_max_age_ms"):
         variables[key] = host[key]
     variables["chaldea_client_quota_enabled"] = True
     legacy_credential = Path.home() / ".config/claude/oauth.env"
@@ -29,6 +30,7 @@ def test_omarchy_reader_and_conservative_pins(tmp_path, monkeypatch):
     assert route["claudeUsage"] == {"enabled": False, "providerInstanceId": "claudeAgent"}
     assert "claudeContexts" not in quota
     assert route["scores"] == {"enabled": False}
+    assert route["analyticsMaxAgeMs"] == 5184000000
     assert route["pins"] == {
         "builder": {"model": "gpt-6.1-sol", "providerInstanceId": "codex"},
         "bulk-read": {"model": "gpt-6-luna", "providerInstanceId": "codex"},
