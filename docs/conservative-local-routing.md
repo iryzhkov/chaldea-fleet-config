@@ -1,4 +1,4 @@
-# Conservative routing and local Claude reader
+# Conservative routing and native Claude quota
 
 Igor's 2026-10-18 budget policy uses existing FATE role pins on omarchy-pc:
 builder Sol 6.1 high, bulk-read Luna 6 medium, general Sol 6.1 medium.
@@ -12,25 +12,24 @@ authorProvider to preserve the different-provider rule. The plan r31 known
 quota-stop/reset-over-one-hour review exception remains an explicit session
 decision, never inferred from unknown quota.
 
-The local Claude usage reader is already approved by plan r31. Both route
-claudeUsage and observer claudeContexts bind claudeAgent to the same existing
-0600 oauth.env and only CLAUDE_CODE_OAUTH_TOKEN. T3's installed user service
-uses that exact EnvironmentFile. No credential is copied into inventory,
-logs, argv or source, and collection never refreshes OAuth. Account identity
-comes from provider responses. Shared Akasha publishing stays disabled;
-local collection requires neither grants nor dashboard/AA activation.
+PC normal Claude/T3 now supplies native quota. client-v0.4.2 binds it to the
+instance's validated account hash; normal Claude/T3 owns credential renewal.
+Pair this pin with PR 57, which disables the redundant route/observer HTTP
+collectors while preserving the existing private oauth.env file. Stale or
+unsupported observations remain explicit; a collector 429 is not fresh quota.
+Shared Akasha publishing, AA adaptation and provider switching remain off.
 
 ## Activation boundary
 
 Keep this PR draft and auto-merge off until the parent approves activation.
-Merging main is deployment: active fleet pull timers converge awake hosts
-within about four hours plus timer jitter, or on wake. Merge approval must
-therefore include activation approval.
-client-v0.4.0 is published from reviewed
-Chaldea main 86ad10fa91891a3ffc76397212fdabff34cb014f, including merged #42,
-#44, #45 and #46. Its downloaded archive and manifest both verify SHA-256
-fc80729f9179340c7a29ff1eac5a310aea013ddb107633e4f9b2f1250691dc8d.
-Only omarchy-pc receives this version/digest pin; other hosts retain v0.3.0.
+Merging main makes the pin eligible for active fleet pull timers, which may
+converge awake hosts within four hours plus jitter, or on wake. Merge approval
+must include activation approval; report installation only after verification.
+client-v0.4.2 is published from reviewed green Chaldea main
+9d4341953e20f71c023e8fabbb0c7eba0542aaf5. Its downloaded archive verifies SHA-256
+40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a;
+manifest.json has SHA-256 80d1300524ae52e789388fd72cdc774058ed019247debf34d5bf2840066a4d45.
+Only omarchy-pc receives the proposed version/digest pin; other hosts retain v0.3.0.
 The role refuses new reader/target keys on clients older than v0.4.0 before
 writing files. No release was installed by publishing it.
 
@@ -51,7 +50,7 @@ Expected changes when main eventually converges:
 
 | Host | Changes |
 | --- | --- |
-| omarchy-pc | Client v0.4.0, Codex role pins, enabled local Claude env-file reader in route and observer; quota/waits may restart. |
+| omarchy-pc | Client v0.4.2, existing Codex pins; paired PR 57 uses bound native Claude quota with HTTP readers off. |
 | agent-a, agent-b, laptop | Existing v0.3.0 and policies retained. Empty target/source overrides use the original route.json renderer, preserving bytes and avoiding formatting backups or restarts. |
 
 The compatibility branch preserves existing rendered config on the three
@@ -60,21 +59,19 @@ a later fleet release/policy rollout remains separate.
 
 After activation:
 1. Confirm current resolves to the pinned immutable release.
-2. Confirm route.json has all three Codex pins and the envFile binding;
-   quota.json has the matching enabled Claude context. Inspect selected keys,
-   never the env file contents.
+2. After the paired config converges, confirm all three Codex pins remain,
+   route claudeUsage is disabled and quota.json has no HTTP Claude context.
+   Inspect selected fields; preserve the private legacy env file.
 3. Run the installed chaldea route for the three roles. Verify Codex targets,
-   correct efforts, and explicit pin/fallback reasons. For review pass
-   --role critical-review --author-provider codex and verify Claude or refusal.
-4. Let the already configured observer collect, then use installed
-   chaldea quota status --json. Verify a fresh Claude weekly and short window,
-   or its sanitized failure/backoff reason with last-good age. A 429 is
-   rate_limited, not a successful quota measurement; honour retryAt.
+   correct efforts and explicit fallback reasons. A builder review with
+   --author-provider codex must refuse its Codex pin; critical-review must use Claude or refuse.
+4. Use installed chaldea quota status --json after natural observation.
+   Verify fresh matching-account Claude windows from T3 without the old HTTP
+   429 attached; unsupported/stale data stay explicit and Codex credits remain intact.
 5. Verify no cross-host snapshot publishing, new credentials, AA fetch service,
    or provider switch was enabled. AA source corrections and fleet rollout
    remain separate. Update canonical delegation guidance once the live
    FATE checks pass, preserving the pending quota-exception guidance change.
 
-The old installed client has no safe env-file reader command, so do not run
-new checkout source against real credentials to obtain a preliminary reading.
-The reviewed release and binding are the actual prerequisites, not approval.
+Use the qualified immutable release for verification. Source/package success
+is separate from parent-approved installation and per-host verification.
