@@ -22,11 +22,13 @@ local collection requires neither grants nor dashboard/AA activation.
 
 ## Activation boundary
 
-This PR is source preparation only. Before activation, publish the reviewed
-Chaldea main client containing merged #42, #44, #45 and #46 as client-v0.4.0.
-Verify its release archive and manifest, then pin version and exact archive
-SHA-256 for omarchy-pc only. Do not apply these new config keys to v0.3.0.
-The compatible pin is a merge prerequisite for this PR.
+This PR is source preparation only. client-v0.4.0 is published from reviewed
+Chaldea main 86ad10fa91891a3ffc76397212fdabff34cb014f, including merged #42,
+#44, #45 and #46. Its downloaded archive and manifest both verify SHA-256
+fc80729f9179340c7a29ff1eac5a310aea013ddb107633e4f9b2f1250691dc8d.
+Only omarchy-pc receives this version/digest pin; other hosts retain v0.3.0.
+The role refuses new reader/target keys on clients older than v0.4.0 before
+writing files. No release was installed by publishing it.
 
 The parent owns the bounded one-host activation approval and fleet-rollout
 procedure. Use only the chaldea_client tag with --limit omarchy-pc at the

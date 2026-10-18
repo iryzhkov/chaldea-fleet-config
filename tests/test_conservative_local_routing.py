@@ -11,6 +11,8 @@ def test_omarchy_reader_and_conservative_pins(tmp_path, monkeypatch):
     variables = fixture(tmp_path, monkeypatch)
     inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
     host = inventory["all"]["children"]["agent_hosts"]["hosts"]["omarchy-pc"]
+    assert host["chaldea_client_version"] == "client-v0.4.0"
+    assert host["chaldea_client_sha256"] == "fc80729f9179340c7a29ff1eac5a310aea013ddb107633e4f9b2f1250691dc8d"
     for key in ("chaldea_client_claude_usage_enabled", "chaldea_client_claude_usage_source",
                 "chaldea_client_claude_contexts", "chaldea_client_route_targets"):
         variables[key] = host[key]
@@ -37,3 +39,13 @@ def test_omarchy_reader_and_conservative_pins(tmp_path, monkeypatch):
     repeated = run(tmp_path, variables)
     success(repeated)
     assert "changed=0" in repeated.stdout
+
+
+def test_old_client_refuses_reader_config_before_writes(tmp_path, monkeypatch):
+    variables = fixture(tmp_path, monkeypatch, version="client-v0.3.0")
+    variables["chaldea_client_claude_usage_source"] = {
+        "envFile": str(Path.home() / ".config/claude/oauth.env")}
+    result = run(tmp_path, variables)
+    assert result.returncode != 0
+    assert not (Path.home() / ".local/share/chaldea").exists()
+    assert not (tmp_path / "systemctl.json").read_text().count('"restart"')
