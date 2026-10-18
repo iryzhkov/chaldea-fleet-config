@@ -97,3 +97,32 @@ def test_scoped_sharing_writes_preserve_normal_files_and_next_normal_render(tmp_
     assert all(path.read_bytes() == text for path, text in new.items())
     assert "/current/bin/chaldea" in (units / "chaldea-quota.service").read_text()
     assert "quota-sharing" not in (units / "chaldea-quota.service").read_text()
+
+def test_pc_reader_changes_only_routing_selector_and_separate_file(tmp_path):
+    role = tmp_path / "roles/chaldea_client"
+    shutil.copytree(ROOT / "roles/chaldea_client/templates", role / "templates")
+    directory = tmp_path / ".config/chaldea"
+    directory.mkdir(parents=True)
+    units = tmp_path / ".config/systemd/user"
+    units.mkdir(parents=True)
+    observer = directory / "quota.json"
+    observer.write_text('{"contexts":[{"home":"normal"}]}\n')
+    unit = units / "chaldea-quota.service"
+    unit.write_text("normal observer current/quota.json\n")
+    before = {p: p.read_bytes() for p in (observer, unit)}
+    route = dict(pins=dict(builder=dict(model="existing", providerInstanceId="codex")), other="preserved")
+    (directory / "route.json").write_text(json.dumps(route))
+    source = yaml.safe_load((ROOT / "playbooks/tasks/akasha-quota-sharing.yml").read_text())
+    tasks = [t for t in source if not ("ansible.builtin.include_role" in t or "ansible.builtin.systemd_service" in t)]
+    values = dict(akasha_quota_normal_host=dict(chaldea_client_codex_home=str(tmp_path / ".codex"),
+        chaldea_client_codex_assert_runtime_home=True, chaldea_client_claude_contexts=[]))
+    result = run(tmp_path, "omarchy-pc", tasks, values)
+    assert result.returncode == 0, result.stdout + result.stderr
+    reader = json.loads((directory / "quota-fleet-reader.json").read_text())
+    assert reader["contexts"][0]["codexHome"] == str(tmp_path / ".codex")
+    assert reader["fleet"]["host"] == "omarchy-pc" and reader["fleet"]["enabled"] is True
+    assert json.loads((directory / "route.json").read_text()) == route | dict(quotaConfigFile=str(directory / "quota-fleet-reader.json"))
+    assert all(p.read_bytes() == data for p, data in before.items())
+    assert not (units / "chaldea-quota-sharing.service").exists()
+    again = run(tmp_path, "omarchy-pc", tasks, values)
+    assert again.returncode == 0 and "changed=0" in again.stdout, again.stdout + again.stderr

@@ -1,7 +1,8 @@
 # Quota service sharing, disabled proposal
 
 This milestone is separate from the accepted six-host feed/toolfeedback cutover.
-Both new permission flags default false. It adds no live issuer ceiling, signer,
+Both new permission flags default false. docs/akasha-quota-ceilings.patch contains
+only the two proposed signed ceilings and remains UNAPPLIED. It adds no live issuer ceiling, signer,
 normal inventory activation or observer restart.
 
 The laptop UID1001 may append only quota_headroom_snapshot to source quota,

@@ -14,11 +14,12 @@
     path: "{{ fleet_home }}/{{ item }}"
     state: directory
     mode: "0700"
-  loop:
-    - .config/chaldea/quota-sharing-runtime
-    - .config/chaldea/quota-sharing-runtime/chaldea
-    - .local/state/chaldea/quota-sharing
-    - .local/state/chaldea/quota-sharing-runtime
+  loop: >-
+    {{ ['.local/state/chaldea/quota-sharing'] +
+       (['.config/chaldea/quota-sharing-runtime',
+         '.config/chaldea/quota-sharing-runtime/chaldea',
+         '.local/state/chaldea/quota-sharing-runtime']
+        if inventory_hostname == 'omarchy-macbook-air-igor' else []) }}
 
 - name: Isolate laptop native event and restart configuration
   ansible.builtin.copy:
