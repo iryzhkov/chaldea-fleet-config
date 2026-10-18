@@ -45,7 +45,7 @@ sessions. Continue routine work inside Igor's agreement without asking again.
   These are ceilings, not defaults. Choose only available live-catalog models/options;
   Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode.
 - Load review-delegation for self-contained worker briefs, worktree isolation
-  and review rules. Prefer independent Sol 6.1 high and Opus 5.5 high reviews with
+  and review rules. Prefer independent Sol 6.1 high and Opus 5.5 medium reviews with
   both providers whenever quota allows. Its "Quota exception" allows two different
   models on one provider when quota is tight, with fresh evidence and honest labeling;
   one independent review is acceptable if quota or availability prevents the pair. Builders may run their own compliant T3 reviews; reuse

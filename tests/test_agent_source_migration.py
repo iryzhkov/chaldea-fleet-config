@@ -582,7 +582,84 @@ EFFORT_CEILING_CHANGES = {
 }
 
 
+# Basic/critical anchor clarification adopted by Igor, 2026-10-18.
+MODEL_ANCHOR_CHANGES = {
+    "agents/AGENTS.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ]
+    ],
+    "codex/AGENTS.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ]
+    ],
+    "claude/omarchy-setup/CLAUDE.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ]
+    ],
+    "skills/roadmap-executor/SKILL.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ]
+    ],
+    "skills/chaldea/SKILL.md": [
+        [
+            "Sol 6.1 high for builders, Luna 6 medium for bulk reading and Sol 6.1 medium",
+            "Sol 6.1 high or Opus 5.5 medium for builders, Luna 6 medium for bulk reading and Sol 6.1 medium"
+        ],
+        [
+            "approved Opus 5.5 high / Sol 6.1 high pair",
+            "approved Opus 5.5 medium / Sol 6.1 high pair"
+        ],
+        [
+            "or disputed findings use Fable 5.1 / Astra medium on the required other provider.",
+            "or disputed findings use Opus 5.5 high / Astra medium on the required other provider.\nThese are adopted outage anchors and explicit user overrides, not deployed router\nchanges; current critical-review routing still selects Fable until separate code changes.\nFable remains an optional explicit alternative."
+        ],
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ],
+        [
+            "quota or availability prevents the pair. Astra/Fable serve consequential design,\ndisputed findings or a stronger available-provider peer, not mandatory normal reviews.",
+            "quota or availability prevents the pair. Critical anchors are Opus 5.5 high and\nAstra medium. Astra or an explicitly selected Fable can provide a stronger\navailable-provider peer; neither is a mandatory normal reviewer."
+        ]
+    ],
+    "skills/review-delegation/SKILL.md": [
+        [
+            "Sol 6.1 high and Opus 5.5 high",
+            "Sol 6.1 high and Opus 5.5 medium"
+        ],
+        [
+            "- Use Astra/Fable for consequential design, disputed findings or a stronger\n  available-provider peer when conserving the other provider. They are not\n  mandatory normal reviewers.",
+            "- For consequential design or disputed findings, use the adopted critical anchors,\n  Opus 5.5 high and Astra medium, through explicit user overrides or the documented\n  outage fallback. Fable remains an optional explicit alternative or a stronger\n  available-provider peer. Astra/Fable are not mandatory normal reviewers.\n  Current router critical-review defaults still use Fable until separate code changes."
+        ],
+        [
+            "catalog: Opus 5.5 high\nfor Codex-authored work, Sol 6.1 high for Claude-authored work.",
+            "catalog: Opus 5.5 medium\nfor Codex-authored work, Sol 6.1 high for Claude-authored work."
+        ],
+        [
+            "catalog's exact provider/model IDs and high-effort option.",
+            "catalog's exact provider/model IDs and the matching medium/high effort option."
+        ],
+        [
+            "Sol-authored Codex work, Sol 6.1 high plus Astra high",
+            "Sol-authored Codex work, Sol 6.1 high plus Astra medium"
+        ]
+    ]
+}
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(MODEL_ANCHOR_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(EFFORT_CEILING_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
@@ -684,7 +761,8 @@ def assert_delegation_contract(read):
         assert "The client pins builder to" not in text
         assert "Model roles:" not in text
     review = skills[1]
-    for required in ("builder --author-provider codex", "Opus 5.5 high",
+    for required in ("builder --author-provider codex", "Opus 5.5 medium",
+                     "Opus 5.5 high and Astra medium",
                      "Sol 6.1 high", "two different models on the same provider",
                      "fresh quota evidence", "one independent review is acceptable",
                      "fresh independent context", "At most two fix rounds",
@@ -692,7 +770,9 @@ def assert_delegation_contract(read):
         assert required in review
     assert "HTTP 429 alone grant no waiver" in skills[0]
     assert "Never invent a reset timestamp" in review
-    assert "Astra/Fable" in review and "not" in review
+    assert "Astra/Fable are not mandatory normal reviewers." in review
+    assert "Current router critical-review defaults still use Fable" in review
+    assert "one target plus alternatives/byProvider" in review
     assert "mandatory normal reviewers" in review
 
 

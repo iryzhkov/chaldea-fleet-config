@@ -47,22 +47,26 @@ without restarting T3; do not restart or alter configuration to recover routing.
 If both routing paths fail or cannot recommend a target, record the reason
 and resolve available provider/model IDs and effort options from
 `orchestrator_capabilities`. This documented outage fallback uses Codex
-Sol 6.1 high for builders, Luna 6 medium for bulk reading and Sol 6.1 medium
+Sol 6.1 high or Opus 5.5 medium for builders, Luna 6 medium for bulk reading and Sol 6.1 medium
 for general work, conserving Claude. For a required main review, use the
-approved Opus 5.5 high / Sol 6.1 high pair on the other provider: Codex-authored
+approved Opus 5.5 medium / Sol 6.1 high pair on the other provider: Codex-authored
 work uses Claude Opus, Claude-authored work uses Codex Sol. Consequential design
-or disputed findings use Fable 5.1 / Astra medium on the required other provider.
+or disputed findings use Opus 5.5 high / Astra medium on the required other provider.
+These are adopted outage anchors and explicit user overrides, not deployed router
+changes; current critical-review routing still selects Fable until separate code changes.
+Fable remains an optional explicit alternative.
 If the fallback is unavailable, report why and apply `review-delegation`'s
 quota or single-review rule for reviews; defer other dependent work.
 Explicit user overrides still apply. Do not substitute an unavailable target
 or represent fallback selection as a FATE recommendation.
 
-Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 high,
+Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 medium,
 using both providers whenever quota allows. `review-delegation`'s "Quota exception"
 allows two different models on the same provider when quota is tight, with fresh
 quota evidence and honest labeling. One independent review is acceptable when
-quota or availability prevents the pair. Astra/Fable serve consequential design,
-disputed findings or a stronger available-provider peer, not mandatory normal reviews.
+quota or availability prevents the pair. Critical anchors are Opus 5.5 high and
+Astra medium. Astra or an explicitly selected Fable can provide a stronger
+available-provider peer; neither is a mandatory normal reviewer.
 Unknown quota, missing routing recommendations or a collector HTTP 429 alone grant no waiver. Maximum effort is high; only Luna/Haiku may use xhigh.
 These are ceilings, not defaults. Choose only available live-catalog models/options;
 Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode. Sonnet is excluded;

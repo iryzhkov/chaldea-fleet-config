@@ -106,7 +106,7 @@ Delegate through T3's own tools rather than a separate scheduler:
 - Native same-provider subagents are for quick bounded reading and searching.
 
 Builders may launch their own reviews, using fresh T3 `delegate_task` contexts only.
-Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 high,
+Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,
 with the main reviewer on the other provider whenever quota allows. When quota is tight,
 two different models on the same provider are allowed with fresh quota evidence and an
 honestly labeled exception. One independent review is acceptable when quota or availability

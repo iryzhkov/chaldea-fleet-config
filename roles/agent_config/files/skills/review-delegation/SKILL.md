@@ -13,15 +13,17 @@ reviews, but every review must use T3 `delegate_task`.
 
 Review the final commit of each milestone of an agreed plan:
 
-- Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 high,
+- Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 medium,
   using both providers whenever quota allows. The main reviewer uses the provider
   that did not write the change. Route the independent peer on its own provider.
 - When quota is tight, two different models on the same provider are allowed,
   for example Sol and Astra, under the quota exception below. One independent
   review is acceptable when quota or availability prevents the desired pair.
-- Use Astra/Fable for consequential design, disputed findings or a stronger
-  available-provider peer when conserving the other provider. They are not
-  mandatory normal reviewers.
+- For consequential design or disputed findings, use the adopted critical anchors,
+  Opus 5.5 high and Astra medium, through explicit user overrides or the documented
+  outage fallback. Fable remains an optional explicit alternative or a stronger
+  available-provider peer. Astra/Fable are not mandatory normal reviewers.
+  Current router critical-review defaults still use Fable until separate code changes.
 - Add at most one optional Luna/Haiku lens, with a concrete risk and exactly one
   bounded target, such as data safety or credential handling. No default review swarm. Conserve
   Claude; avoid optional Claude fan-outs.
@@ -50,9 +52,9 @@ For a Codex author, normally run
 `chaldea route --role builder --author-provider codex`. A Codex builder pin
 may refuse because it cannot satisfy provider separation. If FATE cannot
 recommend a target, record the refusal and use the approved main-review
-fallback from the live `orchestrator_capabilities` catalog: Opus 5.5 high
+fallback from the live `orchestrator_capabilities` catalog: Opus 5.5 medium
 for Codex-authored work, Sol 6.1 high for Claude-authored work. Pass the
-catalog's exact provider/model IDs and high-effort option. This is an
+catalog's exact provider/model IDs and the matching medium/high effort option. This is an
 other-provider fallback, not a quota waiver. Do not retry a pin indefinitely.
 Reject a same-provider target unless the quota exception qualifies. Compare
 underlying provider drivers in the live catalog before launching, even if FATE
@@ -76,7 +78,7 @@ bounded lens together; a finished child wakes the parent, so never poll.
 Use both providers whenever quota allows. When quota is tight, two independent
 reviews on the same provider with different models are allowed. Keep a fresh independent context
 through a new T3 `delegate_task` for each reviewer. For
-Sol-authored Codex work, Sol 6.1 high plus Astra high is an available-provider
+Sol-authored Codex work, Sol 6.1 high plus Astra medium is an available-provider
 pair, not a cross-provider review.
 
 Record fresh quota evidence supporting pressure or a stop at selection, the
