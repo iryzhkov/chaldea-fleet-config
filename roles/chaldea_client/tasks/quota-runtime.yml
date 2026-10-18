@@ -1,0 +1,70 @@
+---
+- name: Install only the explicit independent quota runtime
+  when: chaldea_client_quota_runtime_enabled | bool
+  block:
+    - name: Require a published native-account-capable quota release
+      ansible.builtin.assert:
+        that:
+          - chaldea_client_quota_runtime_version is match('^client-v[0-9]+[.][0-9]+[.][0-9]+\\Z')
+          - chaldea_client_quota_runtime_version[8:] is version('0.4.2', '>=')
+          - chaldea_client_quota_runtime_sha256 is match('^[a-f0-9]{64}\\Z')
+        quiet: true
+
+    - name: Inspect the already provisioned protected release ancestors
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      loop: [/opt, /opt/chaldea-token-helper, /opt/chaldea-token-helper/releases]
+      register: chaldea_client_quota_runtime_ancestors
+
+    - name: Refuse missing linked writable or non-traversable release ancestors
+      ansible.builtin.assert:
+        that:
+          - item.stat.isdir | default(false)
+          - not item.stat.islnk | default(false)
+          - item.stat.uid | default(-1) == 0
+          - item.stat.mode[-2] not in ['2', '3', '6', '7']
+          - item.stat.mode[-1] in ['1', '5']
+        quiet: true
+      loop: "{{ chaldea_client_quota_runtime_ancestors.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Fetch the independent checksum-pinned quota archive and manifest
+      become: true
+      ansible.builtin.get_url:
+        url: "https://github.com/iryzhkov/chaldea/releases/download/{{ chaldea_client_quota_runtime_version }}/{{ item.name }}"
+        dest: "/opt/chaldea-token-helper/quota-{{ chaldea_client_quota_runtime_version }}.{{ item.suffix }}"
+        checksum: "{{ item.checksum | default(omit) }}"
+        owner: root
+        group: root
+        mode: "0600"
+      loop:
+        - name: chaldea-client.tar.gz
+          suffix: tar.gz
+          checksum: "sha256:{{ chaldea_client_quota_runtime_sha256 }}"
+        - {name: manifest.json, suffix: json}
+      when: not ansible_check_mode
+
+    - name: Verify and install only the immutable quota release
+      become: true
+      chaldea_client_release:
+        check_permissions: true
+        root: /opt/chaldea-token-helper/releases
+        archive: "/opt/chaldea-token-helper/quota-{{ chaldea_client_quota_runtime_version }}.tar.gz"
+        manifest: "/opt/chaldea-token-helper/quota-{{ chaldea_client_quota_runtime_version }}.json"
+        version: "{{ chaldea_client_quota_runtime_version }}"
+        sha256: "{{ chaldea_client_quota_runtime_sha256 }}"
+
+    - name: Make only the verified quota version traversable by the observer user
+      become: true
+      ansible.builtin.file:
+        path: "/opt/chaldea-token-helper/releases/{{ chaldea_client_quota_runtime_version }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: not ansible_check_mode
