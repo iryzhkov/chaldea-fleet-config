@@ -20,13 +20,14 @@ agent_tools_sources:
     repo: https://github.com/iryzhkov/ov-mcp.git
     ref: efac1c8f04662a3512da84aa6559a26061e97832
 
-# Published by the first main-only huyang-v* release. Deliberately unset until
-# the orchestrator reviews the assets; no host can activate without both pins.
+# The first main-only release, huyang-v0.21.0 from main f26ceb7. The orchestrator
+# downloaded both assets and computed these digests on 2026-10-18. Hosts enable
+# the role individually, together with a hand converge.
 huyang_enabled: false
-huyang_version: ""
+huyang_version: huyang-v0.21.0
 huyang_sha256:
-  x86_64: ""
-  aarch64: ""
+  x86_64: "04bd7410676624954ff64b919b61abc4d125db8280b47bbcf8d3fb41b74ae16c"
+  aarch64: "3bd6da4bd49ffae5c9d48094a25c99c9fd690ecba9e70fb2cdac534cf5a06dd8"
 
 # Credentials are referenced by path only (relative to the home directory);
 # the play checks that each file exists and is private, never reads it.
