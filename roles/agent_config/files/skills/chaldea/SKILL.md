@@ -70,16 +70,17 @@ do not imply activation. Pins are explicit operator fallback choices, not AA
 quality qualification. Never lower floors or invent missing coding metrics.
 The AA key stays only on homelab; any future shared scores contain no secrets.
 
-At the 2026-10-18 activation, only omarchy-pc has client-v0.4.0 and live CLI
-verification of Codex Sol 6.1 high builder, Luna 6 medium bulk-read and Sol 6.1
-medium general pins. Agent-a, agent-b and laptop remain on v0.3.0, unverified
-for the new role-target behavior. Claude collection is approved for hosts with
-a verified local login binding, but enabled and attempted only on omarchy-pc.
-Its existing 0600 env file is reused without token refresh. HTTP 429/backoff
-leaves Claude windows/reset unknown; honor retryAt and read cached status.
-Do not claim every logged-in host has a live reader. AA snapshots, shared
-quota and automatic provider switching remain off. Report distribution and
-verification per host when this guidance changes.
+On 2026-10-18, omarchy-pc alone deployed and verified client-v0.4.2.
+Native T3 quota was verified fresh, account-bound and error-free; the old
+HTTP collector is off and its private 0600 env file is preserved. Normal
+Claude/T3 owns credential renewal; no custom refresh is configured.
+Codex pins remain Sol 6.1 high builder, Luna 6 medium bulk-read and Sol 6.1
+medium general. Installed CLI checks confirmed Codex-author builder refusal
+and other-provider critical review. Pins are conservative fallback, not AA
+qualification. Agent-a, agent-b and laptop user clients were not upgraded or
+verified for new quota routing; laptop's legacy client remains unmigrated.
+Scores, shared quota and automatic switching remain off. Strict floors and
+unknown missing metrics remain unchanged. Report distribution per host.
 
 ## Run work on a job host
 
