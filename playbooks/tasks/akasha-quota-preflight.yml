@@ -1,0 +1,64 @@
+---
+- name: Inspect the existing normal quota observer
+  ansible.builtin.command:
+    argv: [systemctl, --user, show, chaldea-quota.service, --property=LoadState, --property=ActiveState, --property=UnitFileState, --property=ExecStart]
+  register: akasha_quota_normal_unit
+  changed_when: false
+  check_mode: false
+
+- name: Keep laptop normal ownership disabled before sharing
+  ansible.builtin.assert:
+    that:
+      - not akasha_quota_normal_host.chaldea_client_quota_enabled | default(false) | bool
+      - "'ActiveState=inactive' in akasha_quota_normal_unit.stdout_lines"
+      - "'LoadState=not-found' in akasha_quota_normal_unit.stdout_lines or 'UnitFileState=disabled' in akasha_quota_normal_unit.stdout_lines"
+    quiet: true
+  when: inventory_hostname == 'omarchy-macbook-air-igor'
+
+- name: Verify the staged independent laptop archive without installing
+  ansible.builtin.include_role:
+    name: chaldea_client
+    tasks_from: quota-runtime
+    apply:
+      check_mode: true
+  vars:
+    chaldea_client_quota_runtime_enabled: true
+    chaldea_client_quota_runtime_version: "{{ akasha_quota_runtime_version }}"
+    chaldea_client_quota_runtime_sha256: "{{ akasha_quota_runtime_sha256 }}"
+  when: inventory_hostname == 'omarchy-macbook-air-igor'
+
+- name: Inspect optional sharing paths before writing
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item }}"
+    follow: false
+    get_checksum: false
+  loop:
+    - .config/chaldea/quota-sharing-runtime
+    - .config/chaldea/quota-sharing-runtime/chaldea
+    - .local/state/chaldea/quota-sharing
+    - .local/state/chaldea/quota-sharing-runtime
+  register: akasha_quota_paths
+
+- name: Refuse linked or foreign-owned existing sharing directories
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (item.stat.isdir | default(false) and not item.stat.islnk | default(false) and item.stat.uid == akasha_enrollment_host.uid and item.stat.mode == '0700')
+    quiet: true
+  loop: "{{ akasha_quota_paths.results }}"
+
+- name: Read existing PC observer configuration without exposing its contents
+  ansible.builtin.slurp:
+    src: "{{ fleet_home }}/.config/chaldea/quota.json"
+  register: akasha_quota_pc_observer
+  no_log: true
+  when: inventory_hostname == 'omarchy-pc'
+
+- name: Keep the actual PC observer out of source quota publishing
+  ansible.builtin.assert:
+    that:
+      - not ((akasha_quota_pc_observer.content | b64decode | from_json).get('fleet', {}).get('enabled', false))
+      - "'/.config/chaldea/quota.json' in akasha_quota_normal_unit.stdout"
+      - "'quota-sharing' not in akasha_quota_normal_unit.stdout"
+      - akasha_quota_normal_host.chaldea_client_route_targets.quotaConfigFile | default('') == fleet_home ~ '/.config/chaldea/quota-fleet-reader.json'
+    quiet: true
+  when: inventory_hostname == 'omarchy-pc'

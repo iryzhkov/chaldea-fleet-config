@@ -5,6 +5,14 @@ akasha_enrollment_activate: false
 akasha_enrollment_public_keys: {}
 akasha_pc_global_reader_enabled: false
 akasha_pc_quota_events_enabled: false
+# Independent service quota sharing. No source=quota permission by default.
+akasha_quota_laptop_publisher_enabled: false
+akasha_quota_pc_reader_enabled: false
+akasha_quota_runtime_version: ""
+akasha_quota_runtime_sha256: ""
+akasha_quota_normal_inventory: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/hosts.yml') | from_yaml }}"
+akasha_quota_normal_alias: "{{ 'laptop' if inventory_hostname == 'omarchy-macbook-air-igor' else inventory_hostname }}"
+akasha_quota_normal_host: "{{ akasha_quota_normal_inventory.all.children.agent_hosts.hosts[akasha_quota_normal_alias] }}"
 akasha_enrollment_policy: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../access-trust/akasha-enrollment.json') | from_json }}"
 akasha_enrollment_host: "{{ akasha_enrollment_policy[inventory_hostname] }}"
 fleet_home: "{{ akasha_enrollment_host.home }}"
