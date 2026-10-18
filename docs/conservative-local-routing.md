@@ -22,7 +22,10 @@ local collection requires neither grants nor dashboard/AA activation.
 
 ## Activation boundary
 
-This PR is source preparation only. client-v0.4.0 is published from reviewed
+Keep this PR draft and auto-merge off until the parent approves activation.
+Merging main is deployment: active fleet pull timers converge awake hosts
+within four hours. Merge approval must therefore include activation approval.
+client-v0.4.0 is published from reviewed
 Chaldea main 86ad10fa91891a3ffc76397212fdabff34cb014f, including merged #42,
 #44, #45 and #46. Its downloaded archive and manifest both verify SHA-256
 fc80729f9179340c7a29ff1eac5a310aea013ddb107633e4f9b2f1250691dc8d.
@@ -30,12 +33,29 @@ Only omarchy-pc receives this version/digest pin; other hosts retain v0.3.0.
 The role refuses new reader/target keys on clients older than v0.4.0 before
 writing files. No release was installed by publishing it.
 
-The parent owns the bounded one-host activation approval and fleet-rollout
-procedure. Use only the chaldea_client tag with --limit omarchy-pc at the
-accepted fleet-config commit, first check, then apply, then a second apply
-with changed=0. This role upgrades the current link and can restart its quota
-and waits units. It does not restart T3 or create credentials. Preserve the
-previous release and observer state for rollback.
+The parent owns activation approval and the fleet-rollout procedure. For a
+controlled one-host check/apply sequence, the parent must coordinate merge
+timing with the pull service, or first obtain approval to pause the omarchy-pc
+pull timer and wait for any active pull to finish. Do not merge first and
+assume the next pull will wait for a manual check. This implementation thread
+must neither merge nor arm auto-merge under its source-only authorization.
+
+After approval, use only the chaldea_client tag with --limit omarchy-pc at the
+accepted commit, first check, then apply, then a second apply with changed=0.
+Resume a paused timer only within that approved procedure. The role upgrades
+the current link and can restart quota and waits units; it does not restart
+T3 or create credentials. Preserve the previous release and observer state.
+
+Expected changes when main eventually converges:
+
+| Host | Changes |
+| --- | --- |
+| omarchy-pc | Client v0.4.0, Codex role pins, enabled local Claude env-file reader in route and observer; quota/waits may restart. |
+| agent-a, agent-b, laptop | Existing v0.3.0 and policies retained; route.json formatting changes and one backup on next pull or wake. No service restart from this formatting change. |
+
+The template formatting delta means eventual merge also writes config bytes
+on the other hosts. The parent must include that in merge/rollout approval;
+the bounded manual activation command still targets omarchy-pc only.
 
 After activation:
 1. Confirm current resolves to the pinned immutable release.
