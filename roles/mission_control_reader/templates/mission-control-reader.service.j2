@@ -1,0 +1,20 @@
+[Unit]
+Description=Source-bound Akasha Mission Control cache reader
+[Service]
+User=mission-control-reader
+Group=mission-control-reader
+SupplementaryGroups=mission-control-cache
+ExecStart={{ mission_control_runtime_node }} {{ mission_control_runtime_release_root }}/releases/{{ mission_control_runtime_version }}/bin/chaldea mission-control reader --config /etc/mission-control-reader/reader.json
+Restart=on-failure
+RestartSec=5
+# Only the dedicated UID's exact issuer-command sudo hop. Qualify sudo -l before activation.
+NoNewPrivileges=no
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/mission-control-reader /var/cache/mission-control /var/lib/chaldea-issuer/access
+UMask=0027
+RestrictAddressFamilies=AF_INET AF_UNIX
+MemoryMax=256M
+TasksMax=32
+[Install]
+WantedBy=multi-user.target

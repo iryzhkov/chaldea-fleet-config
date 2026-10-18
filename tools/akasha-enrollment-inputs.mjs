@@ -8,7 +8,7 @@ const { helperConfig } = await moduleAt('access/helper.ts');
 const { Authorization } = await moduleAt('akasha/auth.ts');
 const { exact, object } = await moduleAt('access/token.ts');
 const input = object(JSON.parse(readFileSync(0, 'utf8')));
-exact(input, ['public_keys', 'pc_reader', 'pc_quota'], ['laptop_quota', 'pc_quota_reader']);
+exact(input, ['public_keys', 'pc_reader', 'pc_quota'], ['laptop_quota', 'pc_quota_reader', 'mission_control']);
 if (typeof input.pc_reader !== 'boolean' || typeof input.pc_quota !== 'boolean' ||
     ['laptop_quota', 'pc_quota_reader'].some(k => input[k] !== undefined && typeof input[k] !== 'boolean')) throw Error('boolean gates required');
 const policy = JSON.parse(readFileSync(policyFile)), keys = object(input.public_keys);
@@ -26,6 +26,22 @@ if (input.pc_quota) for (const kind of ['quota_parked', 'quota_reset_unknown', '
 if (input.laptop_quota) grants['omarchy-macbook-air-igor'].push({uid:1001, audience:'akasha', action:'append', source:'quota',
   host:'omarchy-macbook-air-igor', kind:'quota_headroom_snapshot', profile:'quota-service', project:'chaldea'});
 if (input.pc_quota_reader) grants['omarchy-pc'].push(pc('read', 'quota', 'quota_headroom_snapshot', 'quota-service'));
+// Explicit permission packet, independent of all installation/enablement flags.
+if (input.mission_control !== undefined) {
+  const mc = object(input.mission_control);
+  exact(mc, ['publisher_uid', 'reader_uid', 'read_sources']);
+  if (mc.publisher_uid !== null && mc.publisher_uid !== 1000) throw Error('agent-a publisher UID must be 1000');
+  if (mc.reader_uid !== null && (!Number.isSafeInteger(mc.reader_uid) || mc.reader_uid <= 0 ||
+      mc.reader_uid >= 4294967295 || [957, 995, 1000, 1001].includes(mc.reader_uid))) throw Error('dedicated reader UID required');
+  if (!Array.isArray(mc.read_sources) || mc.read_sources.length > 4 ||
+      new Set(mc.read_sources).size !== mc.read_sources.length ||
+      mc.read_sources.some(s => s !== 'agent-a--mission-control') ||
+      (mc.reader_uid === null) !== (mc.read_sources.length === 0)) throw Error('exact reader source selection required');
+  if (mc.publisher_uid !== null) grants['agent-a'].push({uid:1000, audience:'akasha', action:'append',
+    source:'agent-a.mission-control', host:'agent-a', kind:'agent_status', profile:'mission-control-publisher', project:'chaldea'});
+  if (mc.reader_uid !== null) grants['omarchy-normandy'].push({uid:mc.reader_uid, audience:'akasha', action:'read',
+    source:'mission-control-reader', host:'omarchy-normandy', kind:'agent_status', profile:'mission-control-reader', project:'chaldea'});
+}
 const registry = [];
 for (const [host, row] of Object.entries(policy)) {
   const issuer = {uid:row.issuer_uid, name:'chaldea:' + host, kid:row.kid, key_file:'/var/lib/chaldea-issuer/keys/' + row.kid + '.pem'};
@@ -40,9 +56,9 @@ for (const [host, row] of Object.entries(policy)) {
     const known = host === 'agent-a' && ['agent-a.fleet', 'agent-a.toolfeedback'].includes(g.source);
     let entry = registry.find(r => r.issuer === issuer.name && r.source === g.source);
     if (!entry && !known) {
-      entry = {issuer:issuer.name, source:g.source, host, source_id:(host + '--' + g.source).replaceAll('.', '_'), profile:g.profile, project:g.project,
-        mode:g.action === 'read' && g.source !== 'quota' ? 'operator' : 'service', kinds:[],
-        ...(g.action === 'read' ? (g.source === 'quota' ? {quota_fleet_read:true} : {global_read:true}) : {})};
+      entry = {issuer:issuer.name, source:g.source, host, source_id:g.source === 'agent-a.mission-control' ? 'agent-a--mission-control' : (host + '--' + g.source).replaceAll('.', '_'), profile:g.profile, project:g.project,
+        mode:g.action === 'read' && !['quota', 'mission-control-reader'].includes(g.source) ? 'operator' : 'service', kinds:[],
+        ...(g.action === 'read' ? (g.source === 'mission-control-reader' ? {mission_control_read_sources:input.mission_control.read_sources} : g.source === 'quota' ? {quota_fleet_read:true} : {global_read:true}) : {})};
       registry.push(entry);
     }
     if (entry && !entry.kinds.includes(g.kind)) entry.kinds.push(g.kind);

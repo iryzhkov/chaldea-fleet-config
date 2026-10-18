@@ -1,0 +1,76 @@
+---
+- name: Configure only the explicitly authorized Normandy reader
+  when: mission_control_reader_enabled | bool
+  block:
+    - name: Require a selected dedicated UID and exact service selectors
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'omarchy-normandy'
+          - mission_control_runtime_enabled | bool
+          - mission_control_reader_uid is integer
+          - mission_control_reader_uid > 0
+          - mission_control_reader_uid < 4294967295
+          - mission_control_reader_uid not in [957, 995, 1000, 1001]
+          - mission_control_reader_allowed_source_ids == ['agent-a--mission-control']
+          - mission_control_reader_url == 'https://akasha.ryzhkov.dev'
+          - mission_control_reader_token_helper == '/usr/local/bin/chaldea-token-helper'
+          - mission_control_reader_cache_file == '/var/cache/mission-control/latest.json'
+          - >-
+            mission_control_reader_grants | default([]) == [{'uid': mission_control_reader_uid, 'audience': 'akasha', 'action': 'read', 'source': 'mission-control-reader', 'host': 'omarchy-normandy', 'kind': 'agent_status', 'profile': 'mission-control-reader', 'project': 'chaldea'}]
+        fail_msg: Select and review the dedicated UID, helper sudo selector and source-bound registry before enabling.
+        quiet: true
+    - name: Create the shared cache read group
+      ansible.builtin.group:
+        name: mission-control-cache
+        system: true
+    - name: Create the locked reader identity
+      ansible.builtin.user:
+        name: mission-control-reader
+        uid: "{{ mission_control_reader_uid }}"
+        system: true
+        create_home: false
+        home: /var/lib/mission-control-reader
+        shell: /usr/sbin/nologin
+        password_lock: true
+        groups: mission-control-cache
+        append: true
+    - name: Create private reader configuration and state
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: mission-control-reader
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: /etc/mission-control-reader, owner: root, mode: "0750"}
+        - {path: /var/lib/mission-control-reader, owner: mission-control-reader, mode: "0700"}
+    - name: Create the reader-owned web-readable cache directory
+      ansible.builtin.file:
+        path: /var/cache/mission-control
+        state: directory
+        owner: mission-control-reader
+        group: mission-control-cache
+        mode: "2750"
+    - name: Write the private reader configuration
+      ansible.builtin.template:
+        src: reader.json.j2
+        dest: /etc/mission-control-reader/reader.json
+        owner: root
+        group: mission-control-reader
+        mode: "0640"
+      register: mission_control_reader_config
+    - name: Write the dedicated reader service
+      ansible.builtin.template:
+        src: mission-control-reader.service.j2
+        dest: /etc/systemd/system/mission-control-reader.service
+        owner: root
+        group: root
+        mode: "0644"
+      register: mission_control_reader_unit
+    - name: Converge only the reader service
+      ansible.builtin.systemd_service:
+        name: mission-control-reader.service
+        enabled: true
+        daemon_reload: "{{ mission_control_reader_unit is changed }}"
+        state: "{{ 'restarted' if mission_control_reader_unit is changed or mission_control_reader_config is changed else 'started' }}"
+      when: not ansible_check_mode

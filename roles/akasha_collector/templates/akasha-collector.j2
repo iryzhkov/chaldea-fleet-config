@@ -6,5 +6,8 @@ export AKASHA_TOKEN_HELPER="${AKASHA_TOKEN_HELPER:-{{ akasha_collector_token_hel
 export AKASHA_STATE_FILE="{{ fleet_home }}/.local/state/chaldea/events/collector.db"
 export AKASHA_TIMER_SPOOL="{{ fleet_home }}/.local/state/chaldea/timer-spool"
 export AKASHA_SPOOL="${AKASHA_SPOOL:-{{ fleet_home }}/.local/share/toolfeedback}"
+{% if akasha_collector_mission_control_snapshot_file | default('') | length > 0 %}
+export AKASHA_MISSION_CONTROL_SNAPSHOT_FILE="{{ akasha_collector_mission_control_snapshot_file }}"
+{% endif %}
 unset FEED_TOKEN FEED_KEY_FILE FEED_CONFIG
 exec /usr/bin/flock --nonblock "{{ fleet_home }}/.local/state/chaldea/events/collector.lock" "{{ akasha_collector_node }}" "{{ akasha_collector_script }}" "$@"
