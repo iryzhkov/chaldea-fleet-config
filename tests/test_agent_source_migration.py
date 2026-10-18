@@ -48,7 +48,63 @@ DESTINATIONS = {
 }
 
 
+# Igor explicitly allowed the quota-review policy below, 2026-10-18.
+# Reverse exact blocks; keep the pre-migration fixture and all unrelated bytes guarded.
+QUOTA_REVIEW_CHANGES = [
+    (
+        ["agents/AGENTS.md","codex/AGENTS.md","claude/omarchy-setup/CLAUDE.md"],
+        "unavailable, use the model roles below and preserve that cross-provider review rule.",
+        "unavailable, use the model roles below. Cross-provider review is the default; the only\nquota exception is defined in `review-delegation`, under \"Quota exception\".",
+    ),
+    (
+        ["agents/AGENTS.md","codex/AGENTS.md","claude/omarchy-setup/CLAUDE.md"],
+        "commit with one main reviewer on the other provider, plus at most one narrow fan-out",
+        "commit with one main reviewer under `review-delegation`'s provider rule, plus at most one narrow fan-out",
+    ),
+    (
+        ["skills/review-delegation/SKILL.md"],
+        "  by Codex.",
+        "  by Codex, subject only to the quota exception below.",
+    ),
+    (
+        ["skills/review-delegation/SKILL.md"],
+        "  decision or a disputed finding, never as a routine reviewer.",
+        "  decision or a disputed finding, or the quota exception below.",
+    ),
+    (
+        ["skills/review-delegation/SKILL.md"],
+        "`orchestrator_capabilities` IDs, preserving cross-provider review.",
+        "`orchestrator_capabilities` IDs, applying the provider rule and quota exception below.",
+    ),
+    (
+        ["skills/review-delegation/SKILL.md"],
+        "## What blocks",
+        "## Quota exception\n\nCross-provider review remains the default. Only an observed quota stop on the\nother provider with a reliable reset more than one hour away at review selection\npermits a waiver.\nUnknown quota/reset, a reset at most one hour away, routing preference or a\nmissing recommendation does not qualify. Honor explicit user/model overrides.\n\nKeep a fresh independent context through a new T3 `delegate_task`. Select a more\ncapable available model at high reasoning; for Sol-authored Codex work, prefer\n`gpt-6-astra` with `reasoningEffort=high`. This is a same-provider exception,\nnot a cross-provider review. Keep normal FATE/role selection otherwise.\n\nRoute first with `authorProvider` as usual. If that strict filter has no candidate\nunder a qualifying stop, record the explicit waiver, then resolve an appropriate\navailable target and high-effort option from `orchestrator_capabilities`. Do not\nweaken the router's filter or change routing code. Record the exception reason,\nobserved stop and reset timestamps with their evidence, reviewer thread ID,\nprovider/model/effort and verdict in both the PR comment and checkpoint.\nNo spending, reset redemption or authentication changes are authorized.\n\nThe exact reviewed commit, clean-tree acceptance, citation/location blocking\nrule and two-fix-round limit below still apply. Existing reviews on an available\nother provider continue; this exception applies to future qualifying stops.\n\n## What blocks",
+    ),
+    (
+        ["skills/chaldea/SKILL.md"],
+        "use the shared CLAUDE.md model roles and keep reviews on the other provider.",
+        "use the shared CLAUDE.md model roles. Apply the provider rule and \"Quota exception\"\nin `review-delegation`; an unavailable recommendation alone grants no waiver.",
+    ),
+    (
+        ["skills/roadmap-executor/SKILL.md"],
+        "  `orchestrator_capabilities` IDs, preserving cross-provider review.",
+        "  `orchestrator_capabilities` IDs. Apply `review-delegation`'s provider rule and\n  \"Quota exception\", including its PR comment and checkpoint evidence.",
+    ),
+    (
+        ["skills/chaldea-audit/SKILL.md"],
+        "  uses the critical-review role, not a routine milestone review.",
+        "  uses the critical-review role, subject to `review-delegation`'s provider rule\n  and \"Quota exception\".",
+    ),
+]
+
+
 def old_bytes(relative, data):
+    for paths, before, after in reversed(QUOTA_REVIEW_CHANGES):
+        if relative in paths:
+            before, after = before.encode(), after.encode()
+            assert data.count(after) == 1, relative
+            data = data.replace(after, before, 1)
     if relative in HEADER_CHANGES:
         before, after = (block.encode() for block in HEADER_CHANGES[relative])
         assert data.count(after) == 1
