@@ -1,4 +1,8 @@
 ---
+- name: Validate the five recorded laptop link paths and owners
+  ansible.builtin.include_tasks: validate-managed-link.yml
+  when: agent_config_skill_link.item.1 not in ['safety-critical-code', 'unslop']
+
 - name: Inspect the approved skill link target
   ansible.builtin.stat:
     path: "{{ fleet_home }}/{{ agent_config_skill_link.item | join('/') }}"
