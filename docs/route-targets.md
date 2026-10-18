@@ -5,12 +5,14 @@ and chaldea, review-delegation and roadmap-executor skills all require agents
 to call `chaldea_route` or `chaldea route --role ROLE`, then pass the selected
 `providerInstanceId`, `model` and `options` exactly to T3 `delegate_task`,
 including effort. Explicit user overrides remain valid. Sonnet is excluded;
-Haiku is allowed when selected. Never use max effort or above.
+Haiku is allowed when selected. Maximum effort is high; only Luna/Haiku may
+use available xhigh options. Never use max, ultra, ultrathink or ultracode.
 
 Use `builder` for implementation and main diff reviews, `critical-review`
 for consequential design or disputed findings, `bulk-read` for readers and
-`general` for other work. Reviews pass the writer's driver as
-`authorProvider`, or CLI `--author-provider`, to require the other provider.
+`general` for other work. Main other-provider reviews pass the writer's driver as
+`authorProvider`, or CLI `--author-provider`. Route the independent peer under
+the canonical review pair rule.
 For a Codex author, main review normally starts with
 `chaldea route --role builder --author-provider codex`.
 
@@ -18,7 +20,7 @@ A long-lived MCP may retain an old schema and reject new configuration keys.
 Use the installed CLI with the same constraints before falling back. No T3
 restart is required. A Codex builder pin may refuse a Codex author's review.
 When FATE cannot recommend a target, the documented main-review fallback
-uses live catalog IDs for Opus 5.5 high on Claude or Sol 6.1 high on Codex,
+uses live catalog IDs for Opus 5.5 medium on Claude or Sol 6.1 high on Codex,
 always on the other provider. Record the fallback reason; do not retry the
 pin indefinitely or silently select the author's provider. Before launch, compare
 underlying provider drivers from the live catalog. Reject a same-provider target
@@ -27,12 +29,13 @@ requested author-provider constraint. Treat it as an unusable recommendation
 and use the documented other-provider fallback. The chaldea skill
 documents the other outage roles. Conserve Claude for required main reviews.
 
-Only an observed other-provider quota stop with a reliable reset more than
-one hour away permits the explicit review-delegation quota exception.
-Unknown windows/reset or collector HTTP 429 alone do not qualify. A qualifying
-Sol-authored review uses a fresh stronger reviewer, preferably Astra high,
-with the stop/reset evidence, waiver reason and exact-commit verdict recorded.
+Follow [review-delegation](../roles/agent_config/files/skills/review-delegation/SKILL.md)
+for review pairs, critical anchors and the quota exception. When quota is tight, pairs may
+use two different models on one provider with fresh recorded quota evidence;
+an actual stop is not required. One independent review is acceptable if the pair
+cannot run. Unknown quota or collector HTTP 429 alone grants no waiver.
 Exact-head acceptance and the two-fix-round limit remain unchanged.
+FATE returns one target plus alternatives, not an automatic pair or effort optimizer.
 
 ## Configuration support
 
@@ -51,19 +54,13 @@ stay unknown; floors are never rounded up or lowered to admit candidates.
 
 ## Verified activation boundary
 
-The 2026-10-18 rollout installed client-v0.4.0 on omarchy-pc only at da518de.
-Merged PR 52 has identical runtime/inventory bytes. Its explicit conservative
-pins select Codex Sol 6.1 high for builder, Luna 6 medium for bulk-read and
-Sol 6.1 medium for general. These are fallback pins, not AA qualification.
-Other hosts retain client-v0.3.0 and have no new role-target verification.
-
-PC normal Claude/T3 now supplies native quota with its validated account hash.
-The proposed client-v0.4.2 pin carries the account-binding and review-separation
-repairs; pair it with PR 57 to disable the redundant env-file HTTP collectors.
-Publishing the package does not install it. Unknown/stale readings remain
-explicit. AA snapshots, shared quota and automatic switching remain off.
-
-The source PR stays draft with auto-merge off. Active pull timers distribute
-merged guidance, so the parent owns merge/activation approval and must report
-AGENTS.md/CLAUDE.md and skill distribution and verification per host. Source
-and review preparation alone do not complete the plan30 gate.
+On 2026-10-18, omarchy-pc alone had verified client-v0.4.2 installed.
+Agent-a/agent-b user clients were not upgraded; laptop remained legacy.
+The verified PC pins were Sol 6.1 high builder, Luna 6 medium bulk-read and
+Sol 6.1 medium general, explicit operator fallback rather than AA qualification.
+Native T3 supplied account-bound quota; the old HTTP collector was off.
+Unknown/stale readings stay explicit. Scores, shared quota and automatic switching were off.
+Source merge, release, installation and per-host verification are separate.
+For dated evidence and subsequent status, see the
+[Jocasta checkpoint](jocasta:5ad4f605ba5887e4e0c7c4dd207af6d4@326).
+The parent owns merge/activation approval and reports guidance distribution and verification per host.
