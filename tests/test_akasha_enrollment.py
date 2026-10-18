@@ -50,6 +50,30 @@ def client(tmp_path_factory):
     return scratch / "releases" / version
 
 
+def test_mission_control_empty_packet_preserves_composition_bytes(client):
+    data = public_inputs()
+    original = compose(client, data)
+    assert original.returncode == 0, original.stderr
+    explicit = compose(client, data | dict(mission_control=dict(publisher_uid=None, reader_uid=None, read_sources=[])))
+    assert explicit.returncode == 0, explicit.stderr
+    assert explicit.stdout == original.stdout
+
+
+@pytest.mark.parametrize("packet", [
+    dict(publisher_uid=0, reader_uid=None, read_sources=[]),
+    dict(publisher_uid=1001, reader_uid=None, read_sources=[]),
+    dict(publisher_uid=None, reader_uid=1000, read_sources=["agent-a--mission-control"]),
+    dict(publisher_uid=None, reader_uid=23017, read_sources=[]),
+    dict(publisher_uid=None, reader_uid=None, read_sources=["agent-a--mission-control"]),
+    dict(publisher_uid=None, reader_uid=23017, read_sources=["foreign"]),
+    dict(publisher_uid=None, reader_uid=23017, read_sources=["agent-a--mission-control"] * 5),
+    dict(publisher_uid=None, reader_uid=23017, read_sources=["agent-a--mission-control"], global_read=True),
+])
+def test_mission_control_permission_packet_refuses_broad_or_missing_selectors(client, packet):
+    result = compose(client, public_inputs() | dict(mission_control=packet))
+    assert result.returncode != 0
+
+
 def compose(client, data, existing=None):
     return subprocess.run(["node", str(ROOT / "tools/akasha-enrollment-inputs.mjs"), str(client),
                            str(ROOT / "access-trust/akasha-enrollment.json"), str(existing or ROOT / "access-trust/issuer-grants.json")],

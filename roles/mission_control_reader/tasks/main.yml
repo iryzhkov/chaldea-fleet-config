@@ -15,7 +15,8 @@
           - mission_control_reader_url == 'https://akasha.ryzhkov.dev'
           - mission_control_reader_token_helper == '/usr/local/bin/chaldea-token-helper'
           - mission_control_cache_file == '/var/cache/mission-control/latest.json'
-          - mission_control_reader_grants | default([]) == [{'uid': mission_control_reader_uid, 'audience': 'akasha', 'action': 'read', 'source': 'mission-control-reader', 'host': 'omarchy-normandy', 'kind': 'agent_status', 'profile': 'mission-control-reader', 'project': 'chaldea'}]
+          - >-
+            mission_control_reader_grants | default([]) == [{'uid': mission_control_reader_uid, 'audience': 'akasha', 'action': 'read', 'source': 'mission-control-reader', 'host': 'omarchy-normandy', 'kind': 'agent_status', 'profile': 'mission-control-reader', 'project': 'chaldea'}]
         fail_msg: Select and review the dedicated UID, helper sudo selector and source-bound registry before enabling.
         quiet: true
     - name: Create the shared cache read group

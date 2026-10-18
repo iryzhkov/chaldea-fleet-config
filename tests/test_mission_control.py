@@ -77,7 +77,7 @@ def fixture_role(tmp_path, name):
     role = tmp_path / "roles" / name
     shutil.copytree(ROOT / "roles" / name, role)
     replacements = {"/opt/chaldea-mission-control": str(tmp_path / "runtime"),
-                    "/opt/chaldea/node/bin/node": "/bin/true",
+                    "/opt/chaldea/node/bin/node": str(tmp_path / "node/bin/node"),
                     "/home/igor": str(Path.home()),
                     "/etc/systemd/system": str(tmp_path / "units"),
                     "/etc/mission-control-reader": str(tmp_path / "reader-config"),
@@ -90,6 +90,10 @@ def fixture_role(tmp_path, name):
         for old, new in replacements.items():
             text = text.replace(old, new)
         file.write_text(text)
+    node = tmp_path / "node/bin/node"
+    node.parent.mkdir(parents=True, exist_ok=True)
+    node.write_text("#!/bin/sh\\nexit 0\\n")
+    node.chmod(0o755)
     tasks_file = role / "tasks/main.yml"
     tasks = yaml.safe_load(tasks_file.read_text())
     def relocate(rows):
@@ -158,7 +162,7 @@ def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
     helper.mkdir(parents=True)
     (helper / "sentinel").write_bytes(b"old helper unchanged")
     values = dict(mission_control_runtime_enabled=True, mission_control_version=variables["chaldea_client_version"],
-        mission_control_sha256=variables["chaldea_client_sha256"], mission_control_node="/bin/true",
+        mission_control_sha256=variables["chaldea_client_sha256"], mission_control_node=str(tmp_path / "node/bin/node"),
         mission_control_release_root=str(tmp_path / "runtime"),
         mission_control_archive_source=variables["chaldea_client_archive_source"],
         mission_control_manifest_source=variables["chaldea_client_manifest_source"])
@@ -192,6 +196,6 @@ def test_capture_and_reader_units_offline_verification(tmp_path):
         assert "NoNewPrivileges=" + ("yes" if "capture" in name else "no") in text
     runtime = tmp_path / "xdg"
     runtime.mkdir(mode=0o700)
-    result = subprocess.run(["systemd-analyze", "verify", "--man=no", *units],
+    result = subprocess.run(["systemd-analyze", "--user", "verify", "--man=no", *units],
         env=dict(os.environ, XDG_RUNTIME_DIR=str(runtime)), text=True, capture_output=True)
     assert result.returncode == 0, result.stdout + result.stderr
