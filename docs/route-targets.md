@@ -45,5 +45,13 @@ publishes pick changes with a persistent outbox. Chaldea's
 contains calibration sources, units, the exact interactive key-placement
 command and activation checks.
 
+Follow-up after the compatible client release: render omarchy-pc's Claude
+`envFile: /home/igor/.config/claude/oauth.env` and
+`envVar: CLAUDE_CODE_OAUTH_TOKEN` in both route `claudeUsage` and quota
+`claudeContexts`, replacing the JSON `credentialFile` field. Keep laptop on
+its current JSON credential source. The token stays in its existing local
+0600 file; inventory carries only the path and variable name. This PR does
+not change the live token source.
+
 This source change neither upgrades a client nor enables snapshot collection.
 No host convergence is implied.
