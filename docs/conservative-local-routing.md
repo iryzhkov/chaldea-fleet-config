@@ -24,7 +24,8 @@ local collection requires neither grants nor dashboard/AA activation.
 
 Keep this PR draft and auto-merge off until the parent approves activation.
 Merging main is deployment: active fleet pull timers converge awake hosts
-within four hours. Merge approval must therefore include activation approval.
+within about four hours plus timer jitter, or on wake. Merge approval must
+therefore include activation approval.
 client-v0.4.0 is published from reviewed
 Chaldea main 86ad10fa91891a3ffc76397212fdabff34cb014f, including merged #42,
 #44, #45 and #46. Its downloaded archive and manifest both verify SHA-256
@@ -51,11 +52,11 @@ Expected changes when main eventually converges:
 | Host | Changes |
 | --- | --- |
 | omarchy-pc | Client v0.4.0, Codex role pins, enabled local Claude env-file reader in route and observer; quota/waits may restart. |
-| agent-a, agent-b, laptop | Existing v0.3.0 and policies retained; route.json formatting changes and one backup on next pull or wake. No service restart from this formatting change. |
+| agent-a, agent-b, laptop | Existing v0.3.0 and policies retained. Empty target/source overrides use the original route.json renderer, preserving bytes and avoiding formatting backups or restarts. |
 
-The template formatting delta means eventual merge also writes config bytes
-on the other hosts. The parent must include that in merge/rollout approval;
-the bounded manual activation command still targets omarchy-pc only.
+The compatibility branch preserves existing rendered config on the three
+other hosts. The bounded activation and validation target omarchy-pc only;
+a later fleet release/policy rollout remains separate.
 
 After activation:
 1. Confirm current resolves to the pinned immutable release.
