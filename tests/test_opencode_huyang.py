@@ -1,7 +1,6 @@
 """Exercise only the owned OpenCode plugin seam in disposable homes."""
 import os
 import hashlib
-import urllib.request
 from pathlib import Path
 import subprocess
 
@@ -9,18 +8,16 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-PINS = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
-PLUGIN_URL = ("https://raw.githubusercontent.com/iryzhkov/omarchy-setup/"
-              + PINS["agent_config_huyang_plugin_ref"]
-              + "/config/opencode/plugins/huyang-profiles.js")
+PLUGIN = ROOT / "roles/agent_config/files/opencode/huyang-profiles.js"
+PLUGIN_SHA256 = "e46883992727741758115492030f75bb26dbea14dccd3a4b4c3459cc5547f6c4"
 
 
 @pytest.fixture(scope="session")
 def plugin_source(tmp_path_factory):
     path = tmp_path_factory.mktemp("plugin") / "huyang-profiles.js"
     configured = os.environ.get("HUYANG_PLUGIN_SOURCE")
-    data = Path(configured).read_bytes() if configured else urllib.request.urlopen(PLUGIN_URL, timeout=30).read()
-    assert hashlib.sha256(data).hexdigest() == PINS["agent_config_huyang_plugin_sha256"]
+    data = Path(configured).read_bytes() if configured else PLUGIN.read_bytes()
+    assert hashlib.sha256(data).hexdigest() == PLUGIN_SHA256
     path.write_bytes(data)
     return path
 
@@ -31,9 +28,7 @@ def apply_plugin(base, home, source, *, check=False):
     play.write_text(yaml.safe_dump([{
         "name": "Isolated OpenCode plugin fixture",
         "hosts": "localhost", "connection": "local", "gather_facts": False,
-        "vars": {"fleet_home": str(home),
-                 "agent_config_huyang_plugin_url": source.as_uri(),
-                 "agent_config_huyang_plugin_sha256": PINS["agent_config_huyang_plugin_sha256"]},
+        "vars": {"fleet_home": str(home)},
         "tasks": [{"name": "Apply only the plugin tasks", "ansible.builtin.include_role": {
             "name": "agent_config", "tasks_from": "opencode-huyang.yml",
         }}],
@@ -48,7 +43,7 @@ def test_fresh_check_mode_defers_download_without_creating_destination(tmp_path,
     home = tmp_path / "fresh-home"
     result = apply_plugin(tmp_path, home, plugin_source, check=True)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "Would install checksum-pinned OpenCode Huyang plugin" in result.stdout
+    assert "Would install fleet-owned OpenCode Huyang plugin" in result.stdout
     assert not home.exists()
 
 

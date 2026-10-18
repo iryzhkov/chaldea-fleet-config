@@ -13,7 +13,7 @@ ROLE = ROOT / "roles/chaldea_access_trust"
 
 def test_inventory_disabled_and_units_use_isolated_state():
     defaults = yaml.safe_load((ROLE / "defaults/main.yml").read_text())
-    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
+    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     assert defaults["chaldea_access_trust_enabled"] is False
     assert inventory["chaldea_access_trust_enabled"] is False
     assert inventory["chaldea_access_trust_repository"] == "ssh://git@github.com/iryzhkov/chaldea-trust.git"
@@ -93,7 +93,7 @@ def test_inventory_disabled_and_units_use_isolated_state():
 
 
 def test_updater_paths_are_one_consistent_fetch_and_unit_contract():
-    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
+    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     tasks = yaml.safe_load((ROLE / "tasks/main.yml").read_text())
     validate = next(t for t in tasks if t["name"] == "Validate explicit trust enrollment")
     conditions = [c for c in validate["ansible.builtin.assert"]["that"] if "chaldea_access_paths." in c]

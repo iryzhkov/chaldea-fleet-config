@@ -6,7 +6,7 @@
   gather_facts: true
   gather_subset: [min]
   vars:
-    chaldea_node_version: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/group_vars/all.yml') | from_yaml).chaldea_node_version }}"
+    chaldea_node_version: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/group_vars/all/main.yml') | from_yaml).chaldea_node_version }}"
     fleet_home: "{{ playbook_dir }}/../.ci-home/job-client"
     chaldea_job_client_enabled: true
     chaldea_job_client_targets:
@@ -79,7 +79,7 @@
   connection: local
   gather_facts: false
   vars:
-    chaldea_node_version: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/group_vars/all.yml') | from_yaml).chaldea_node_version }}"
+    chaldea_node_version: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/group_vars/all/main.yml') | from_yaml).chaldea_node_version }}"
     fleet_home: "{{ playbook_dir }}/../.ci-home/waits-only"
     chaldea_job_client_enabled: false
     mcp_registrations_chaldea_waits_enabled: true

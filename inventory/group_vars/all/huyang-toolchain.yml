@@ -1,0 +1,325 @@
+---
+# Reviewed upstream inputs acquired 2026-10-17. See docs/huyang-toolchain.md.
+huyang_toolchain_pins:
+  schema: 1
+  gopls: "v0.23.0"
+  parser_lock_source: "https://github.com/nvim-treesitter/nvim-treesitter/blob/cf12346a3414fa1b06af75c79faebe7f76df080a/lockfile.json"
+  shared:
+    lspconfig:
+      version: "19576de1c1b6d1b5e231ea6ef9cba9a811c322bb"
+      url: "https://codeload.github.com/neovim/nvim-lspconfig/tar.gz/19576de1c1b6d1b5e231ea6ef9cba9a811c322bb"
+      sha256: "e18b21ee7bb000817b1337e9455d6fd719049e2c7b47e550949804d5fceda8fb"
+      format: "tar"
+      strip: 1
+    rust_src:
+      version: "1.99.0"
+      url: "https://static.rust-lang.org/dist/rust-src-1.99.0.tar.xz"
+      sha256: "3f1f9b7ed48f4596fc87889b7b3c61747336a55c9c22db1ab0c697e0aadb77aa"
+      format: "tar"
+      strip: 1
+    jdtls:
+      version: "1.60.0-202606262232"
+      url: "https://download.eclipse.org/jdtls/milestones/1.60.0/jdt-language-server-1.60.0-202606262232.tar.gz"
+      sha256: "e94c303d8198f977930803582738771fd18c52c5492878410bf222b1aa81ef1d"
+      format: "tar"
+      strip: 0
+  architectures:
+    x86_64:
+      nvim:
+        version: "v0.12.5"
+        url: "https://github.com/neovim/neovim/releases/download/v0.12.5/nvim-linux-x86_64.tar.gz"
+        sha256: "bce0f56eda1f1b1db6eee8f4133d7a38813ea07933837dd1777411ca384c6875"
+        format: "tar"
+        strip: 1
+      zig:
+        version: "0.15.2"
+        url: "https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz"
+        sha256: "02aa270f183da276e5b5920b1dac44a63f1a49e55050ebde3aecc9eb82f93239"
+        format: "tar"
+        strip: 1
+      rust_analyzer:
+        version: "2026-09-07"
+        url: "https://github.com/rust-lang/rust-analyzer/releases/download/2026-09-07/rust-analyzer-x86_64-unknown-linux-gnu.gz"
+        sha256: "a3500183aa08bf740c0da6e030ad262d4cfa1c19e7ce195ab5f772bdf9ddfb12"
+        format: "gzip"
+        strip: 0
+      shellcheck:
+        version: "v0.11.0"
+        url: "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz"
+        sha256: "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
+        format: "tar"
+        strip: 1
+      jdk:
+        version: "jdk-21.0.12.1+1"
+        url: "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz"
+        sha256: "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94"
+        format: "tar"
+        strip: 1
+      python:
+        version: "20261013"
+        url: "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.13.16%2B20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+        sha256: "d0080766b6b74aeb81e1949ef0d9a20e6c17f7b160fb295a69b936ccb17660be"
+        format: "tar"
+        strip: 1
+      clangd:
+        version: "22.1.6"
+        url: "https://github.com/clangd/clangd/releases/download/22.1.6/clangd-linux-22.1.6.zip"
+        sha256: "a9c77443af2e447ed467e84771848d3a6ac1c56f84bcfcde717e66318de77cfa"
+        format: "zip"
+        strip: 1
+      go:
+        version: "1.27.0"
+        url: "https://dl.google.com/go/go1.27.0.linux-amd64.tar.gz"
+        sha256: "675c26c449cbb18fc24b74650de1eabbae6e16f64326fd85a283fb3b58280685"
+        format: "tar"
+        strip: 1
+      node:
+        version: "26.12.0"
+        url: "https://nodejs.org/dist/v26.12.0/node-v26.12.0-linux-x64.tar.xz"
+        sha256: "fd47865ecd6391ebb431fc815e01b9135bf83ded5cf373247e9331e196b7aded"
+        format: "tar"
+        strip: 1
+      rustc:
+        version: "1.99.0"
+        url: "https://static.rust-lang.org/dist/rustc-1.99.0-x86_64-unknown-linux-gnu.tar.xz"
+        sha256: "77171ba2a0345fdf2abc4fedda55d6de078dae7a68527c28be8c77dcc9604bd5"
+        format: "tar"
+        strip: 1
+      cargo:
+        version: "1.99.0"
+        url: "https://static.rust-lang.org/dist/cargo-1.99.0-x86_64-unknown-linux-gnu.tar.xz"
+        sha256: "d7674918d28093097614cd9728b6ca60db9ea3038f640f0bd1e9a4188c7568ce"
+        format: "tar"
+        strip: 1
+      rust-std:
+        version: "1.99.0"
+        url: "https://static.rust-lang.org/dist/rust-std-1.99.0-x86_64-unknown-linux-gnu.tar.xz"
+        sha256: "3e58dff2d0b72196b5ea4e90536e174d400de88564a52694686b81e091169933"
+        format: "tar"
+        strip: 1
+    aarch64:
+      nvim:
+        version: "v0.12.5"
+        url: "https://github.com/neovim/neovim/releases/download/v0.12.5/nvim-linux-arm64.tar.gz"
+        sha256: "1aa5ca085249580ae0f91eb14f27ec0919773ff2d99a163d03f3d6c21ac29725"
+        format: "tar"
+        strip: 1
+      zig:
+        version: "0.15.2"
+        url: "https://ziglang.org/download/0.15.2/zig-aarch64-linux-0.15.2.tar.xz"
+        sha256: "958ed7d1e00d0ea76590d27666efbf7a932281b3d7ba0c6b01b0ff26498f667f"
+        format: "tar"
+        strip: 1
+      rust_analyzer:
+        version: "2026-09-07"
+        url: "https://github.com/rust-lang/rust-analyzer/releases/download/2026-09-07/rust-analyzer-aarch64-unknown-linux-gnu.gz"
+        sha256: "484de96ea9e5daf9e6361b6fa91be9521a7e6c652111af54a7ead80f900b1e55"
+        format: "gzip"
+        strip: 0
+      shellcheck:
+        version: "v0.11.0"
+        url: "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.aarch64.tar.xz"
+        sha256: "12b331c1d2db6b9eb13cfca64306b1b157a86eb69db83023e261eaa7e7c14588"
+        format: "tar"
+        strip: 1
+      jdk:
+        version: "jdk-21.0.12.1+1"
+        url: "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.12.1_1.tar.gz"
+        sha256: "23e37e026f12f3e706f18938ff611db3032d075b09d0879a25d06718c773e223"
+        format: "tar"
+        strip: 1
+      python:
+        version: "20261013"
+        url: "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.13.16%2B20261013-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
+        sha256: "69a30ed26198178732c37b8de0b6b5191479fbacfe526954da776befe38f18e7"
+        format: "tar"
+        strip: 1
+      clangd:
+        version: "22.1.6"
+        url: "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.6/LLVM-22.1.6-Linux-ARM64.tar.xz"
+        sha256: "b67817634e8e1c2632dfc056af14d61b94f8e6502f4e557560eea227aa22ce37"
+        format: "tar"
+        strip: 1
+      go:
+        version: "1.27.0"
+        url: "https://dl.google.com/go/go1.27.0.linux-arm64.tar.gz"
+        sha256: "51798d2c42d0e1c6ed7fd9f48728b4193abac9e8aad6dbac2fe96a81f5909bda"
+        format: "tar"
+        strip: 1
+      node:
+        version: "26.12.0"
+        url: "https://nodejs.org/dist/v26.12.0/node-v26.12.0-linux-arm64.tar.xz"
+        sha256: "fd6cc729fa4448c2ac27c3fca5606019ced63c65a15c152c8df03e0cbce7f4c5"
+        format: "tar"
+        strip: 1
+      rustc:
+        version: "1.99.0"
+        url: "https://static.rust-lang.org/dist/rustc-1.99.0-aarch64-unknown-linux-gnu.tar.xz"
+        sha256: "89c0f1a3a44df63c95e5d5f2ba093d0a12c5f5f57f8635f8a7a0ce50cf86600e"
+        format: "tar"
+        strip: 1
+      cargo:
+        version: "1.99.0"
+        url: "https://static.rust-lang.org/dist/cargo-1.99.0-aarch64-unknown-linux-gnu.tar.xz"
+        sha256: "113229fcc16cc1ba004923a4cc275fbf3281dafaaf8b97269f9c00189d497fd4"
+        format: "tar"
+        strip: 1
+      rust-std:
+        version: "1.99.0"
+        url: "https://static.rust-lang.org/dist/rust-std-1.99.0-aarch64-unknown-linux-gnu.tar.xz"
+        sha256: "1cf7e2ef58ed1cfa6f1adea18e155cbf254c1951f39e5f5e3376879f55fd64a4"
+        format: "tar"
+        strip: 1
+  parsers:
+    go:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-go/tar.gz/5e73f476efafe5c768eda19bbe877f188ded6144"
+      sha256: "c5bf6d3b9c61207c61d889e6bd69783338749c91ffee71cbb92f3835272eff44"
+      version: "5e73f476efafe5c768eda19bbe877f188ded6144"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c"]
+    rust:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-rust/tar.gz/e86119bdb4968b9799f6a014ca2401c178d54b5f"
+      sha256: "536562c1ff345bb51e3158903e9afcbf5ea0f4963a37598fe1ecd8ab4718a497"
+      version: "e86119bdb4968b9799f6a014ca2401c178d54b5f"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    python:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-python/tar.gz/710796b8b877a970297106e5bbc8e2afa47f86ec"
+      sha256: "305ec775a502976af581ea63ffe39e1d6f1661719131db1204bb7182da386442"
+      version: "710796b8b877a970297106e5bbc8e2afa47f86ec"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    typescript:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-typescript/tar.gz/75b3874edb2dc714fb1fd77a32013d0f8699989f"
+      sha256: "96ce4d1b513767d414bcca408efd9b49879162cceecdbed79a88e8ad2184f385"
+      version: "75b3874edb2dc714fb1fd77a32013d0f8699989f"
+      format: "tar"
+      strip: 1
+      location: "typescript"
+      files: ["src/parser.c", "src/scanner.c"]
+    tsx:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-typescript/tar.gz/75b3874edb2dc714fb1fd77a32013d0f8699989f"
+      sha256: "96ce4d1b513767d414bcca408efd9b49879162cceecdbed79a88e8ad2184f385"
+      version: "75b3874edb2dc714fb1fd77a32013d0f8699989f"
+      format: "tar"
+      strip: 1
+      location: "tsx"
+      files: ["src/parser.c", "src/scanner.c"]
+    javascript:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-javascript/tar.gz/6fbef40512dcd9f0a61ce03a4c9ae7597b36ab5c"
+      sha256: "4a720a2da28221f9468783e27bea4c1ba0983f18847bc72eea3b8c70185f2698"
+      version: "6fbef40512dcd9f0a61ce03a4c9ae7597b36ab5c"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    java:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-java/tar.gz/a7db5227ec40fcfe94489559d8c9bc7c8181e25a"
+      sha256: "7402d7b4f4f081569058d3554dad5db718a7496cc2c526c73f949e855b107487"
+      version: "a7db5227ec40fcfe94489559d8c9bc7c8181e25a"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c"]
+    cpp:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-cpp/tar.gz/e5cea0ec884c5c3d2d1e41a741a66ce13da4d945"
+      sha256: "8154b5b842b7a41f88ce6831738d6743af62e4c85598cf9d2f80384f0f356be0"
+      version: "e5cea0ec884c5c3d2d1e41a741a66ce13da4d945"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    c:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-c/tar.gz/2a265d69a4caf57108a73ad2ed1e6922dd2f998c"
+      sha256: "b79cec7ba0b0133f7d1f406340b294466af514c3e1a042555ed0cc8d5cec5d29"
+      version: "2a265d69a4caf57108a73ad2ed1e6922dd2f998c"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c"]
+    bash:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-bash/tar.gz/0c46d792d54c536be5ff7eb18eb95c70fccdb232"
+      sha256: "698387b4d30a32672dc48d6af421a689dd7b9141d259638072d88c95245599cd"
+      version: "0c46d792d54c536be5ff7eb18eb95c70fccdb232"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    lua:
+      url: "https://codeload.github.com/MunifTanjim/tree-sitter-lua/tar.gz/db16e76558122e834ee214c8dc755b4a3edc82a9"
+      sha256: "d202ba8ecc11b3494c22e186811c059d0023647df14a6013cc2d5c1112c6d34d"
+      version: "db16e76558122e834ee214c8dc755b4a3edc82a9"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    json:
+      url: "https://codeload.github.com/tree-sitter/tree-sitter-json/tar.gz/46aa487b3ade14b7b05ef92507fdaa3915a662a3"
+      sha256: "b6276cc85e113e3e752b208bcac6351cf4af69fde261606746ce35893c57cd6e"
+      version: "46aa487b3ade14b7b05ef92507fdaa3915a662a3"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c"]
+    yaml:
+      url: "https://codeload.github.com/tree-sitter-grammars/tree-sitter-yaml/tar.gz/1805917414a9a8ba2473717fd69447277a175fae"
+      sha256: "14c4d868ea567b3dd3af7a2316c87d5e313ad85f61fba4ca7b09c619df33bf42"
+      version: "1805917414a9a8ba2473717fd69447277a175fae"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    toml:
+      url: "https://codeload.github.com/tree-sitter-grammars/tree-sitter-toml/tar.gz/64b56832c2cffe41758f28e05c756a3a98d16f41"
+      sha256: "feeb2e1cf531588cdcfb9c57292620151a08597f18a98dad26cc17fd4b544dcb"
+      version: "64b56832c2cffe41758f28e05c756a3a98d16f41"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    markdown:
+      url: "https://codeload.github.com/MDeiml/tree-sitter-markdown/tar.gz/413285231ce8fa8b11e7074bbe265b48aa7277f9"
+      sha256: "4fa440823981567d2e486f4a1b85c16781adf983c066a22169cfcd7273c679b3"
+      version: "413285231ce8fa8b11e7074bbe265b48aa7277f9"
+      format: "tar"
+      strip: 1
+      location: "tree-sitter-markdown"
+      files: ["src/parser.c", "src/scanner.c"]
+    markdown_inline:
+      url: "https://codeload.github.com/MDeiml/tree-sitter-markdown/tar.gz/413285231ce8fa8b11e7074bbe265b48aa7277f9"
+      sha256: "4fa440823981567d2e486f4a1b85c16781adf983c066a22169cfcd7273c679b3"
+      version: "413285231ce8fa8b11e7074bbe265b48aa7277f9"
+      format: "tar"
+      strip: 1
+      location: "tree-sitter-markdown-inline"
+      files: ["src/parser.c", "src/scanner.c"]
+    vim:
+      url: "https://codeload.github.com/neovim/tree-sitter-vim/tar.gz/11b688a1f0e97c0c4e3dbabf4a38016335f4d237"
+      sha256: "d8cfe9e74f1418ec219a37fef99f54b5f80e906971f7bba1e04d5711efbd5e80"
+      version: "11b688a1f0e97c0c4e3dbabf4a38016335f4d237"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c", "src/scanner.c"]
+    vimdoc:
+      url: "https://codeload.github.com/neovim/tree-sitter-vimdoc/tar.gz/2694c3d27e2ca98a0ccde72f33887394300d524e"
+      sha256: "cc212eb2a7fd20ab1fa759d44aee823d010eb3e03d6ce424f62fbe700890cbca"
+      version: "2694c3d27e2ca98a0ccde72f33887394300d524e"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c"]
+    query:
+      url: "https://codeload.github.com/nvim-treesitter/tree-sitter-query/tar.gz/930202c2a80965a7a9ca018b5b2a08b25dfa7f12"
+      sha256: "64b6ec6ee7fef248a491db225519a42c10c1298c0ba2726d8cab688e9007cd18"
+      version: "930202c2a80965a7a9ca018b5b2a08b25dfa7f12"
+      format: "tar"
+      strip: 1
+      location: ""
+      files: ["src/parser.c"]

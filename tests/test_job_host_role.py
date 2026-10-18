@@ -6,7 +6,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 ROLE = ROOT / "roles/chaldea_job_host"
-DEFAULTS = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())["chaldea_job_host_toolchain_versions"]
+DEFAULTS = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())["chaldea_job_host_toolchain_versions"]
 
 
 def test_public_host_e2e_ssh_fixtures_match_deployed_templates():
@@ -14,7 +14,7 @@ def test_public_host_e2e_ssh_fixtures_match_deployed_templates():
     import re
     import urllib.request
     import pytest
-    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
+    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     ref = os.environ.get("CHALDEA_HOST_TEST_SOURCE_REF")
     if not ref and inventory["chaldea_host_sha256"] == "0" * 64:
         pytest.skip("host release bootstrap is pending; supply an exact candidate source ref")
@@ -30,7 +30,7 @@ def test_public_host_e2e_ssh_fixtures_match_deployed_templates():
 
 def test_inventory_official_toolchain_pin_schema():
     import re
-    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
+    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     versions = inventory["chaldea_job_host_toolchain_versions"]
     checksums = inventory["chaldea_job_host_toolchain_checksums"]
     targets = {"x86_64": "x86_64-unknown-linux-gnu", "aarch64": "aarch64-unknown-linux-gnu"}

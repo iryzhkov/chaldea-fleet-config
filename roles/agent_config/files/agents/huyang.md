@@ -2,10 +2,10 @@
 
 Maintained in chaldea-fleet-config's roles/agent_config/files/. The body combines
 claude/omarchy-setup/CLAUDE.md ("Reading and editing code") and skills/huyang/SKILL.md;
-keep it in sync with those role sources. Omarchy's config/claude/CLAUDE.md,
-config/claude/skills/huyang/SKILL.md and config/bin/agents-instructions-gen retain
-matching bootstrap/policy guidance. See docs/agent-instruction-ownership.md for the
-overlap; do not regenerate over fleet-managed files. Installed copies are outputs.
+keep it in sync with those role sources. Fleet is the canonical home; the old
+Omarchy generator is retired. See docs/agent-instruction-ownership.md. Keep the
+maintained sources aligned; do not regenerate over fleet-managed files.
+Installed copies are outputs.
 
 Tool names below are Huyang's modern MCP surface and are shared by every harness.
 

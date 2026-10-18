@@ -23,7 +23,7 @@ jobs:
           python-version: "3.13"
       - run: echo "CI_PYTHON=${{ steps.python.outputs.python-path }}" >>"$GITHUB_ENV"
       - run: mkdir -p "$TMPDIR"
-      # Same reviewed Linux x64 archive pin as inventory/group_vars/all.yml.
+      # Same reviewed Linux x64 archive pin as inventory/group_vars/all/main.yml.
       # Keep Node in this run's scratch, independent of the isolated test HOME.
       - name: Stage checksum-pinned Node for this CI job
         shell: bash

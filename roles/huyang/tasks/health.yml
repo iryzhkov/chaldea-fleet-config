@@ -1,0 +1,55 @@
+---
+- name: Wait for the private Huyang control socket
+  ansible.builtin.wait_for:
+    path: "{{ huyang_socket }}"
+    timeout: 30
+
+- name: Install the read-only health client
+  ansible.builtin.copy:
+    src: huyang_health.py
+    dest: "{{ huyang_root }}/health-check.py"
+    mode: "0644"
+
+- name: Create the controlled health sample directories
+  ansible.builtin.file:
+    path: "{{ huyang_root }}/health/{{ item | dirname }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ (lookup('ansible.builtin.file', role_path ~ '/files/health-fixtures.json') | from_json).keys() | list }}"
+
+- name: Install controlled health samples from inert fixture data
+  ansible.builtin.copy:
+    content: "{{ item.value }}"
+    dest: "{{ huyang_root }}/health/{{ item.key }}"
+    mode: "0644"
+  loop: "{{ lookup('ansible.builtin.file', role_path ~ '/files/health-fixtures.json') | from_json | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Inspect workspace health and selected language server presence
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_facts.python.executable | default('/usr/bin/python3') }}"
+      - "{{ huyang_root }}/health-check.py"
+      - --binary
+      - "{{ huyang_root }}/current/bin/huyang"
+      - --socket
+      - "{{ huyang_socket }}"
+      - --toolchain-bin
+      - "{{ huyang_toolchain_bin }}"
+      - --root
+      - "{{ huyang_root }}/health"
+      - --languages
+      - "{{ huyang_languages | to_json }}"
+  changed_when: false
+  register: huyang_health
+
+- name: Report the expected language server health
+  ansible.builtin.debug:
+    msg: "{{ huyang_health.stdout | from_json }}"
+
+- name: Clear pending health only after complete verification
+  ansible.builtin.file:
+    path: "{{ huyang_root }}/health-pending"
+    state: absent
+  when: (huyang_health.stdout | from_json).complete | bool

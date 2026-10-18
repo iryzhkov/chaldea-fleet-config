@@ -19,7 +19,6 @@ agent_config_fleet_tools_skill_dirs:
   - .agents/skills
   - .codex/skills
 
-agent_config_huyang_plugin_url: "https://raw.githubusercontent.com/iryzhkov/omarchy-setup/{{ agent_config_huyang_plugin_ref }}/config/opencode/plugins/huyang-profiles.js"
 # Shared instruction files, relative to the home directory. Per-host files such
 # as ~/.claude/CLAUDE.md and ~/.claude.json are deliberately not managed.
 agent_config_files:

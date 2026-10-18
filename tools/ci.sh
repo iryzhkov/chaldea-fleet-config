@@ -49,14 +49,7 @@ reset_home() {
 # scratch; this exercises extraction and installed-byte copies without sudo.
 python tests/host_artifact_fixture.py "$TMPDIR/host-artifact" >"$TMPDIR/host-artifact-vars.json"
 python tests/client_artifact_fixture.py "$TMPDIR/client-artifact" >"$TMPDIR/client-artifact-vars.json"
-export HUYANG_PLUGIN_SOURCE="$TMPDIR/huyang-profiles.js"
-# Read source pins from inventory so CI exercises the deployed download.
-plugin_ref=$(python -c 'import yaml; print(yaml.safe_load(open("inventory/group_vars/all.yml"))["agent_config_huyang_plugin_ref"])')
-plugin_sha=$(python -c 'import yaml; print(yaml.safe_load(open("inventory/group_vars/all.yml"))["agent_config_huyang_plugin_sha256"])')
-curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
-  "https://raw.githubusercontent.com/iryzhkov/omarchy-setup/$plugin_ref/config/opencode/plugins/huyang-profiles.js" \
-  --output "$HUYANG_PLUGIN_SOURCE"
-printf '%s  %s\n' "$plugin_sha" "$HUYANG_PLUGIN_SOURCE" | sha256sum --check -
+export HUYANG_PLUGIN_SOURCE="$PWD/roles/agent_config/files/opencode/huyang-profiles.js"
 
 export CHALDEA_HOST_TEST_EVIDENCE="$TMPDIR/role-install-evidence"
 python -m pytest -q -p no:cacheprovider tests

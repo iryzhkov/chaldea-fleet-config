@@ -28,6 +28,9 @@
     - role: chaldea_client
       tags: [chaldea_client]
       when: "'agent_hosts' in group_names and chaldea_client_enabled | default(false) | bool"
+    - role: huyang
+      tags: [huyang]
+      when: "'agent_hosts' in group_names and huyang_enabled | default(false) | bool"
     - role: mcp_registrations
       tags: [mcp_registrations]
       when: "'agent_hosts' in group_names"
