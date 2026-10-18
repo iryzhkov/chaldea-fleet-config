@@ -66,6 +66,20 @@
             ]
           }
         ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-publisher",
+        "project": "chaldea",
+        "source": "agent-a.mission-control",
+        "grants": [
+          {
+            "resource": "agent-a.mission-control",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -399,6 +413,20 @@
             "resource": "omarchy-normandy.toolfeedback",
             "actions": [
               "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-reader",
+        "project": "chaldea",
+        "source": "mission-control-reader",
+        "grants": [
+          {
+            "resource": "mission-control-reader",
+            "actions": [
+              "read"
             ]
           }
         ]
