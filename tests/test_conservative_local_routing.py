@@ -11,8 +11,8 @@ def test_omarchy_reader_and_conservative_pins(tmp_path, monkeypatch):
     variables = fixture(tmp_path, monkeypatch)
     inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
     host = inventory["all"]["children"]["agent_hosts"]["hosts"]["omarchy-pc"]
-    assert host["chaldea_client_version"] == "client-v0.4.1"
-    assert host["chaldea_client_sha256"] == "86ee3bda7a5f78fa4c93b5e7ae945f0c96f9244be4a6d02c235957e4da282cdb"
+    assert host["chaldea_client_version"] == "client-v0.4.2"
+    assert host["chaldea_client_sha256"] == "40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a"
     for key in ("chaldea_client_claude_usage_enabled", "chaldea_client_claude_usage_source",
                 "chaldea_client_claude_contexts", "chaldea_client_route_targets"):
         variables[key] = host[key]

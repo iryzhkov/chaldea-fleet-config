@@ -57,11 +57,11 @@ pins select Codex Sol 6.1 high for builder, Luna 6 medium for bulk-read and
 Sol 6.1 medium for general. These are fallback pins, not AA qualification.
 Other hosts retain client-v0.3.0 and have no new role-target verification.
 
-The local Claude reader is approved, enabled and attempted on omarchy-pc only.
-Route and quota use its existing 0600 env file without copying or refreshing
-credentials. The collector's 429/backoff is not a fresh quota measurement.
-Read cached status and honor retryAt. Do not claim all logged-in hosts have
-live readers. AA snapshots, shared quota and automatic switching remain off.
+PC normal Claude/T3 now supplies native quota with its validated account hash.
+The proposed client-v0.4.2 pin carries the account-binding and review-separation
+repairs; pair it with PR 57 to disable the redundant env-file HTTP collectors.
+Publishing the package does not install it. Unknown/stale readings remain
+explicit. AA snapshots, shared quota and automatic switching remain off.
 
 The source PR stays draft with auto-merge off. Active pull timers distribute
 merged guidance, so the parent owns merge/activation approval and must report
