@@ -10,17 +10,19 @@ from test_mcp_registration import call, Failed
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_collector_stays_off_on_every_client_host():
+def test_collector_runs_only_on_hosts_with_a_claude_login():
     defaults = yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text())
-    common = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
+    common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert set(hosts) == {"agent-a", "agent-b", "omarchy-pc", "laptop"}
     assert common["chaldea_client_version"] == "client-v0.3.0"
     assert common["chaldea_client_sha256"] == "38815b50ae8efbd9379f707af3fe8265a18e1fedd7814c2644ec73c91a8f5fa1"
-    for values in hosts.values():
+    # Igor approved the collector on 2026-10-18 for the hosts with a Claude login.
+    collectors = {"omarchy-pc", "laptop"}
+    for name, values in hosts.items():
         effective = defaults | common | values
         assert effective["chaldea_client_enabled"] is True
-        assert effective["chaldea_client_claude_usage_enabled"] is False
+        assert effective["chaldea_client_claude_usage_enabled"] is (name in collectors)
 
 
 def test_opencode_preserves_settings_check_mode_removal_and_mode(tmp_path):

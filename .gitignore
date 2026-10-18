@@ -2,3 +2,5 @@
 .ci-home/
 __pycache__/
 *.pyc
+# Old native fixture paths can retain language-server-generated build state.
+roles/huyang/files/health/

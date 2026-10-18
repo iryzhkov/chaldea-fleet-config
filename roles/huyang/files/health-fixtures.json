@@ -1,0 +1,15 @@
+{
+  "go/main.go": "package main\nfunc main() {}\n",
+  "go/go.mod": "module fleet.invalid/health\n\ngo 1.25\n",
+  "rust/src/main.rs": "fn main() {}\n",
+  "rust/Cargo.toml": "[package]\nname = \"fleet-health\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+  "python/main.py": "value: int = 1\n",
+  "typescript/main.ts": "export const value: number = 1;\n",
+  "typescript/tsconfig.json": "{\"compilerOptions\":{\"strict\":true}}\n",
+  "javascript/main.js": "// @ts-check\nconst value = 1;\n",
+  "java/src/main/java/Health.java": "public class Health { public static void main(String[] args) {} }\n",
+  "java/pom.xml": "<project><modelVersion>4.0.0</modelVersion><groupId>fleet.invalid</groupId><artifactId>health</artifactId><version>1</version></project>\n",
+  "cpp/main.cpp": "int main() { return 0; }\n",
+  "c/main.c": "int main(void) { return 0; }\n",
+  "bash/main.sh": "#!/bin/bash\nprintf '%s\\n' ready\n"
+}

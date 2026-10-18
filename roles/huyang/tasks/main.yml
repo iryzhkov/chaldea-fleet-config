@@ -1,0 +1,170 @@
+---
+- name: Validate Huyang release pins and architecture
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.architecture in ['x86_64', 'aarch64']
+      - huyang_version is match('^huyang-v[0-9]+[.][0-9]+[.][0-9]+$')
+      - huyang_sha256[ansible_facts.architecture] | default('') is match('^[a-f0-9]{64}$')
+      - huyang_root == fleet_home ~ '/.local/share/huyang'
+      - huyang_memory_high is match('^[1-9][0-9]*[MG]$')
+    fail_msg: Pin a published Huyang tag and both archive SHA-256 values before enabling a host.
+    quiet: true
+
+- name: Inspect the Huyang migration layout without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+  loop:
+    - "{{ huyang_root }}"
+    - "{{ huyang_root }}/.git"
+    - "{{ huyang_root }}.pre-fleet"
+    - "{{ huyang_root }}/releases"
+    - "{{ huyang_root }}/current"
+  register: huyang_layout
+
+- name: Refuse unsafe layouts and backup collisions before migration
+  ansible.builtin.assert:
+    that:
+      - not (huyang_layout.results[0].stat.islnk | default(false))
+      - not huyang_layout.results[0].stat.exists or huyang_layout.results[0].stat.isdir
+      - not huyang_layout.results[1].stat.exists or not huyang_layout.results[2].stat.exists
+      - >-
+        not huyang_layout.results[0].stat.exists or huyang_layout.results[1].stat.exists or
+        (huyang_layout.results[3].stat.isdir | default(false))
+      - not (huyang_layout.results[3].stat.islnk | default(false))
+      - >-
+        not huyang_layout.results[4].stat.exists or
+        (huyang_layout.results[4].stat.islnk | default(false))
+    fail_msg: Inspect the unexpected Huyang layout or existing pre-fleet backup before migration.
+    quiet: true
+
+- name: Validate diagnostic toolchain selection in check mode
+  ansible.builtin.include_tasks: lspconfig.yml
+  when: ansible_check_mode
+
+# Check mode deliberately performs no installs, migration, service actions or MCP calls.
+- name: Explain the disabled side effects during a Huyang check
+  ansible.builtin.debug:
+    msg: "Would verify/install {{ huyang_version }}, provision {{ huyang_languages }}, migrate the checkout and restart only on a changed pin. No service action occurs in check mode."
+  changed_when: huyang_layout.results[4].stat.lnk_target | default('') != huyang_root ~ '/releases/' ~ huyang_version
+  when: ansible_check_mode
+
+- name: Install and activate Huyang
+  when: not ansible_check_mode
+  block:
+    - name: Create the shared data parent without changing existing permissions
+      ansible.builtin.file:
+        path: "{{ fleet_home }}/.local/share"
+        state: directory
+        mode: u+rwx
+
+    - name: Create private download and service scratch directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0700"
+      loop:
+        - "{{ huyang_cache }}"
+        - "{{ fleet_home }}/.cache/huyang/tmp"
+
+    - name: Download the pinned Huyang archive
+      ansible.builtin.get_url:
+        url: "{{ huyang_archive_url }}"
+        dest: "{{ huyang_cache }}/{{ huyang_version }}-{{ huyang_architecture }}.tar.gz"
+        checksum: "sha256:{{ huyang_sha256[ansible_facts.architecture] }}"
+        mode: "0600"
+      when: huyang_archive_source | length == 0
+
+    - name: Stage an offline Huyang fixture archive
+      ansible.builtin.copy:
+        src: "{{ huyang_archive_source }}"
+        dest: "{{ huyang_cache }}/{{ huyang_version }}-{{ huyang_architecture }}.tar.gz"
+        mode: "0600"
+      when: huyang_archive_source | length > 0
+
+    - name: Provision the pinned language servers and runtime
+      ansible.builtin.include_tasks: lspconfig.yml
+
+    - name: Install the verified Huyang release without activation
+      huyang_release:
+        root: "{{ huyang_root }}"
+        archive: "{{ huyang_cache }}/{{ huyang_version }}-{{ huyang_architecture }}.tar.gz"
+        version: "{{ huyang_version }}"
+        architecture: "{{ huyang_architecture }}"
+        sha256: "{{ huyang_sha256[ansible_facts.architecture] }}"
+
+    - name: Create the user unit directory
+      ansible.builtin.file:
+        path: "{{ fleet_home }}/.config/systemd/user"
+        state: directory
+        mode: u+rwx
+
+    - name: Install the Huyang user unit
+      ansible.builtin.template:
+        src: huyang.service.j2
+        dest: "{{ fleet_home }}/.config/systemd/user/huyang.service"
+        mode: "0644"
+        backup: true
+      register: huyang_unit
+
+    - name: Switch current atomically and retain the previous release
+      huyang_release:
+        root: "{{ huyang_root }}"
+        archive: "{{ huyang_cache }}/{{ huyang_version }}-{{ huyang_architecture }}.tar.gz"
+        version: "{{ huyang_version }}"
+        architecture: "{{ huyang_architecture }}"
+        sha256: "{{ huyang_sha256[ansible_facts.architecture] }}"
+        activate: true
+
+    - name: Keep the legacy client path forwarding to current
+      ansible.builtin.file:
+        src: "{{ huyang_root }}/current/bin"
+        dest: "{{ huyang_root }}/bin"
+        state: link
+
+    - name: Inspect persisted release restart intent
+      ansible.builtin.stat:
+        path: "{{ huyang_root }}/restart-required"
+      register: huyang_restart
+
+    - name: Inspect pending health from an earlier activation
+      ansible.builtin.stat:
+        path: "{{ huyang_root }}/health-pending"
+      register: huyang_health_pending
+
+    - name: Load a changed Huyang unit  # noqa: no-handler -- reload before the pin-controlled restart
+      ansible.builtin.systemd_service:
+        scope: user
+        daemon_reload: true
+      when: huyang_unit.changed
+
+    - name: Restart Huyang only after a release pin change
+      ansible.builtin.systemd_service:
+        name: huyang.service
+        scope: user
+        enabled: true
+        state: restarted
+      when: huyang_restart.stat.exists
+
+    - name: Ensure the pinned Huyang service stays enabled and started
+      ansible.builtin.systemd_service:
+        name: huyang.service
+        scope: user
+        enabled: true
+        state: started
+      when: not huyang_restart.stat.exists
+
+    - name: Persist pending health after the release restart
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/mv
+          - --
+          - "{{ huyang_root }}/restart-required"
+          - "{{ huyang_root }}/health-pending"
+      changed_when: true
+      when: huyang_restart.stat.exists
+
+    - name: Verify release activation or retry pending health without restarting
+      ansible.builtin.include_tasks: health.yml
+      when: huyang_restart.stat.exists or huyang_health_pending.stat.exists

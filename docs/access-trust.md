@@ -68,7 +68,7 @@ The orchestrator performs every host action and key creation:
    exclusive noclobber creation using openssl genpkey. Never reuse or transfer
    the retired omarchy-pc key. Extract only the public JWK using createPublicKey,
    and public SPKI DER SHA-256 using openssl pkey -pubout -outform DER.
-3. Insert the public values in inventory/group_vars/all.yml here and
+3. Insert the public values in inventory/group_vars/all/main.yml here and
    homelab-infra vars/chaldea-runtime.yml. Set chaldea_deployment_anchor_kid to
    deployment-2026-10b, chaldea_deployment_anchor_public_jwk to {kty, crv, x},
    and chaldea_deployment_anchor_spki_sha256 to lowercase public SPKI digest.

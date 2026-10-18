@@ -12,7 +12,7 @@ from jinja2 import Environment, StrictUndefined
 
 ROOT = Path(__file__).resolve().parents[1]
 LAUNCHER = ROOT / "roles/chaldea_job_client/templates/chaldea.j2"
-NODE_VERSION = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())["chaldea_node_version"]
+NODE_VERSION = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())["chaldea_node_version"]
 
 
 def invoke(home, *args):

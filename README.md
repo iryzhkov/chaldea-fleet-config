@@ -30,6 +30,9 @@ session; it only keeps the tools and shared files those sessions use in place.
   also listed there takes that file's version; the play reports it. The drop-in
   holds only plain version strings, because a drop-in with tool options needs
   `mise trust`, which for that directory trusts the whole home directory.
+- `huyang`: opt-in pinned releases, safe checkout migration and a separate
+  checksum-pinned Neovim/parser/language-server toolchain. Every host is disabled
+  until the orchestrator enables it. See [activation and rollback](docs/huyang.md).
 - `mcp_registrations`: registers the fleet's own MCP servers, huyang and
   ov-memory, with Claude Code (user scope, through `claude mcp get`,
   `claude mcp remove` and `claude mcp add-json`; `~/.claude.json` is never
@@ -59,13 +62,13 @@ session; it only keeps the tools and shared files those sessions use in place.
   four hours with a pinned ansible-core.
 
 Hosts and their switches are in `inventory/hosts.yml`; pins shared by every host
-are in `inventory/group_vars/all.yml`. No secret is stored here: credential files
+are in `inventory/group_vars/all/main.yml`. No secret is stored here: credential files
 are listed by path, and the play only checks that each exists and is private.
 
 ## Private repositories
 
-This repository and homelab-cli are private. Each host reads them over SSH with
-its own read-only deploy key per repository, behind a Host alias in
+This repository is public; homelab-cli is private. The existing pull URLs use SSH
+with a read-only deploy key per repository, behind a Host alias in
 `~/.ssh/config`: `github-chaldea-fleet-config` (`pull_timer_repo`) and
 `github-homelab-cli` (`agent_tools_homelab_cli_repo`). The play checks that each
 alias is defined and stops if one is missing; it never creates or reads the keys.
@@ -198,7 +201,7 @@ and a self-hosted runner would execute pull requests from forks on a fleet host.
 Python 3.13 comes from a pinned `actions/setup-python`. The workflow stages Node 26.12.0 for Linux x64 from the official Node
 archive, verifies its pinned SHA-256 before extraction or execution, and adds its
 absolute bin path to the job PATH. The archive pin matches the reviewed job-toolchain
-pin in `inventory/group_vars/all.yml`; update both deliberately when changing it.
+pin in `inventory/group_vars/all/main.yml`; update both deliberately when changing it.
 Node lives only in that run's disk-backed `TMPDIR` and is removed by the existing
 always-run cleanup. This does not install Node on the host. The runner still needs
 `curl`, `sha256sum`, `tar` with xz support, and the existing Python/venv prerequisites.

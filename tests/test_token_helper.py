@@ -87,7 +87,7 @@ def test_issuer_wrapper_discards_caller_environment(tmp_path):
                                      {"client_version": "client-v0.2.0"}, {"client_version": "client-v0.2.1\n"}])
 def test_inventory_injection_is_rejected_before_any_install(tmp_path, change):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).parent)
-    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
+    inventory = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     grant = dict(uid=1000, audience="akasha", action="append", source="timer",
                  host="localhost", kind="timer_run", profile="timer-service", project="chaldea")
     grant.update({key: value for key, value in change.items() if key != "client_version"})
