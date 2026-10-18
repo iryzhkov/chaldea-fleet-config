@@ -36,13 +36,16 @@ tests/fixtures/agent_config_before.json records all source hashes from fleet
 main 7185b506, plus the former downloaded plugin hash. The render test installs
 the agent_config role for agent-a, agent-b, omarchy-pc and laptop into disposable
 homes, and compares every managed file and skill against this baseline.
-Only the exact ownership header blocks listed in test_agent_source_migration.py
-may differ, as authorized by Igor on 2026-10-18:
+Only the exact blocks in test_agent_source_migration.py's AUTHORIZED_CHANGES
+may differ, as authorized by Igor on 2026-10-18. Each replacement must occur
+exactly once and is reversed before comparison with the unchanged historic hashes:
 
 - agents/jocasta.md lines 3-4 now identify the maintained fleet source.
 - agents/ov-memory.md lines 3-5 now identify fleet sources and aligned skills.
 - agents/huyang.md lines 5-8 replace the obsolete Omarchy generator overlap
   claim with fleet ownership and the retired-generator note.
+- skills/chaldea/SKILL.md adds the optional wait-description guidance and the
+  description argument in the existing CLI example.
 
 All other deployed bytes, destinations and the plugin bytes must match.
 The Huyang role is disabled on every host and adds no deployed runtime changes.
