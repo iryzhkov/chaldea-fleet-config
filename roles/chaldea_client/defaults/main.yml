@@ -32,6 +32,11 @@ chaldea_client_low_headroom_percent: 10
 # Role pairs and Slopalytics URL are fixed by that client, not configuration keys.
 chaldea_client_claude_usage_enabled: false
 chaldea_client_claude_usage_provider: claudeAgent
+# Token paths only. Readers never render or copy credential contents.
+chaldea_client_claude_usage_source: {}
+chaldea_client_claude_contexts: []
+# Requires a FATE-capable client. Empty preserves compatibility on other hosts.
+chaldea_client_route_targets: {}
 chaldea_client_pace_margin: 0.10
 chaldea_client_minimum_remaining: 0.10
 chaldea_client_route_failure_margin: 0.10

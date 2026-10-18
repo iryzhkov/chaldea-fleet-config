@@ -1,3 +1,4 @@
+{% if chaldea_client_route_targets | length == 0 and chaldea_client_claude_usage_source | length == 0 %}
 {
   "paceMargin": {{ chaldea_client_pace_margin | to_json }},
   "minimumRemaining": {{ chaldea_client_minimum_remaining | to_json }},
@@ -12,3 +13,20 @@
     "providerInstanceId": {{ chaldea_client_claude_usage_provider | to_json }}
   }
 }
+{% else %}
+{% set base = {
+  "paceMargin": chaldea_client_pace_margin,
+  "minimumRemaining": chaldea_client_minimum_remaining,
+  "failureMargin": chaldea_client_route_failure_margin,
+  "minimumTurns": chaldea_client_route_minimum_turns,
+  "quotaMaxAgeMs": chaldea_client_quota_max_age_ms,
+  "analyticsMaxAgeMs": chaldea_client_analytics_max_age_ms,
+  "t3BaseDir": chaldea_client_t3_home,
+  "tokenFile": chaldea_client_quota_token,
+  "claudeUsage": {
+    "enabled": chaldea_client_claude_usage_enabled | bool,
+    "providerInstanceId": chaldea_client_claude_usage_provider
+  } | combine(chaldea_client_claude_usage_source)
+} %}
+{{ base | combine(chaldea_client_route_targets) | to_nice_json }}
+{% endif %}
