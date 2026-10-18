@@ -19,8 +19,10 @@ input overrides: client-v0.4.2, SHA256
 40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a,
 published from reviewed green main9d434 by workflow39120608965. The manifest API
 SHA is80d1300524ae52e789388fd72cdc774058ed019247debf34d5bf2840066a4d45.
-Publication metadata is not downloaded-package qualification. Require that
-independent proof before any protected install or enablement.
+Actual downloaded-package qualification passed agent-a job
+ a933ef74-57d8-4687-b747-19b9aa733c37: all3168files/178source match9d434,
+actual CLI/account/isolation proof passed. This is source evidence, not approval
+for protected installation or quota activation before joint source acceptance.
 Stage the exact protected quota archive and manifest under /opt/chaldea-token-helper
 using the canonical quota-runtime task subset before a meaningful enabled check.
 The early read-only canonical verifier refuses missing/mismatched artifacts before
