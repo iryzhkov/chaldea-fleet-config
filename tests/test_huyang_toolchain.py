@@ -29,7 +29,9 @@ LANGUAGES = list(manager.SERVERS)
 def require_scratch_home():
     home = Path(os.environ["HOME"]).resolve()
     temporary = Path(os.environ["TMPDIR"]).resolve()
-    assert home == temporary / "fleet-test-home" or "chaldea-scratch/agent-tooling" in str(home), "tests require a scratch HOME"
+    # CI fixtures may point HOME at a per-test directory inside the run's TMPDIR.
+    assert (home == temporary / "fleet-test-home" or temporary in home.parents
+            or "chaldea-scratch/agent-tooling" in str(home)), "tests require a scratch HOME"
     assert not str(home).startswith("/tmp/")
     assert temporary in home.parents or home in temporary.parents or "chaldea-scratch/agent-tooling" in str(temporary)
 
