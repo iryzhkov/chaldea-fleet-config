@@ -1,0 +1,8 @@
+---
+mission_control_reader_enabled: false
+# Production UID is deliberately unselected. Never use igor's broad sudo identity.
+mission_control_reader_uid: null
+mission_control_allowed_source_ids: []
+mission_control_reader_url: https://akasha.ryzhkov.dev
+mission_control_reader_token_helper: /usr/local/bin/chaldea-token-helper
+mission_control_cache_file: /var/cache/mission-control/latest.json

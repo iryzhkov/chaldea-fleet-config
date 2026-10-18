@@ -1,0 +1,11 @@
+---
+# UNAPPLIED permission proposal. This file is never loaded by a playbook.
+# It is an explicit input to tools/akasha-enrollment-inputs.mjs using a future
+# qualified hosted client. The old helper/validator0.4.0 remains unchanged.
+mission_control:
+  publisher_uid: null
+  reader_uid: null
+  read_sources: []
+# To propose the first packet, select publisher_uid1000 and a newly approved
+# dedicated reader_uid, then read_sources [agent-a--mission-control].
+# The generated issuer ceilings/helper grants/registry must be reviewed together.

@@ -1,0 +1,91 @@
+---
+- name: Install only the explicitly selected Mission Control release
+  when: mission_control_runtime_enabled | bool
+  block:
+    - name: Require independent immutable release inputs
+      ansible.builtin.assert:
+        that:
+          - mission_control_version is regex('^client-v[0-9]+[.][0-9]+[.][0-9]+$', match_type='fullmatch')
+          - mission_control_sha256 is regex('^[a-f0-9]{64}$', match_type='fullmatch')
+          - mission_control_release_root == '/opt/chaldea-mission-control'
+          - mission_control_node == '/opt/chaldea/node/bin/node'
+        quiet: true
+    - name: Inspect protected runtime ancestors without following links
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      loop:
+        - /opt
+        - "{{ mission_control_release_root }}"
+        - "{{ mission_control_release_root }}/releases"
+        - "{{ mission_control_release_root }}/cache"
+        - "{{ mission_control_node | dirname | dirname }}"
+        - "{{ mission_control_node | dirname }}"
+        - "{{ mission_control_node }}"
+      register: mission_control_runtime_ancestors
+    - name: Refuse writable or linked runtime ancestors
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists or not item.stat.islnk | default(false)
+          - not item.stat.exists or item.stat.uid == 0
+          - not item.stat.exists or item.stat.mode[-2] not in ['2', '3', '6', '7']
+          - not item.stat.exists or item.stat.mode[-1] not in ['2', '3', '6', '7']
+        quiet: true
+      loop: "{{ mission_control_runtime_ancestors.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+    - name: Create protected Mission Control release directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop: ["{{ mission_control_release_root }}", "{{ mission_control_release_root }}/releases", "{{ mission_control_release_root }}/cache"]
+    - name: Fetch the selected archive and manifest
+      ansible.builtin.get_url:
+        url: "https://github.com/iryzhkov/chaldea/releases/download/{{ mission_control_version }}/{{ item.name }}"
+        dest: "{{ mission_control_release_root }}/cache/{{ mission_control_version }}{{ item.suffix }}"
+        checksum: "{{ 'sha256:' ~ mission_control_sha256 if item.name == 'chaldea-client.tar.gz' else omit }}"
+        owner: root
+        group: root
+        mode: "0600"
+      loop:
+        - {name: chaldea-client.tar.gz, suffix: .tar.gz, source: "{{ mission_control_archive_source }}"}
+        - {name: manifest.json, suffix: .json, source: "{{ mission_control_manifest_source }}"}
+      when: not ansible_check_mode and item.source | length == 0
+    - name: Stage explicitly supplied release fixtures
+      ansible.builtin.copy:
+        src: "{{ item.source }}"
+        dest: "{{ mission_control_release_root }}/cache/{{ mission_control_version }}{{ item.suffix }}"
+        owner: root
+        group: root
+        mode: "0600"
+      loop:
+        - {suffix: .tar.gz, source: "{{ mission_control_archive_source }}"}
+        - {suffix: .json, source: "{{ mission_control_manifest_source }}"}
+      when: not ansible_check_mode and item.source | length > 0
+    - name: Inspect the staged archive
+      ansible.builtin.stat:
+        path: "{{ mission_control_release_root }}/cache/{{ mission_control_version }}.tar.gz"
+      register: mission_control_archive
+    - name: Validate and install using the canonical client release module
+      chaldea_client_release:
+        root: "{{ mission_control_release_root }}/releases"
+        archive: "{{ mission_control_release_root }}/cache/{{ mission_control_version }}.tar.gz"
+        manifest: "{{ mission_control_release_root }}/cache/{{ mission_control_version }}.json"
+        version: "{{ mission_control_version }}"
+        sha256: "{{ mission_control_sha256 }}"
+        check_permissions: true
+      when: mission_control_archive.stat.exists
+    # The canonical installer stages mode0700. Permit locked consumers to traverse it.
+    - name: Permit read-only traversal of the verified release
+      ansible.builtin.file:
+        path: "{{ mission_control_release_root }}/releases/{{ mission_control_version }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: not ansible_check_mode or mission_control_archive.stat.exists

@@ -1,0 +1,17 @@
+[Unit]
+Description=Sanitized agent-a Mission Control capture
+[Service]
+User=igor
+Group=igor
+ExecStart={{ mission_control_node }} {{ mission_control_release_root }}/releases/{{ mission_control_version }}/bin/chaldea mission-control capture --config {{ mission_control_capture_home }}/.config/chaldea/mission-control-capture.json
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths={{ mission_control_capture_snapshot_file | dirname }}
+UMask=0077
+RestrictAddressFamilies=AF_INET AF_UNIX
+MemoryMax=256M
+TasksMax=32
+[Install]
+WantedBy=multi-user.target
