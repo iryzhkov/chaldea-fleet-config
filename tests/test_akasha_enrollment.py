@@ -75,6 +75,21 @@ def test_exact_local_selection_and_no_passthrough(tmp_path):
         PULL.command(["agent-a", "a" * 40, str(path), "stage"], "agent-a", 1000, "/home/igor")
 
 
+@pytest.mark.parametrize("key,value", [
+    ("akasha_quota_laptop_publisher_enabled", True), ("akasha_quota_pc_reader_enabled", False),
+    ("akasha_quota_laptop_publisher_enabled", "false"), ("akasha_quota_pc_reader_enabled", 1),
+    ("akasha_quota_runtime_version", "client-v0.4.2"), ("akasha_quota_runtime_sha256", "a" * 64)])
+def test_sharing_public_inputs_allow_only_boolean_permissions_not_runtime_overrides(tmp_path, key, value):
+    path = tmp_path / "public.json"
+    path.write_text(json.dumps(dict(akasha_enrollment_public_keys=public_inputs()["public_keys"]) | {key:value}))
+    args = ["omarchy-pc", "a" * 40, str(path), "stage", "--check"]
+    if type(value) is bool:
+        assert PULL.command(args, "omarchy-pc", 1000, "/home/igor")[-1] == "playbooks/akasha-enrollment.yml"
+    else:
+        with pytest.raises(ValueError):
+            PULL.command(args, "omarchy-pc", 1000, "/home/igor")
+
+
 @pytest.mark.parametrize("fault", ["missing", "private", "bad", "duplicate", "reuse"])
 def test_canonical_key_rejections(client, fault):
     data = public_inputs()

@@ -8,8 +8,9 @@ akasha_pc_quota_events_enabled: false
 # Independent service quota sharing. No source=quota permission by default.
 akasha_quota_laptop_publisher_enabled: false
 akasha_quota_pc_reader_enabled: false
-akasha_quota_runtime_version: ""
-akasha_quota_runtime_sha256: ""
+# Published from reviewed main9d434; qualify downloaded package before any install.
+akasha_quota_runtime_version: client-v0.4.2
+akasha_quota_runtime_sha256: 40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a
 akasha_quota_normal_inventory: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/hosts.yml') | from_yaml }}"
 akasha_quota_normal_alias: "{{ 'laptop' if inventory_hostname == 'omarchy-macbook-air-igor' else inventory_hostname }}"
 akasha_quota_normal_host: "{{ akasha_quota_normal_inventory.all.children.agent_hosts.hosts[akasha_quota_normal_alias] }}"

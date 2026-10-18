@@ -13,10 +13,14 @@ Existing feed/toolfeedback, daily-health RunLease and seven PC native kinds stay
 unchanged. Existing signer validity through Nov16 and token lifetime <=780s apply.
 
 Use the existing one-host enrollment wrapper with these additional public inputs:
-akasha_quota_laptop_publisher_enabled, akasha_quota_pc_reader_enabled,
-akasha_quota_runtime_version and akasha_quota_runtime_sha256. The flags must be
-booleans. The laptop runtime must be an independently qualified published release
-at least client-v0.4.2 with its actual digest. Never substitute a fixture digest.
+akasha_quota_laptop_publisher_enabled and akasha_quota_pc_reader_enabled.
+Both must be booleans. Runtime pins are fixed in the explicit play, not public
+input overrides: client-v0.4.2, SHA256
+40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a,
+published from reviewed green main9d434 by workflow39120608965. The manifest API
+SHA is80d1300524ae52e789388fd72cdc774058ed019247debf34d5bf2840066a4d45.
+Publication metadata is not downloaded-package qualification. Require that
+independent proof before any protected install or enablement.
 Stage the exact protected quota archive and manifest under /opt/chaldea-token-helper
 using the canonical quota-runtime task subset before a meaningful enabled check.
 The early read-only canonical verifier refuses missing/mismatched artifacts before
