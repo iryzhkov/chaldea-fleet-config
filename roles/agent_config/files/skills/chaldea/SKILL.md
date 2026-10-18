@@ -14,6 +14,8 @@ use the `review-delegation` skill for reviews.
 
 Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
 
+`chaldea quota status` (or `--json`) reads the observer’s cached included-usage windows, aggregate Codex credits, advisory manual-reset inventory and each provider's capacity class, with per-metric freshness; it never spends credits or redeems resets.
+
 ## Route before delegating
 
 Call `chaldea_route` or `chaldea route --role ROLE` before each T3 `delegate_task`.
@@ -32,8 +34,8 @@ The client pins builder to Opus 5.5/Sol 6.1 high, critical-review to Fable 5.1/A
 medium, bulk-read to Sonnet 5.5/Luna 6 medium, and general to Opus 5.5/Sol 6.1 medium.
 It excludes Haiku and OpenCode candidates. Its Slopalytics URL is
 https://slopalytics.com/data/t3-usage.json. Role pairs and this URL are client constants,
-not route.json keys. Fleet renders pacing and capacity thresholds; Claude usage
-collection stays off until Igor approves it and its local account binding is verified.
+not route.json keys. Fleet renders pacing and capacity thresholds. Igor approved Claude usage collection on
+2026-10-18; it runs on the hosts with a Claude login.
 
 ## Run work on a job host
 

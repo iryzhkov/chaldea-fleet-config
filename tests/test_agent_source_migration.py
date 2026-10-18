@@ -36,6 +36,10 @@ AUTHORIZED_CHANGES = {
         "maintained sources aligned; do not regenerate over fleet-managed files.\n"
         "Installed copies are outputs.")],
     "skills/chaldea/SKILL.md": [
+        ("not route.json keys. Fleet renders pacing and capacity thresholds; Claude usage\n"
+         "collection stays off until Igor approves it and its local account binding is verified.",
+         "not route.json keys. Fleet renders pacing and capacity thresholds. Igor approved Claude usage collection on\n"
+         "2026-10-18; it runs on the hosts with a Claude login."),
         ("",
          "On a client release that supports wait descriptions, pass optional `description`\n"
          "to record the purpose, for example \"Recheck review availability after quota reset\".\n"
@@ -114,6 +118,12 @@ QUOTA_REVIEW_CHANGES = [
 
 
 def old_bytes(relative, data):
+    if relative == "skills/chaldea/SKILL.md":
+        note = ("`chaldea quota status` (or `--json`) reads the observer’s cached included-usage windows, "
+                "aggregate Codex credits, advisory manual-reset inventory and each provider's capacity class, "
+                "with per-metric freshness; it never spends credits or redeems resets.\n\n").encode()
+        assert data.count(note) == 1
+        data = data.replace(note, b"", 1)
     for paths, before, after in reversed(QUOTA_REVIEW_CHANGES):
         if relative in paths:
             before, after = before.encode(), after.encode()
