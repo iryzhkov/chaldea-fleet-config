@@ -62,6 +62,35 @@
       register: akasha_enrollment_client
       failed_when: akasha_enrollment_client is failed or akasha_enrollment_client is changed
       tags: [always]
+    - name: Inspect the protected validator Node path before executing it
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        get_checksum: false
+      loop: [/opt, /opt/chaldea-token-helper, "{{ akasha_enrollment_validation_node | dirname | dirname }}", "{{ akasha_enrollment_validation_node | dirname }}", "{{ akasha_enrollment_validation_node }}"]
+      register: akasha_enrollment_node_paths
+      tags: [always]
+    - name: Require root-owned non-writable validator paths
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - not item.stat.islnk | default(false)
+          - item.stat.isdir | default(false) or item.stat.isreg | default(false)
+          - item.stat.uid == 0
+          - item.stat.mode[-2] not in ['2', '3', '6', '7']
+          - item.stat.mode[-1] not in ['2', '3', '6', '7']
+        quiet: true
+      loop: "{{ akasha_enrollment_node_paths.results }}"
+      tags: [always]
+    - name: Verify the explicit public validator runtime version
+      ansible.builtin.command:
+        argv: ["{{ akasha_enrollment_validation_node }}", --version]
+      register: akasha_enrollment_validation_version
+      changed_when: false
+      failed_when: akasha_enrollment_validation_version.stdout | trim != 'v26.12.0'
+      check_mode: false
+      tags: [always]
     - name: Validate native public inputs using the staged verified client
       ansible.builtin.command:
         argv:
@@ -78,14 +107,6 @@
     - name: Retain validated public composition in memory
       ansible.builtin.set_fact:
         akasha_enrollment_rendered: "{{ akasha_enrollment_native.stdout | from_json }}"
-      tags: [always]
-    - name: Verify the explicit public validator runtime version
-      ansible.builtin.command:
-        argv: ["{{ akasha_enrollment_validation_node }}", --version]
-      register: akasha_enrollment_validation_version
-      changed_when: false
-      failed_when: akasha_enrollment_validation_version.stdout | trim != 'v26.12.0'
-      check_mode: false
       tags: [always]
     - name: Verify the explicitly selected collector runtime
       ansible.builtin.command:
@@ -131,9 +152,6 @@
         - {path: /etc/chaldea-access-trust/deploy-key, uid: 0, mode: "0600"}
         - {path: /etc/chaldea-access-trust/known_hosts, uid: 0, mode: "0644"}
         - {path: /var/lib/chaldea-access-trust/updater.sqlite, uid: 0, mode: "0600"}
-        - {path: /etc/chaldea-access-trust/anchors.json, uid: 0, mode: "0644"}
-        - {path: /var/lib/chaldea-access-trust-public/bundle.jws, uid: 0, mode: "0644"}
-        - {path: /run/chaldea-access-trust/clock-health.json, uid: 0, mode: "0644"}
       register: akasha_enrollment_bootstrap
       tags: [always]
     - name: Require provisioned private bootstrap inputs
@@ -146,6 +164,27 @@
           - item.stat.nlink | default(0) == 1
         quiet: true
       loop: "{{ akasha_enrollment_bootstrap.results }}"
+      tags: [always]
+    - name: Inspect existing infra-owned trust outputs before installation
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        get_checksum: false
+      loop: "{{ akasha_enrollment_trust_output_paths }}"
+      register: akasha_enrollment_infra_trust
+      when: not akasha_enrollment_host.fleet
+      tags: [always]
+    - name: Require infra-owned trust outputs without taking ownership
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg | default(false)
+          - not item.stat.islnk | default(false)
+          - item.stat.uid | default(-1) == 0
+          - item.stat.mode | default('') == '0644'
+        quiet: true
+      loop: "{{ akasha_enrollment_infra_trust.results }}"
+      when: not akasha_enrollment_host.fleet
       tags: [always]
     - name: Require obsolete user shippers stopped before collector activation
       ansible.builtin.command:
@@ -168,6 +207,23 @@
         name: chaldea_access_trust
       when: akasha_enrollment_activate | bool and akasha_enrollment_host.fleet
       tags: [enrollment_activate]
+    - name: Wait for activation-generated fleet trust outputs before enabling collectors
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        get_checksum: false
+      loop: "{{ akasha_enrollment_trust_output_paths }}"
+      register: akasha_enrollment_activated_trust
+      until: >-
+        akasha_enrollment_activated_trust.stat.isreg | default(false)
+        and not akasha_enrollment_activated_trust.stat.islnk | default(false)
+        and akasha_enrollment_activated_trust.stat.uid | default(-1) == 0
+        and akasha_enrollment_activated_trust.stat.mode | default('') == '0644'
+      retries: 12
+      delay: 5
+      when: akasha_enrollment_activate | bool and akasha_enrollment_host.fleet and not ansible_check_mode
+      tags: [enrollment_activate]
     - name: Install or explicitly activate the canonical collector
       ansible.builtin.include_role:
         name: akasha_collector
@@ -177,7 +233,7 @@
         path: "{{ fleet_home }}/.config/feed"
         state: directory
         mode: "0700"
-      when: akasha_enrollment_activate | bool
+      when: akasha_enrollment_activate | bool and akasha_enrollment_host.fleet
       tags: [enrollment_activate]
     - name: Select CLI-only Akasha access during activation
       ansible.builtin.copy:
@@ -192,7 +248,7 @@
         dest: "{{ fleet_home }}/.config/feed/config"
         mode: "0600"
         backup: true
-      when: akasha_enrollment_activate | bool
+      when: akasha_enrollment_activate | bool and akasha_enrollment_host.fleet
       tags: [enrollment_activate]
     - name: Create PC native publisher configuration directory when approved
       ansible.builtin.file:

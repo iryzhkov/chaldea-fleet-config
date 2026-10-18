@@ -14,7 +14,7 @@ const policy = JSON.parse(readFileSync(policyFile)), keys = object(input.public_
 exact(keys, Object.keys(policy));
 for (const key of Object.values(keys)) publicKey(key);
 if (new Set(Object.values(keys).map(k => k.x)).size !== 6) throw Error('host keys must differ');
-const issuers = JSON.parse(readFileSync(existingFile)), original = structuredClone(issuers);
+const issuers = JSON.parse(readFileSync(existingFile));
 if (keys['agent-a'].x !== issuers[0].public_key.x) throw Error('agent-a reuse mismatch');
 const grants = Object.fromEntries(Object.entries(policy).map(([host, row]) => [host, structuredClone(row.grants)]));
 const pc = (action, source, kind, profile) => ({uid:1000, audience:'akasha', action, source, host:'omarchy-pc', kind, profile, project:'chaldea'});
@@ -27,11 +27,12 @@ for (const [host, row] of Object.entries(policy)) {
   helperConfig({issuer, state_file:'/var/lib/chaldea-issuer/access/state.sqlite', bundle_file:'/var/lib/chaldea-access-trust-public/bundle.jws',
     anchor_file:'/etc/chaldea-access-trust/anchors.json', clock_health_file:'/run/chaldea-access-trust/clock-health.json', grants:grants[host]});
   let record = issuers.find(k => k.issuer === issuer.name && k.kid === row.kid);
+  if (record && record.public_key.x !== keys[host].x) throw Error('existing signer public mismatch');
   if (!record) { record = {issuer:issuer.name, kid:row.kid, public_key:keys[host], not_before:1792281600, issue_until:1794787200, verify_until:1794788010, ceilings:[]}; issuers.push(record); }
   for (const g of grants[host]) {
     const ceiling = {audience:g.audience, profile:g.profile, project:g.project, source:g.source, grants:[{resource:g.source, actions:[g.action]}]};
     if (!record.ceilings.some(c => JSON.stringify(c) === JSON.stringify(ceiling))) record.ceilings.push(ceiling);
-    const known = original.some(k => k.issuer === issuer.name && k.ceilings.some(c => c.source === g.source && c.profile === g.profile && c.project === g.project));
+    const known = host === 'agent-a' && ['agent-a.fleet', 'agent-a.toolfeedback'].includes(g.source);
     let entry = registry.find(r => r.issuer === issuer.name && r.source === g.source);
     if (!entry && !known) {
       entry = {issuer:issuer.name, source:g.source, host, source_id:(host + '--' + g.source).replaceAll('.', '_'), profile:g.profile, project:g.project,

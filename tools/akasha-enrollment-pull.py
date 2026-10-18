@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import socket
+import subprocess
 import sys
 
 def command(args, hostname, uid, home):
@@ -22,7 +23,7 @@ def command(args, hostname, uid, home):
         raise ValueError("absolute public input file required")
     data = json.loads(inputs.read_text())
     allowed = {"akasha_enrollment_public_keys", "akasha_pc_global_reader_enabled", "akasha_pc_quota_events_enabled"}
-    if not data or not data.keys() <= allowed or set(data.get("akasha_enrollment_public_keys", {})) != set(policy):
+    if not isinstance(data, dict) or not data.keys() <= allowed or not isinstance(data.get("akasha_enrollment_public_keys"), dict) or set(data["akasha_enrollment_public_keys"]) != set(policy):
         raise ValueError("public keys required; no arbitrary extra-vars")
     if any(type(data.get(k, False)) is not bool for k in allowed - {"akasha_enrollment_public_keys"}):
         raise ValueError("boolean permission toggles required")
@@ -37,6 +38,11 @@ def command(args, hostname, uid, home):
 if __name__ == "__main__":
     try:
         argv = command(sys.argv[1:], socket.gethostname(), os.getuid(), os.path.expanduser("~"))
+        if sys.argv[4] == "activate":
+            main = subprocess.run(["git", "ls-remote", "https://github.com/iryzhkov/chaldea-fleet-config.git", "refs/heads/main"],
+                                  check=True, capture_output=True, text=True).stdout.strip()
+            if main != sys.argv[2] + "\trefs/heads/main":
+                raise ValueError("activation requires the current main commit")
         os.execv(argv[0], argv)
-    except (ValueError, OSError, KeyError, TypeError):
+    except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError):
         sys.exit("akasha enrollment refused: check host/account/pin/public inputs")

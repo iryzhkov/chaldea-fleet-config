@@ -19,8 +19,12 @@ Normandy deployment anchor. Initialize only genuinely absent issuer state.
 
 Preflight requires the independently verified client-v0.4.0 archive tree staged
 at /opt/chaldea-token-helper/releases/client-v0.4.0, its pinned root-owned Node
-26.12.0, the pinned archive/manifest retained beside it, existing trust transport/state/clock/anchors and the Node 26.10.0 collector
-runtime. Stage that public validation runtime through the existing
+26.12.0, the pinned archive/manifest retained beside it, operator-provisioned trust
+transport and durable state, and the Node 26.10.0 collector/trust runtimes.
+Fleet trust outputs may be absent at stage. Activation invokes trust first and
+checks its generated outputs before enabling a collector. Infra-owned outputs
+must already exist on homelab/Normandy, including Normandy consumer trust from
+infra playbooks/akasha-normandy-consumer-trust.yml, disabled by default. Stage that public validation runtime through the existing
 library/chaldea_client_release.py verifier and reviewed Node checksum inputs.
 This play deliberately fails before installation if the validation prerequisite
 is absent. It does not bootstrap past its own validation or upgrade the FATE user
@@ -61,7 +65,12 @@ akasha_collector_enabled=true, URL and helper on the four approved host entries.
 The play refuses activation without those three values because the next ordinary
 pull would otherwise disable the collector again. This source PR deliberately
 keeps those inventory outputs unchanged. That later 12-value activation delta
-belongs to the parent's reviewed source integration and approved rollout pin.
+is supplied as the reviewable docs/akasha-activation-inventory.patch, without
+applying it. It belongs to parent integration only inside the authorized cutover
+window, after keys, trust, ingress/import and all user/system/cron shipper gates
+are ready. The activation pin must be that current main commit, not a branch-only
+commit; the local guard verifies main before activation. Do not merge the patch
+early, because ordinary pulls could then activate collectors automatically.
 
 After inspecting check diff, repeat without --check. Stage installs helper grants
 and disabled collector files; it can admit helper minting if signed trust is
@@ -75,6 +84,10 @@ spools/state. Activation rejects a running old shipper. It never stops unrelated
 jobs or changes pull/retention schedules. Then use activate --check, inspected
 activate, second activate changed=0 and functional verification. Trust role
 invocation is activation-only on four fleet hosts; infra trust is consumed intact.
+Feed configuration has one owner: this play on four fleet hosts, infra drift_check
+on homelab/Normandy. Infra writes no off-PC reader label and retains config backups.
+The user-unit guard does not replace exact system-unit/cron/hook inventory; those
+remaining shipper gates and cold-host commands are in the operator packet.
 
 No UI parity or live proof is claimed. Retain old feedd data, consistent snapshot,
 old immutable release/config and credentials, local transcripts/spools and
