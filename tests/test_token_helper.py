@@ -24,14 +24,15 @@ def render(name, variables):
     return env.from_string((ROLE / "templates" / name).read_text()).render(variables)
 
 
-def test_both_roles_disabled_on_every_host_until_separate_activation():
+def test_helper_disabled_everywhere_and_trust_enrolled_only_on_agent_a():
     defaults = yaml.safe_load((ROLE / "defaults/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert defaults["chaldea_token_helper_enabled"] is False
     assert defaults["chaldea_token_helper_grants"] == []
     assert defaults["chaldea_token_helper_client_sha256"] == ""
     assert defaults["chaldea_token_helper_issuer"]["uid"] == 995
-    assert all(not h.get("chaldea_access_trust_enabled", False) for h in hosts.values())
+    assert hosts["agent-a"]["chaldea_access_trust_enabled"] is True
+    assert all(not h.get("chaldea_access_trust_enabled", False) for name, h in hosts.items() if name != "agent-a")
     assert all(not h.get("chaldea_token_helper_enabled", False) for h in hosts.values())
 
 
