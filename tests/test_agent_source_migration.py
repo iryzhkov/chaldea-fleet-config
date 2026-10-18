@@ -11,7 +11,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ROOT / "roles/agent_config/files"
 BEFORE = json.loads((ROOT / "tests/fixtures/agent_config_before.json").read_text())
-# Igor explicitly allowed only these ownership header corrections, 2026-10-18.
+# Igor explicitly allowed these ownership header corrections, 2026-10-18.
 # Reversing these exact blocks must recover every old deployed byte.
 HEADER_CHANGES = {
     "agents/jocasta.md": (
@@ -36,6 +36,46 @@ HEADER_CHANGES = {
         "maintained sources aligned; do not regenerate over fleet-managed files.\n"
         "Installed copies are outputs."),
 }
+# Igor separately authorized this exact FATE model-guidance delta, 2026-10-18.
+# Keep the historical hashes intact and reverse only these reviewed blocks.
+MODEL_ROLE_CHANGE = (
+    "Astra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna "
+    "6 at medium effort for bulk reading. Never use max effort or above. Read a quick "
+    "lookup in a known file",
+    "Astra at medium effort for critical review, including plan review; Haiku 5.5 or Luna 6 "
+    "at medium effort for bulk reading, or whatever `chaldea route` recommends. Sonnet is "
+    "excluded. Never use max effort or above. Read a quick lookup in a known file",
+)
+AUTHORIZED_CHANGES = {
+    **HEADER_CHANGES,
+    **{path: MODEL_ROLE_CHANGE for path in (
+        "agents/AGENTS.md", "codex/AGENTS.md", "claude/omarchy-setup/CLAUDE.md")},
+    "skills/chaldea/SKILL.md": (
+        "The client pins builder to Opus 5.5/Sol 6.1 high, critical-review to Fable 5.1/Astra\n"
+        "medium, bulk-read to Sonnet 5.5/Luna 6 medium, and general to Opus 5.5/Sol 6.1 medium.\n"
+        "It excludes Haiku and OpenCode candidates. Its Slopalytics URL is\n"
+        "https://slopalytics.com/data/t3-usage.json. Role pairs and this URL are client constants,\n"
+        "not route.json keys. Fleet renders pacing and capacity thresholds; Claude usage\n"
+        "collection stays off until Igor approves it and its local account binding is verified.",
+        "Model roles: Opus 5.5 or Sol 6.1 high for builders, Fable 5.1 or Astra medium\n"
+        "for critical review, Haiku 5.5 or Luna 6 medium for bulk reading, and Opus 5.5\n"
+        "or Sol 6.1 medium for general work, or whatever `chaldea route` recommends.\n"
+        "Sonnet-family models are excluded. Haiku is allowed. Never use max, ultra,\n"
+        "ultrathink or ultracode. Respect explicit session restrictions.\n"
+        "\n"
+        "With the role-target client, routing evaluates the live T3 catalog against\n"
+        "Artificial Analysis floors and objectives, Slopalytics probation and quota pacing.\n"
+        "Fleet pins override model policy. Until its score snapshot is configured, the\n"
+        "fallbacks above apply. The AA key exists only on homelab. Router hosts read\n"
+        "non-secret snapshots through authenticated Akasha grants. See Chaldea's\n"
+        "docs/route.md for the snapshot and probation settings. Older clients keep fixed\n"
+        "pairs until upgraded, so apply this policy's Sonnet exclusion explicitly.\n"
+        "\n"
+        "The Slopalytics URL is https://slopalytics.com/data/t3-usage.json. Fleet renders\n"
+        "pacing and capacity thresholds. Igor approved Claude collection on omarchy-pc and\n"
+        "laptop; other hosts require approval and a verified local account binding.",
+    ),
+}
 DESTINATIONS = {
     "claude/omarchy-setup/CLAUDE.md": ".claude/omarchy-setup/CLAUDE.md",
     "codex/AGENTS.md": ".codex/AGENTS.md",
@@ -49,8 +89,8 @@ DESTINATIONS = {
 
 
 def old_bytes(relative, data):
-    if relative in HEADER_CHANGES:
-        before, after = (block.encode() for block in HEADER_CHANGES[relative])
+    if relative in AUTHORIZED_CHANGES:
+        before, after = (block.encode() for block in AUTHORIZED_CHANGES[relative])
         assert data.count(after) == 1
         data = data.replace(after, before, 1)
     return data

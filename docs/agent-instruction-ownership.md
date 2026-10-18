@@ -36,13 +36,20 @@ tests/fixtures/agent_config_before.json records all source hashes from fleet
 main 7185b506, plus the former downloaded plugin hash. The render test installs
 the agent_config role for agent-a, agent-b, omarchy-pc and laptop into disposable
 homes, and compares every managed file and skill against this baseline.
-Only the exact ownership header blocks listed in test_agent_source_migration.py
-may differ, as authorized by Igor on 2026-10-18:
+Only the exact authorized blocks listed in test_agent_source_migration.py may
+differ. Igor authorized these ownership header corrections on 2026-10-18:
 
 - agents/jocasta.md lines 3-4 now identify the maintained fleet source.
 - agents/ov-memory.md lines 3-5 now identify fleet sources and aligned skills.
 - agents/huyang.md lines 5-8 replace the obsolete Omarchy generator overlap
   claim with fleet ownership and the retired-generator note.
+
+Igor separately authorized the FATE model-guidance update on 2026-10-18:
+the Model roles line in shared CLAUDE.md and both AGENTS.md copies now allows
+Haiku, excludes Sonnet and defers to `chaldea route`. The Chaldea skill explains
+role targets, prohibited efforts, snapshot boundaries and approved Claude
+collectors. Exact reversible blocks cover only these four files; the original
+hash fixture remains unchanged.
 
 All other deployed bytes, destinations and the plugin bytes must match.
 The Huyang role is disabled on every host and adds no deployed runtime changes.

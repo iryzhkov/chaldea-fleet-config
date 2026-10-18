@@ -42,8 +42,8 @@ docs/route.md for the snapshot and probation settings. Older clients keep fixed
 pairs until upgraded, so apply this policy's Sonnet exclusion explicitly.
 
 The Slopalytics URL is https://slopalytics.com/data/t3-usage.json. Fleet renders
-pacing and capacity thresholds; Claude usage collection stays off until Igor
-approves it and its local account binding is verified.
+pacing and capacity thresholds. Igor approved Claude collection on omarchy-pc and
+laptop; other hosts require approval and a verified local account binding.
 
 ## Run work on a job host
 
