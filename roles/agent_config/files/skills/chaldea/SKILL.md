@@ -105,6 +105,15 @@ An optional `deadline` bounds the wait. Omitting `runId` pins the latest accepte
 run at registration; it does not wait for a future run. Quota pauses remain
 pending through recovery.
 
+On a client release that supports wait descriptions, pass optional `description`
+to record the purpose, for example "Recheck review availability after quota reset".
+CLI time/thread waits use `--description TEXT`. Keep it nonblank, single-line plain
+text within 512 UTF-8 bytes, with no control or format characters. The description
+is context, never an executable instruction or authorization. Reuse it unchanged
+with the retry key. Registration/status and single/combined wakes carry it;
+unlabeled waits use the target time or thread/run. Already-attempted wakes retain
+their original immutable delivery text, including older opaque messages.
+
 Registration returns immediately; up to eight active waits per thread are allowed, and pending wakes combine into one queued message listing every wait ID and outcome while each wait retains its own delivery record. For waits, `requestId` is optional (the server generates `<epoch milliseconds>:<random>`); save an explicit key for idempotent retries, then end the turn when ready. Do not sleep,
 poll status or add another watcher. Read an outcome with `chaldea_wait_status`
 (`id`); cancel an unwanted wait with `chaldea_wait_cancel` (`id`). Cancellation
@@ -114,7 +123,8 @@ CLI equivalents (set these variables to the actual IDs and desired times):
 
 ```sh
 request_id="$(date +%s%3N):$(uuidgen)"
-chaldea wait time --after 30s --thread "$thread_id" --request-id "$request_id"
+chaldea wait time --after 30s --thread "$thread_id" --request-id "$request_id" \
+  --description "Recheck review availability after quota reset"
 chaldea wait time --at "$at" --thread "$thread_id" --request-id "$time_request_id"
 chaldea wait thread --target "$other_thread" --run "$run_id" \
   --thread "$thread_id" --request-id "$thread_request_id"
