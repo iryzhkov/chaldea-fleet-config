@@ -80,7 +80,8 @@ Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `bui
 `critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and
 `options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the
 writer's driver, `claudeAgent` or `codex`, to require the other provider. If routing is
-unavailable, use the model roles below and preserve that cross-provider review rule.
+unavailable, use the model roles below. Cross-provider review is the default; the only
+quota exception is defined in `review-delegation`, under "Quota exception".
 
 Delegate through T3's own tools rather than a separate scheduler:
 
@@ -93,7 +94,7 @@ Delegate through T3's own tools rather than a separate scheduler:
 - Native same-provider subagents are for quick bounded reading and searching.
 
 Builders may launch their own reviews, using T3 `delegate_task` only. Review the final
-commit with one main reviewer on the other provider, plus at most one narrow fan-out
+commit with one main reviewer under `review-delegation`'s provider rule, plus at most one narrow fan-out
 for security- or data-sensitive work. Allow at most two fix rounds. Report every
 reviewer's thread ID, model and verdict in the reply and a PR comment. After an accepted
 review, the orchestrator verifies a change of under about 50 lines without another review.
