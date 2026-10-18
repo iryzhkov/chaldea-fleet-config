@@ -26,18 +26,19 @@ def scratch():
     return home
 
 
-def run_role(home, task_file, skills=None, check=False, succeeds=True):
+def run_role(home, task_file, skills=None, check=False, succeeds=True, host="localhost", uid=None):
     play = scratch() / "skills-play.yml"
     variables = {
         "ansible_connection": "local",
         "ansible_python_interpreter": sys.executable,
         "fleet_home": str(home),
+        "ansible_facts": {"user_uid": os.getuid() if uid is None else uid, "user_gid": os.getgid()},
     }
     if skills is not None:
         variables["agent_config_skills"] = skills
     play.write_text(yaml.safe_dump([{
         "name": "Exercise skill ownership in scratch",
-        "hosts": "localhost", "gather_facts": False,
+        "hosts": host, "gather_facts": False,
         "vars": variables,
         "tasks": [{
             "name": "Run the real skill tasks",
@@ -50,7 +51,7 @@ def run_role(home, task_file, skills=None, check=False, succeeds=True):
         **os.environ, "ANSIBLE_ROLES_PATH": str(ROOT / "roles"),
         "ANSIBLE_LOCAL_TEMP": str(scratch() / "ansible"),
     }
-    argv = ["ansible-playbook", "-i", "localhost,", str(play)]
+    argv = ["ansible-playbook", "-i", host + ",", str(play)]
     if check:
         argv.append("--check")
     result = subprocess.run(argv, cwd=ROOT, env=environment, capture_output=True, text=True)

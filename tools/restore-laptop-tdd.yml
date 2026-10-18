@@ -1,0 +1,18 @@
+---
+# Explicitly approved one-time repair; not part of the fleet timer's site.yml.
+- name: Back up the known laptop TDD edit and restore canonical source
+  hosts: laptop
+  gather_facts: true
+  gather_subset: [min]
+  pre_tasks:
+    - name: Require the expected laptop before any restoration
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'laptop'
+          - ansible_facts.hostname == expected_hostname
+        quiet: true
+  tasks:
+    - name: Run only the approved TDD restoration
+      ansible.builtin.import_role:
+        name: agent_config
+        tasks_from: restore-laptop-tdd

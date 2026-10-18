@@ -10,7 +10,7 @@
   register: agent_config_skill_paths
 
 # Validate every permitted migration before unlinking any path.
-- name: Validate the two approved laptop skill links
+- name: Validate the approved laptop skill links
   ansible.builtin.include_tasks: validate-skill-link.yml
   loop: "{{ agent_config_skill_paths.results }}"
   loop_control:
@@ -18,14 +18,14 @@
     label: "~/{{ agent_config_skill_link.item | join('/') }}"
   when:
     - agent_config_skill_link.stat.islnk | default(false)
-    - agent_config_skill_link.item.1 in ['safety-critical-code', 'unslop']
+    - agent_config_skill_link.item.1 in ['safety-critical-code', 'unslop', 'codebase-design', 'diagnosing-bugs', 'grilling', 'resolving-merge-conflicts', 'tdd']
 
 - name: Refuse to write a skill through an unhandled symlink
   ansible.builtin.assert:
     that:
       - >-
         not (item.stat.islnk | default(false)) or
-        item.item.1 in ['safety-critical-code', 'unslop']
+        item.item.1 in ['safety-critical-code', 'unslop', 'codebase-design', 'diagnosing-bugs', 'grilling', 'resolving-merge-conflicts', 'tdd']
     fail_msg: >-
       ~/{{ item.item | join('/') }} is a symlink; remove it or drop the skill
       from agent_config_skills for this host.
@@ -41,7 +41,7 @@
     follow: false
   when:
     - item.stat.islnk | default(false)
-    - item.item.1 in ['safety-critical-code', 'unslop']
+    - item.item.1 in ['safety-critical-code', 'unslop', 'codebase-design', 'diagnosing-bugs', 'grilling', 'resolving-merge-conflicts', 'tdd']
   loop: "{{ agent_config_skill_paths.results }}"
   loop_control:
     label: "~/{{ item.item | join('/') }}"

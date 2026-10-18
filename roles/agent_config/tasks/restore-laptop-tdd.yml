@@ -1,0 +1,131 @@
+---
+# Explicit one-time restoration, never imported by the ordinary agent_config role.
+- name: Inspect the recorded laptop TDD link
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/.claude/skills/tdd"
+    follow: false
+    get_checksum: false
+  register: agent_config_tdd_link
+
+- name: Validate the exact TDD link and owned target tree
+  ansible.builtin.include_tasks: validate-managed-link.yml
+  vars:
+    agent_config_skill_link:
+      item: [.claude/skills, tdd]
+      stat: "{{ agent_config_tdd_link.stat }}"
+
+- name: Inspect the original TDD file without following links
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/.agents/skills/tdd/SKILL.md"
+    follow: false
+    checksum_algorithm: sha256
+  register: agent_config_tdd_original
+
+- name: Require exactly the approved original file
+  ansible.builtin.assert:
+    that:
+      - agent_config_tdd_original.stat.isreg | default(false)
+      - not (agent_config_tdd_original.stat.islnk | default(false))
+      - agent_config_tdd_original.stat.checksum == 'cb01f66bebfaa25fa1f88e6b7e769cd9fd9f35b1120b8563749820738814c927'
+    quiet: true
+
+- name: Read only the approved nonsecret TDD content
+  ansible.builtin.slurp:
+    src: "{{ fleet_home }}/.agents/skills/tdd/SKILL.md"
+  register: agent_config_tdd_content
+
+- name: Require the pinned canonical bytes plus the single approved 149-byte footer
+  ansible.builtin.assert:
+    that:
+      - canonical | hash('sha256') == '15c3a204ee9e926ffe14e5e02ab06e2773bdc9507be019ad18dc38d325316ce5'
+      - footer | length == 147
+      - (agent_config_tdd_content.content | b64decode) == canonical ~ footer
+      - canonical.count(footer) == 0
+    quiet: true
+  vars:
+    canonical: "{{ lookup('ansible.builtin.file', role_path ~ '/files/skills/tdd/SKILL.md', rstrip=false) }}"
+    # Two additional UTF-8 bytes encode the arrow; the complete footer is 149 bytes.
+    footer: "- **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.\n"
+
+- name: Inspect backup ancestors and the reserved backup destination
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item }}"
+    follow: false
+    get_checksum: false
+  loop:
+    - .cache
+    - .cache/chaldea-scratch
+    - .cache/chaldea-scratch/rollout-guidance-20261018
+    - .cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical
+  register: agent_config_tdd_backup_paths
+
+- name: Refuse unsafe backup ancestors or an existing backup
+  ansible.builtin.assert:
+    that:
+      - not (item.stat.islnk | default(false))
+      - not (item.stat.exists | default(false)) or item.stat.isdir
+      - not (item.stat.exists | default(false)) or item.stat.uid == ansible_facts.user_uid
+      - item.item != '.cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical' or not item.stat.exists
+    quiet: true
+  loop: "{{ agent_config_tdd_backup_paths.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Create the private reserved TDD backup directory
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical"
+    state: directory
+    mode: "0700"
+
+- name: Preserve the approved original content and file metadata
+  ansible.builtin.command:
+    argv:
+      - cp
+      - --archive
+      - --no-clobber
+      - --
+      - "{{ fleet_home }}/.agents/skills/tdd/SKILL.md"
+      - "{{ fleet_home }}/.cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical/SKILL.md"
+  changed_when: true
+
+- name: Preserve the original stat metadata alongside the content
+  ansible.builtin.copy:
+    content: "{{ agent_config_tdd_original.stat | to_nice_json }}\n"
+    dest: "{{ fleet_home }}/.cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical/metadata.json"
+    mode: "0600"
+  when: not ansible_check_mode
+
+- name: Inspect the preserved backup
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/.cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical/SKILL.md"
+    follow: false
+    checksum_algorithm: sha256
+  register: agent_config_tdd_backup
+  when: not ansible_check_mode
+
+- name: Require verified backup content and preserved metadata before restoration
+  ansible.builtin.assert:
+    that:
+      - agent_config_tdd_backup.stat.isreg
+      - not agent_config_tdd_backup.stat.islnk
+      - agent_config_tdd_backup.stat.checksum == agent_config_tdd_original.stat.checksum
+      - agent_config_tdd_backup.stat.mode == agent_config_tdd_original.stat.mode
+      - agent_config_tdd_backup.stat.uid == agent_config_tdd_original.stat.uid
+      - agent_config_tdd_backup.stat.gid == agent_config_tdd_original.stat.gid
+      - agent_config_tdd_backup.stat.mtime == agent_config_tdd_original.stat.mtime
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Restore only the canonical TDD source through the normal copy mechanism
+  ansible.builtin.copy:
+    src: skills/tdd/SKILL.md
+    dest: "{{ fleet_home }}/.agents/skills/tdd/SKILL.md"
+    mode: preserve
+
+- name: Verify the restored full target tree without migrating the link
+  ansible.builtin.include_tasks: validate-skill-link.yml
+  vars:
+    agent_config_skill_link:
+      item: [.claude/skills, tdd]
+      stat: "{{ agent_config_tdd_link.stat }}"
+  when: not ansible_check_mode
