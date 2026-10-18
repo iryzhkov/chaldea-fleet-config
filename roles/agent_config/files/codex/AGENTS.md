@@ -103,7 +103,7 @@ T3 tools act only on the host's own T3 server. There is no agent-driven launch o
 host yet; ask Igor to start work there from the T3 app.
 
 Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or
-Astra at medium effort for critical review, including plan review; Haiku 5.5 or Luna 6 at medium effort for bulk reading, or whatever `chaldea route` recommends. Never use max effort or above. Read a quick lookup in a known file
+Astra at medium effort for critical review, including plan review; Haiku 5.5 or Luna 6 at medium effort for bulk reading, or whatever `chaldea route` recommends. Sonnet is excluded. Never use max effort or above. Read a quick lookup in a known file
 directly.
 
 Ask first when the estimated cost is large, the work needs operator-level access, or it
