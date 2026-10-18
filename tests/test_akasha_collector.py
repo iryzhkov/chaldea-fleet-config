@@ -14,8 +14,16 @@ def test_collector_is_disabled_and_uses_one_locked_scoped_service():
     assert "flock --nonblock" in service
     assert "AKASHA_TOKEN_HELPER" in service and "UnsetEnvironment=FEED_TOKEN" in service
     assert "feed/key" not in service
+    normal = ROOT / "inventory/hosts.yml"
+    hosts = yaml.safe_load(normal.read_text())["all"]["children"]["agent_hosts"]["hosts"]
+    approved = {"agent-a", "agent-b", "omarchy-pc", "laptop"}
+    assert {host for host, values in hosts.items() if values.get("akasha_collector_enabled")} == approved
+    for host in approved:
+        assert hosts[host]["akasha_collector_url"] == "https://akasha.ryzhkov.dev"
+        assert hosts[host]["akasha_collector_token_helper"] == "/usr/local/bin/chaldea-token-helper"
     for file in (ROOT / "inventory").rglob("*.yml"):
-        assert "akasha_collector_enabled: true" not in file.read_text()
+        if file != normal:
+            assert "akasha_collector_enabled: true" not in file.read_text()
 
 
 def test_timer_reporting_uses_artifact_and_delivery_configuration():
