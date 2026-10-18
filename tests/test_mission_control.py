@@ -74,6 +74,9 @@ def test_four_host_seven_default_outputs_and_helper_bytes(tmp_path):
 
 def fixture_role(tmp_path, name):
     """Relocate file destinations only; account/systemd effects stay disposable."""
+    safe(tmp_path)
+    protected_opt = tmp_path / "protected-opt"
+    protected_opt.mkdir(mode=0o755, exist_ok=True)
     role = tmp_path / "roles" / name
     shutil.copytree(ROOT / "roles" / name, role)
     replacements = {"/opt/chaldea-mission-control": str(tmp_path / "runtime"),
@@ -89,6 +92,9 @@ def fixture_role(tmp_path, name):
         text = file.read_text()
         for old, new in replacements.items():
             text = text.replace(old, new)
+        if name == "mission_control_runtime":
+            text = text.replace("- /opt\n", "- " + str(protected_opt) + "\n")
+            text = text.replace("item.stat.uid == 0", "item.stat.uid == " + str(os.getuid()))
         if name == "mission_control_capture":
             text = text.replace("default(-1) == 1000", "default(-1) == " + str(os.getuid()))
         file.write_text(text)
@@ -173,6 +179,15 @@ def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
         mission_control_runtime_release_root=str(tmp_path / "runtime"),
         mission_control_runtime_archive_source=variables["chaldea_client_archive_source"],
         mission_control_runtime_manifest_source=variables["chaldea_client_manifest_source"])
+    protected_opt = tmp_path / "protected-opt"
+    protected_opt.chmod(0o777)
+    try:
+        refused = play(tmp_path, "fixture", roles=[role], values=values)
+        assert refused.returncode != 0 and "Refuse writable or linked runtime ancestors" in refused.stdout
+        assert not (tmp_path / "runtime/cache").exists()
+        assert not (tmp_path / "runtime/releases/client-v9.8.7").exists()
+    finally:
+        protected_opt.chmod(0o755)
     ok(play(tmp_path, "fixture", roles=[role], values=values, check=True))
     ok(play(tmp_path, "fixture", roles=[role], values=values))
     again = play(tmp_path, "fixture", roles=[role], values=values)
