@@ -34,6 +34,11 @@ chaldea_client_claude_usage_provider: claudeAgent
 # Token paths only. Readers never render or copy credential contents.
 chaldea_client_claude_usage_source: {}
 chaldea_client_claude_contexts: []
+# Explicit quota-only task subset; never changes the user client or helper pin.
+chaldea_client_quota_runtime_enabled: false
+chaldea_client_quota_runtime_version: ""
+chaldea_client_quota_runtime_sha256: ""
+chaldea_client_quota_fleet: {}
 # Requires a FATE-capable client. Empty preserves compatibility on other hosts.
 chaldea_client_route_targets: {}
 chaldea_client_pace_margin: 0.10
