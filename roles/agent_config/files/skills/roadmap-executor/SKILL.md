@@ -31,8 +31,9 @@ sessions. Continue routine work inside Igor's agreement without asking again.
   and `options` exactly as the delegate target, including effort.
   Use `builder` for implementation and main diff reviews, `critical-review` for
   consequential design or disputed findings, `bulk-read` for readers and `general`
-  for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`
-  or `codex`, or CLI `--author-provider`, to require the other provider. Honor
+  for other work. Main other-provider reviews pass the writer's driver as
+  `authorProvider`, `claudeAgent` or `codex`, or CLI `--author-provider`. Route the
+  independent peer under `review-delegation`'s pair rule. Honor
   explicit user/model overrides. If MCP rejects newer configuration keys, use the
   installed CLI without restarting T3. If neither can recommend a target, use the
   `chaldea` skill's documented outage fallback and live catalog IDs. For main reviews,
@@ -42,7 +43,10 @@ sessions. Continue routine work inside Igor's agreement without asking again.
   that quota exception qualifies; compare underlying provider drivers in the live
   catalog. Never use max effort or above.
 - Load review-delegation for self-contained worker briefs, worktree isolation
-  and review rules. Builders may run their own compliant T3 reviews; reuse
+  and review rules. Prefer independent Sol 6.1 high and Opus 5.5 high reviews with
+  both providers whenever quota allows. Its "Quota exception" allows two different
+  models on one provider when quota is tight, with fresh evidence and honest labeling;
+  one independent review is acceptable if quota or availability prevents the pair. Builders may run their own compliant T3 reviews; reuse
   their final-commit acceptance rather than repeating it. Do not restate or
   enlarge that skill's review process.
 - Give workers exact repositories/refs, allowed files, acceptance commands,

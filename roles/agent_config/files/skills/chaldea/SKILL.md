@@ -25,8 +25,9 @@ readers and `general` for other work. Pass the selected `providerInstanceId`,
 `model` and `options` exactly as the delegate target, including effort. Chaldea
 recommends; T3 launches the child. Honor explicit user/model overrides.
 
-For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or
-`codex`, or CLI `--author-provider`, to require the other provider. A main review
+For the main other-provider review pass the writer's driver as `authorProvider`,
+`claudeAgent` or `codex`, or CLI `--author-provider`. Route the independent peer
+under `review-delegation`'s pair rule. A main review
 normally uses `chaldea route --role builder --author-provider codex` for a
 Codex author. Consequential design uses `critical-review`. A Codex-only builder
 pin can legitimately refuse that main review. Use the approved other-provider
@@ -51,14 +52,18 @@ for general work, conserving Claude. For a required main review, use the
 approved Opus 5.5 high / Sol 6.1 high pair on the other provider: Codex-authored
 work uses Claude Opus, Claude-authored work uses Codex Sol. Consequential design
 or disputed findings use Fable 5.1 / Astra medium on the required other provider.
-If the fallback is unavailable, defer that dependent work and report why.
+If the fallback is unavailable, report why and apply `review-delegation`'s
+quota or single-review rule for reviews; defer other dependent work.
 Explicit user overrides still apply. Do not substitute an unavailable target
 or represent fallback selection as a FATE recommendation.
 
-Cross-provider review remains the default. Only `review-delegation`'s "Quota
-exception" permits a fresh stronger same-provider reviewer after an observed
-other-provider quota stop with a reliable reset more than one hour away.
-Unknown windows/reset or a collector HTTP 429 alone grant no waiver. Never
+Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 high,
+using both providers whenever quota allows. `review-delegation`'s "Quota exception"
+allows two different models on the same provider when quota is tight, with fresh
+quota evidence and honest labeling. One independent review is acceptable when
+quota or availability prevents the pair. Astra/Fable serve consequential design,
+disputed findings or a stronger available-provider peer, not mandatory normal reviews.
+Unknown quota, missing routing recommendations or a collector HTTP 429 alone grant no waiver. Never
 use max, ultra, ultrathink, ultracode or higher effort. Sonnet is excluded;
 Haiku is allowed when selected. Avoid optional Claude fan-outs.
 
