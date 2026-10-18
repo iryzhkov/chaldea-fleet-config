@@ -35,6 +35,9 @@ feed a new packet through that old validator or upgrade it implicitly. Root must
 review the generated ceilings, helper grants and registry together before a separate
 exact one-host helper invocation. Enabling a role never generates a grant.
 The reader role requires the exact reviewed mission_control_reader_grants as input.
+Its systemd mount namespace permits writes to /var/lib/chaldea-issuer/access only
+for the exact sudo issuer hop. Issuer-owned DAC still denies direct reader access.
+Qualification must prove reader direct key/state reads and state writes fail.
 
 ## Ownership and activation gates
 
@@ -63,4 +66,11 @@ sharing, collector limits and routing configuration remain unchanged.
 
 Rollback disables the LAN router and stops only the new Mission Control services,
 then restores a qualified previous exact release/config. Keep the previous release
-and bounded cache for14days. No trust rollback, T3 restart or unrelated grant removal.
+and bounded cache for14days. The runtime retains the selected and newest prior
+release, then prunes only other managed releases and caches older than14days.
+
+A new Akasha host artifact is also required for the hosted schema/auth/store. Before
+selecting that pin, preserve the actual shared trust release with the reviewed bounded
+chaldea_host_artifact_preserve_versions list. Its default is empty. It adds exact
+protected versions to current plus newest prior, including their cached artifacts.
+It does not upgrade trust or activate a preservation version. No trust rollback, T3 restart or unrelated grant removal.
