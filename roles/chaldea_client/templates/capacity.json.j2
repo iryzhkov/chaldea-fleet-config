@@ -1,0 +1,11 @@
+{
+  "heavyMultiplier": {{ chaldea_client_heavy_multiplier | to_json }},
+  "minimumResetLeadHours": {{ chaldea_client_minimum_reset_lead_hours | to_json }},
+  "recentWindowMs": {{ chaldea_client_recent_window_ms | to_json }},
+  "maxAgeMs": {{ chaldea_client_quota_max_age_ms | to_json }},
+  "paceMargin": {{ chaldea_client_pace_margin | to_json }},
+  "minimumRemaining": {{ chaldea_client_minimum_remaining | to_json }},
+  "reserveFraction": {{ chaldea_client_reserve_fraction | to_json }},
+  "expiryHorizonMs": {{ chaldea_client_expiry_horizon_ms | to_json }},
+  "providers": {{ chaldea_client_capacity_providers | to_json }}
+}

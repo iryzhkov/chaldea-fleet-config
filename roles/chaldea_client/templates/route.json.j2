@@ -1,0 +1,14 @@
+{
+  "paceMargin": {{ chaldea_client_pace_margin | to_json }},
+  "minimumRemaining": {{ chaldea_client_minimum_remaining | to_json }},
+  "failureMargin": {{ chaldea_client_route_failure_margin | to_json }},
+  "minimumTurns": {{ chaldea_client_route_minimum_turns | to_json }},
+  "quotaMaxAgeMs": {{ chaldea_client_quota_max_age_ms | to_json }},
+  "analyticsMaxAgeMs": {{ chaldea_client_analytics_max_age_ms | to_json }},
+  "t3BaseDir": {{ chaldea_client_t3_home | to_json }},
+  "tokenFile": {{ chaldea_client_quota_token | to_json }},
+  "claudeUsage": {
+    "enabled": {{ chaldea_client_claude_usage_enabled | bool | to_json }},
+    "providerInstanceId": {{ chaldea_client_claude_usage_provider | to_json }}
+  }
+}

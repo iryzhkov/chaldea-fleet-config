@@ -1,18 +1,19 @@
 #!/usr/bin/python
-"""Register one MCP server with Claude Code or Codex, idempotently."""
+"""Register one MCP server with Claude Code, Codex or OpenCode, idempotently."""
 
 DOCUMENTATION = r"""
 module: mcp_registration
-short_description: Register one MCP server with Claude Code or Codex
+short_description: Register one MCP server with Claude Code, Codex or OpenCode
 description:
   - For Claude Code, reads the user-scope registration with C(claude mcp get)
     and replaces it through C(claude mcp remove) and C(claude mcp add-json -s user)
     when it differs. ~/.claude.json is never edited directly.
   - For Codex, rewrites only the [mcp_servers.NAME] tables of config.toml and
     refuses when the result would change anything else in the file.
+  - For OpenCode, updates only mcp.NAME in opencode.json, preserving other settings.
   - Environment values never appear in the diff or the result.
 options:
-  provider: {description: claude or codex, required: true, type: str}
+  provider: {description: claude, codex or opencode, required: true, type: str}
   name: {description: Server name, required: true, type: str}
   state: {description: present or absent, default: present, type: str}
   command: {description: Executable of a stdio server, type: str}
@@ -21,6 +22,7 @@ options:
   extra: {description: Further provider-specific keys, type: dict}
   claude_command: {description: The claude CLI as an argument list, type: list, elements: str}
   codex_config: {description: Path of Codex config.toml, type: path}
+  opencode_config: {description: Path of OpenCode JSON config, type: path}
 """
 
 import json
@@ -38,15 +40,15 @@ from ansible.module_utils.basic import AnsibleModule
 
 def redacted(definition, previous=None):
     """definition with each env value replaced by whether it differs from previous."""
-    if definition is None:
-        return None
+    if not isinstance(definition, dict):
+        return definition
     shown = dict(definition)
-    if isinstance(shown.get("env"), dict):
-        old = (previous or {}).get("env") or {}
-        if previous is None:
-            shown["env"] = {key: "<redacted>" for key in shown["env"]}
-        else:
-            shown["env"] = {key: "<redacted>" if old.get(key) == value else "<redacted, changed>" for key, value in shown["env"].items()}
+    for field in ("env", "environment", "headers", "oauth"):
+        if isinstance(shown.get(field), dict):
+            old = previous.get(field, {}) if isinstance(previous, dict) else {}
+            old = old if isinstance(old, dict) else {}
+            shown[field] = {key: "<redacted>" if previous is None or old.get(key) == value
+                            else "<redacted, changed>" for key, value in shown[field].items()}
     return shown
 
 
@@ -217,6 +219,40 @@ def codex(module, params):
     module.exit_json(changed=True, diff=diff(name, current, desired))
 
 
+# OpenCode. Its environment/command schema differs from Claude and Codex.
+
+
+def opencode(module, params):
+    path, name = params["opencode_config"], params["name"]
+    if os.path.islink(path) or os.path.exists(os.path.splitext(path)[0] + ".jsonc"):
+        module.fail_json(msg="OpenCode config is a symlink or has a JSONC peer; reconcile the owning config first")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            document = json.load(handle)
+    except FileNotFoundError:
+        document = {}
+    except (ValueError, OSError):
+        module.fail_json(msg="OpenCode config must be a readable JSON object")
+    if not isinstance(document, dict) or not isinstance(document.get("mcp", {}), dict):
+        module.fail_json(msg="OpenCode config and mcp must be JSON objects")
+    current = document.get("mcp", {}).get(name)
+    desired = None if params["state"] == "absent" else {
+        **params["extra"], "type": "local", "command": [params["command"], *params["args"]],
+        "environment": params["env"], "enabled": True,
+    }
+    if current == desired:
+        module.exit_json(changed=False)
+    servers = dict(document.get("mcp", {}))
+    if desired is None:
+        servers.pop(name, None)
+    else:
+        servers[name] = desired
+    updated = {**document, "mcp": servers}
+    if not module.check_mode:
+        write_atomically(path, json.dumps(updated, indent=2, ensure_ascii=False) + "\n")
+    module.exit_json(changed=True, diff=diff(name, current, desired))
+
+
 def write_atomically(path, text):
     directory = os.path.dirname(path) or "."
     os.makedirs(directory, exist_ok=True)
@@ -238,7 +274,7 @@ def write_atomically(path, text):
 def main():
     module = AnsibleModule(
         argument_spec={
-            "provider": {"type": "str", "required": True, "choices": ["claude", "codex"]},
+            "provider": {"type": "str", "required": True, "choices": ["claude", "codex", "opencode"]},
             "name": {"type": "str", "required": True},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
             "command": {"type": "str"},
@@ -247,11 +283,12 @@ def main():
             "extra": {"type": "dict", "default": {}},
             "claude_command": {"type": "list", "elements": "str", "default": ["claude"]},
             "codex_config": {"type": "path", "default": "~/.codex/config.toml"},
+            "opencode_config": {"type": "path", "default": "~/.config/opencode/opencode.json"},
         },
         required_if=[("state", "present", ["command"])],
         supports_check_mode=True,
     )
-    (claude if module.params["provider"] == "claude" else codex)(module, module.params)
+    {"claude": claude, "codex": codex, "opencode": opencode}[module.params["provider"]](module, module.params)
 
 
 if __name__ == "__main__":

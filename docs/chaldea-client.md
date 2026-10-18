@@ -31,6 +31,61 @@ Before changing files, the role checks each enabled unit's required secrets with
 
 `quota.json` binds provider aliases to an explicit HOME, CODEX_HOME and installed Codex executable. Inventory binds `codex` to `{{ fleet_home }}/.codex` on omarchy-pc and the laptop. omarchy-pc's existing T3 provider configuration has no home/shadow override and its Codex HOME is `/home/igor/.codex`. Before enabling quota on another host, confirm T3's published `runtimePaths.shadowHomePath ?? runtimePaths.homePath` and set `chaldea_client_codex_home` to that exact effective home. If a custom home is configured, update this inventory binding with it. The collector needs the binding described in [Chaldea's cached headroom and credits contract](https://github.com/iryzhkov/chaldea/blob/main/docs/quota.md#cached-headroom-and-credits), including authenticated ChatGPT auth and a loopback T3 URL. An unmatched context reports unknown balance; it never borrows the invoking shell's credentials. The Codex executable defaults to the fleet's mise shim.
 
+## Advisory routing rollout
+
+The client-v0.3.0 pin comes from Chaldea main `181838f`. The reviewed archive
+SHA-256 is `38815b50ae8efbd9379f707af3fe8265a18e1fedd7814c2644ec73c91a8f5fa1`.
+The role writes private `~/.config/chaldea/route.json` and `capacity.json` on every
+enabled client host. Defaults match [the pinned routing contract](https://github.com/iryzhkov/chaldea/blob/181838f/docs/route.md):
+10% pacing margin and tight threshold, 10-point failure margin, 100 minimum turns,
+15-minute quota freshness, three-day analytics freshness, 2x heavy projection,
+24-hour burn window and expiry horizon, 5% reserve and 72-hour Codex reset lead.
+No credit conversion, expiry or Claude refill inventory is asserted without
+operator measurements. `chaldea_client_capacity_providers` leaves room for them.
+
+The pinned client fixes the role pairs: builder is Opus 5.5/Sol 6.1 high,
+critical-review is Fable 5.1/Astra medium, bulk-read is Sonnet 5.5/Luna 6 medium,
+and general is Opus 5.5/Sol 6.1 medium. Haiku and OpenCode are excluded as routing
+candidates. The client fixes the Slopalytics URL to
+https://slopalytics.com/data/t3-usage.json. Neither role pairs nor the URL are valid
+JSON configuration keys. Preserve them by pinning the reviewed client.
+
+`chaldea_client_claude_usage_enabled: false` is explicit inventory policy on all
+four hosts. Igor has not approved the optional collector. Any future opt-in needs
+his approval and verified local account binding; this rollout never reads Claude
+credentials. Route recommendations need an existing local T3 token with
+`orchestration:read`, defaulting to `~/.config/chaldea/t3-token`; the role never
+creates one. Missing tokens/catalogs produce an unavailable recommendation and
+agents use the shared CLAUDE.md model roles, preserving cross-provider reviews.
+
+Claude and Codex registrations, and only OpenCode's `mcp.chaldea` entry in
+`~/.config/opencode/opencode.json`, point at the managed client on every enabled
+host. Other OpenCode settings and servers are preserved. Symlinked configs,
+JSONC peers and invalid JSON refuse rather than replacing an ambiguous source.
+On hosts without waits, private `~/.config/chaldea/mcp.json` supplies the socket and
+an inert environment label required by the MCP entry point. It starts no service.
+Wait/decision calls still need the local waits service; `chaldea_route` runs in the
+stdio process. Harnesses start that process on demand, with no T3 restart here.
+
+Merging fleet main is deployment: the existing pull timers apply within four
+hours on awake hosts; the laptop catches up on wake. Expected changes by host:
+
+| Host | Changes |
+| --- | --- |
+| omarchy-pc | Client v0.2.0 to v0.3.0, current/previous links and managed cache retention; new route.json/capacity.json; restart existing enabled chaldea-quota and chaldea-waits units; refresh Chaldea registrations for Claude/Codex and add OpenCode registration. |
+| agent-a | Same client bump and retention; new route.json/capacity.json/mcp.json; add Chaldea registration for Claude/Codex/OpenCode; quota and waits remain stopped and disabled. |
+| agent-b | Same client bump and retention; new route.json/capacity.json/mcp.json; add Chaldea registration for Claude/Codex/OpenCode; quota and waits remain stopped and disabled. |
+| laptop | Same client bump and retention on wake; new route.json/capacity.json/mcp.json; add Chaldea registration for Claude/Codex/OpenCode; quota and waits remain stopped and disabled. |
+
+All four also receive the shared route-before-delegation CLAUDE.md, AGENTS.md and
+Chaldea/review-delegation/roadmap-executor skill updates through `agent_config`.
+Fleet owns these deployed sources. Omarchy-setup retains bootstrap CLAUDE.md and
+AGENTS generator sources; synchronize the short routing rule there without running
+its generator over fleet-owned files. The skills named above have no second source
+in omarchy-setup. No new daemon, timer, collector or service enablement is added;
+job host binaries and host-v0.2.1 remain unchanged by this client rollout.
+No manual host convergence is part of the PR work.
+
 ## Migration and converge
 
 Run on each authorized host individually, limited to its own inventory entry:
