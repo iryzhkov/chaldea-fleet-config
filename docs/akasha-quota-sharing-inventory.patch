@@ -1,0 +1,11 @@
+diff --git a/inventory/hosts.yml b/inventory/hosts.yml
+--- a/inventory/hosts.yml
++++ b/inventory/hosts.yml
+@@ -35,6 +35,7 @@
+           # Conservative operator pins, not AA admission. Never spill to Claude.
+           # Activate only with the reviewed FATE client release pin.
+           chaldea_client_route_targets:
++            quotaConfigFile: "{{ fleet_home }}/.config/chaldea/quota-fleet-reader.json"
+             scores: {enabled: false}
+             pins:
+               builder: {model: gpt-6.1-sol, providerInstanceId: codex}

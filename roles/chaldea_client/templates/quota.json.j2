@@ -1,5 +1,5 @@
 {{ {
-  'contexts': [{
+  'contexts': [] if chaldea_client_quota_runtime_enabled else [{
     'providers': chaldea_client_codex_providers,
     'home': fleet_home,
     'codexHome': chaldea_client_codex_home,
@@ -7,4 +7,4 @@
     'assertRuntimeHome': chaldea_client_codex_assert_runtime_home | bool
   }],
   'lowHeadroomPercent': chaldea_client_low_headroom_percent
-} | combine({'claudeContexts': chaldea_client_claude_contexts} if chaldea_client_claude_contexts | length else {}) | to_nice_json }}
+} | combine({'claudeContexts': chaldea_client_claude_contexts} if not chaldea_client_quota_runtime_enabled and chaldea_client_claude_contexts | length else {}) | combine({'fleet': chaldea_client_quota_fleet} if chaldea_client_quota_fleet | length else {}) | to_nice_json }}

@@ -8,8 +8,9 @@ const { helperConfig } = await moduleAt('access/helper.ts');
 const { Authorization } = await moduleAt('akasha/auth.ts');
 const { exact, object } = await moduleAt('access/token.ts');
 const input = object(JSON.parse(readFileSync(0, 'utf8')));
-exact(input, ['public_keys', 'pc_reader', 'pc_quota']);
-if (typeof input.pc_reader !== 'boolean' || typeof input.pc_quota !== 'boolean') throw Error('boolean gates required');
+exact(input, ['public_keys', 'pc_reader', 'pc_quota'], ['laptop_quota', 'pc_quota_reader']);
+if (typeof input.pc_reader !== 'boolean' || typeof input.pc_quota !== 'boolean' ||
+    ['laptop_quota', 'pc_quota_reader'].some(k => input[k] !== undefined && typeof input[k] !== 'boolean')) throw Error('boolean gates required');
 const policy = JSON.parse(readFileSync(policyFile)), keys = object(input.public_keys);
 exact(keys, Object.keys(policy));
 for (const key of Object.values(keys)) publicKey(key);
@@ -21,6 +22,10 @@ const pc = (action, source, kind, profile) => ({uid:1000, audience:'akasha', act
 if (input.pc_reader) for (const kind of ['feed_post', 'tool_call']) grants['omarchy-pc'].push(pc('read', 'fleet-reader', kind, 'fleet-reader'));
 if (input.pc_quota) for (const kind of ['quota_parked', 'quota_reset_unknown', 'quota_resumed', 'restart_resumed', 'quota_headroom_snapshot', 'quota_headroom_changed', 'quota_headroom_low'])
   grants['omarchy-pc'].push(pc('append', 'chaldea-quota', kind, 'quota-service'));
+// Sharing is a separate service permission, never an operator/global reader.
+if (input.laptop_quota) grants['omarchy-macbook-air-igor'].push({uid:1001, audience:'akasha', action:'append', source:'quota',
+  host:'omarchy-macbook-air-igor', kind:'quota_headroom_snapshot', profile:'quota-service', project:'chaldea'});
+if (input.pc_quota_reader) grants['omarchy-pc'].push(pc('read', 'quota', 'quota_headroom_snapshot', 'quota-service'));
 const registry = [];
 for (const [host, row] of Object.entries(policy)) {
   const issuer = {uid:row.issuer_uid, name:'chaldea:' + host, kid:row.kid, key_file:'/var/lib/chaldea-issuer/keys/' + row.kid + '.pem'};
@@ -36,7 +41,8 @@ for (const [host, row] of Object.entries(policy)) {
     let entry = registry.find(r => r.issuer === issuer.name && r.source === g.source);
     if (!entry && !known) {
       entry = {issuer:issuer.name, source:g.source, host, source_id:(host + '--' + g.source).replaceAll('.', '_'), profile:g.profile, project:g.project,
-        mode:g.action === 'read' ? 'operator' : 'service', kinds:[], ...(g.action === 'read' ? {global_read:true} : {})};
+        mode:g.action === 'read' && g.source !== 'quota' ? 'operator' : 'service', kinds:[],
+        ...(g.action === 'read' ? (g.source === 'quota' ? {quota_fleet_read:true} : {global_read:true}) : {})};
       registry.push(entry);
     }
     if (entry && !entry.kinds.includes(g.kind)) entry.kinds.push(g.kind);
