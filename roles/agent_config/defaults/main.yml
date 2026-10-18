@@ -31,7 +31,7 @@ agent_config_files:
   - {src: bin/opencode, dest: .local/bin/opencode, mode: "0755"}
 
 # Fleet-owned skills. Other CLI-installed skills and symlinks stay unmanaged,
-# except the exact retirement list and the two validated laptop link migrations.
+# except the exact retirement list and the seven validated laptop link migrations.
 agent_config_skills:
   - audit-lens
   - chaldea

@@ -1,0 +1,61 @@
+---
+# These five exact pairs were inspected on laptop; this is not a generic link policy.
+- name: Require the recorded laptop path and relative target before following it
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'laptop'
+      - agent_config_skill_link.item.0 == '.claude/skills'
+      - agent_config_skill_link.item.1 in ['codebase-design', 'diagnosing-bugs', 'grilling', 'resolving-merge-conflicts', 'tdd']
+      - agent_config_skill_link.stat.islnk | default(false)
+      - agent_config_skill_link.stat.uid == ansible_facts.user_uid
+      - agent_config_skill_link.stat.gid == ansible_facts.user_gid
+      - agent_config_skill_link.stat.lnk_target == '../../.agents/skills/' ~ agent_config_skill_link.item.1
+      - agent_config_skill_link.stat.lnk_source == fleet_home ~ '/.agents/skills/' ~ agent_config_skill_link.item.1
+    quiet: true
+
+- name: Inspect every managed link ancestor and target without following links
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item }}"
+    follow: false
+    get_checksum: false
+  loop:
+    - ""
+    - .claude
+    - .claude/skills
+    - .agents
+    - .agents/skills
+    - ".agents/skills/{{ agent_config_skill_link.item.1 }}"
+  register: agent_config_managed_link_ancestors
+
+- name: Require real owned managed directories
+  ansible.builtin.assert:
+    that:
+      - item.stat.isdir | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.uid == ansible_facts.user_uid
+      - item.stat.gid == ansible_facts.user_gid
+    quiet: true
+  loop: "{{ agent_config_managed_link_ancestors.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Inspect the entire owned target tree without following nested links
+  ansible.builtin.find:
+    paths: "{{ fleet_home }}/.agents/skills/{{ agent_config_skill_link.item.1 }}"
+    recurse: true
+    hidden: true
+    file_type: any
+    follow: false
+  register: agent_config_managed_link_tree
+
+- name: Require owned regular files and directories throughout the target tree
+  ansible.builtin.assert:
+    that:
+      - not (item.islnk | default(false))
+      - (item.isreg | default(false)) or (item.isdir | default(false))
+      - item.uid == ansible_facts.user_uid
+      - item.gid == ansible_facts.user_gid
+    quiet: true
+  loop: "{{ agent_config_managed_link_tree.files }}"
+  loop_control:
+    label: "{{ item.path }}"

@@ -18,8 +18,14 @@ See [the plugin contract](opencode-huyang-profiles.md).
 Fleet skills install in ~/.claude/skills and ~/.agents/skills. Existing unrelated
 skills stay unmanaged. Retirement remains limited to find-skills,
 improve-codebase-architecture, domain-modeling, prototype, code-review and
-implementation-session. Only safety-critical-code and unslop can migrate
-validated, recursively matching symlinks; mismatches stop before any unlink.
+implementation-session. Safety-critical-code and unslop retain their validated
+matching-tree migrations. Five additional links migrate only on laptop, from
+.claude/skills/{codebase-design,diagnosing-bugs,grilling,resolving-merge-conflicts,tdd}
+to the corresponding exact relative ../../.agents/skills/NAME target. Their
+ancestors and complete trees must be real, owned directories/files and match
+source recursively before any unlink. Mismatches stop all migrations. The separately
+approved TDD backup/restoration is explicit, never part of an ordinary converge;
+see [the restoration procedure](laptop-guidance-restoration.md).
 
 The maintained Huyang reference combines the Claude reading/editing section
 and Huyang skill body. Keep these sources aligned manually. The old Omarchy
