@@ -58,7 +58,8 @@ never poll. Recorded decisions are checked for drift, not re-argued.
 - After the lenses finish, delegate one synthesis to a critical reviewer on
   the other provider from most lenses: Fable 5.1 for a Codex majority, Astra
   for a Claude majority, at medium effort. This consequential audit synthesis
-  uses the critical-review role, not a routine milestone review.
+  uses the critical-review role, subject to `review-delegation`'s provider rule
+  and "Quota exception".
 - Give it all lens evidence and pinned context. It checks disputed evidence,
   merges duplicates and writes a ranked report to
   `tooling/handoffs/chaldea-audit-<date>.md` in Jocasta. Include scope/commits,

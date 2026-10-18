@@ -33,7 +33,8 @@ sessions. Continue routine work inside Igor's agreement without asking again.
   for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`
   or `codex`, or CLI `--author-provider`, to require the other provider. Honor session
   model restrictions. If routing is unavailable, use the CLAUDE.md model roles and
-  `orchestrator_capabilities` IDs, preserving cross-provider review.
+  `orchestrator_capabilities` IDs. Apply `review-delegation`'s provider rule and
+  "Quota exception", including its PR comment and checkpoint evidence.
 - Load review-delegation for self-contained worker briefs, worktree isolation
   and review rules. Builders may run their own compliant T3 reviews; reuse
   their final-commit acceptance rather than repeating it. Do not restate or
