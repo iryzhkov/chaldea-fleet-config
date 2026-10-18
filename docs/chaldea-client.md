@@ -56,7 +56,8 @@ his approval and verified local account binding; this rollout never reads Claude
 credentials. Route recommendations need an existing local T3 token with
 `orchestration:read`, defaulting to `~/.config/chaldea/t3-token`; the role never
 creates one. Missing tokens/catalogs produce an unavailable recommendation and
-agents use the shared CLAUDE.md model roles, preserving cross-provider reviews.
+agents use the shared CLAUDE.md model roles and `review-delegation`'s provider rule
+and "Quota exception". An unavailable recommendation alone grants no waiver.
 
 Claude and Codex registrations, and only OpenCode's `mcp.chaldea` entry in
 `~/.config/opencode/opencode.json`, point at the managed client on every enabled
