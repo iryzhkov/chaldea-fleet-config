@@ -36,14 +36,17 @@ tests/fixtures/agent_config_before.json records all source hashes from fleet
 main 7185b506, plus the former downloaded plugin hash. The render test installs
 the agent_config role for agent-a, agent-b, omarchy-pc and laptop into disposable
 homes, and compares every managed file and skill against this baseline.
-Only the exact blocks in HEADER_CHANGES and QUOTA_REVIEW_CHANGES in
+Only the exact blocks in AUTHORIZED_CHANGES and QUOTA_REVIEW_CHANGES in
 test_agent_source_migration.py may differ, as authorized by Igor on 2026-10-18.
-The ownership header corrections are:
+Each replacement must occur exactly once and is reversed before comparison
+with the unchanged historic hashes. Ownership and wait-guidance changes are:
 
 - agents/jocasta.md lines 3-4 now identify the maintained fleet source.
 - agents/ov-memory.md lines 3-5 now identify fleet sources and aligned skills.
 - agents/huyang.md lines 5-8 replace the obsolete Omarchy generator overlap
   claim with fleet ownership and the retired-generator note.
+- skills/chaldea/SKILL.md adds the optional wait-description guidance and the
+  description argument in the existing CLI example.
 
 QUOTA_REVIEW_CHANGES records the quota-review policy deltas in agents/AGENTS.md,
 codex/AGENTS.md, claude/omarchy-setup/CLAUDE.md and the review-delegation, chaldea,
