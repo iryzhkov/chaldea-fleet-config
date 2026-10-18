@@ -1,11 +1,10 @@
 ---
-# UNAPPLIED permission proposal. This file is never loaded by a playbook.
-# It is an explicit input to tools/akasha-enrollment-inputs.mjs using a future
-# qualified hosted client. The old helper/validator0.4.0 remains unchanged.
+# SOURCE permission packet only; never automatically loaded by a play.
+# Feed this fragment to the qualified client-v0.4.4 native generator together
+# with the six existing public keys, pc_reader/pc_quota true and sharing false.
+# UID940 is selected for review, contingent on immediate pre-apply NSS/name checks.
 mission_control:
-  publisher_uid: null
-  reader_uid: null
-  read_sources: []
-# To propose the first packet, select publisher_uid1000 and a newly approved
-# dedicated reader_uid, then read_sources [agent-a--mission-control].
-# The generated issuer ceilings/helper grants/registry must be reviewed together.
+  publisher_uid: 1000
+  reader_uid: 940
+  read_sources: [agent-a--mission-control]
+# Review the SAME output's ceilings, helper grants and registry before publication.
