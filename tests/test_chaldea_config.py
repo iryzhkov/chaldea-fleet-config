@@ -84,10 +84,12 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
     environment = {**os.environ, "ANSIBLE_ROLES_PATH": str(ROOT / "roles"),
                    "ANSIBLE_LOCAL_TEMP": str(tmp_path / "ansible")}
 
-    def run(enabled=None, check=False):
+    def run(enabled=None, check=False, managed=False):
         argv = ["ansible-playbook", "-i", "localhost,", str(play)]
         if enabled is not None:
             argv += ["-e", json.dumps({"mcp_registrations_chaldea_waits_enabled": enabled})]
+        if managed:
+            argv += ["-e", "chaldea_client_enabled=true"]
         if check:
             argv += ["--check"]
         result = subprocess.run(argv, cwd=ROOT, env=environment, capture_output=True, text=True)
@@ -97,7 +99,7 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
     def definitions():
         return json.loads(claude.read_text()), tomllib.loads(codex.read_text())["mcp_servers"]
 
-    run()  # Default hosts must not acquire the registration.
+    run()  # Hosts without an enabled client or waits do not acquire the registration.
     assert all("chaldea" not in servers for servers in definitions())
     run(True)
     expected = chaldea(str(home))
@@ -116,3 +118,17 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
     assert a["other"]["command"] == b["other"]["command"] == "/keep"
     assert tomllib.loads(codex.read_text())["model"] == "personal"
     assert re.search(r"changed=0\s", run())
+    run(True, managed=True)
+    for servers in definitions():
+        assert servers["chaldea"]["args"][0] == str(home / ".local/share/chaldea/current/bin/chaldea")
+    assert re.search(r"changed=0\s", run(True, managed=True))
+    run(False, managed=True)  # Routing remains available without the waits service.
+    for servers in definitions():
+        assert servers["chaldea"]["args"][-1] == str(home / ".config/chaldea/mcp.json")
+    opencode = json.loads((home / ".config/opencode/opencode.json").read_text())
+    assert list(opencode["mcp"]) == ["chaldea"]
+    assert opencode["mcp"]["chaldea"]["command"] == [expected["command"],
+        str(home / ".local/share/chaldea/current/bin/chaldea"), "mcp", "--config",
+        str(home / ".config/chaldea/mcp.json")]
+    assert opencode["mcp"]["chaldea"]["enabled"] is True
+    assert re.search(r"changed=0\s", run(False, managed=True))

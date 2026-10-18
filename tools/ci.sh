@@ -48,6 +48,7 @@ reset_home() {
 # Stage a synthetic, checksummed host release. All role destinations remain in
 # scratch; this exercises extraction and installed-byte copies without sudo.
 python tests/host_artifact_fixture.py "$TMPDIR/host-artifact" >"$TMPDIR/host-artifact-vars.json"
+python tests/client_artifact_fixture.py "$TMPDIR/client-artifact" >"$TMPDIR/client-artifact-vars.json"
 export HUYANG_PLUGIN_SOURCE="$TMPDIR/huyang-profiles.js"
 # Read source pins from inventory so CI exercises the deployed download.
 plugin_ref=$(python -c 'import yaml; print(yaml.safe_load(open("inventory/group_vars/all.yml"))["agent_config_huyang_plugin_ref"])')
@@ -61,7 +62,8 @@ export CHALDEA_HOST_TEST_EVIDENCE="$TMPDIR/role-install-evidence"
 python -m pytest -q -p no:cacheprovider tests
 # Scratch may be inside an isolated job workspace; generated fixture plays are not source.
 ansible-lint --exclude "$TMPDIR" --exclude "${TMPDIR#"$PWD"/}"
-synthetic=(-i inventory -i tests/synthetic-inventory.yml --limit synthetic --extra-vars "@$TMPDIR/host-artifact-vars.json")
+export FAKE_SYSTEMCTL_UNIT_HOME="$PWD/.ci-home"
+synthetic=(-i inventory -i tests/synthetic-inventory.yml --limit synthetic --extra-vars "@$TMPDIR/host-artifact-vars.json" --extra-vars "@$TMPDIR/client-artifact-vars.json")
 ansible-playbook "${synthetic[@]}" site.yml --syntax-check
 reset_home
 ansible-playbook "${synthetic[@]}" site.yml --check --diff

@@ -1,0 +1,8 @@
+{{ {
+  'issuer': chaldea_token_helper_issuer,
+  'state_file': chaldea_token_helper_state,
+  'bundle_file': chaldea_access_paths.bundle,
+  'anchor_file': chaldea_access_paths.root ~ '/anchors.json',
+  'clock_health_file': chaldea_access_paths.clock_health,
+  'grants': chaldea_token_helper_grants
+} | to_nice_json }}

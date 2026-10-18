@@ -3,17 +3,19 @@
 # scope, through the claude CLI) and Codex ([mcp_servers.NAME] in
 # config.toml). Other registrations on a host are left alone. agent_env names
 # a variable set to PROVIDER-HOST, which tells OpenViking who wrote a note.
-# Waits are provisioned separately; opt in only on a host with the local service.
+# Routing runs in the stdio process; waits still require the separate local service.
 mcp_registrations_chaldea_waits_enabled: false
+mcp_registrations_chaldea_providers: [claude, codex, opencode]
+mcp_registrations_opencode_config: "{{ fleet_home }}/.config/opencode/opencode.json"
 mcp_registrations_servers:
   - name: chaldea
-    enabled: "{{ mcp_registrations_chaldea_waits_enabled }}"
+    enabled: "{{ chaldea_client_enabled | default(false) | bool or mcp_registrations_chaldea_waits_enabled | bool }}"
     command: "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
     args:
-      - "{{ fleet_home }}/.local/share/chaldea/app/src/cli.ts"
+      - "{{ fleet_home }}/.local/share/chaldea/{{ 'current/bin/chaldea' if chaldea_client_enabled | default(false) else 'app/src/cli.ts' }}"
       - mcp
       - --config
-      - "{{ fleet_home }}/.config/chaldea/waits.json"
+      - "{{ fleet_home }}/.config/chaldea/{{ 'waits' if mcp_registrations_chaldea_waits_enabled | bool else 'mcp' }}.json"
   - name: huyang
     command: "{{ fleet_home }}/.local/share/huyang/bin/huyang"
     args: [mcp, --profile, full]

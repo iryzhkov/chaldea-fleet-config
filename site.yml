@@ -25,6 +25,9 @@
     - role: mise_agents
       tags: [mise_agents]
       when: "'agent_hosts' in group_names"
+    - role: chaldea_client
+      tags: [chaldea_client]
+      when: "'agent_hosts' in group_names and chaldea_client_enabled | default(false) | bool"
     - role: mcp_registrations
       tags: [mcp_registrations]
       when: "'agent_hosts' in group_names"
@@ -48,5 +51,16 @@
     - role: chaldea_access_trust
       tags: [chaldea_access_trust]
       when: chaldea_access_trust_enabled | default(false) | bool
+    - role: chaldea_token_helper
+      tags: [chaldea_token_helper]
+      when: chaldea_token_helper_enabled | default(false) | bool
     - role: pull_timer
       tags: [pull_timer]
+  # Discover after installers (including the Chaldea wrapper) have converged.
+  post_tasks:
+    - name: Generate installed custom tool discovery
+      ansible.builtin.import_role:
+        name: agent_config
+        tasks_from: fleet-tools
+      tags: [agent_config, fleet_tools]
+      when: "'agent_hosts' in group_names"

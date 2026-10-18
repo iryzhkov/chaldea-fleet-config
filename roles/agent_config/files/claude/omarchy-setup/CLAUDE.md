@@ -1,3 +1,6 @@
+Read the `fleet-tools` skill for installed custom CLI tools, their read/write commands,
+and full-help commands for the session profile.
+
 # Response style
 
 Default register: compressed technical English. Compress the prose, never the substance.
@@ -71,9 +74,7 @@ Namespaces, document shape, the tool-by-tool procedure and curation passes: the 
 
 # Fleet feed
 
-`feed` is the chronological record of what the agents and scheduled jobs on this network
-actually did: `feed recent --since 7d`, filtered with `--host`, `--source`, `--tag`,
-`--severity` or `--grep`, and `--full` for bodies. It runs on homelab, port 1934.
+The fleet feed runs on homelab, port 1934.
 
 Read it before answering anything about recent homelab activity — what a scheduled job found,
 whether a service was updated or held, what broke last night — because the detail lives in T3
@@ -81,15 +82,22 @@ threads on four different machines and the feed is the only place they meet. It 
 rather than replacing it: OV holds durable knowledge and is searched by meaning, the feed holds
 dated events and is read newest-first.
 
-Write to it with `feed post` when an unattended run produced something a later session would
-want to know. Never copy feed entries into OV as if they were established facts; promoting an
-event to knowledge is a decision, not a sync.
+Record an event when an unattended run produced something a later session would want to know.
+Never copy feed entries into OV as if they were established facts; promoting an event to
+knowledge is a decision, not a sync.
 
 # Interactive work and delegation
 
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
 making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta and carry it
 out in the session; do not ask again for routine work inside that agreement.
+When carrying out an agreed roadmap, load the roadmap-executor skill first.
+
+Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,
+`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and
+`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the
+writer's driver, `claudeAgent` or `codex`, to require the other provider. If routing is
+unavailable, use the model roles below and preserve that cross-provider review rule.
 
 Delegate through T3's own tools rather than a separate scheduler:
 
@@ -111,8 +119,7 @@ T3 tools act only on the host's own T3 server. There is no agent-driven launch o
 host yet; ask Igor to start work there from the T3 app.
 
 Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or
-Astra at medium effort for critical review, including plan review; Sonnet 5.5, Haiku 5.5 or
-Luna 6 for bulk reading. Never use max effort or above. Read a quick lookup in a known file
+Astra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file
 directly.
 
 Ask first when the estimated cost is large, the work needs operator-level access, or it
@@ -146,13 +153,10 @@ A test overwrote a real key on 2026-10-17.
 
 # Working documents: Jocasta
 
-Jocasta stores shared plans, handoffs, research and prompts. Use its CLI on any fleet host:
-`jocasta search 'rough plan name' --json`, then `jocasta get PROJECT/plans/FILE.md --output
-~/.cache/jocasta/plan.md --json`. Search is lexical, so a bounded search is not proof of
-absence. Use exact `jocasta:DOCUMENT_ID@REVISION` references in handoffs.
-
-Create with `jocasta put PROJECT/handoffs/FILE.md --file ~/.cache/jocasta/handoff.md --create`.
-For updates, fetch the full document, reconcile changes, and use `--if-revision N`.
+Use Jocasta for shared plans, handoffs, research and prompts. Search before creating a document.
+Search is lexical, so a bounded search is not proof of absence. Use exact
+`jocasta:DOCUMENT_ID@REVISION` references in handoffs. Before updating, fetch the full document,
+reconcile changes, and use `--if-revision N`.
 Never write back a partial line range, guess a mutation target from search, or retry a
 conflict by replacing the newer revision.
 

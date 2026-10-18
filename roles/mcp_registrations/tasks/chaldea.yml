@@ -1,0 +1,19 @@
+---
+# The client migration must update its registration before retiring app/.
+- name: Register only the Chaldea client MCP server
+  mcp_registration:
+    provider: "{{ item.0 }}"
+    name: "{{ item.1.name }}"
+    state: "{{ 'present' if item.1.enabled | default(true) | bool else 'absent' }}"
+    command: "{{ item.1.command }}"
+    args: "{{ item.1.args | default([]) }}"
+    env: >-
+      {{ item.1.env | default({})
+         | combine({item.1.agent_env: item.0 ~ '-' ~ mcp_registrations_agent_host} if item.1.agent_env is defined else {}) }}
+    extra: "{{ item.1[item.0] | default({}) }}"
+    claude_command: "{{ mcp_registrations_claude }}"
+    codex_config: "{{ mcp_registrations_codex_config }}"
+    opencode_config: "{{ mcp_registrations_opencode_config }}"
+  loop: "{{ mcp_registrations_chaldea_providers | product((mcp_registrations_servers | selectattr('name', 'equalto', 'chaldea') | list)) | list }}"
+  loop_control:
+    label: "{{ item.0 }}: {{ item.1.name }}"

@@ -1,0 +1,5 @@
+# Managed by chaldea-fleet-config. Exact selectors only; no shell or Node grant.
+Defaults!/usr/local/libexec/chaldea-token-helper-issuer env_reset,secure_path="/usr/bin:/bin"
+{% for grant in chaldea_token_helper_grants %}
+#{{ grant.uid }} ALL=(chaldea-issuer) NOPASSWD: NOSETENV: /usr/local/libexec/chaldea-token-helper-issuer --audience {{ grant.audience }} --action {{ grant.action }} --source {{ grant.source }} --host {{ grant.host }} --kind {{ grant.kind }}
+{% endfor %}

@@ -1,0 +1,57 @@
+---
+- name: Inspect the skill directories this role writes
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item.0 }}/{{ item.1 }}"
+    follow: false
+    get_checksum: false
+  loop: "{{ agent_config_skill_dirs | product(agent_config_skills) | list }}"
+  loop_control:
+    label: "~/{{ item.0 }}/{{ item.1 }}"
+  register: agent_config_skill_paths
+
+# Validate every permitted migration before unlinking any path.
+- name: Validate the two approved laptop skill links
+  ansible.builtin.include_tasks: validate-skill-link.yml
+  loop: "{{ agent_config_skill_paths.results }}"
+  loop_control:
+    loop_var: agent_config_skill_link
+    label: "~/{{ agent_config_skill_link.item | join('/') }}"
+  when:
+    - agent_config_skill_link.stat.islnk | default(false)
+    - agent_config_skill_link.item.1 in ['safety-critical-code', 'unslop']
+
+- name: Refuse to write a skill through an unhandled symlink
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (item.stat.islnk | default(false)) or
+        item.item.1 in ['safety-critical-code', 'unslop']
+    fail_msg: >-
+      ~/{{ item.item | join('/') }} is a symlink; remove it or drop the skill
+      from agent_config_skills for this host.
+    quiet: true
+  loop: "{{ agent_config_skill_paths.results }}"
+  loop_control:
+    label: "~/{{ item.item | join('/') }}"
+
+- name: Remove only the validated laptop skill symlinks
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/{{ item.item | join('/') }}"
+    state: absent
+    follow: false
+  when:
+    - item.stat.islnk | default(false)
+    - item.item.1 in ['safety-critical-code', 'unslop']
+  loop: "{{ agent_config_skill_paths.results }}"
+  loop_control:
+    label: "~/{{ item.item | join('/') }}"
+
+- name: Install shared skills
+  ansible.builtin.copy:
+    src: "skills/{{ item.1 }}/"
+    dest: "{{ fleet_home }}/{{ item.0 }}/{{ item.1 }}/"
+    mode: "0644"
+    directory_mode: "0755"
+  loop: "{{ agent_config_skill_dirs | product(agent_config_skills) | list }}"
+  loop_control:
+    label: "~/{{ item.0 }}/{{ item.1 }}"
