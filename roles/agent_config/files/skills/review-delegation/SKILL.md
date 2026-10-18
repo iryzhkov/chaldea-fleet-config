@@ -34,6 +34,10 @@ each reviewer's thread ID, model and verdict in the reply and as a PR comment.
 Before each delegation, call FATE through `chaldea_route` or
 `chaldea route --role ROLE`. Pass the selected `providerInstanceId`, `model`
 and `options` exactly as the T3 `delegate_task` target, including effort.
+Each route returns one target plus alternatives/byProvider, not a review pair.
+The orchestrator selects each reviewer separately, calls FATE for each delegation
+and launches two fresh contexts. Current pins still apply; this guidance adds no
+automatic pair selection or joint model/effort optimizer.
 Use `builder` for main diff reviews, `critical-review` for consequential design
 or disputed findings, `bulk-read` for readers and `general` for other work.
 For the main other-provider review, pass the writer's driver as `authorProvider`,
