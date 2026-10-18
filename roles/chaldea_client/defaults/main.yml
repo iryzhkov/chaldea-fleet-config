@@ -9,6 +9,7 @@ chaldea_client_manifest_source: ""
 chaldea_client_root: "{{ fleet_home }}/.local/share/chaldea"
 chaldea_client_cache: "{{ fleet_home }}/.cache/chaldea-client"
 chaldea_client_quota_enabled: false
+chaldea_client_quota_no_new_privileges: true
 chaldea_client_waits_enabled: false
 chaldea_client_t3_home: "{{ fleet_home }}/.t3"
 chaldea_client_quota_token: "{{ fleet_home }}/.config/chaldea/t3-token"
