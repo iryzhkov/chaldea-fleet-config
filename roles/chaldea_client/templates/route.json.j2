@@ -10,5 +10,6 @@
   "claudeUsage": {
     "enabled": {{ chaldea_client_claude_usage_enabled | bool | to_json }},
     "providerInstanceId": {{ chaldea_client_claude_usage_provider | to_json }}
-  }
+  }{% for key, value in chaldea_client_route_targets.items() %},
+  {{ key | to_json }}: {{ value | to_json }}{% endfor %}
 }

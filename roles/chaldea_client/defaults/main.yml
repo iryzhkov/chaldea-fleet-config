@@ -29,7 +29,11 @@ chaldea_client_codex_command: "{{ fleet_home }}/.local/share/mise/shims/codex"
 chaldea_client_codex_assert_runtime_home: false
 chaldea_client_low_headroom_percent: 10
 # Route/capacity defaults from chaldea client-v0.3.0 docs/route.md.
-# Role pairs and Slopalytics URL are fixed by that client, not configuration keys.
+# New role-target fields are opt-in until a compatible client is pinned.
+# Example: {pins: {bulk-read: {model: gpt-6-luna}}}.
+# Also accepts bans, floors, minimumTurns, failureMargin, probationMs,
+# probationShare, scoreMaxAgeMs, scores and announceHost. Never place an AA key here.
+chaldea_client_route_targets: {}
 chaldea_client_claude_usage_enabled: false
 chaldea_client_claude_usage_provider: claudeAgent
 chaldea_client_pace_margin: 0.10

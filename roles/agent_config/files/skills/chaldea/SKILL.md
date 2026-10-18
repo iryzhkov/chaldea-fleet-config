@@ -27,12 +27,23 @@ use `builder` to retain the Opus/Sol pair; consequential design or disputed find
 use `critical-review` for Fable/Astra. If the tool or CLI cannot recommend a target,
 use the shared CLAUDE.md model roles and keep reviews on the other provider.
 
-The client pins builder to Opus 5.5/Sol 6.1 high, critical-review to Fable 5.1/Astra
-medium, bulk-read to Sonnet 5.5/Luna 6 medium, and general to Opus 5.5/Sol 6.1 medium.
-It excludes Haiku and OpenCode candidates. Its Slopalytics URL is
-https://slopalytics.com/data/t3-usage.json. Role pairs and this URL are client constants,
-not route.json keys. Fleet renders pacing and capacity thresholds; Claude usage
-collection stays off until Igor approves it and its local account binding is verified.
+Model roles: Opus 5.5 or Sol 6.1 high for builders, Fable 5.1 or Astra medium
+for critical review, Haiku 5.5 or Luna 6 medium for bulk reading, and Opus 5.5
+or Sol 6.1 medium for general work, or whatever `chaldea route` recommends.
+Sonnet-family models are excluded. Haiku is allowed. Never use max, ultra,
+ultrathink or ultracode. Respect explicit session restrictions.
+
+With the role-target client, routing evaluates the live T3 catalog against
+Artificial Analysis floors and objectives, Slopalytics probation and quota pacing.
+Fleet pins override model policy. Until its score snapshot is configured, the
+fallbacks above apply. The AA key exists only on homelab. Router hosts read
+non-secret snapshots through authenticated Akasha grants. See Chaldea's
+docs/route.md for the snapshot and probation settings. Older clients keep fixed
+pairs until upgraded, so apply this policy's Sonnet exclusion explicitly.
+
+The Slopalytics URL is https://slopalytics.com/data/t3-usage.json. Fleet renders
+pacing and capacity thresholds; Claude usage collection stays off until Igor
+approves it and its local account binding is verified.
 
 ## Run work on a job host
 
