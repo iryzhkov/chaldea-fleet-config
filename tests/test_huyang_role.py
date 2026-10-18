@@ -60,7 +60,7 @@ def fixture(tmp_path, monkeypatch, version="huyang-v9.0.0"):
         binary.write_text("#!/bin/sh\nexit 0\n")
         binary.chmod(0o755)
     # Ansible changes TMPDIR for modules; retain the asserted test scratch root.
-    monkeypatch.setenv("FAKE_SCRATCH_ROOT", os.environ["TMPDIR"])
+    monkeypatch.setenv("FAKE_SCRATCH_ROOT", os.path.realpath(os.environ["TMPDIR"]))
     monkeypatch.setenv("FAKE_MCP_CALLS", str(tmp_path / "mcp-calls.log"))
     roles = tmp_path / "roles"
     if not roles.exists():

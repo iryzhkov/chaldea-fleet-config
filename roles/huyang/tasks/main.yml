@@ -133,7 +133,7 @@
         path: "{{ huyang_root }}/health-pending"
       register: huyang_health_pending
 
-    - name: Load a changed Huyang unit
+    - name: Load a changed Huyang unit  # noqa: no-handler -- reload before the pin-controlled restart
       ansible.builtin.systemd_service:
         scope: user
         daemon_reload: true

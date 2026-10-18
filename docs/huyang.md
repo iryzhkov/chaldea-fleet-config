@@ -48,7 +48,8 @@ It checks required server executables and reports expected languages. Missing
 required servers fail the language presence gate. Provider capacity delays keep
 health pending for the next converge, without another restart or a false missing
 server failure. Slow initialization and unrelated project diagnostics do not
-fail the presence gate.
+fail the presence gate. A pending retry probes all selected languages again
+and may replace idle workspace providers until verification completes.
 
 ## Orchestrator commands
 

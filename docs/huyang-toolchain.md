@@ -8,7 +8,9 @@ installs Huyang itself, or changes personal Neovim configuration.
 
 Toolchain defaults belong to defaults/main.yml, so host inventory retains
 precedence for language selections. The parent imports tasks/lspconfig.yml after
-the role's enabled gate.
+the role's enabled gate. The server names and executable map form an internal
+contract shared by the installer and health client; overriding that map alone
+is unsupported. Host inventory can select languages and resource limits.
 
 The default huyang_languages list is exactly:
 go, rust, python, typescript, javascript, java, cpp, c, bash. This matches Huyang's
