@@ -1,0 +1,44 @@
+--- a/access-trust/issuer-grants.json
++++ b/access-trust/issuer-grants.json
+@@ -206,6 +206,20 @@
+             ]
+           }
+         ]
++      },
++      {
++        "audience": "akasha",
++        "profile": "quota-service",
++        "project": "chaldea",
++        "source": "quota",
++        "grants": [
++          {
++            "resource": "quota",
++            "actions": [
++              "read"
++            ]
++          }
++        ]
+       }
+     ]
+   },
+@@ -262,6 +276,20 @@
+             ]
+           }
+         ]
++      },
++      {
++        "audience": "akasha",
++        "profile": "quota-service",
++        "project": "chaldea",
++        "source": "quota",
++        "grants": [
++          {
++            "resource": "quota",
++            "actions": [
++              "append"
++            ]
++          }
++        ]
+       }
+     ]
+   },

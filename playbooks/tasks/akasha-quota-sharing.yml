@@ -1,0 +1,107 @@
+---
+- name: Install only the independent laptop quota release
+  ansible.builtin.include_role:
+    name: chaldea_client
+    tasks_from: quota-runtime
+  vars:
+    chaldea_client_quota_runtime_enabled: true
+    chaldea_client_quota_runtime_version: "{{ akasha_quota_runtime_version }}"
+    chaldea_client_quota_runtime_sha256: "{{ akasha_quota_runtime_sha256 }}"
+  when: inventory_hostname == 'omarchy-macbook-air-igor'
+
+- name: Create private sharing state and isolated configuration directories
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/{{ item }}"
+    state: directory
+    mode: "0700"
+  loop: >-
+    {{ ['.local/state/chaldea/quota-sharing'] +
+       (['.config/chaldea/quota-sharing-runtime',
+         '.config/chaldea/quota-sharing-runtime/chaldea',
+         '.local/state/chaldea/quota-sharing-runtime']
+        if inventory_hostname == 'omarchy-macbook-air-igor' else []) }}
+
+- name: Isolate laptop native event and restart configuration
+  ansible.builtin.copy:
+    content: "{{ item.content | to_nice_json }}\n"
+    dest: "{{ fleet_home }}/.config/chaldea/quota-sharing-runtime/chaldea/{{ item.name }}.json"
+    mode: "0600"
+  loop:
+    - {name: events, content: {}}
+    - name: restart
+      content:
+        enabled: false
+        journalPath: "{{ fleet_home }}/.local/state/chaldea/quota-sharing/restart.sqlite"
+  register: akasha_quota_isolation
+  when: inventory_hostname == 'omarchy-macbook-air-igor'
+
+- name: Render the isolated native-only laptop publisher
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../roles/chaldea_client/templates/quota.json.j2"
+    dest: "{{ fleet_home }}/.config/chaldea/quota-sharing.json"
+    mode: "0600"
+  vars:
+    chaldea_client_quota_runtime_enabled: true
+    chaldea_client_quota_fleet:
+      enabled: true
+      host: "{{ inventory_hostname }}"
+      url: "{{ akasha_collector_url }}"
+      tokenHelper: "{{ akasha_collector_token_helper }}"
+      cacheFile: "{{ fleet_home }}/.local/state/chaldea/quota-sharing/publish-cache.json"
+  register: akasha_quota_publisher_config
+  when: inventory_hostname == 'omarchy-macbook-air-igor'
+
+- name: Render the fixed laptop sharing unit from the canonical observer template
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../roles/chaldea_client/templates/chaldea-quota.service.j2"
+    dest: "{{ fleet_home }}/.config/systemd/user/chaldea-quota-sharing.service"
+    mode: "0644"
+  vars:
+    chaldea_node_version: "26.10.0"
+    chaldea_client_quota_runtime_enabled: true
+    chaldea_client_quota_runtime_version: "{{ akasha_quota_runtime_version }}"
+  register: akasha_quota_sharing_unit
+  when: inventory_hostname == 'omarchy-macbook-air-igor'
+
+- name: Converge only the explicit isolated publisher
+  ansible.builtin.systemd_service:
+    name: chaldea-quota-sharing.service
+    scope: user
+    enabled: true
+    daemon_reload: true
+    state: "{{ 'restarted' if akasha_quota_sharing_unit is changed or akasha_quota_isolation is changed or akasha_quota_publisher_config is changed else 'started' }}"
+  when: inventory_hostname == 'omarchy-macbook-air-igor' and not ansible_check_mode
+
+- name: Render only the PC router reader file with its normal account contexts
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../roles/chaldea_client/templates/quota.json.j2"
+    dest: "{{ fleet_home }}/.config/chaldea/quota-fleet-reader.json"
+    mode: "0600"
+  vars:
+    chaldea_client_quota_runtime_enabled: false
+    chaldea_client_codex_home: "{{ akasha_quota_normal_host.chaldea_client_codex_home }}"
+    chaldea_client_codex_assert_runtime_home: "{{ akasha_quota_normal_host.chaldea_client_codex_assert_runtime_home | default(false) }}"
+    chaldea_client_claude_contexts: "{{ akasha_quota_normal_host.chaldea_client_claude_contexts | default([]) }}"
+    chaldea_client_quota_fleet:
+      enabled: true
+      host: omarchy-pc
+      url: "{{ akasha_collector_url }}"
+      tokenHelper: "{{ akasha_collector_token_helper }}"
+      cacheFile: "{{ fleet_home }}/.local/state/chaldea/quota-sharing/reader-cache.json"
+  when: inventory_hostname == 'omarchy-pc'
+
+- name: Read PC routing policy without exposing configuration
+  ansible.builtin.slurp:
+    src: "{{ fleet_home }}/.config/chaldea/route.json"
+  register: akasha_quota_pc_route
+  no_log: true
+  when: inventory_hostname == 'omarchy-pc'
+
+- name: Select the persistent PC quota reader without changing other routing fields
+  ansible.builtin.copy:
+    content: "{{ (akasha_quota_pc_route.content | b64decode | from_json) | combine({'quotaConfigFile': fleet_home ~ '/.config/chaldea/quota-fleet-reader.json'}) | to_nice_json }}\n"
+    dest: "{{ fleet_home }}/.config/chaldea/route.json"
+    mode: "0600"
+    backup: true
+  no_log: true
+  when: inventory_hostname == 'omarchy-pc'

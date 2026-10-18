@@ -75,6 +75,21 @@ def test_exact_local_selection_and_no_passthrough(tmp_path):
         PULL.command(["agent-a", "a" * 40, str(path), "stage"], "agent-a", 1000, "/home/igor")
 
 
+@pytest.mark.parametrize("key,value", [
+    ("akasha_quota_laptop_publisher_enabled", True), ("akasha_quota_pc_reader_enabled", False),
+    ("akasha_quota_laptop_publisher_enabled", "false"), ("akasha_quota_pc_reader_enabled", 1),
+    ("akasha_quota_runtime_version", "client-v0.4.2"), ("akasha_quota_runtime_sha256", "a" * 64)])
+def test_sharing_public_inputs_allow_only_boolean_permissions_not_runtime_overrides(tmp_path, key, value):
+    path = tmp_path / "public.json"
+    path.write_text(json.dumps(dict(akasha_enrollment_public_keys=public_inputs()["public_keys"]) | {key:value}))
+    args = ["omarchy-pc", "a" * 40, str(path), "stage", "--check"]
+    if type(value) is bool:
+        assert PULL.command(args, "omarchy-pc", 1000, "/home/igor")[-1] == "playbooks/akasha-enrollment.yml"
+    else:
+        with pytest.raises(ValueError):
+            PULL.command(args, "omarchy-pc", 1000, "/home/igor")
+
+
 @pytest.mark.parametrize("fault", ["missing", "private", "bad", "duplicate", "reuse"])
 def test_canonical_key_rejections(client, fault):
     data = public_inputs()
@@ -115,6 +130,46 @@ def test_fixed_native_outputs_preserve_old_records_and_bound_pc(client, tmp_path
     optional = [r for r in records["registry"] if r["source"] in ("fleet-reader", "chaldea-quota")]
     assert len(optional) == 2 and all(r["host"] == "omarchy-pc" for r in optional)
     assert len(next(r for r in optional if r["source"] == "chaldea-quota")["kinds"]) == 7
+
+
+@pytest.mark.parametrize("laptop,reader", [(False, False), (True, False), (False, True), (True, True)])
+def test_quota_service_permissions_are_independent_and_never_global(client, laptop, reader):
+    data = public_inputs() | dict(pc_reader=True, pc_quota=True)
+    original = compose(client, data)
+    assert original.returncode == 0, original.stderr
+    baseline = json.loads(original.stdout)
+    result = compose(client, data | dict(laptop_quota=laptop, pc_quota_reader=reader))
+    assert result.returncode == 0, result.stderr
+    rendered = json.loads(result.stdout)
+    if laptop and reader and (evidence := os.environ.get("QUOTA_ENROLLMENT_RENDER_EVIDENCE")):
+        Path(evidence).write_text(result.stdout)
+    sharing = [r for r in rendered["registry"] if r["source"] == "quota"]
+    assert {r["host"] for r in sharing} == (
+        ({"omarchy-macbook-air-igor"} if laptop else set()) | ({"omarchy-pc"} if reader else set()))
+    for row in sharing:
+        assert row["mode"] == "service" and row["profile"] == "quota-service" and row["project"] == "chaldea"
+        assert row["kinds"] == ["quota_headroom_snapshot"] and "global_read" not in row
+        assert row.get("quota_fleet_read", False) is (row["host"] == "omarchy-pc")
+    assert [r for r in rendered["registry"] if r["source"] != "quota"] == baseline["registry"]
+    for host, grants in rendered["grants"].items():
+        assert [g for g in grants if g["source"] != "quota"] == baseline["grants"][host]
+        quota = [g for g in grants if g["source"] == "quota"]
+        assert all(g["action"] == ("read" if host == "omarchy-pc" else "append") for g in quota)
+        assert all(g["uid"] == (1001 if host == "omarchy-macbook-air-igor" else 1000) for g in quota)
+    for key in rendered["issuers"]:
+        prior = next(k for k in baseline["issuers"] if k["issuer"] == key["issuer"])
+        assert {k:v for k,v in key.items() if k != "ceilings"} == {k:v for k,v in prior.items() if k != "ceilings"}
+        assert [c for c in key["ceilings"] if c["source"] != "quota"] == prior["ceilings"]
+        for ceiling in [c for c in key["ceilings"] if c["source"] == "quota"]:
+            action = "read" if key["issuer"] == "chaldea:omarchy-pc" else "append"
+            assert ceiling == dict(audience="akasha", profile="quota-service", project="chaldea", source="quota",
+                                   grants=[dict(resource="quota", actions=[action])])
+
+
+@pytest.mark.parametrize("gate", ["laptop_quota", "pc_quota_reader"])
+@pytest.mark.parametrize("value", ["false", None, 1])
+def test_quota_gates_reject_non_booleans(client, gate, value):
+    assert compose(client, public_inputs() | {gate:value}).returncode != 0
 
 
 def test_disabled_play_and_missing_inputs_have_no_install_effects(tmp_path):

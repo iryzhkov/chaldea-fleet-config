@@ -22,7 +22,8 @@ def command(args, hostname, uid, home):
     if not inputs.is_absolute() or not inputs.is_file():
         raise ValueError("absolute public input file required")
     data = json.loads(inputs.read_text())
-    allowed = {"akasha_enrollment_public_keys", "akasha_pc_global_reader_enabled", "akasha_pc_quota_events_enabled"}
+    allowed = {"akasha_enrollment_public_keys", "akasha_pc_global_reader_enabled", "akasha_pc_quota_events_enabled",
+               "akasha_quota_laptop_publisher_enabled", "akasha_quota_pc_reader_enabled"}
     if not isinstance(data, dict) or not data.keys() <= allowed or not isinstance(data.get("akasha_enrollment_public_keys"), dict) or set(data["akasha_enrollment_public_keys"]) != set(policy):
         raise ValueError("public keys required; no arbitrary extra-vars")
     if any(type(data.get(k, False)) is not bool for k in allowed - {"akasha_enrollment_public_keys"}):

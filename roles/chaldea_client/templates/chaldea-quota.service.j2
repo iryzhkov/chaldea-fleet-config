@@ -7,7 +7,14 @@ StartLimitBurst=10
 
 [Service]
 Type=simple
+{% if chaldea_client_quota_runtime_enabled %}
+ExecStart=%h/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node /opt/chaldea-token-helper/releases/{{ chaldea_client_quota_runtime_version }}/bin/chaldea quota observe --t3-base-dir {{ chaldea_client_t3_home | replace(fleet_home, '%h') }} --token-file {{ chaldea_client_quota_token | replace(fleet_home, '%h') }} --state-file %h/.local/state/chaldea/quota-sharing/observer.json --feed-command /usr/bin/true --quota-config %h/.config/chaldea/quota-sharing.json --restart-config %h/.config/chaldea/quota-sharing-runtime/chaldea/restart.json
+Environment=XDG_CONFIG_HOME=%h/.config/chaldea/quota-sharing-runtime
+Environment=XDG_STATE_HOME=%h/.local/state/chaldea/quota-sharing-runtime
+UnsetEnvironment=AKASHA_URL AKASHA_TOKEN_HELPER
+{% else %}
 ExecStart=%h/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node %h/.local/share/chaldea/current/bin/chaldea quota observe --t3-base-dir {{ chaldea_client_t3_home | replace(fleet_home, '%h') }} --token-file {{ chaldea_client_quota_token | replace(fleet_home, '%h') }} --state-file %h/.local/state/chaldea/quota-observer.json --feed-command %h/.local/bin/feed --quota-config %h/.config/chaldea/quota.json
+{% endif %}
 Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=TMPDIR=%h/.cache/chaldea
 StateDirectory=chaldea
