@@ -1,0 +1,226 @@
+---
+- name: Explicit one-host Akasha enrollment
+  hosts: all
+  gather_facts: false
+  vars_files: [vars/akasha-enrollment.yml]
+  pre_tasks:
+    - name: Leave disabled enrollment inert
+      ansible.builtin.meta: end_play
+      when: not akasha_enrollment_enabled | bool
+      tags: [always]
+    - name: Require one exact canonical local host
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+          - inventory_hostname in akasha_enrollment_policy
+          - ansible_limit == inventory_hostname
+          - ansible_connection == 'local'
+          - akasha_enrollment_public_keys | length == 6
+          - akasha_enrollment_activate is boolean
+          - akasha_pc_global_reader_enabled is boolean
+          - akasha_pc_quota_events_enabled is boolean
+        quiet: true
+      tags: [always]
+    - name: Require persistent fleet inventory agreement before activation
+      ansible.builtin.assert:
+        that:
+          - akasha_enrollment_normal_host.akasha_collector_enabled | default(false) | bool
+          - akasha_enrollment_normal_host.akasha_collector_url | default('') == akasha_collector_url
+          - akasha_enrollment_normal_host.akasha_collector_token_helper | default('') == akasha_collector_token_helper
+        fail_msg: The next normal fleet pull would undo activation; integrate the reviewed host settings first.
+        quiet: true
+      vars:
+        akasha_enrollment_normal_inventory: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../inventory/hosts.yml') | from_yaml }}"
+        akasha_enrollment_normal_alias: "{{ 'laptop' if inventory_hostname == 'omarchy-macbook-air-igor' else inventory_hostname }}"
+        akasha_enrollment_normal_host: "{{ akasha_enrollment_normal_inventory.all.children.agent_hosts.hosts[akasha_enrollment_normal_alias] }}"
+      when: akasha_enrollment_activate | bool and akasha_enrollment_host.fleet
+      tags: [always]
+    - name: Gather only identity and platform facts
+      ansible.builtin.setup:
+        gather_subset: [min]
+      tags: [always]
+    - name: Bind the actual local account and hostname
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.hostname == inventory_hostname
+          - ansible_facts.user_uid | int == akasha_enrollment_host.uid
+          - ansible_facts.user_id == akasha_enrollment_host.user
+          - ansible_facts.user_dir == fleet_home
+          - ansible_facts.architecture in ['x86_64', 'aarch64']
+        quiet: true
+      tags: [always]
+    - name: Verify the pre-staged public client without installing anything
+      become: true
+      chaldea_client_release:
+        check_permissions: true
+        root: /opt/chaldea-token-helper/releases
+        archive: /opt/chaldea-token-helper/client-v0.4.0.tar.gz
+        manifest: /opt/chaldea-token-helper/client-v0.4.0.json
+        version: client-v0.4.0
+        sha256: fc80729f9179340c7a29ff1eac5a310aea013ddb107633e4f9b2f1250691dc8d
+      check_mode: true
+      register: akasha_enrollment_client
+      failed_when: akasha_enrollment_client is failed or akasha_enrollment_client is changed
+      tags: [always]
+    - name: Validate native public inputs using the staged verified client
+      ansible.builtin.command:
+        argv:
+          - "{{ akasha_enrollment_validation_node }}"
+          - "{{ playbook_dir }}/../tools/akasha-enrollment-inputs.mjs"
+          - "{{ akasha_enrollment_validation_client }}"
+          - "{{ playbook_dir }}/../access-trust/akasha-enrollment.json"
+          - "{{ playbook_dir }}/../access-trust/issuer-grants.json"
+        stdin: "{{ {'public_keys': akasha_enrollment_public_keys, 'pc_reader': akasha_pc_global_reader_enabled, 'pc_quota': akasha_pc_quota_events_enabled} | to_json }}"
+      register: akasha_enrollment_native
+      changed_when: false
+      check_mode: false
+      tags: [always]
+    - name: Retain validated public composition in memory
+      ansible.builtin.set_fact:
+        akasha_enrollment_rendered: "{{ akasha_enrollment_native.stdout | from_json }}"
+      tags: [always]
+    - name: Verify the explicit public validator runtime version
+      ansible.builtin.command:
+        argv: ["{{ akasha_enrollment_validation_node }}", --version]
+      register: akasha_enrollment_validation_version
+      changed_when: false
+      failed_when: akasha_enrollment_validation_version.stdout | trim != 'v26.12.0'
+      check_mode: false
+      tags: [always]
+    - name: Verify the explicitly selected collector runtime
+      ansible.builtin.command:
+        argv: ["{{ akasha_collector_node }}", --version]
+      register: akasha_enrollment_node
+      changed_when: false
+      failed_when: akasha_enrollment_node.stdout | trim != 'v26.10.0'
+      check_mode: false
+      tags: [always]
+    - name: Verify the existing protected trust runtime
+      ansible.builtin.command:
+        argv: ["{{ chaldea_access_trust_node }}", --version]
+      register: akasha_enrollment_trust_node
+      changed_when: false
+      failed_when: akasha_enrollment_trust_node.stdout | trim != 'v26.10.0'
+      check_mode: false
+      tags: [always]
+    - name: Inspect existing collector timer state without changing it
+      ansible.builtin.command:
+        argv: [systemctl, --user, show, akasha-collector.timer, --property=LoadState, --property=ActiveState, --property=UnitFileState]
+      register: akasha_enrollment_timer
+      changed_when: false
+      check_mode: false
+      tags: [always]
+    - name: Refuse staging over an active or enabled collector
+      ansible.builtin.assert:
+        that:
+          - "'ActiveState=inactive' in akasha_enrollment_timer.stdout_lines or 'ActiveState=failed' in akasha_enrollment_timer.stdout_lines"
+          - "'LoadState=not-found' in akasha_enrollment_timer.stdout_lines or 'UnitFileState=disabled' in akasha_enrollment_timer.stdout_lines"
+        quiet: true
+      when: not akasha_enrollment_activate | bool
+      tags: [always]
+    - name: Inspect existing bootstrap inputs before installation
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+      loop:
+        - {path: "{{ chaldea_token_helper_issuer.key_file }}", uid: "{{ akasha_enrollment_host.issuer_uid }}", mode: "0600"}
+        - {path: /var/lib/chaldea-issuer/access/state.sqlite, uid: "{{ akasha_enrollment_host.issuer_uid }}", mode: "0600"}
+        - {path: /etc/chaldea-access-trust/deploy-key, uid: 0, mode: "0600"}
+        - {path: /etc/chaldea-access-trust/known_hosts, uid: 0, mode: "0644"}
+        - {path: /var/lib/chaldea-access-trust/updater.sqlite, uid: 0, mode: "0600"}
+        - {path: /etc/chaldea-access-trust/anchors.json, uid: 0, mode: "0644"}
+        - {path: /var/lib/chaldea-access-trust-public/bundle.jws, uid: 0, mode: "0644"}
+        - {path: /run/chaldea-access-trust/clock-health.json, uid: 0, mode: "0644"}
+      register: akasha_enrollment_bootstrap
+      tags: [always]
+    - name: Require provisioned private bootstrap inputs
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg | default(false)
+          - not item.stat.islnk | default(false)
+          - item.stat.uid | default(-1) == item.item.uid | int
+          - item.stat.mode | default('') == item.item.mode
+          - item.stat.nlink | default(0) == 1
+        quiet: true
+      loop: "{{ akasha_enrollment_bootstrap.results }}"
+      tags: [always]
+    - name: Require obsolete user shippers stopped before collector activation
+      ansible.builtin.command:
+        argv: [systemctl, --user, is-active, "{{ item }}"]
+      loop: [toolfeedback-ship.timer, toolfeedback-ship.service]
+      register: akasha_enrollment_old_shipper
+      changed_when: false
+      failed_when: akasha_enrollment_old_shipper.rc not in [3, 4]
+      check_mode: false
+      when: akasha_enrollment_activate | bool
+      tags: [always]
+  tasks:
+    - name: Install the canonical root-owned helper
+      ansible.builtin.include_role:
+        name: chaldea_token_helper
+      tags: [enrollment_install]
+    # Trust already belongs to infra on homelab/Normandy. Never replace it here.
+    - name: Activate canonical fleet trust only in the activation phase
+      ansible.builtin.include_role:
+        name: chaldea_access_trust
+      when: akasha_enrollment_activate | bool and akasha_enrollment_host.fleet
+      tags: [enrollment_activate]
+    - name: Install or explicitly activate the canonical collector
+      ansible.builtin.include_role:
+        name: akasha_collector
+      tags: [enrollment_install]
+    - name: Create the private feed configuration directory during activation
+      ansible.builtin.file:
+        path: "{{ fleet_home }}/.config/feed"
+        state: directory
+        mode: "0700"
+      when: akasha_enrollment_activate | bool
+      tags: [enrollment_activate]
+    - name: Select CLI-only Akasha access during activation
+      ansible.builtin.copy:
+        content: |
+          FEED_URL=https://akasha.ryzhkov.dev
+          FEED_TOKEN_HELPER=/usr/local/bin/chaldea-token-helper
+          FEED_TOKEN=''
+          FEED_KEY_FILE=''
+          FEED_TOKEN_HOST={{ inventory_hostname }}
+          FEED_READ_SOURCE={{ 'fleet-reader' if inventory_hostname == 'omarchy-pc' and akasha_pc_global_reader_enabled else '' }}
+          TOOLFEEDBACK_TOKEN_SOURCE={{ 'fleet-reader' if inventory_hostname == 'omarchy-pc' and akasha_pc_global_reader_enabled else '' }}
+        dest: "{{ fleet_home }}/.config/feed/config"
+        mode: "0600"
+        backup: true
+      when: akasha_enrollment_activate | bool
+      tags: [enrollment_activate]
+    - name: Create PC native publisher configuration directory when approved
+      ansible.builtin.file:
+        path: "{{ fleet_home }}/.config/chaldea"
+        state: directory
+        mode: "0700"
+      when: akasha_enrollment_activate | bool and inventory_hostname == 'omarchy-pc' and akasha_pc_quota_events_enabled | bool
+      tags: [enrollment_activate]
+    - name: Configure the seven-kind PC publisher when approved
+      ansible.builtin.copy:
+        content: "{{ {'url': akasha_collector_url, 'tokenHelper': akasha_collector_token_helper} | to_nice_json }}\n"
+        dest: "{{ fleet_home }}/.config/chaldea/events.json"
+        mode: "0600"
+        backup: true
+      notify: Restart approved PC quota publisher
+      when: akasha_enrollment_activate | bool and inventory_hostname == 'omarchy-pc' and akasha_pc_quota_events_enabled | bool
+      tags: [enrollment_activate]
+    - name: Switch existing fleet timer outcomes only during activation
+      ansible.builtin.copy:
+        content: "{{ {'delivery': 'queue'} | to_json }}\n"
+        dest: "{{ fleet_home }}/.config/chaldea/timer-reporting.json"
+        mode: "0644"
+      when: akasha_enrollment_activate | bool and akasha_enrollment_host.fleet
+      tags: [enrollment_activate]
+  handlers:
+    - name: Restart approved PC quota publisher
+      ansible.builtin.systemd_service:
+        name: chaldea-quota.service
+        scope: user
+        state: restarted
+      when: akasha_enrollment_activate | bool and inventory_hostname == 'omarchy-pc' and akasha_pc_quota_events_enabled | bool

@@ -1,0 +1,30 @@
+---
+# Only this explicit play consumes these inputs. Ordinary site defaults are unchanged.
+akasha_enrollment_enabled: false
+akasha_enrollment_activate: false
+akasha_enrollment_public_keys: {}
+akasha_pc_global_reader_enabled: false
+akasha_pc_quota_events_enabled: false
+akasha_enrollment_policy: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../access-trust/akasha-enrollment.json') | from_json }}"
+akasha_enrollment_host: "{{ akasha_enrollment_policy[inventory_hostname] }}"
+fleet_home: "{{ akasha_enrollment_host.home }}"
+# Public-only validation prerequisite, staged from the pinned archive separately.
+akasha_enrollment_validation_client: /opt/chaldea-token-helper/releases/client-v0.4.0
+akasha_enrollment_validation_node: "/opt/chaldea-token-helper/node-v26.12.0-linux-{{ 'x64' if ansible_facts.architecture == 'x86_64' else 'arm64' }}/bin/node"
+akasha_collector_node: "{{ fleet_home ~ '/.local/share/mise/installs/node/26.10.0/bin/node' if akasha_enrollment_host.fleet else '/opt/chaldea/node/bin/node' }}"
+akasha_collector_url: https://akasha.ryzhkov.dev
+akasha_collector_token_helper: /usr/local/bin/chaldea-token-helper
+akasha_collector_enabled: "{{ akasha_enrollment_activate | bool }}"
+chaldea_token_helper_enabled: true
+chaldea_token_helper_client_version: client-v0.4.0
+chaldea_token_helper_client_sha256: fc80729f9179340c7a29ff1eac5a310aea013ddb107633e4f9b2f1250691dc8d
+chaldea_token_helper_issuer:
+  uid: "{{ akasha_enrollment_host.issuer_uid }}"
+  name: "chaldea:{{ inventory_hostname }}"
+  kid: "{{ akasha_enrollment_host.kid }}"
+  key_file: "/var/lib/chaldea-issuer/keys/{{ akasha_enrollment_host.kid }}.pem"
+chaldea_token_helper_grants: "{{ akasha_enrollment_rendered.grants[inventory_hostname] }}"
+# Existing trust must have a protected runtime, independent of the user's mise path.
+chaldea_access_trust_node: /opt/chaldea/node/bin/node
+# The installer consumes existing trust; never initialize it or enroll a new anchor.
+chaldea_access_trust_enabled: true
