@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_collector_stays_off_on_every_client_host():
     defaults = yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text())
-    common = yaml.safe_load((ROOT / "inventory/group_vars/all.yml").read_text())
+    common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert set(hosts) == {"agent-a", "agent-b", "omarchy-pc", "laptop"}
     assert common["chaldea_client_version"] == "client-v0.3.0"

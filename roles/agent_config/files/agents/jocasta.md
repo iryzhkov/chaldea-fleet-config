@@ -1,7 +1,7 @@
 # Jocasta: shared working documents
 
-Generated from the Working documents: Jocasta section of omarchy-setup's
-config/claude/CLAUDE.md. Edit it there and run agents-instructions-gen.
+Maintained in chaldea-fleet-config's roles/agent_config/files/agents/jocasta.md.
+Edit that source; installed copies are outputs.
 
 
 Jocasta stores shared plans, handoffs, research and prompts. Use its CLI on any fleet host:

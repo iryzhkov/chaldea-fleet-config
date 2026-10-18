@@ -1,0 +1,21 @@
+[Unit]
+Description=Huyang semantic workspace service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.local/share/huyang/current
+ExecStart=%h/.local/share/huyang/current/bin/huyang serve --socket {{ huyang_socket }} --state-dir {{ huyang_state_dir }}
+# Resolve the kernel beside the running executable, even while current changes.
+UnsetEnvironment=HUYANG_RUNTIME_PATH AGENT99_RUNTIME_PATH
+Environment="HUYANG_HEADLESS_INIT={{ huyang_headless_init }}"
+Environment="PATH={{ huyang_toolchain_bin }}:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="TMPDIR=%h/.cache/huyang/tmp"
+{% if huyang_java_home | default('') | length > 0 %}
+Environment="JAVA_HOME={{ huyang_java_home }}"
+{% endif %}
+Restart=on-failure
+MemoryHigh={{ huyang_memory_high }}
+RestartSec=2
+
+[Install]
+WantedBy=default.target

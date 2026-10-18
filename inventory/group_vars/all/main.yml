@@ -20,9 +20,13 @@ agent_tools_sources:
     repo: https://github.com/iryzhkov/ov-mcp.git
     ref: efac1c8f04662a3512da84aa6559a26061e97832
 
-# Source-owned OpenCode plugin: exact public omarchy-setup bytes, verified via gh API.
-agent_config_huyang_plugin_ref: ebec80bca66d684d6fe47c5c57c7cf212b6558b2
-agent_config_huyang_plugin_sha256: e46883992727741758115492030f75bb26dbea14dccd3a4b4c3459cc5547f6c4
+# Published by the first main-only huyang-v* release. Deliberately unset until
+# the orchestrator reviews the assets; no host can activate without both pins.
+huyang_enabled: false
+huyang_version: ""
+huyang_sha256:
+  x86_64: ""
+  aarch64: ""
 
 # Credentials are referenced by path only (relative to the home directory);
 # the play checks that each file exists and is private, never reads it.

@@ -1,0 +1,62 @@
+-- Fleet provider only. Huyang runs this with --clean -u HUYANG_HEADLESS_INIT.
+local source = assert(vim.uv.fs_realpath(debug.getinfo(1, "S").source:sub(2)))
+local root = vim.fs.dirname(source)
+local stream = assert(io.open(root .. "/config.json", "r"))
+local cfg = vim.json.decode(stream:read("*a"))
+stream:close()
+vim.g.huyang_fleet_config = cfg
+-- Exclude personal config, plugins, packages, and Mason from the provider.
+vim.opt.runtimepath = { root .. "/runtime", root .. "/lspconfig", vim.env.VIMRUNTIME }
+vim.opt.packpath = vim.opt.runtimepath:get()
+vim.env.PATH = root .. "/bin:" .. (vim.env.PATH or "/usr/bin:/bin")
+if cfg.servers.java then
+  vim.env.JAVA_HOME = root .. "/jdk"
+end
+if cfg.servers.rust then
+  vim.env.RUST_SRC_PATH = root .. "/rust_src/rust-src/lib/rustlib/src/rust/library"
+end
+vim.treesitter.language.register("bash", { "sh", "zsh", "ksh" })
+vim.treesitter.language.register("tsx", "typescriptreact")
+vim.treesitter.language.register("javascript", "javascriptreact")
+vim.treesitter.language.register("vimdoc", "help")
+if vim.env.HUYANG_TOOLCHAIN_VERIFY ~= "1" then
+  -- Refuse state-directory symlinks before any runtime write.
+  local function ensure_directory(path)
+    local current = ""
+    for component in path:gmatch("[^/]+") do
+      current = current .. "/" .. component
+      local info = vim.uv.fs_lstat(current)
+      if info then
+        assert(info.type == "directory", "unsafe Huyang state directory: " .. current)
+      else
+        assert(vim.uv.fs_mkdir(current, 448))
+      end
+    end
+  end
+  -- Runtime writes are separate from the immutable release and personal Neovim.
+  for _, directory in ipairs({ "cache", "data", "state", "config" }) do
+    local path = cfg.state_root .. "/nvim/" .. directory
+    ensure_directory(path)
+    vim.env["XDG_" .. directory:upper() .. "_HOME"] = path
+  end
+  ensure_directory(cfg.state_root .. "/tmp")
+  ensure_directory(cfg.state_root .. "/m2/repository")
+  ensure_directory(cfg.state_root .. "/java-prefs")
+  vim.env.TMPDIR = cfg.state_root .. "/tmp"
+  local java_configuration = cfg.state_root .. "/jdtls/" .. vim.fs.basename(root) .. "/configuration"
+  ensure_directory(java_configuration)
+  -- Python launchers must not create bytecode inside an immutable release.
+  vim.env.PYTHONDONTWRITEBYTECODE = "1"
+  vim.env.JDTLS_JVM_ARGS = "-Dmaven.repo.local=" .. cfg.state_root .. "/m2/repository"
+    .. " -Djava.util.prefs.userRoot=" .. cfg.state_root .. "/java-prefs"
+    .. " -Djava.io.tmpdir=" .. vim.env.TMPDIR
+    .. " -Dosgi.configuration.area=" .. java_configuration
+  local enabled, seen = {}, {}
+  for _, server in pairs(cfg.servers) do
+    if not seen[server.config] then
+      enabled[#enabled + 1] = server.config
+      seen[server.config] = true
+    end
+  end
+  vim.lsp.enable(enabled)
+end
