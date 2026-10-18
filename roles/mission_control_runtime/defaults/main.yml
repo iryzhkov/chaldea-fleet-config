@@ -1,9 +1,9 @@
 ---
 mission_control_runtime_enabled: false
 # Select only after the hosted artifact has been published and qualified.
-mission_control_version: ""
-mission_control_sha256: ""
-mission_control_release_root: /opt/chaldea-mission-control
-mission_control_node: /opt/chaldea/node/bin/node
-mission_control_archive_source: ""
-mission_control_manifest_source: ""
+mission_control_runtime_version: ""
+mission_control_runtime_sha256: ""
+mission_control_runtime_release_root: /opt/chaldea-mission-control
+mission_control_runtime_node: /opt/chaldea/node/bin/node
+mission_control_runtime_archive_source: ""
+mission_control_runtime_manifest_source: ""

@@ -126,9 +126,9 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
     role = fixture_role(tmp_path, "mission_control_reader")
     values = dict(mission_control_reader_enabled=True, mission_control_runtime_enabled=True,
         mission_control_reader_uid=23017,  # fixture only, production remains null
-        mission_control_allowed_source_ids=["agent-a--mission-control"],
-        mission_control_node="/bin/true", mission_control_release_root=str(tmp_path / "runtime"),
-        mission_control_version="client-v9.8.7", mission_control_cache_file=str(tmp_path / "cache/latest.json"),
+        mission_control_reader_allowed_source_ids=["agent-a--mission-control"],
+        mission_control_runtime_node="/bin/true", mission_control_runtime_release_root=str(tmp_path / "runtime"),
+        mission_control_runtime_version="client-v9.8.7", mission_control_reader_cache_file=str(tmp_path / "cache/latest.json"),
         mission_control_reader_grants=[dict(uid=23017, audience="akasha", action="read", source="mission-control-reader",
             host="omarchy-normandy", kind="agent_status", profile="mission-control-reader", project="chaldea")])
     ok(play(tmp_path, "omarchy-normandy", roles=[role], values=values, check=True))
@@ -149,7 +149,7 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
     ok(again)
     assert "changed=0" in again.stdout
     for key, invalid in (("mission_control_reader_uid", None), ("mission_control_reader_uid", 1000),
-                         ("mission_control_allowed_source_ids", ["foreign"]), ("mission_control_reader_grants", [])):
+                         ("mission_control_reader_allowed_source_ids", ["foreign"]), ("mission_control_reader_grants", [])):
         result = play(tmp_path, "omarchy-normandy", roles=[role], values=values | {key: invalid})
         assert result.returncode != 0
         assert "Require a selected dedicated UID" in result.stdout
@@ -166,11 +166,11 @@ def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
     helper = tmp_path / "helper/client-v0.4.0"
     helper.mkdir(parents=True)
     (helper / "sentinel").write_bytes(b"old helper unchanged")
-    values = dict(mission_control_runtime_enabled=True, mission_control_version=variables["chaldea_client_version"],
-        mission_control_sha256=variables["chaldea_client_sha256"], mission_control_node=str(tmp_path / "node/bin/node"),
-        mission_control_release_root=str(tmp_path / "runtime"),
-        mission_control_archive_source=variables["chaldea_client_archive_source"],
-        mission_control_manifest_source=variables["chaldea_client_manifest_source"])
+    values = dict(mission_control_runtime_enabled=True, mission_control_runtime_version=variables["chaldea_client_version"],
+        mission_control_runtime_sha256=variables["chaldea_client_sha256"], mission_control_runtime_node=str(tmp_path / "node/bin/node"),
+        mission_control_runtime_release_root=str(tmp_path / "runtime"),
+        mission_control_runtime_archive_source=variables["chaldea_client_archive_source"],
+        mission_control_runtime_manifest_source=variables["chaldea_client_manifest_source"])
     ok(play(tmp_path, "fixture", roles=[role], values=values, check=True))
     ok(play(tmp_path, "fixture", roles=[role], values=values))
     again = play(tmp_path, "fixture", roles=[role], values=values)
@@ -191,8 +191,8 @@ def test_capture_and_reader_units_offline_verification(tmp_path):
     from jinja2 import Environment, StrictUndefined
     env = Environment(undefined=StrictUndefined)
     env.filters.update(FilterModule().filters())
-    variables = dict(mission_control_node="/bin/true", mission_control_release_root="/fixture",
-        mission_control_version="client-v9.8.7", mission_control_capture_home="/home/igor",
+    variables = dict(mission_control_runtime_node="/bin/true", mission_control_runtime_release_root="/fixture",
+        mission_control_runtime_version="client-v9.8.7", mission_control_capture_home="/home/igor",
         mission_control_capture_snapshot_file="/home/igor/.local/state/chaldea/mission-control/latest.json")
     units = []
     for role, name in (("mission_control_capture", "mission-control-capture"), ("mission_control_reader", "mission-control-reader")):
