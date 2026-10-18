@@ -300,6 +300,11 @@ FATE_GUIDANCE_CHANGES = {
             "For other outage roles, use the `chaldea` skill's documented fallback.\n"
             "Never use max, ultra, ultrathink, ultracode or higher effort."
         )),
+        ((
+            "A critical-review model (Astra or Fable) only for a consequential design"
+        ), (
+            "The `critical-review` role only for a consequential design"
+        )),
     ],
     "skills/roadmap-executor/SKILL.md": [
         ((
@@ -471,6 +476,7 @@ def assert_delegation_contract(read):
     skills = [read("skills/" + name + "/SKILL.md")
               for name in ("chaldea", "review-delegation", "roadmap-executor")]
     for text in instructions + skills:
+        text = " ".join(text.split())
         for field in ("`providerInstanceId`", "`model`", "`options`"):
             assert field in text
         assert "--author-provider" in text

@@ -19,7 +19,7 @@ Review the final commit of each milestone of an agreed plan:
 - Add at most one narrow fan-out review, only for security- or data-sensitive
   work, with exactly one target area such as data safety or credential handling.
   Conserve Claude for required main reviews; no optional Claude fan-outs.
-- A critical-review model (Astra or Fable) only for a consequential design
+- The `critical-review` role only for a consequential design
   decision or a disputed finding, or the quota exception below.
 
 OpenCode models are not used for reviews. Reviews stay within the brief. Report
