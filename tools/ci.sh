@@ -58,6 +58,7 @@ ansible-lint --exclude "$TMPDIR" --exclude "${TMPDIR#"$PWD"/}"
 export FAKE_SYSTEMCTL_UNIT_HOME="$PWD/.ci-home"
 synthetic=(-i inventory -i tests/synthetic-inventory.yml --limit synthetic --extra-vars "@$TMPDIR/host-artifact-vars.json" --extra-vars "@$TMPDIR/client-artifact-vars.json")
 ansible-playbook "${synthetic[@]}" site.yml --syntax-check
+ansible-playbook -i inventory/akasha-enrollment.yml playbooks/akasha-enrollment.yml --syntax-check
 reset_home
 ansible-playbook "${synthetic[@]}" site.yml --check --diff
 
