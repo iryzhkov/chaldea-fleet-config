@@ -115,6 +115,16 @@ other provider continue.
 - The author may dispute a finding with a reason. Disputes go to a
   critical-review model or to Igor, not to another round of the same reviewer.
 
+## Preserve review notes
+
+At review completion, the root/worker preserves notes and verdict links in the PR and
+existing Jocasta checkpoint/backlog, with exact reviewed heads, task/thread IDs, models,
+citations/locations and source links. Publish native Akasha review notes/verdicts only
+through a known authorized producer/path and retain its committed receipt. Schema support
+alone does not prove delivery. If that path is unavailable, retain PR/Jocasta references
+and report the collection gap. Never add grants silently or treat generic `feed_post`
+as `review_note`. This guidance does not implement a collection pipeline.
+
 ## Delegating work
 
 - Workers get no conversation history. Write a self-contained brief: repository

@@ -24,6 +24,25 @@ sessions. Continue routine work inside Igor's agreement without asking again.
 - Read `~/.config/agents/jocasta.md` before writes. Fetch in full, reconcile
   and update with `--if-revision N`; never overwrite a concurrent update.
 
+## Use review notes when selecting work
+
+At kickoff/resume, audit boundaries and before selecting the next milestone, read a
+bounded set of untriaged review notes through authorized Akasha reads when available;
+otherwise use linked PR/Jocasta records and report the collection gap. Retain the
+last triage references in the existing checkpoint/backlog; do not reread all history
+every turn or add polling/cron.
+
+Aggregate and deduplicate underlying issues before selecting work. Preserve exact
+reviewed heads, task/thread IDs, reviewer models, citations/locations and source links.
+Revalidate against current code for fixes or superseded findings. Rank by roadmap fit,
+concrete benefit/risk, effort and dependencies.
+
+Select useful bounded work within existing roadmap/autonomy authority. Record a brief
+disposition, reason and adopted work's PR/milestone link in the existing checkpoint or
+backlog. Notes do not reopen accepted reviews or block a milestone by default. New
+milestones, out-of-scope work, large cost, security/credential changes or multi-host
+work require separate authority when not already authorized. No new tracking database.
+
 ## Delegate and follow work
 
 - Before each T3 `delegate_task`, call FATE through `chaldea_route` or

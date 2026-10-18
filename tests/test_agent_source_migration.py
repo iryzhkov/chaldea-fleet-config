@@ -655,7 +655,18 @@ MODEL_ANCHOR_CHANGES = {
 }
 
 
+# Review-note triage guidance adopted by Igor, plan revision 54.
+REVIEW_NOTE_INSERTIONS = {
+    "skills/roadmap-executor/SKILL.md": "## Use review notes when selecting work\n\nAt kickoff/resume, audit boundaries and before selecting the next milestone, read a\nbounded set of untriaged review notes through authorized Akasha reads when available;\notherwise use linked PR/Jocasta records and report the collection gap. Retain the\nlast triage references in the existing checkpoint/backlog; do not reread all history\nevery turn or add polling/cron.\n\nAggregate and deduplicate underlying issues before selecting work. Preserve exact\nreviewed heads, task/thread IDs, reviewer models, citations/locations and source links.\nRevalidate against current code for fixes or superseded findings. Rank by roadmap fit,\nconcrete benefit/risk, effort and dependencies.\n\nSelect useful bounded work within existing roadmap/autonomy authority. Record a brief\ndisposition, reason and adopted work's PR/milestone link in the existing checkpoint or\nbacklog. Notes do not reopen accepted reviews or block a milestone by default. New\nmilestones, out-of-scope work, large cost, security/credential changes or multi-host\nwork require separate authority when not already authorized. No new tracking database.\n\n",
+    "skills/review-delegation/SKILL.md": "## Preserve review notes\n\nAt review completion, the root/worker preserves notes and verdict links in the PR and\nexisting Jocasta checkpoint/backlog, with exact reviewed heads, task/thread IDs, models,\ncitations/locations and source links. Publish native Akasha review notes/verdicts only\nthrough a known authorized producer/path and retain its committed receipt. Schema support\nalone does not prove delivery. If that path is unavailable, retain PR/Jocasta references\nand report the collection gap. Never add grants silently or treat generic `feed_post`\nas `review_note`. This guidance does not implement a collection pipeline.\n\n"
+}
+
+
 def old_bytes(relative, data):
+    if relative in REVIEW_NOTE_INSERTIONS:
+        insertion = REVIEW_NOTE_INSERTIONS[relative].encode()
+        assert data.count(insertion) == 1, relative
+        data = data.replace(insertion, b"", 1)
     for before, after in reversed(MODEL_ANCHOR_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
