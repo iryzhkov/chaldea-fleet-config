@@ -63,8 +63,9 @@ allows two different models on the same provider when quota is tight, with fresh
 quota evidence and honest labeling. One independent review is acceptable when
 quota or availability prevents the pair. Astra/Fable serve consequential design,
 disputed findings or a stronger available-provider peer, not mandatory normal reviews.
-Unknown quota, missing routing recommendations or a collector HTTP 429 alone grant no waiver. Never
-use max, ultra, ultrathink, ultracode or higher effort. Sonnet is excluded;
+Unknown quota, missing routing recommendations or a collector HTTP 429 alone grant no waiver. Maximum effort is high; only Luna/Haiku may use xhigh.
+These are ceilings, not defaults. Choose only available live-catalog models/options;
+Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode. Sonnet is excluded;
 Haiku is allowed when selected. Avoid optional Claude fan-outs.
 
 ### Supported policy and deployment state

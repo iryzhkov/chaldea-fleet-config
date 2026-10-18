@@ -61,7 +61,9 @@ for the requested cross-provider review; record it and use the fallback.
 Keep Claude use to the preferred pair and required main review. If the other-provider
 fallback cannot run, record the evidence and apply the quota or single-review rule.
 For other outage roles, use the `chaldea` skill's documented fallback.
-Never use max, ultra, ultrathink, ultracode or higher effort.
+Maximum effort is high; only Luna/Haiku may use xhigh.
+These are ceilings, not defaults. Choose only available live-catalog models/options;
+Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode.
 
 Start every review round, including re-reviews, as a fresh
 `delegate_task` that carries the brief, the prior findings and the responses to

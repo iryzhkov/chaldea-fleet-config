@@ -137,7 +137,9 @@ host yet; ask Igor to start work there from the T3 app.
 
 FATE selects targets within the adopted review pair and role rules; explicit user
 model overrides still apply. Use the documented outage fallback when routing is unavailable. Sonnet is excluded; Haiku is
-allowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.
+allowed when selected. Maximum effort is high; only Luna/Haiku may use xhigh.
+These are ceilings, not defaults. Choose only available live-catalog models/options;
+Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode.
 Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.
 Read a quick lookup in a known file directly.
 

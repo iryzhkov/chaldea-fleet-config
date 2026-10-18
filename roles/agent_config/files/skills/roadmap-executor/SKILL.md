@@ -41,7 +41,9 @@ sessions. Continue routine work inside Igor's agreement without asking again.
   main-review fallback. Apply its provider rule and "Quota exception", including
   its PR comment and checkpoint evidence. Reject a same-provider target unless
   that quota exception qualifies; compare underlying provider drivers in the live
-  catalog. Never use max effort or above.
+  catalog. Maximum effort is high; only Luna/Haiku may use xhigh.
+  These are ceilings, not defaults. Choose only available live-catalog models/options;
+  Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode.
 - Load review-delegation for self-contained worker briefs, worktree isolation
   and review rules. Prefer independent Sol 6.1 high and Opus 5.5 high reviews with
   both providers whenever quota allows. Its "Quota exception" allows two different

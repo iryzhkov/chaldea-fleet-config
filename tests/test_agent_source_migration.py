@@ -541,7 +541,52 @@ REVIEW_PAIR_CHANGES = {
 }
 
 
+# Effort ceilings adopted by Igor after the review-pair decision, 2026-10-18.
+EFFORT_CEILING_CHANGES = {
+    "agents/AGENTS.md": [
+        [
+            "Never use max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "codex/AGENTS.md": [
+        [
+            "Never use max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "claude/omarchy-setup/CLAUDE.md": [
+        [
+            "Never use max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "skills/chaldea/SKILL.md": [
+        [
+            "Never\nuse max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "skills/review-delegation/SKILL.md": [
+        [
+            "Never use max, ultra, ultrathink, ultracode or higher effort.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\nThese are ceilings, not defaults. Choose only available live-catalog models/options;\nHaiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ],
+    "skills/roadmap-executor/SKILL.md": [
+        [
+            "Never use max effort or above.",
+            "Maximum effort is high; only Luna/Haiku may use xhigh.\n  These are ceilings, not defaults. Choose only available live-catalog models/options;\n  Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode."
+        ]
+    ]
+}
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(EFFORT_CEILING_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(REVIEW_PAIR_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
@@ -632,6 +677,10 @@ def assert_delegation_contract(read):
         assert "installed CLI" in text and "Quota exception" in text
         assert "Reject a same-provider target" in text
         assert "underlying provider drivers" in text
+        assert "Maximum effort is high; only Luna/Haiku may use xhigh." in text
+        assert "These are ceilings, not defaults." in text
+        assert "Haiku needs an available catalog target." in text
+        assert "Never use max, ultra, ultrathink or ultracode." in text
         assert "The client pins builder to" not in text
         assert "Model roles:" not in text
     review = skills[1]
