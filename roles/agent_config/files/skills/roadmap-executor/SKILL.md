@@ -26,15 +26,21 @@ sessions. Continue routine work inside Igor's agreement without asking again.
 
 ## Delegate and follow work
 
-- Before each T3 `delegate_task`, call `chaldea_route` or `chaldea route --role ROLE`
-  and pass its `providerInstanceId`, `model` and `options` as the delegate target.
+- Before each T3 `delegate_task`, call FATE through `chaldea_route` or
+  `chaldea route --role ROLE`. Pass the selected `providerInstanceId`, `model`
+  and `options` exactly as the delegate target, including effort.
   Use `builder` for implementation and main diff reviews, `critical-review` for
   consequential design or disputed findings, `bulk-read` for readers and `general`
   for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`
-  or `codex`, or CLI `--author-provider`, to require the other provider. Honor session
-  model restrictions. If routing is unavailable, use the CLAUDE.md model roles and
-  `orchestrator_capabilities` IDs. Apply `review-delegation`'s provider rule and
-  "Quota exception", including its PR comment and checkpoint evidence.
+  or `codex`, or CLI `--author-provider`, to require the other provider. Honor
+  explicit user/model overrides. If MCP rejects newer configuration keys, use the
+  installed CLI without restarting T3. If neither can recommend a target, use the
+  `chaldea` skill's documented outage fallback and live catalog IDs. For main reviews,
+  a Codex builder pin refusal uses `review-delegation`'s approved other-provider
+  main-review fallback. Apply its provider rule and "Quota exception", including
+  its PR comment and checkpoint evidence. Reject a same-provider target unless
+  that quota exception qualifies; compare underlying provider drivers in the live
+  catalog. Never use max effort or above.
 - Load review-delegation for self-contained worker briefs, worktree isolation
   and review rules. Builders may run their own compliant T3 reviews; reuse
   their final-commit acceptance rather than repeating it. Do not restate or

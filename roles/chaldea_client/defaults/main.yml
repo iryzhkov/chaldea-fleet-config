@@ -28,8 +28,7 @@ chaldea_client_codex_command: "{{ fleet_home }}/.local/share/mise/shims/codex"
 # another account's balance, and nothing spends or acts on it.
 chaldea_client_codex_assert_runtime_home: false
 chaldea_client_low_headroom_percent: 10
-# Route/capacity defaults from chaldea client-v0.3.0 docs/route.md.
-# Role pairs and Slopalytics URL are fixed by that client, not configuration keys.
+# Route/capacity defaults. Role-target fields require a compatible client.
 chaldea_client_claude_usage_enabled: false
 chaldea_client_claude_usage_provider: claudeAgent
 # Token paths only. Readers never render or copy credential contents.

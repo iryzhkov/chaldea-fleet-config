@@ -36,23 +36,26 @@ tests/fixtures/agent_config_before.json records all source hashes from fleet
 main 7185b506, plus the former downloaded plugin hash. The render test installs
 the agent_config role for agent-a, agent-b, omarchy-pc and laptop into disposable
 homes, and compares every managed file and skill against this baseline.
-Only the exact blocks in AUTHORIZED_CHANGES and QUOTA_REVIEW_CHANGES in
-test_agent_source_migration.py may differ, as authorized by Igor on 2026-10-18.
-Each replacement must occur exactly once and is reversed before comparison
-with the unchanged historic hashes. Ownership and wait-guidance changes are:
+Only the exact blocks in AUTHORIZED_CHANGES, QUOTA_REVIEW_CHANGES and
+FATE_GUIDANCE_CHANGES in test_agent_source_migration.py may differ, as
+authorized by Igor on 2026-10-18. Each replacement must occur exactly once.
+The test reverses the new FATE blocks first, then the earlier quota-review,
+ownership and wait changes, before comparing the unchanged historical hashes.
 
-- agents/jocasta.md lines 3-4 now identify the maintained fleet source.
-- agents/ov-memory.md lines 3-5 now identify fleet sources and aligned skills.
-- agents/huyang.md lines 5-8 replace the obsolete Omarchy generator overlap
-  claim with fleet ownership and the retired-generator note.
-- skills/chaldea/SKILL.md adds the optional wait-description guidance and the
-  description argument in the existing CLI example.
+The plan30 completion gate aligns all three instruction entry points and
+the chaldea, review-delegation and roadmap-executor skills. They call FATE
+before delegation and pass its exact providerInstanceId, model and options,
+including effort. Fixed-model claims survive only as the documented outage
+fallback. The guidance preserves explicit overrides, cross-provider main
+reviews, the strict quota exception, native T3 completion, worktree isolation
+and existing budgets. Render tests exercise the real role and inventory for
+all four hosts and check the installed delegation contract in both skill trees.
 
-QUOTA_REVIEW_CHANGES records the quota-review policy deltas in agents/AGENTS.md,
-codex/AGENTS.md, claude/omarchy-setup/CLAUDE.md and the review-delegation, chaldea,
-roadmap-executor and chaldea-audit skills. The test reverses these exact blocks
-byte-for-byte to the 7185b506 baseline before comparing hashes. The fixture and
-its hashes stay unchanged.
+Merging guidance to main distributes it through active fleet pull timers.
+Keep source preparation draft with auto-merge off until the parent approves
+that activation. Report reviewed, merged, distributed and verified separately,
+with distribution evidence for each host. This source change does not deploy
+a client, restart T3 or activate AA, shared quota or automatic switching.
 
 All other deployed bytes, destinations and the plugin bytes must match.
 The Huyang role is disabled on every host and adds no deployed runtime changes.
