@@ -2,7 +2,7 @@
 - name: Explicit one-host Akasha enrollment
   hosts: all
   gather_facts: false
-  vars_files: [vars/akasha-enrollment.yml]
+  vars_files: [../roles/chaldea_client/defaults/main.yml, vars/akasha-enrollment.yml]
   pre_tasks:
     - name: Leave disabled enrollment inert
       ansible.builtin.meta: end_play
@@ -19,6 +19,8 @@
           - akasha_enrollment_activate is boolean
           - akasha_pc_global_reader_enabled is boolean
           - akasha_pc_quota_events_enabled is boolean
+          - akasha_quota_laptop_publisher_enabled is boolean
+          - akasha_quota_pc_reader_enabled is boolean
         quiet: true
       tags: [always]
     - name: Require persistent fleet inventory agreement before activation
@@ -48,6 +50,15 @@
           - ansible_facts.user_dir == fleet_home
           - ansible_facts.architecture in ['x86_64', 'aarch64']
         quiet: true
+      tags: [always]
+    - name: Validate optional quota sharing prerequisites before any install
+      ansible.builtin.include_tasks:
+        file: tasks/akasha-quota-preflight.yml
+        apply:
+          tags: [always]
+      when: >-
+        (inventory_hostname == 'omarchy-macbook-air-igor' and akasha_quota_laptop_publisher_enabled)
+        or (inventory_hostname == 'omarchy-pc' and akasha_quota_pc_reader_enabled)
       tags: [always]
     - name: Verify the pre-staged public client without installing anything
       become: true
@@ -99,7 +110,7 @@
           - "{{ akasha_enrollment_validation_client }}"
           - "{{ playbook_dir }}/../access-trust/akasha-enrollment.json"
           - "{{ playbook_dir }}/../access-trust/issuer-grants.json"
-        stdin: "{{ {'public_keys': akasha_enrollment_public_keys, 'pc_reader': akasha_pc_global_reader_enabled, 'pc_quota': akasha_pc_quota_events_enabled} | to_json }}"
+        stdin: "{{ {'public_keys': akasha_enrollment_public_keys, 'pc_reader': akasha_pc_global_reader_enabled, 'pc_quota': akasha_pc_quota_events_enabled, 'laptop_quota': akasha_quota_laptop_publisher_enabled, 'pc_quota_reader': akasha_quota_pc_reader_enabled} | to_json }}"
       register: akasha_enrollment_native
       changed_when: false
       check_mode: false
@@ -265,6 +276,13 @@
         backup: true
       notify: Restart approved PC quota publisher
       when: akasha_enrollment_activate | bool and inventory_hostname == 'omarchy-pc' and akasha_pc_quota_events_enabled | bool
+      tags: [enrollment_activate]
+    - name: Activate only the explicit quota sharing subset
+      ansible.builtin.include_tasks: tasks/akasha-quota-sharing.yml
+      when: >-
+        akasha_enrollment_activate | bool and
+        ((inventory_hostname == 'omarchy-macbook-air-igor' and akasha_quota_laptop_publisher_enabled)
+        or (inventory_hostname == 'omarchy-pc' and akasha_quota_pc_reader_enabled))
       tags: [enrollment_activate]
     - name: Switch existing fleet timer outcomes only during activation
       ansible.builtin.copy:
