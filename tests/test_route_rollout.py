@@ -17,8 +17,8 @@ def test_collector_runs_only_on_hosts_with_a_claude_login():
     assert set(hosts) == {"agent-a", "agent-b", "omarchy-pc", "laptop"}
     assert common["chaldea_client_version"] == "client-v0.3.0"
     assert common["chaldea_client_sha256"] == "38815b50ae8efbd9379f707af3fe8265a18e1fedd7814c2644ec73c91a8f5fa1"
-    # Igor approved the collector on 2026-10-18 for the hosts with a Claude login.
-    collectors = {"omarchy-pc", "laptop"}
+    # PC uses native T3 quota after its approved normal-login repair.
+    collectors = {"laptop"}
     for name, values in hosts.items():
         effective = defaults | common | values
         assert effective["chaldea_client_enabled"] is True
