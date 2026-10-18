@@ -75,7 +75,9 @@ def test_inventory_disabled_and_units_use_isolated_state():
     tasks = (ROLE / "tasks/main.yml").read_text()
     assert "initialize-state" not in tasks and "genpkey" not in tasks
     keys = json.loads((ROOT / "access-trust/issuer-grants.json").read_text())
-    assert len(keys) == 1
+    policy = json.loads((ROOT / "access-trust/akasha-enrollment.json").read_text())
+    assert {row["issuer"] for row in keys} == {"chaldea:" + host for host in policy}
+    assert len(keys) == 6
     key = keys[0]
     assert (key["issuer"], key["kid"]) == ("chaldea:agent-a", "agent-a-2026-10")
     assert key["public_key"] == {"kty": "OKP", "crv": "Ed25519", "x": "1LEmYnODsGqzGLbE_F5uqOx1VoY5I2EmJSbLAKMJtCM"}
@@ -86,6 +88,7 @@ def test_inventory_disabled_and_units_use_isolated_state():
         ("daily-health", "homelab", "chaldea.daily-health.agent-a"),
         ("fleet-timers", "chaldea", "agent-a.fleet"),
         ("toolfeedback", "chaldea", "agent-a.toolfeedback"),
+        ("feed-writer", "chaldea", "feed"),
     }
     for ceiling in key["ceilings"]:
         assert ceiling["audience"] == "akasha"

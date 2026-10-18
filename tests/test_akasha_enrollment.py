@@ -24,7 +24,9 @@ SPEC.loader.exec_module(PULL)
 def public_inputs() -> dict:
     keys = {host: dict(kty="OKP", crv="Ed25519", x=base64.urlsafe_b64encode(bytes([i]) * 32).decode().rstrip("="))
             for i, host in enumerate(POLICY, 1)}
-    keys["agent-a"] = json.loads((ROOT / "access-trust/issuer-grants.json").read_text())[0]["public_key"]
+    existing = {row["issuer"]: row["public_key"] for row in
+                json.loads((ROOT / "access-trust/issuer-grants.json").read_text())}
+    keys.update({host: existing["chaldea:" + host] for host in POLICY if "chaldea:" + host in existing})
     return dict(public_keys=keys, pc_reader=False, pc_quota=False)
 
 
@@ -97,7 +99,7 @@ def test_fixed_native_outputs_preserve_old_records_and_bound_pc(client, tmp_path
     data = json.loads(result.stdout)
     if evidence := os.environ.get("ENROLLMENT_RENDER_EVIDENCE"):
         Path(evidence).write_text(result.stdout)
-    assert data["issuers"][0]["ceilings"][:3] == old[0]["ceilings"]
+    assert data["issuers"][0]["ceilings"][:len(old[0]["ceilings"])] == old[0]["ceilings"]
     assert all(not r.get("global_read") and r["source"] != "chaldea-quota" for r in data["registry"])
     assert all(g["action"] == "append" for grants in data["grants"].values() for g in grants)
     installed = tmp_path / "public-issuers.json"

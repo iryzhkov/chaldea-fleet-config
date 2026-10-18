@@ -52,6 +52,356 @@
             ]
           }
         ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:agent-b",
+    "kid": "agent-b-2026-10-cutover",
+    "public_key": {
+      "crv": "Ed25519",
+      "kty": "OKP",
+      "x": "_8EAgbpZk3gjc2ebs2jrUIctVluEwQCwl5iD2EmXzss"
+    },
+    "not_before": 1792281600,
+    "issue_until": 1794787200,
+    "verify_until": 1794788010,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-timers",
+        "project": "chaldea",
+        "source": "agent-b.fleet",
+        "grants": [
+          {
+            "resource": "agent-b.fleet",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "agent-b.toolfeedback",
+        "grants": [
+          {
+            "resource": "agent-b.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:omarchy-pc",
+    "kid": "omarchy-pc-2026-10-cutover",
+    "public_key": {
+      "crv": "Ed25519",
+      "kty": "OKP",
+      "x": "FMb5zp98f5RjlxOtXbJnkiaYTDYyBgB7dVmB_5zcbuE"
+    },
+    "not_before": 1792281600,
+    "issue_until": 1794787200,
+    "verify_until": 1794788010,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-timers",
+        "project": "chaldea",
+        "source": "omarchy-pc.fleet",
+        "grants": [
+          {
+            "resource": "omarchy-pc.fleet",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "omarchy-pc.toolfeedback",
+        "grants": [
+          {
+            "resource": "omarchy-pc.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-reader",
+        "project": "chaldea",
+        "source": "fleet-reader",
+        "grants": [
+          {
+            "resource": "fleet-reader",
+            "actions": [
+              "read"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "quota-service",
+        "project": "chaldea",
+        "source": "chaldea-quota",
+        "grants": [
+          {
+            "resource": "chaldea-quota",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:omarchy-macbook-air-igor",
+    "kid": "omarchy-macbook-air-igor-2026-10-cutover",
+    "public_key": {
+      "crv": "Ed25519",
+      "kty": "OKP",
+      "x": "IB6iP1Vwh4OiV8sTbZoaqNbsoH32S-KAMXMipqXglPI"
+    },
+    "not_before": 1792281600,
+    "issue_until": 1794787200,
+    "verify_until": 1794788010,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-timers",
+        "project": "chaldea",
+        "source": "omarchy-macbook-air-igor.fleet",
+        "grants": [
+          {
+            "resource": "omarchy-macbook-air-igor.fleet",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "omarchy-macbook-air-igor.toolfeedback",
+        "grants": [
+          {
+            "resource": "omarchy-macbook-air-igor.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:homelab",
+    "kid": "homelab-2026-10-cutover",
+    "public_key": {
+      "crv": "Ed25519",
+      "kty": "OKP",
+      "x": "oABs56BgYIuzC-CFcrBiVcm9FRp2cgxCWWFM0_3a0-g"
+    },
+    "not_before": 1792281600,
+    "issue_until": 1794787200,
+    "verify_until": 1794788010,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "backup",
+        "grants": [
+          {
+            "resource": "backup",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "drift-check",
+        "grants": [
+          {
+            "resource": "drift-check",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "offsite",
+        "grants": [
+          {
+            "resource": "offsite",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "homelab.toolfeedback",
+        "grants": [
+          {
+            "resource": "homelab.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:omarchy-normandy",
+    "kid": "omarchy-normandy-2026-10-cutover",
+    "public_key": {
+      "crv": "Ed25519",
+      "kty": "OKP",
+      "x": "gEIey4yOqmpb6okwWXhL8ut2GVIPFvnIvtREUhzp3_M"
+    },
+    "not_before": 1792281600,
+    "issue_until": 1794787200,
+    "verify_until": 1794788010,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "backup",
+        "grants": [
+          {
+            "resource": "backup",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "drift-check",
+        "grants": [
+          {
+            "resource": "drift-check",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "omarchy-normandy.toolfeedback",
+        "grants": [
+          {
+            "resource": "omarchy-normandy.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
       }
     ]
   }
