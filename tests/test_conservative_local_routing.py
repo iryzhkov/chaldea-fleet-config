@@ -30,7 +30,7 @@ def test_omarchy_reader_and_conservative_pins(tmp_path, monkeypatch):
     assert route["claudeUsage"] == {"enabled": False, "providerInstanceId": "claudeAgent"}
     assert "claudeContexts" not in quota
     assert route["scores"] == {"enabled": False}
-    assert route["analyticsMaxAgeMs"] == 5184000000
+    assert route["analyticsMaxAgeMs"] == 7776000000
     assert route["pins"] == {
         "builder": {"model": "gpt-6.1-sol", "providerInstanceId": "codex"},
         "bulk-read": {"model": "gpt-6-luna", "providerInstanceId": "codex"},
