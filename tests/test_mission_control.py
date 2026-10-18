@@ -89,6 +89,8 @@ def fixture_role(tmp_path, name):
         text = file.read_text()
         for old, new in replacements.items():
             text = text.replace(old, new)
+        if name == "mission_control_capture":
+            text = text.replace("default(-1) == 1000", "default(-1) == " + str(os.getuid()))
         file.write_text(text)
     node = tmp_path / "node/bin/node"
     node.parent.mkdir(parents=True, exist_ok=True)
