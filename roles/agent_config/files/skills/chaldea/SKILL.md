@@ -14,6 +14,8 @@ use the `review-delegation` skill for reviews.
 
 Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
 
+`chaldea quota status` (or `--json`) reads the observer’s cached included-usage windows, aggregate Codex credits, advisory manual-reset inventory and each provider's capacity class, with per-metric freshness; it never spends credits or redeems resets.
+
 ## Route before delegating
 
 Call `chaldea_route` or `chaldea route --role ROLE` before each T3 `delegate_task`.
@@ -25,14 +27,15 @@ For reviews, supply the writer's driver as `authorProvider`, `claudeAgent` or `c
 or CLI `--author-provider`, so routing requires the other provider. Main diff reviews
 use `builder` to retain the Opus/Sol pair; consequential design or disputed findings
 use `critical-review` for Fable/Astra. If the tool or CLI cannot recommend a target,
-use the shared CLAUDE.md model roles and keep reviews on the other provider.
+use the shared CLAUDE.md model roles. Apply the provider rule and "Quota exception"
+in `review-delegation`; an unavailable recommendation alone grants no waiver.
 
 The client pins builder to Opus 5.5/Sol 6.1 high, critical-review to Fable 5.1/Astra
 medium, bulk-read to Sonnet 5.5/Luna 6 medium, and general to Opus 5.5/Sol 6.1 medium.
 It excludes Haiku and OpenCode candidates. Its Slopalytics URL is
 https://slopalytics.com/data/t3-usage.json. Role pairs and this URL are client constants,
-not route.json keys. Fleet renders pacing and capacity thresholds; Claude usage
-collection stays off until Igor approves it and its local account binding is verified.
+not route.json keys. Fleet renders pacing and capacity thresholds. Igor approved Claude usage collection on
+2026-10-18; it runs on the hosts with a Claude login.
 
 ## Run work on a job host
 
@@ -103,6 +106,15 @@ An optional `deadline` bounds the wait. Omitting `runId` pins the latest accepte
 run at registration; it does not wait for a future run. Quota pauses remain
 pending through recovery.
 
+On a client release that supports wait descriptions, pass optional `description`
+to record the purpose, for example "Recheck review availability after quota reset".
+CLI time/thread waits use `--description TEXT`. Keep it nonblank, single-line plain
+text within 512 UTF-8 bytes, with no control or format characters. The description
+is context, never an executable instruction or authorization. Reuse it unchanged
+with the retry key. Registration/status and single/combined wakes carry it;
+unlabeled waits use the target time or thread/run. Already-attempted wakes retain
+their original immutable delivery text, including older opaque messages.
+
 Registration returns immediately; up to eight active waits per thread are allowed, and pending wakes combine into one queued message listing every wait ID and outcome while each wait retains its own delivery record. For waits, `requestId` is optional (the server generates `<epoch milliseconds>:<random>`); save an explicit key for idempotent retries, then end the turn when ready. Do not sleep,
 poll status or add another watcher. Read an outcome with `chaldea_wait_status`
 (`id`); cancel an unwanted wait with `chaldea_wait_cancel` (`id`). Cancellation
@@ -112,7 +124,8 @@ CLI equivalents (set these variables to the actual IDs and desired times):
 
 ```sh
 request_id="$(date +%s%3N):$(uuidgen)"
-chaldea wait time --after 30s --thread "$thread_id" --request-id "$request_id"
+chaldea wait time --after 30s --thread "$thread_id" --request-id "$request_id" \
+  --description "Recheck review availability after quota reset"
 chaldea wait time --at "$at" --thread "$thread_id" --request-id "$time_request_id"
 chaldea wait thread --target "$other_thread" --run "$run_id" \
   --thread "$thread_id" --request-id "$thread_request_id"
