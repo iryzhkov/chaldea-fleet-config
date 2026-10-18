@@ -14,37 +14,69 @@ use the `review-delegation` skill for reviews.
 
 Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
 
+`chaldea quota status` (or `--json`) reads the observer’s cached included-usage windows, aggregate Codex credits, advisory manual-reset inventory and each provider's capacity class, with per-metric freshness; it never spends credits or redeems resets.
+
 ## Route before delegating
 
-Call `chaldea_route` or `chaldea route --role ROLE` before each T3 `delegate_task`.
-Roles are `builder`, `critical-review`, `bulk-read` and `general`. Pass the returned
-`providerInstanceId`, `model` and `options` as the delegate target. Chaldea recommends;
-T3 launches the child. An explicit session model restriction still applies.
+Call FATE through `chaldea_route` or `chaldea route --role ROLE` before each T3
+`delegate_task`. Use `builder` for implementation and main diff reviews,
+`critical-review` for consequential design or disputed findings, `bulk-read` for
+readers and `general` for other work. Pass the selected `providerInstanceId`,
+`model` and `options` exactly as the delegate target, including effort. Chaldea
+recommends; T3 launches the child. Honor explicit user/model overrides.
 
-For reviews, supply the writer's driver as `authorProvider`, `claudeAgent` or `codex`,
-or CLI `--author-provider`, so routing requires the other provider. Main diff reviews
-use `builder` to retain the Opus/Sol pair; consequential design or disputed findings
-use `critical-review` for Fable/Astra. If the tool or CLI cannot recommend a target,
-use the shared CLAUDE.md model roles. Apply the provider rule and "Quota exception"
-in `review-delegation`; an unavailable recommendation alone grants no waiver.
+For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or
+`codex`, or CLI `--author-provider`, to require the other provider. A main review
+normally uses `chaldea route --role builder --author-provider codex` for a
+Codex author. Consequential design uses `critical-review`. A Codex-only builder
+pin can legitimately refuse that main review. Use the approved other-provider
+fallback below and in `review-delegation`; do not retry the pin indefinitely
+or silently waive provider separation.
 
-Model roles: Opus 5.5 or Sol 6.1 high for builders, Fable 5.1 or Astra medium
-for critical review, Haiku 5.5 or Luna 6 medium for bulk reading, and Opus 5.5
-or Sol 6.1 medium for general work, or whatever `chaldea route` recommends.
-Sonnet-family models are excluded. Haiku is allowed. Never use max, ultra,
-ultrathink or ultracode. Respect explicit session restrictions.
+### CLI and outage fallback
 
-With the role-target client, routing evaluates the live T3 catalog against
-Artificial Analysis floors and objectives, Slopalytics probation and quota pacing.
-Fleet pins override model policy. Until its score snapshot is configured, the
-fallbacks above apply. The AA key exists only on homelab. Router hosts read
-non-secret snapshots through authenticated Akasha grants. See Chaldea's
-docs/route.md for the snapshot and probation settings. Older clients keep fixed
-pairs until upgraded, so apply this policy's Sonnet exclusion explicitly.
+A long-lived MCP can retain an older schema after a client upgrade. If it
+rejects newer configuration keys, run the installed CLI with the same role
+and author-provider constraint. Pass its exact target to T3. This is supported
+without restarting T3; do not restart or alter configuration to recover routing.
 
-The Slopalytics URL is https://slopalytics.com/data/t3-usage.json. Fleet renders
-pacing and capacity thresholds. Igor approved Claude collection on omarchy-pc and
-laptop; other hosts require approval and a verified local account binding.
+If both routing paths fail or cannot recommend a target, record the reason
+and resolve available provider/model IDs and effort options from
+`orchestrator_capabilities`. This documented outage fallback uses Codex
+Sol 6.1 high for builders, Luna 6 medium for bulk reading and Sol 6.1 medium
+for general work, conserving Claude. For a required main review, use the
+approved Opus 5.5 high / Sol 6.1 high pair on the other provider: Codex-authored
+work uses Claude Opus, Claude-authored work uses Codex Sol. Consequential design
+or disputed findings use Fable 5.1 / Astra medium on the required other provider.
+If the fallback is unavailable, defer that dependent work and report why.
+Explicit user overrides still apply. Do not substitute an unavailable target
+or represent fallback selection as a FATE recommendation.
+
+Cross-provider review remains the default. Only `review-delegation`'s "Quota
+exception" permits a fresh stronger same-provider reviewer after an observed
+other-provider quota stop with a reliable reset more than one hour away.
+Unknown windows/reset or a collector HTTP 429 alone grant no waiver. Never
+use max, ultra, ultrathink, ultracode or higher effort. Sonnet is excluded;
+Haiku is allowed when selected. Avoid optional Claude fan-outs.
+
+### Supported policy and deployment state
+
+Role-target clients support live-catalog candidates, pins, bans, AA quality
+floors/objectives and Slopalytics probation with quota pacing. These capabilities
+do not imply activation. Pins are explicit operator fallback choices, not AA
+quality qualification. Never lower floors or invent missing coding metrics.
+The AA key stays only on homelab; any future shared scores contain no secrets.
+
+At the 2026-10-18 activation, only omarchy-pc has client-v0.4.0 and live CLI
+verification of Codex Sol 6.1 high builder, Luna 6 medium bulk-read and Sol 6.1
+medium general pins. Agent-a, agent-b and laptop remain on v0.3.0, unverified
+for the new role-target behavior. Claude collection is approved for hosts with
+a verified local login binding, but enabled and attempted only on omarchy-pc.
+Its existing 0600 env file is reused without token refresh. HTTP 429/backoff
+leaves Claude windows/reset unknown; honor retryAt and read cached status.
+Do not claim every logged-in host has a live reader. AA snapshots, shared
+quota and automatic provider switching remain off. Report distribution and
+verification per host when this guidance changes.
 
 ## Run work on a job host
 

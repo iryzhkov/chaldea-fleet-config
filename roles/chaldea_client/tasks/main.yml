@@ -4,6 +4,11 @@
     that:
       - chaldea_client_version is match('^client-v[0-9]+[.][0-9]+[.][0-9]+$')
       - chaldea_client_sha256 is match('^[a-f0-9]{64}$')
+      - >-
+        (chaldea_client_route_targets | length == 0 and
+         chaldea_client_claude_contexts | length == 0 and
+         chaldea_client_claude_usage_source | length == 0) or
+        chaldea_client_version | regex_replace('^client-v', '') is version('0.4.0', '>=')
       - not chaldea_client_waits_enabled or chaldea_client_waits_environment | length > 0
       - not chaldea_client_quota_enabled or chaldea_client_codex_home is match('^/')
       - chaldea_client_root == fleet_home ~ '/.local/share/chaldea'

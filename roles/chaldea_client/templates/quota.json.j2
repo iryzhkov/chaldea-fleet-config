@@ -7,4 +7,4 @@
     'assertRuntimeHome': chaldea_client_codex_assert_runtime_home | bool
   }],
   'lowHeadroomPercent': chaldea_client_low_headroom_percent
-} | to_nice_json }}
+} | combine({'claudeContexts': chaldea_client_claude_contexts} if chaldea_client_claude_contexts | length else {}) | to_nice_json }}
