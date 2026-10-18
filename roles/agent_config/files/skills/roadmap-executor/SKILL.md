@@ -26,9 +26,14 @@ sessions. Continue routine work inside Igor's agreement without asking again.
 
 ## Delegate and follow work
 
-- Use `orchestrator_capabilities` for live IDs. Delegate builds/implementation
-  with T3 `delegate_task`; follow the shared model roles and effort limits.
-  Prefer Codex for builds and bulk reads to conserve Claude quota.
+- Before each T3 `delegate_task`, call `chaldea_route` or `chaldea route --role ROLE`
+  and pass its `providerInstanceId`, `model` and `options` as the delegate target.
+  Use `builder` for implementation and main diff reviews, `critical-review` for
+  consequential design or disputed findings, `bulk-read` for readers and `general`
+  for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`
+  or `codex`, or CLI `--author-provider`, to require the other provider. Honor session
+  model restrictions. If routing is unavailable, use the CLAUDE.md model roles and
+  `orchestrator_capabilities` IDs, preserving cross-provider review.
 - Load review-delegation for self-contained worker briefs, worktree isolation
   and review rules. Builders may run their own compliant T3 reviews; reuse
   their final-commit acceptance rather than repeating it. Do not restate or

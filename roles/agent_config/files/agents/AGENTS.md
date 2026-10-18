@@ -76,6 +76,12 @@ making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta 
 out in the session; do not ask again for routine work inside that agreement.
 When carrying out an agreed roadmap, load the roadmap-executor skill first.
 
+Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,
+`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and
+`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the
+writer's driver, `claudeAgent` or `codex`, to require the other provider. If routing is
+unavailable, use the model roles below and preserve that cross-provider review rule.
+
 Delegate through T3's own tools rather than a separate scheduler:
 
 - `delegate_task` runs child work on any provider and model that `orchestrator_capabilities`
@@ -96,8 +102,7 @@ T3 tools act only on the host's own T3 server. There is no agent-driven launch o
 host yet; ask Igor to start work there from the T3 app.
 
 Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or
-Astra at medium effort for critical review, including plan review; Sonnet 5.5, Haiku 5.5 or
-Luna 6 for bulk reading. Never use max effort or above. Read a quick lookup in a known file
+Astra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file
 directly.
 
 Ask first when the estimated cost is large, the work needs operator-level access, or it

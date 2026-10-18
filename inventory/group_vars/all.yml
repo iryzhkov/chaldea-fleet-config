@@ -32,11 +32,12 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Client activation waits for the first main-only client release. In one pin
-# update, set enabled=true, version and the manifest's reviewed SHA-256.
+# Published from Chaldea main 181838f; archive SHA-256 verified by the orchestrator.
 chaldea_client_enabled: true
-chaldea_client_version: client-v0.2.0
-chaldea_client_sha256: "6803a80d05968928c77f028084a28490e805a5eaf775c771fa13324498744810"
+chaldea_client_version: client-v0.3.0
+chaldea_client_sha256: "38815b50ae8efbd9379f707af3fe8265a18e1fedd7814c2644ec73c91a8f5fa1"
+# Opt-in requires Igor's approval and verified local account binding on each host.
+chaldea_client_claude_usage_enabled: false
 
 # Published from Chaldea main fcf3651; SHA-256 verified from the release asset.
 # Keep this version and digest identical in fleet-config and homelab-infra.

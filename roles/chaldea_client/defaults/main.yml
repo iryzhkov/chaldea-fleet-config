@@ -28,3 +28,20 @@ chaldea_client_codex_command: "{{ fleet_home }}/.local/share/mise/shims/codex"
 # another account's balance, and nothing spends or acts on it.
 chaldea_client_codex_assert_runtime_home: false
 chaldea_client_low_headroom_percent: 10
+# Route/capacity defaults from chaldea client-v0.3.0 docs/route.md.
+# Role pairs and Slopalytics URL are fixed by that client, not configuration keys.
+chaldea_client_claude_usage_enabled: false
+chaldea_client_claude_usage_provider: claudeAgent
+chaldea_client_pace_margin: 0.10
+chaldea_client_minimum_remaining: 0.10
+chaldea_client_route_failure_margin: 0.10
+chaldea_client_route_minimum_turns: 100
+chaldea_client_quota_max_age_ms: 900000
+chaldea_client_analytics_max_age_ms: 259200000
+chaldea_client_heavy_multiplier: 2
+chaldea_client_minimum_reset_lead_hours: 72
+chaldea_client_recent_window_ms: 86400000
+chaldea_client_reserve_fraction: 0.05
+chaldea_client_expiry_horizon_ms: 86400000
+# No illustrative credit conversion or unverified refill/expiry assertion.
+chaldea_client_capacity_providers: {}

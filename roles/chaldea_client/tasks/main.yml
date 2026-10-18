@@ -190,6 +190,23 @@
   register: chaldea_client_quota_config
   when: chaldea_client_codex_home | length > 0
 
+- name: Render advisory routing and capacity policy
+  ansible.builtin.template:
+    src: "{{ item }}.json.j2"
+    dest: "{{ fleet_home }}/.config/chaldea/{{ item }}.json"
+    mode: "0600"
+    backup: true
+  loop: [route, capacity]
+
+# The MCP entry point parses a waits config even when only routing is used.
+# This supplies its socket without enabling a service or requiring any waits token.
+- name: Render MCP bootstrap configuration on hosts without waits
+  ansible.builtin.template:
+    src: mcp.json.j2
+    dest: "{{ fleet_home }}/.config/chaldea/mcp.json"
+    mode: "0600"
+  when: not chaldea_client_waits_enabled
+
 - name: Atomically replace hand-made units with managed units
   ansible.builtin.template:
     src: "{{ item }}.service.j2"

@@ -126,6 +126,18 @@ def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
     assert waits["tokenFile"] == str(home / ".config/chaldea/waits-t3-token")
     manager = json.loads((tmp_path / "systemctl.json").read_text())
     assert all(u["active"] and u["enabled"] for u in manager["units"].values())
+    route = json.loads((home / ".config/chaldea/route.json").read_text())
+    capacity = json.loads((home / ".config/chaldea/capacity.json").read_text())
+    assert route["claudeUsage"] == {"enabled": False, "providerInstanceId": "claudeAgent"}
+    assert route["paceMargin"] == capacity["paceMargin"] == 0.10
+    assert route["minimumRemaining"] == capacity["minimumRemaining"] == 0.10
+    assert route["quotaMaxAgeMs"] == capacity["maxAgeMs"] == 900000
+    assert route["failureMargin"] == 0.10 and route["minimumTurns"] == 100
+    assert route["analyticsMaxAgeMs"] == 259200000
+    assert capacity["minimumResetLeadHours"] == 72
+    assert capacity["providers"] == {}
+    for name in ("route", "capacity"):
+        assert (home / f".config/chaldea/{name}.json").stat().st_mode & 0o777 == 0o600
     for check in (False, True):
         repeated = run(tmp_path, variables, check=check)
         success(repeated)
@@ -175,6 +187,11 @@ def test_disabled_units_need_no_secrets_and_upgrade_retains_one_previous(tmp_pat
     assert sorted(p.name for p in cache.iterdir()) == [
         "client-v9.0.1.json", "client-v9.0.1.tar.gz", "client-v9.0.2.json", "client-v9.0.2.tar.gz"]
     assert not (Path.home() / ".config/chaldea/t3-token").exists()
+    mcp = json.loads((Path.home() / ".config/chaldea/mcp.json").read_text())
+    assert mcp["environment"] == "routing-only"
+    assert mcp["socket"] == variables["chaldea_client_waits_socket"]
+    assert not (Path.home() / ".config/chaldea/waits.json").exists()
+    assert json.loads((Path.home() / ".config/chaldea/route.json").read_text())["claudeUsage"]["enabled"] is False
     manager = json.loads((tmp_path / "systemctl.json").read_text())
     assert all(not u["enabled"] and not u["active"] for u in manager["units"].values())
 

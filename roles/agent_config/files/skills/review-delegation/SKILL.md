@@ -26,8 +26,16 @@ each reviewer's thread ID, model and verdict in the reply and as a PR comment.
 
 ## How to run a round
 
-Call `orchestrator_capabilities` for the current provider and model IDs rather
-than guessing them. Start every review round, including re-reviews, as a fresh
+Before each delegation, call `chaldea_route` or `chaldea route --role ROLE` and pass
+its `providerInstanceId`, `model` and `options` as the T3 `delegate_task` target.
+Use `builder` for main diff reviews, `critical-review` for consequential design or
+disputed findings, `bulk-read` for readers and `general` for other work. For reviews,
+pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`, or CLI
+`--author-provider`, to require the other provider. Honor explicit session model
+restrictions. If routing is unavailable, use the CLAUDE.md model roles and
+`orchestrator_capabilities` IDs, preserving cross-provider review.
+
+Start every review round, including re-reviews, as a fresh
 `delegate_task` that carries the brief, the prior findings and the responses to
 them; do not continue a review through `t3_thread_send` on a child thread. Give
 each round its own `clientRequestId`. Launch the main review and any permitted fan-out of a
