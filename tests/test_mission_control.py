@@ -60,10 +60,24 @@ def test_four_host_seven_default_outputs_and_helper_bytes(tmp_path):
                     dict(src=src, dest=str(directory / f"{label}-{index}"), mode="0600")}))
         result = play(tmp_path, host, tasks=tasks, values=defaults | values | dict(
             fleet_home=str(Path.home()), ansible_facts=dict(user_dir=str(Path.home()), user_uid=0),
+            akasha_collector_mission_control_snapshot_file="",  # Default-output baseline; activation is checked below.
             chaldea_host_artifact_root=str(tmp_path / "host")))
         ok(result)
         for index in range(7):
             assert (directory / f"before-{index}").read_bytes() == (directory / f"after-{index}").read_bytes()
+        if snapshot := values.get("akasha_collector_mission_control_snapshot_file"):
+            active = defaults | values | dict(fleet_home=str(Path.home()),
+                chaldea_host_artifact_root=str(tmp_path / "host"))
+            for filename, expected in (
+                ("akasha-collector.j2", f'export AKASHA_MISSION_CONTROL_SNAPSHOT_FILE="{snapshot}"'),
+                ("akasha-collector.service.j2", f'Environment="AKASHA_MISSION_CONTROL_SNAPSHOT_FILE={snapshot}"'),
+            ):
+                target = directory / filename
+                result = play(tmp_path, host, tasks=[dict(name="Render actual collector input",
+                    **{"ansible.builtin.template": dict(src=str(ROOT / "roles/akasha_collector/templates" / filename),
+                        dest=str(target), mode="0600")})], values=active)
+                ok(result)
+                assert expected in target.read_text().splitlines()
         # New roles are actually inert through the Ansible executor.
         result = play(tmp_path, host, roles=["mission_control_runtime", "mission_control_capture", "mission_control_reader"],
                       values=dict(fleet_home=str(Path.home())))
