@@ -58,61 +58,276 @@ AUTHORIZED_CHANGES = {
 # Reverse only these blocks before the prior policy reversals. Never update the fixture.
 FATE_GUIDANCE_CHANGES = {
     "agents/AGENTS.md": [
-        [
-            "Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,\n`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and\n`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the\nwriter's driver, `claudeAgent` or `codex`, to require the other provider. If routing is\nunavailable, use the model roles below. Cross-provider review is the default; the only\nquota exception is defined in `review-delegation`, under \"Quota exception\".",
-            "Before each T3 `delegate_task`, call FATE through `chaldea_route` or\n`chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,\n`critical-review` for consequential design or disputed findings, `bulk-read` for readers\nand `general` for other work. Pass the selected `providerInstanceId`, `model` and\n`options` exactly as the delegate target, including effort. Honor explicit user overrides.\nFor reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\nor CLI `--author-provider`, to require the other provider.\n\nIf a long-lived MCP rejects newer configuration keys, use the installed CLI before\ndeclaring routing unavailable. No T3 restart is needed. If neither can recommend a\ntarget, use the `chaldea` skill's documented outage fallback with live catalog IDs.\nA Codex builder pin may refuse a Codex author's main review; use the approved\nother-provider main-review fallback in `review-delegation`, not repeated pin retries.\nCross-provider review remains the default. Only its \"Quota exception\" permits a waiver."
-        ],
-        [
-            "Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or\nAstra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file\ndirectly.",
-            "FATE owns normal model selection. Fixed model pairs apply only in the documented\noutage fallback; explicit user overrides still apply. Sonnet is excluded; Haiku is\nallowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.\nConserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\nRead a quick lookup in a known file directly."
-        ]
+        ((
+            "Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,\n"
+            "`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and\n"
+            "`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the\n"
+            "writer's driver, `claudeAgent` or `codex`, to require the other provider. If routing is\n"
+            "unavailable, use the model roles below. Cross-provider review is the default; the only\n"
+            "quota exception is defined in `review-delegation`, under \"Quota exception\"."
+        ), (
+            "Before each T3 `delegate_task`, call FATE through `chaldea_route` or\n"
+            "`chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,\n"
+            "`critical-review` for consequential design or disputed findings, `bulk-read` for readers\n"
+            "and `general` for other work. Pass the selected `providerInstanceId`, `model` and\n"
+            "`options` exactly as the delegate target, including effort. Honor explicit user overrides.\n"
+            "For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\n"
+            "or CLI `--author-provider`, to require the other provider.\n"
+            "\n"
+            "If a long-lived MCP rejects newer configuration keys, use the installed CLI before\n"
+            "declaring routing unavailable. No T3 restart is needed. If neither can recommend a\n"
+            "target, use the `chaldea` skill's documented outage fallback with live catalog IDs.\n"
+            "A Codex builder pin may refuse a Codex author's main review; use the approved\n"
+            "other-provider main-review fallback in `review-delegation`, not repeated pin retries.\n"
+            "Cross-provider review remains the default. Only its \"Quota exception\" permits a waiver."
+        )),
+        ((
+            "Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or\n"
+            "Astra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file\n"
+            "directly."
+        ), (
+            "FATE owns normal model selection. Fixed model pairs apply only in the documented\n"
+            "outage fallback; explicit user overrides still apply. Sonnet is excluded; Haiku is\n"
+            "allowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.\n"
+            "Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\n"
+            "Read a quick lookup in a known file directly."
+        )),
     ],
     "codex/AGENTS.md": [
-        [
-            "Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,\n`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and\n`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the\nwriter's driver, `claudeAgent` or `codex`, to require the other provider. If routing is\nunavailable, use the model roles below. Cross-provider review is the default; the only\nquota exception is defined in `review-delegation`, under \"Quota exception\".",
-            "Before each T3 `delegate_task`, call FATE through `chaldea_route` or\n`chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,\n`critical-review` for consequential design or disputed findings, `bulk-read` for readers\nand `general` for other work. Pass the selected `providerInstanceId`, `model` and\n`options` exactly as the delegate target, including effort. Honor explicit user overrides.\nFor reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\nor CLI `--author-provider`, to require the other provider.\n\nIf a long-lived MCP rejects newer configuration keys, use the installed CLI before\ndeclaring routing unavailable. No T3 restart is needed. If neither can recommend a\ntarget, use the `chaldea` skill's documented outage fallback with live catalog IDs.\nA Codex builder pin may refuse a Codex author's main review; use the approved\nother-provider main-review fallback in `review-delegation`, not repeated pin retries.\nCross-provider review remains the default. Only its \"Quota exception\" permits a waiver."
-        ],
-        [
-            "Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or\nAstra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file\ndirectly.",
-            "FATE owns normal model selection. Fixed model pairs apply only in the documented\noutage fallback; explicit user overrides still apply. Sonnet is excluded; Haiku is\nallowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.\nConserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\nRead a quick lookup in a known file directly."
-        ]
+        ((
+            "Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,\n"
+            "`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and\n"
+            "`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the\n"
+            "writer's driver, `claudeAgent` or `codex`, to require the other provider. If routing is\n"
+            "unavailable, use the model roles below. Cross-provider review is the default; the only\n"
+            "quota exception is defined in `review-delegation`, under \"Quota exception\"."
+        ), (
+            "Before each T3 `delegate_task`, call FATE through `chaldea_route` or\n"
+            "`chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,\n"
+            "`critical-review` for consequential design or disputed findings, `bulk-read` for readers\n"
+            "and `general` for other work. Pass the selected `providerInstanceId`, `model` and\n"
+            "`options` exactly as the delegate target, including effort. Honor explicit user overrides.\n"
+            "For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\n"
+            "or CLI `--author-provider`, to require the other provider.\n"
+            "\n"
+            "If a long-lived MCP rejects newer configuration keys, use the installed CLI before\n"
+            "declaring routing unavailable. No T3 restart is needed. If neither can recommend a\n"
+            "target, use the `chaldea` skill's documented outage fallback with live catalog IDs.\n"
+            "A Codex builder pin may refuse a Codex author's main review; use the approved\n"
+            "other-provider main-review fallback in `review-delegation`, not repeated pin retries.\n"
+            "Cross-provider review remains the default. Only its \"Quota exception\" permits a waiver."
+        )),
+        ((
+            "Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or\n"
+            "Astra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file\n"
+            "directly."
+        ), (
+            "FATE owns normal model selection. Fixed model pairs apply only in the documented\n"
+            "outage fallback; explicit user overrides still apply. Sonnet is excluded; Haiku is\n"
+            "allowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.\n"
+            "Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\n"
+            "Read a quick lookup in a known file directly."
+        )),
     ],
     "claude/omarchy-setup/CLAUDE.md": [
-        [
-            "Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,\n`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and\n`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the\nwriter's driver, `claudeAgent` or `codex`, to require the other provider. If routing is\nunavailable, use the model roles below. Cross-provider review is the default; the only\nquota exception is defined in `review-delegation`, under \"Quota exception\".",
-            "Before each T3 `delegate_task`, call FATE through `chaldea_route` or\n`chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,\n`critical-review` for consequential design or disputed findings, `bulk-read` for readers\nand `general` for other work. Pass the selected `providerInstanceId`, `model` and\n`options` exactly as the delegate target, including effort. Honor explicit user overrides.\nFor reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\nor CLI `--author-provider`, to require the other provider.\n\nIf a long-lived MCP rejects newer configuration keys, use the installed CLI before\ndeclaring routing unavailable. No T3 restart is needed. If neither can recommend a\ntarget, use the `chaldea` skill's documented outage fallback with live catalog IDs.\nA Codex builder pin may refuse a Codex author's main review; use the approved\nother-provider main-review fallback in `review-delegation`, not repeated pin retries.\nCross-provider review remains the default. Only its \"Quota exception\" permits a waiver."
-        ],
-        [
-            "Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or\nAstra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file\ndirectly.",
-            "FATE owns normal model selection. Fixed model pairs apply only in the documented\noutage fallback; explicit user overrides still apply. Sonnet is excluded; Haiku is\nallowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.\nConserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\nRead a quick lookup in a known file directly."
-        ]
+        ((
+            "Before delegating, call `chaldea_route` or `chaldea route --role ROLE` with `builder`,\n"
+            "`critical-review`, `bulk-read` or `general`. Pass its `providerInstanceId`, `model` and\n"
+            "`options` as the T3 `delegate_task` target. For reviews, pass `authorProvider` as the\n"
+            "writer's driver, `claudeAgent` or `codex`, to require the other provider. If routing is\n"
+            "unavailable, use the model roles below. Cross-provider review is the default; the only\n"
+            "quota exception is defined in `review-delegation`, under \"Quota exception\"."
+        ), (
+            "Before each T3 `delegate_task`, call FATE through `chaldea_route` or\n"
+            "`chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,\n"
+            "`critical-review` for consequential design or disputed findings, `bulk-read` for readers\n"
+            "and `general` for other work. Pass the selected `providerInstanceId`, `model` and\n"
+            "`options` exactly as the delegate target, including effort. Honor explicit user overrides.\n"
+            "For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\n"
+            "or CLI `--author-provider`, to require the other provider.\n"
+            "\n"
+            "If a long-lived MCP rejects newer configuration keys, use the installed CLI before\n"
+            "declaring routing unavailable. No T3 restart is needed. If neither can recommend a\n"
+            "target, use the `chaldea` skill's documented outage fallback with live catalog IDs.\n"
+            "A Codex builder pin may refuse a Codex author's main review; use the approved\n"
+            "other-provider main-review fallback in `review-delegation`, not repeated pin retries.\n"
+            "Cross-provider review remains the default. Only its \"Quota exception\" permits a waiver."
+        )),
+        ((
+            "Model roles: Opus 5.5 or Sol 6.1 at high effort for planning and execution; Fable 5.1 or\n"
+            "Astra at medium effort for critical review, including plan review; Sonnet 5.5 or Luna 6 at medium effort for bulk reading. Never use max effort or above. Read a quick lookup in a known file\n"
+            "directly."
+        ), (
+            "FATE owns normal model selection. Fixed model pairs apply only in the documented\n"
+            "outage fallback; explicit user overrides still apply. Sonnet is excluded; Haiku is\n"
+            "allowed when selected. Never use max, ultra, ultrathink, ultracode or higher effort.\n"
+            "Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.\n"
+            "Read a quick lookup in a known file directly."
+        )),
     ],
     "skills/chaldea/SKILL.md": [
-        [
-            "## Route before delegating\n\nCall `chaldea_route` or `chaldea route --role ROLE` before each T3 `delegate_task`.\nRoles are `builder`, `critical-review`, `bulk-read` and `general`. Pass the returned\n`providerInstanceId`, `model` and `options` as the delegate target. Chaldea recommends;\nT3 launches the child. An explicit session model restriction still applies.\n\nFor reviews, supply the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\nor CLI `--author-provider`, so routing requires the other provider. Main diff reviews\nuse `builder` to retain the Opus/Sol pair; consequential design or disputed findings\nuse `critical-review` for Fable/Astra. If the tool or CLI cannot recommend a target,\nuse the shared CLAUDE.md model roles. Apply the provider rule and \"Quota exception\"\nin `review-delegation`; an unavailable recommendation alone grants no waiver.\n\nThe client pins builder to Opus 5.5/Sol 6.1 high, critical-review to Fable 5.1/Astra\nmedium, bulk-read to Sonnet 5.5/Luna 6 medium, and general to Opus 5.5/Sol 6.1 medium.\nIt excludes Haiku and OpenCode candidates. Its Slopalytics URL is\nhttps://slopalytics.com/data/t3-usage.json. Role pairs and this URL are client constants,\nnot route.json keys. Fleet renders pacing and capacity thresholds. Igor approved Claude usage collection on\n2026-10-18; it runs on the hosts with a Claude login.",
-            "## Route before delegating\n\nCall FATE through `chaldea_route` or `chaldea route --role ROLE` before each T3\n`delegate_task`. Use `builder` for implementation and main diff reviews,\n`critical-review` for consequential design or disputed findings, `bulk-read` for\nreaders and `general` for other work. Pass the selected `providerInstanceId`,\n`model` and `options` exactly as the delegate target, including effort. Chaldea\nrecommends; T3 launches the child. Honor explicit user/model overrides.\n\nFor reviews pass the writer's driver as `authorProvider`, `claudeAgent` or\n`codex`, or CLI `--author-provider`, to require the other provider. A main review\nnormally uses `chaldea route --role builder --author-provider codex` for a\nCodex author. Consequential design uses `critical-review`. A Codex-only builder\npin can legitimately refuse that main review. Use the approved other-provider\nfallback below and in `review-delegation`; do not retry the pin indefinitely\nor silently waive provider separation.\n\n### CLI and outage fallback\n\nA long-lived MCP can retain an older schema after a client upgrade. If it\nrejects newer configuration keys, run the installed CLI with the same role\nand author-provider constraint. Pass its exact target to T3. This is supported\nwithout restarting T3; do not restart or alter configuration to recover routing.\n\nIf both routing paths fail or cannot recommend a target, record the reason\nand resolve available provider/model IDs and effort options from\n`orchestrator_capabilities`. This documented outage fallback uses Codex\nSol 6.1 high for builders, Luna 6 medium for bulk reading and Sol 6.1 medium\nfor general work, conserving Claude. For a required main review, use the\napproved Opus 5.5 high / Sol 6.1 high pair on the other provider: Codex-authored\nwork uses Claude Opus, Claude-authored work uses Codex Sol. Consequential design\nor disputed findings use Fable 5.1 / Astra medium on the required other provider.\nIf the fallback is unavailable, defer that dependent work and report why.\nExplicit user overrides still apply. Do not substitute an unavailable target\nor represent fallback selection as a FATE recommendation.\n\nCross-provider review remains the default. Only `review-delegation`'s \"Quota\nexception\" permits a fresh stronger same-provider reviewer after an observed\nother-provider quota stop with a reliable reset more than one hour away.\nUnknown windows/reset or a collector HTTP 429 alone grant no waiver. Never\nuse max, ultra, ultrathink, ultracode or higher effort. Sonnet is excluded;\nHaiku is allowed when selected. Avoid optional Claude fan-outs.\n\n### Supported policy and deployment state\n\nRole-target clients support live-catalog candidates, pins, bans, AA quality\nfloors/objectives and Slopalytics probation with quota pacing. These capabilities\ndo not imply activation. Pins are explicit operator fallback choices, not AA\nquality qualification. Never lower floors or invent missing coding metrics.\nThe AA key stays only on homelab; any future shared scores contain no secrets.\n\nAt the 2026-10-18 activation, only omarchy-pc has client-v0.4.0 and live CLI\nverification of Codex Sol 6.1 high builder, Luna 6 medium bulk-read and Sol 6.1\nmedium general pins. Agent-a, agent-b and laptop remain on v0.3.0, unverified\nfor the new role-target behavior. Claude collection is approved for hosts with\na verified local login binding, but enabled and attempted only on omarchy-pc.\nIts existing 0600 env file is reused without token refresh. HTTP 429/backoff\nleaves Claude windows/reset unknown; honor retryAt and read cached status.\nDo not claim every logged-in host has a live reader. AA snapshots, shared\nquota and automatic provider switching remain off. Report distribution and\nverification per host when this guidance changes."
-        ]
+        ((
+            "## Route before delegating\n"
+            "\n"
+            "Call `chaldea_route` or `chaldea route --role ROLE` before each T3 `delegate_task`.\n"
+            "Roles are `builder`, `critical-review`, `bulk-read` and `general`. Pass the returned\n"
+            "`providerInstanceId`, `model` and `options` as the delegate target. Chaldea recommends;\n"
+            "T3 launches the child. An explicit session model restriction still applies.\n"
+            "\n"
+            "For reviews, supply the writer's driver as `authorProvider`, `claudeAgent` or `codex`,\n"
+            "or CLI `--author-provider`, so routing requires the other provider. Main diff reviews\n"
+            "use `builder` to retain the Opus/Sol pair; consequential design or disputed findings\n"
+            "use `critical-review` for Fable/Astra. If the tool or CLI cannot recommend a target,\n"
+            "use the shared CLAUDE.md model roles. Apply the provider rule and \"Quota exception\"\n"
+            "in `review-delegation`; an unavailable recommendation alone grants no waiver.\n"
+            "\n"
+            "The client pins builder to Opus 5.5/Sol 6.1 high, critical-review to Fable 5.1/Astra\n"
+            "medium, bulk-read to Sonnet 5.5/Luna 6 medium, and general to Opus 5.5/Sol 6.1 medium.\n"
+            "It excludes Haiku and OpenCode candidates. Its Slopalytics URL is\n"
+            "https://slopalytics.com/data/t3-usage.json. Role pairs and this URL are client constants,\n"
+            "not route.json keys. Fleet renders pacing and capacity thresholds. Igor approved Claude usage collection on\n"
+            "2026-10-18; it runs on the hosts with a Claude login."
+        ), (
+            "## Route before delegating\n"
+            "\n"
+            "Call FATE through `chaldea_route` or `chaldea route --role ROLE` before each T3\n"
+            "`delegate_task`. Use `builder` for implementation and main diff reviews,\n"
+            "`critical-review` for consequential design or disputed findings, `bulk-read` for\n"
+            "readers and `general` for other work. Pass the selected `providerInstanceId`,\n"
+            "`model` and `options` exactly as the delegate target, including effort. Chaldea\n"
+            "recommends; T3 launches the child. Honor explicit user/model overrides.\n"
+            "\n"
+            "For reviews pass the writer's driver as `authorProvider`, `claudeAgent` or\n"
+            "`codex`, or CLI `--author-provider`, to require the other provider. A main review\n"
+            "normally uses `chaldea route --role builder --author-provider codex` for a\n"
+            "Codex author. Consequential design uses `critical-review`. A Codex-only builder\n"
+            "pin can legitimately refuse that main review. Use the approved other-provider\n"
+            "fallback below and in `review-delegation`; do not retry the pin indefinitely\n"
+            "or silently waive provider separation.\n"
+            "\n"
+            "### CLI and outage fallback\n"
+            "\n"
+            "A long-lived MCP can retain an older schema after a client upgrade. If it\n"
+            "rejects newer configuration keys, run the installed CLI with the same role\n"
+            "and author-provider constraint. Pass its exact target to T3. This is supported\n"
+            "without restarting T3; do not restart or alter configuration to recover routing.\n"
+            "\n"
+            "If both routing paths fail or cannot recommend a target, record the reason\n"
+            "and resolve available provider/model IDs and effort options from\n"
+            "`orchestrator_capabilities`. This documented outage fallback uses Codex\n"
+            "Sol 6.1 high for builders, Luna 6 medium for bulk reading and Sol 6.1 medium\n"
+            "for general work, conserving Claude. For a required main review, use the\n"
+            "approved Opus 5.5 high / Sol 6.1 high pair on the other provider: Codex-authored\n"
+            "work uses Claude Opus, Claude-authored work uses Codex Sol. Consequential design\n"
+            "or disputed findings use Fable 5.1 / Astra medium on the required other provider.\n"
+            "If the fallback is unavailable, defer that dependent work and report why.\n"
+            "Explicit user overrides still apply. Do not substitute an unavailable target\n"
+            "or represent fallback selection as a FATE recommendation.\n"
+            "\n"
+            "Cross-provider review remains the default. Only `review-delegation`'s \"Quota\n"
+            "exception\" permits a fresh stronger same-provider reviewer after an observed\n"
+            "other-provider quota stop with a reliable reset more than one hour away.\n"
+            "Unknown windows/reset or a collector HTTP 429 alone grant no waiver. Never\n"
+            "use max, ultra, ultrathink, ultracode or higher effort. Sonnet is excluded;\n"
+            "Haiku is allowed when selected. Avoid optional Claude fan-outs.\n"
+            "\n"
+            "### Supported policy and deployment state\n"
+            "\n"
+            "Role-target clients support live-catalog candidates, pins, bans, AA quality\n"
+            "floors/objectives and Slopalytics probation with quota pacing. These capabilities\n"
+            "do not imply activation. Pins are explicit operator fallback choices, not AA\n"
+            "quality qualification. Never lower floors or invent missing coding metrics.\n"
+            "The AA key stays only on homelab; any future shared scores contain no secrets.\n"
+            "\n"
+            "At the 2026-10-18 activation, only omarchy-pc has client-v0.4.0 and live CLI\n"
+            "verification of Codex Sol 6.1 high builder, Luna 6 medium bulk-read and Sol 6.1\n"
+            "medium general pins. Agent-a, agent-b and laptop remain on v0.3.0, unverified\n"
+            "for the new role-target behavior. Claude collection is approved for hosts with\n"
+            "a verified local login binding, but enabled and attempted only on omarchy-pc.\n"
+            "Its existing 0600 env file is reused without token refresh. HTTP 429/backoff\n"
+            "leaves Claude windows/reset unknown; honor retryAt and read cached status.\n"
+            "Do not claim every logged-in host has a live reader. AA snapshots, shared\n"
+            "quota and automatic provider switching remain off. Report distribution and\n"
+            "verification per host when this guidance changes."
+        )),
     ],
     "skills/review-delegation/SKILL.md": [
-        [
-            "- A main review by a strong model from the provider that did not write the\n  change: Sol 6.1 reviews work written by Claude, Opus 5.5 reviews work written\n  by Codex, subject only to the quota exception below.",
-            "- A main review by a strong model from the provider that did not write the\n  change, selected through FATE's `builder` role, subject only to the quota\n  exception below."
-        ],
-        [
-            "  work, with exactly one target area such as data safety or credential handling.",
-            "  work, with exactly one target area such as data safety or credential handling.\n  Conserve Claude for required main reviews; no optional Claude fan-outs."
-        ],
-        [
-            "Before each delegation, call `chaldea_route` or `chaldea route --role ROLE` and pass\nits `providerInstanceId`, `model` and `options` as the T3 `delegate_task` target.\nUse `builder` for main diff reviews, `critical-review` for consequential design or\ndisputed findings, `bulk-read` for readers and `general` for other work. For reviews,\npass the writer's driver as `authorProvider`, `claudeAgent` or `codex`, or CLI\n`--author-provider`, to require the other provider. Honor explicit session model\nrestrictions. If routing is unavailable, use the CLAUDE.md model roles and\n`orchestrator_capabilities` IDs, applying the provider rule and quota exception below.",
-            "Before each delegation, call FATE through `chaldea_route` or\n`chaldea route --role ROLE`. Pass the selected `providerInstanceId`, `model`\nand `options` exactly as the T3 `delegate_task` target, including effort.\nUse `builder` for main diff reviews, `critical-review` for consequential design\nor disputed findings, `bulk-read` for readers and `general` for other work.\nFor reviews, pass the writer's driver as `authorProvider`, `claudeAgent` or\n`codex`, or CLI `--author-provider`, to require the other provider. Honor\nexplicit user/model overrides. If MCP rejects newer configuration keys,\nuse the installed CLI with the same constraints, without restarting T3.\n\nFor a Codex author, normally run\n`chaldea route --role builder --author-provider codex`. A Codex builder pin\nmay refuse because it cannot satisfy provider separation. If FATE cannot\nrecommend a target, record the refusal and use the approved main-review\nfallback from the live `orchestrator_capabilities` catalog: Opus 5.5 high\nfor Codex-authored work, Sol 6.1 high for Claude-authored work. Pass the\ncatalog's exact provider/model IDs and high-effort option. This is an\nother-provider fallback, not a quota waiver. Do not retry a pin indefinitely.\nKeep Claude use to required main reviews. If that fallback cannot run,\ndefer the review unless the quota exception below actually qualifies.\nFor other outage roles, use the `chaldea` skill's documented fallback.\nNever use max, ultra, ultrathink, ultracode or higher effort."
-        ]
+        ((
+            "- A main review by a strong model from the provider that did not write the\n"
+            "  change: Sol 6.1 reviews work written by Claude, Opus 5.5 reviews work written\n"
+            "  by Codex, subject only to the quota exception below."
+        ), (
+            "- A main review by a strong model from the provider that did not write the\n"
+            "  change, selected through FATE's `builder` role, subject only to the quota\n"
+            "  exception below."
+        )),
+        ((
+            "  work, with exactly one target area such as data safety or credential handling."
+        ), (
+            "  work, with exactly one target area such as data safety or credential handling.\n"
+            "  Conserve Claude for required main reviews; no optional Claude fan-outs."
+        )),
+        ((
+            "Before each delegation, call `chaldea_route` or `chaldea route --role ROLE` and pass\n"
+            "its `providerInstanceId`, `model` and `options` as the T3 `delegate_task` target.\n"
+            "Use `builder` for main diff reviews, `critical-review` for consequential design or\n"
+            "disputed findings, `bulk-read` for readers and `general` for other work. For reviews,\n"
+            "pass the writer's driver as `authorProvider`, `claudeAgent` or `codex`, or CLI\n"
+            "`--author-provider`, to require the other provider. Honor explicit session model\n"
+            "restrictions. If routing is unavailable, use the CLAUDE.md model roles and\n"
+            "`orchestrator_capabilities` IDs, applying the provider rule and quota exception below."
+        ), (
+            "Before each delegation, call FATE through `chaldea_route` or\n"
+            "`chaldea route --role ROLE`. Pass the selected `providerInstanceId`, `model`\n"
+            "and `options` exactly as the T3 `delegate_task` target, including effort.\n"
+            "Use `builder` for main diff reviews, `critical-review` for consequential design\n"
+            "or disputed findings, `bulk-read` for readers and `general` for other work.\n"
+            "For reviews, pass the writer's driver as `authorProvider`, `claudeAgent` or\n"
+            "`codex`, or CLI `--author-provider`, to require the other provider. Honor\n"
+            "explicit user/model overrides. If MCP rejects newer configuration keys,\n"
+            "use the installed CLI with the same constraints, without restarting T3.\n"
+            "\n"
+            "For a Codex author, normally run\n"
+            "`chaldea route --role builder --author-provider codex`. A Codex builder pin\n"
+            "may refuse because it cannot satisfy provider separation. If FATE cannot\n"
+            "recommend a target, record the refusal and use the approved main-review\n"
+            "fallback from the live `orchestrator_capabilities` catalog: Opus 5.5 high\n"
+            "for Codex-authored work, Sol 6.1 high for Claude-authored work. Pass the\n"
+            "catalog's exact provider/model IDs and high-effort option. This is an\n"
+            "other-provider fallback, not a quota waiver. Do not retry a pin indefinitely.\n"
+            "Keep Claude use to required main reviews. If that fallback cannot run,\n"
+            "defer the review unless the quota exception below actually qualifies.\n"
+            "For other outage roles, use the `chaldea` skill's documented fallback.\n"
+            "Never use max, ultra, ultrathink, ultracode or higher effort."
+        )),
     ],
     "skills/roadmap-executor/SKILL.md": [
-        [
-            "- Before each T3 `delegate_task`, call `chaldea_route` or `chaldea route --role ROLE`\n  and pass its `providerInstanceId`, `model` and `options` as the delegate target.\n  Use `builder` for implementation and main diff reviews, `critical-review` for\n  consequential design or disputed findings, `bulk-read` for readers and `general`\n  for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`\n  or `codex`, or CLI `--author-provider`, to require the other provider. Honor session\n  model restrictions. If routing is unavailable, use the CLAUDE.md model roles and\n  `orchestrator_capabilities` IDs. Apply `review-delegation`'s provider rule and\n  \"Quota exception\", including its PR comment and checkpoint evidence.",
-            "- Before each T3 `delegate_task`, call FATE through `chaldea_route` or\n  `chaldea route --role ROLE`. Pass the selected `providerInstanceId`, `model`\n  and `options` exactly as the delegate target, including effort.\n  Use `builder` for implementation and main diff reviews, `critical-review` for\n  consequential design or disputed findings, `bulk-read` for readers and `general`\n  for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`\n  or `codex`, or CLI `--author-provider`, to require the other provider. Honor\n  explicit user/model overrides. If MCP rejects newer configuration keys, use the\n  installed CLI without restarting T3. If neither can recommend a target, use the\n  `chaldea` skill's documented outage fallback and live catalog IDs. For main reviews,\n  a Codex builder pin refusal uses `review-delegation`'s approved other-provider\n  main-review fallback. Apply its provider rule and \"Quota exception\", including\n  its PR comment and checkpoint evidence. Never use max effort or above."
-        ]
-    ]
+        ((
+            "- Before each T3 `delegate_task`, call `chaldea_route` or `chaldea route --role ROLE`\n"
+            "  and pass its `providerInstanceId`, `model` and `options` as the delegate target.\n"
+            "  Use `builder` for implementation and main diff reviews, `critical-review` for\n"
+            "  consequential design or disputed findings, `bulk-read` for readers and `general`\n"
+            "  for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`\n"
+            "  or `codex`, or CLI `--author-provider`, to require the other provider. Honor session\n"
+            "  model restrictions. If routing is unavailable, use the CLAUDE.md model roles and\n"
+            "  `orchestrator_capabilities` IDs. Apply `review-delegation`'s provider rule and\n"
+            "  \"Quota exception\", including its PR comment and checkpoint evidence."
+        ), (
+            "- Before each T3 `delegate_task`, call FATE through `chaldea_route` or\n"
+            "  `chaldea route --role ROLE`. Pass the selected `providerInstanceId`, `model`\n"
+            "  and `options` exactly as the delegate target, including effort.\n"
+            "  Use `builder` for implementation and main diff reviews, `critical-review` for\n"
+            "  consequential design or disputed findings, `bulk-read` for readers and `general`\n"
+            "  for other work. Reviews pass the writer's driver as `authorProvider`, `claudeAgent`\n"
+            "  or `codex`, or CLI `--author-provider`, to require the other provider. Honor\n"
+            "  explicit user/model overrides. If MCP rejects newer configuration keys, use the\n"
+            "  installed CLI without restarting T3. If neither can recommend a target, use the\n"
+            "  `chaldea` skill's documented outage fallback and live catalog IDs. For main reviews,\n"
+            "  a Codex builder pin refusal uses `review-delegation`'s approved other-provider\n"
+            "  main-review fallback. Apply its provider rule and \"Quota exception\", including\n"
+            "  its PR comment and checkpoint evidence. Never use max effort or above."
+        )),
+    ],
 }
 DESTINATIONS = {
     "claude/omarchy-setup/CLAUDE.md": ".claude/omarchy-setup/CLAUDE.md",
