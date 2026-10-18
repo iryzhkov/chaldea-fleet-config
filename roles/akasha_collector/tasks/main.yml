@@ -23,6 +23,18 @@
     - "{{ fleet_home }}/.local/state/chaldea/events"
     - "{{ fleet_home }}/.local/state/chaldea/timer-spool"
 
+- name: Create the collector command directory
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: Install the command sharing the timer collector state
+  ansible.builtin.template:
+    src: akasha-collector.j2
+    dest: "{{ fleet_home }}/.local/bin/akasha-collector"
+    mode: "0755"
+
 - name: Render the collector service and timer
   ansible.builtin.set_fact:
     akasha_collector_service_unit: "{{ lookup('ansible.builtin.template', 'akasha-collector.service.j2') }}"

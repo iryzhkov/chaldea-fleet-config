@@ -15,7 +15,7 @@ agent_tools_homelab_cli_repo: git@github-homelab-cli:iryzhkov/homelab-cli.git
 agent_tools_sources:
   - name: homelab-cli
     repo: "{{ agent_tools_homelab_cli_repo }}"
-    ref: eefa9f68f469bdb7e97554fee47b416c01fa765a
+    ref: f035d2820a28a523012078114005c30e8a0f00cc
   - name: ov-memory
     repo: https://github.com/iryzhkov/ov-mcp.git
     ref: efac1c8f04662a3512da84aa6559a26061e97832
@@ -44,10 +44,10 @@ chaldea_client_sha256: "38815b50ae8efbd9379f707af3fe8265a18e1fedd7814c2644ec73c9
 # Opt-in requires Igor's approval and verified local account binding on each host.
 chaldea_client_claude_usage_enabled: false
 
-# Published from Chaldea main fcf3651; SHA-256 verified from the release asset.
+# Published from Chaldea main 330926d; SHA-256 verified from the release asset.
 # Keep this version and digest identical in fleet-config and homelab-infra.
-chaldea_host_version: host-v0.2.1
-chaldea_host_sha256: "914918aa6931203d49be8d8e7874b2e24f28b9cdabdd5ad49101de9ab2e6e1c9"
+chaldea_host_version: host-v0.2.2
+chaldea_host_sha256: "ebaf896b2b4552002f00ad9b83855ff2364abe02f57ec667d7c9fcafb308c357"
 
 # Signed data lives apart from root-executed fleet configuration.
 chaldea_access_trust_repository: ssh://git@github.com/iryzhkov/chaldea-trust.git
