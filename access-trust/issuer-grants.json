@@ -136,6 +136,20 @@
             ]
           }
         ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-publisher",
+        "project": "chaldea",
+        "source": "agent-b.mission-control",
+        "grants": [
+          {
+            "resource": "agent-b.mission-control",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -285,6 +299,20 @@
         "grants": [
           {
             "resource": "omarchy-macbook-air-igor.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-publisher",
+        "project": "chaldea",
+        "source": "omarchy-macbook-air-igor.mission-control",
+        "grants": [
+          {
+            "resource": "omarchy-macbook-air-igor.mission-control",
             "actions": [
               "append"
             ]
