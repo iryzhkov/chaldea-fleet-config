@@ -7,15 +7,19 @@ name: ci
 permissions:
   contents: read
 jobs:
-  ci:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        phase: [pytest, converge]
     # GitHub-hosted: the repository is public, and a self-hosted runner would
     # run pull requests from forks on a fleet host.
     runs-on: ubuntu-24.04
-    # Pytest took 26m41s; retain time for every synthetic converge and role gate.
+    # Pytest and synthetic convergence are independent; retain every gate.
     timeout-minutes: 45
     env:
       ANSIBLE_FORKS: "1"
-      TMPDIR: ${{ github.workspace }}/../chaldea-fleet-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      TMPDIR: ${{ github.workspace }}/../chaldea-fleet-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.phase }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - id: python
@@ -44,7 +48,18 @@ jobs:
             --directory "$node_scratch/runtime" --strip-components=1 --no-same-owner
           test "$("$node_scratch/runtime/bin/node" --version)" = "v$CI_NODE_VERSION"
           printf '%s\n' "$node_scratch/runtime/bin" >>"$GITHUB_PATH"
-      - run: bash tools/ci.sh
+      - run: bash tools/ci.sh "${{ matrix.phase }}"
       - name: Remove this run's disk-backed scratch
         if: always()
         run: rm -rf -- "$TMPDIR"
+  ci:
+    # Preserve the required check name; every matrix lane must succeed.
+    if: always()
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require both complete verification lanes
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+        run: test "$CHECKS_RESULT" = success

@@ -5,6 +5,11 @@
 # scratch dir, and the role tests in tests/*.yml. Node must be on PATH;
 # the workflow supplies a checksum-pinned runtime in job-local disk scratch.
 set -euo pipefail
+phase=${1:-all}
+if (( $# > 1 )) || [[ "$phase" != all && "$phase" != pytest && "$phase" != converge ]]; then
+	echo 'usage: tools/ci.sh [all|pytest|converge]' >&2
+	exit 64
+fi
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
 # All test programs inherit an isolated home, even when invoked by a real runner.
@@ -51,8 +56,13 @@ python tests/host_artifact_fixture.py "$TMPDIR/host-artifact" >"$TMPDIR/host-art
 python tests/client_artifact_fixture.py "$TMPDIR/client-artifact" >"$TMPDIR/client-artifact-vars.json"
 export HUYANG_PLUGIN_SOURCE="$PWD/roles/agent_config/files/opencode/huyang-profiles.js"
 
-export CHALDEA_HOST_TEST_EVIDENCE="$TMPDIR/role-install-evidence"
-python -m pytest -q -p no:cacheprovider tests
+if [[ "$phase" != converge ]]; then
+	export CHALDEA_HOST_TEST_EVIDENCE="$TMPDIR/role-install-evidence"
+	python -m pytest -q -p no:cacheprovider --durations=20 tests
+fi
+if [[ "$phase" == pytest ]]; then
+	exit 0
+fi
 # Scratch may be inside an isolated job workspace; generated fixture plays are not source.
 ansible-lint --exclude "$TMPDIR" --exclude "${TMPDIR#"$PWD"/}"
 export FAKE_SYSTEMCTL_UNIT_HOME="$PWD/.ci-home"
