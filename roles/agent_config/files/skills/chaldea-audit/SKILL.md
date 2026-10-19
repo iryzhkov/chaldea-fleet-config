@@ -38,6 +38,8 @@ scratch path and output destination. Cover these lenses (combine for small scope
    budgets versus actuals, and Igor decisions missing from the plan.
 2. Logic duplication and ownership: repeated mechanisms, unjustified layers,
    code in configuration repositories, and the smallest consolidation.
+   Check whether existing configuration, pins or enrollment can meet the same
+   requirement before accepting new processes, identities, state or publication paths.
 3. Cross-component consistency: protocols, configuration, paths, pins, defaults,
    logging, errors and documentation versus implementation.
 4. Security-boundary coherence: issuer, verifier and consumer contracts, trust,

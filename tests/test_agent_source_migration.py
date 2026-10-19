@@ -662,7 +662,29 @@ REVIEW_NOTE_INSERTIONS = {
 }
 
 
+# Necessity guidance requested by Igor, 2026-10-19; preserve the pre-move baseline.
+NECESSITY_INSERTIONS = {
+    "skills/review-delegation/SKILL.md": [
+        "## Check necessity and complexity\n\nAsk whether the change is needed as well as whether it is correct. Before accepting\na new process, account, state store or publication path, trace the existing producer\nand consumer and compare a configuration, version-pin or enrollment change.\nCite the exact missing capability or constraint that rules out reuse. Separate\nverified facts, assumptions and optional improvements; check the premise independently\nrather than accepting the brief's proposed architecture as a requirement.\nKeep useful improvements outside the requested outcome as notes. Evidence of needless\ncomplexity uses the existing citation/location blocking rule. Use existing authorized\nevidence and report gaps; this check adds no review round or approval step.\n\n",
+        "Necessity: <existing path and why configuration/pin/enrollment reuse is insufficient>.\nDistinguish verified constraints from assumptions and optional improvements.\n"
+    ],
+    "skills/roadmap-executor/SKILL.md": [
+        "## Check the simplest existing path\n\nBefore proposing new machinery or a large estimate, trace the current implementation\nand authorized deployment evidence. Compare configuration, version-pin and enrollment\nchanges first; name the exact unmet requirement before adding a process, account,\nstate store or publication path. Mark unverified premises as unknown.\nKeep optional UI or completeness improvements separate from the first useful outcome.\nA budget is a ceiling, not a target. If evidence contradicts a design assumption,\nreconcile the plan before continuing dependent work, preserving Igor's explicit goals\nand constraints. Apply review-delegation's necessity check in the existing review.\n\n"
+    ],
+    "skills/audit-lens/SKILL.md": [
+        "For scope or duplication findings, apply review-delegation's necessity check to the\nexisting path and proposed machinery. Verify the assumption that prevents reuse;\ndistinguish Igor's explicit requirements from implementation choices and unknowns.\nReport contrary evidence through the lead without silently changing adopted decisions.\n\n"
+    ],
+    "skills/chaldea-audit/SKILL.md": [
+        "   Check whether existing configuration, pins or enrollment can meet the same\n   requirement before accepting new processes, identities, state or publication paths.\n"
+    ]
+}
+
+
 def old_bytes(relative, data):
+    for insertion in reversed(NECESSITY_INSERTIONS.get(relative, [])):
+        insertion = insertion.encode()
+        assert data.count(insertion) == 1, relative
+        data = data.replace(insertion, b"", 1)
     if relative in REVIEW_NOTE_INSERTIONS:
         insertion = REVIEW_NOTE_INSERTIONS[relative].encode()
         assert data.count(insertion) == 1, relative

@@ -24,6 +24,11 @@ repository reads. Do not delegate further; return evidence to the audit lead.
   them or treat old briefs as overriding later decisions. Identify a missing
   plan entry with its decision reference; do not turn it into a new decision.
 
+For scope or duplication findings, apply review-delegation's necessity check to the
+existing path and proposed machinery. Verify the assumption that prevents reuse;
+distinguish Igor's explicit requirements from implementation choices and unknowns.
+Report contrary evidence through the lead without silently changing adopted decisions.
+
 ## Measurements and evidence
 
 - Only the assigned measurement lens runs heavy counts, suites and flake
