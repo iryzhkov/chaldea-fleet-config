@@ -125,6 +125,10 @@ def fixture_role(tmp_path, name):
                 continue
             if "block" in row:
                 row["block"] = relocate(row["block"])
+            if "ansible.builtin.service_facts" in row:
+                row.pop("ansible.builtin.service_facts")
+                row["ansible.builtin.set_fact"] = dict(ansible_facts=dict(
+                    services="{{ fixture_services | default({}) }}"))
             if "ansible.builtin.systemd_service" in row:
                 row = dict(name=row["name"], **{"ansible.builtin.fail": dict(msg="unit manager must not run in cold check")},
                            when=row.get("when"))
