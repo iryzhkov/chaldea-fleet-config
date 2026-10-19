@@ -662,7 +662,33 @@ REVIEW_NOTE_INSERTIONS = {
 }
 
 
+# Necessity guidance requested by Igor, 2026-10-19; preserve the pre-move baseline.
+NECESSITY_INSERTIONS = {
+    "skills/review-delegation/SKILL.md": [
+        "## Check necessity and complexity\n\nAsk whether the change is needed as well as whether it is correct. Before accepting\na new process, account, state store or publication path, trace the existing producer\nand consumer and compare a configuration, version-pin or enrollment change.\nCite the exact missing capability or constraint that rules out reuse. Separate\nverified facts, assumptions and optional improvements; check the premise independently\nrather than accepting the brief's proposed architecture as a requirement.\nKeep useful improvements outside the requested outcome as notes. Evidence of needless\ncomplexity uses the existing citation/location blocking rule. Use existing authorized\nevidence and report gaps; this check adds no review round or approval step.\n\n## Group related work before review and CI\n\nPrefer one PR for related changes delivering one outcome when the combined diff is\nreviewable and has compatible authorization, deployment and rollback requirements.\nKeep independent releases, unrelated changes or materially different risks separate.\nUse separate commits and disjoint workers within a PR; do not create a PR per worker.\nPlan dependency and merge order before expensive CI, especially with strict base rules.\nIntegrate ready related changes before final review and push them as a batch; do not\nhold a useful delivery for speculative additions. Preserve repository ownership and\nlinked PRs across repositories. Batching never waives exact-head review or required CI.\n\n",
+        "Necessity: <existing path and why configuration/pin/enrollment reuse is insufficient;\n  n/a when no new process, account, state store or publication path is proposed>.\nDistinguish verified constraints from assumptions and optional improvements.\n"
+    ],
+    "skills/roadmap-executor/SKILL.md": [
+        "## Check the simplest existing path\n\nBefore proposing new machinery or a large estimate, trace the current implementation\nand authorized deployment evidence. Compare configuration, version-pin and enrollment\nchanges first; name the exact unmet requirement before adding a process, account,\nstate store or publication path. Mark unverified premises as unknown.\nKeep optional UI or completeness improvements separate from the first useful outcome.\nA budget is a ceiling, not a target. If evidence contradicts a design assumption,\nreconcile the plan before continuing dependent work, preserving Igor's explicit goals\nand constraints. Apply review-delegation's necessity check in the existing review.\n\nDefine the first milestone by an observable user outcome, including deployed data\nwhen requested; source, review and merge are intermediate states. Choose PR boundaries\nwith review-delegation's grouping guidance before dispatching disjoint source workers.\nKeep one integration owner and batch related ready changes for final review and CI.\nMeasure source-to-useful-result time, separating overlapping work, queue/setup, tests,\nreview, CI, integration fixes and deployment waits using existing retained evidence.\nAddress routine measured friction within authorization; do not wait for an audit.\nA need for extensive new fixtures should prompt checking the design premise again.\n\n"
+    ],
+    "skills/audit-lens/SKILL.md": [
+        "For scope or duplication findings, apply review-delegation's necessity check to the\nexisting path and proposed machinery. Verify the assumption that prevents reuse;\ndistinguish Igor's explicit requirements from implementation choices and unknowns.\nReport contrary evidence through the lead without silently changing adopted decisions.\n\nFor delivery-friction findings, compare planned acceptance and actual useful outcomes.\nSeparate queue/setup, test execution, review, CI, integration and deployment delays;\nuse existing run/step timestamps first, without double-counting parallel work. Report\nunknown active effort honestly. Check repeated verification, unnecessary PR splitting,\nmerge-order invalidation and oversized batches; recommend the smallest measured remedy\nwith expected time saved, effort and coverage/rollback tradeoffs. Preserve required CI.\n\n"
+    ],
+    "skills/chaldea-audit/SKILL.md": [
+        "   Check whether existing configuration, pins or enrollment can meet the same\n   requirement before accepting new processes, identities, state or publication paths.\n",
+        "   Separate queue/setup, test, review, CI, integration and deployment time using\n   retained evidence; assess missed acceptance outcomes and PR batching/merge-order\n   costs as well as code size. Propose sized remedies with coverage and risk tradeoffs.\n"
+    ],
+    "skills/codebase-design/SKILL.md": [
+        "## Check reuse before designing\n\nTrace the existing producer and consumer before proposing a new module. Compare\nconfiguration, version-pin and enrollment changes with the requested outcome.\nSeparate verified constraints from assumptions; cite the unmet requirement before\nadding a process, account, state store or publication path. Keep optional interface\nor completeness improvements outside the first useful outcome unless requested.\nPreserve the user's explicit requirements; use this comparison in the existing plan.\n\nPlan a first observable outcome and a reviewable PR using review-delegation's grouping\nguidance. Module or worker boundaries need not become separate PRs; keep independent\nrelease, authorization and rollback requirements explicit when choosing the grouping.\n\n"
+    ]
+}
+
+
 def old_bytes(relative, data):
+    for insertion in reversed(NECESSITY_INSERTIONS.get(relative, [])):
+        insertion = insertion.encode()
+        assert data.count(insertion) == 1, relative
+        data = data.replace(insertion, b"", 1)
     if relative in REVIEW_NOTE_INSERTIONS:
         insertion = REVIEW_NOTE_INSERTIONS[relative].encode()
         assert data.count(insertion) == 1, relative
