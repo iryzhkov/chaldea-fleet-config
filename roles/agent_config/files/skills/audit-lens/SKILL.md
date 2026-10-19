@@ -9,7 +9,10 @@ description: >-
 
 Stay within the supplied lens, pinned plan/checkpoint/previous-audit revisions
 and repository refs. Load the chaldea skill for measurements and Huyang for
-repository reads. Do not delegate further; return evidence to the audit lead.
+repository reads; roadmap-executor, roadmap-planner and full roadmap history are
+not needed. Do not delegate further; return evidence to the audit lead.
+Reuse existing evidence by reference and read raw artifacts only for an
+unresolved finding.
 
 ## Read-only boundary
 

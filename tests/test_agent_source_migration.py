@@ -688,6 +688,8 @@ NECESSITY_INSERTIONS = {
 # Newest layer: its exact (before, after) blocks are reversed first.
 CONTEXT_TRIGGER_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_context_triggers.json").read_text())
+# Files added after the move have no pre-move bytes; they install unchanged.
+ADDED_FILES = {"skills/roadmap-planner/SKILL.md"}
 
 
 def old_bytes(relative, data):
@@ -745,8 +747,8 @@ def compare(relative, data):
 def test_source_only_move_recovers_all_pre_move_bytes():
     paths = {p.relative_to(ROOT).as_posix() for p in FILES.rglob("*")
              if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
-    assert paths == BEFORE["files"].keys()
-    for path in paths:
+    assert paths == BEFORE["files"].keys() | {"roles/agent_config/files/" + p for p in ADDED_FILES}
+    for path in BEFORE["files"]:
         compare(Path(path).relative_to("roles/agent_config/files").as_posix(), (ROOT / path).read_bytes())
 
 
@@ -781,6 +783,9 @@ def test_before_after_render_for_every_host(tmp_path, host):
         relative = Path(path).relative_to("roles/agent_config/files").as_posix()
         for target in (".agents", ".claude"):
             compare(relative, (home / target / relative).read_bytes())
+    for relative in ADDED_FILES:
+        for target in (".agents", ".claude"):
+            assert (home / target / relative).read_bytes() == (FILES / relative).read_bytes()
 
 
 def assert_delegation_contract(read):

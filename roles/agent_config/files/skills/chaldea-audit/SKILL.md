@@ -1,19 +1,41 @@
 ---
 name: chaldea-audit
 description: >-
-  Run /chaldea-audit [scope] for a read-only audit of Chaldea roadmap alignment,
-  architecture, consistency, security, size, test health and session friction.
+  Run /chaldea-audit [scope] for a read-only Chaldea decision check at a planned
+  audit node, or a comprehensive audit of roadmap alignment, architecture,
+  consistency, security, size, test health and session friction.
 ---
 
 # Chaldea audit
 
-Use for a requested audit or a roadmap-executor audit checkpoint, not ordinary
-session work. The audit changes no source, PRs, services or hosts; its only writes
-are scratch evidence and the Jocasta report and decision/checkpoint records.
+Use for a requested audit, a due comprehensive audit or a planned audit node, not
+ordinary session work. The audit changes no source, PRs, services or hosts; its
+only writes are scratch evidence and the Jocasta report and decision/checkpoint
+records. Code fixes happen separately under adopted scope.
+
+## Size the audit to the decision
+
+- A decision check answers one planned audit node or milestone question: its
+  purpose, scope, the evidence it reuses and the decision it can change. Run it
+  inline or with one bounded lens. It does not satisfy a due comprehensive audit
+  or reset its counter, and its report says so.
+- A comprehensive audit covers the lenses below. It is due after five merged
+  milestones since the last one, before a new roadmap step, or when the largest
+  repository's source lines grow about 50% since its baseline, whichever comes
+  first. An adopted plan may set a proportionate cadence instead, keeping a
+  fallback for unplanned drift. One audit covers coincident triggers.
+- The checkpoint keeps merged milestones since the last comprehensive audit, its
+  baseline and counting method, and due status. Never silently drop an
+  unaddressed due audit. Counts use `chaldea exec`; they are triggers, never
+  LOC budgets.
+- Reuse completed spike, source, review, CI and deployment evidence by reference;
+  read raw artifacts only for an unresolved finding. Rerun only changed or
+  uncertain meaningful checks; no default full suite, repeated count job or
+  review-pair ritual.
 
 ## Frame the audit
 
-- Read the current plan of record
+- Read the operative sections of the current plan of record
   `tooling/plans/chaldea-rebuild-plan-2026-10-16.md`, the execution checkpoint
   `tooling/handoffs/chaldea-execution-checkpoint.md`, the previous audit and
   relevant implementation briefs from Jocasta. Honor a supplied scope.
@@ -32,7 +54,9 @@ are scratch evidence and the Jocasta report and decision/checkpoint records.
 
 Launch up to five read-only reviewers with T3 `delegate_task`. Each brief says
 "Load audit-lens first" and supplies scope, pinned inputs, repository URLs/refs,
-scratch path and output destination. Cover these lenses (combine for small scopes):
+scratch path and output destination; lens workers load audit-lens and task
+skills only, not roadmap-executor, roadmap-planner or full roadmap history.
+Cover these lenses (combine for small scopes):
 
 1. Scope and roadmap alignment: plan order, measured need, unused capabilities,
    budgets versus actuals, and Igor decisions missing from the plan.
@@ -49,7 +73,10 @@ scratch path and output destination. Cover these lenses (combine for small scope
    interactive latency/polling, retention and any-host-down recovery.
    Separate queue/setup, test, review, CI, integration and deployment time using
    retained evidence; assess missed acceptance outcomes and PR batching/merge-order
-   costs as well as code size. Propose sized remedies with coverage and risk tradeoffs.
+   costs as well as code size. Include measured time, token and process waste:
+   deployments used to discover format, duplicate qualification, context reloads,
+   queue/setup overhead and speculative machinery, against the cheapest
+   trustworthy evidence path. Propose sized remedies with coverage and risk tradeoffs.
 
 Assign heavy measurement only to lens 5 (or one named combined lens): line
 counts, test suites and bounded flake reruns use `chaldea exec` without `--host`.
@@ -70,6 +97,7 @@ never poll. Recorded decisions are checked for drift, not re-argued.
   `tooling/handoffs/chaldea-audit-<date>.md` in Jocasta. Include scope/commits,
   reviewer thread IDs/models, numbers and delta against the previous audit,
   findings in audit-lens format, unknowns and recommendations awaiting Igor.
+  Keep it to decisions, material findings and evidence links, not a diary.
   Fetch an existing same-date report in full and use `--if-revision N`;
   create only if absent. Preserve earlier audit evidence and decisions.
 - The orchestrator judges the report, states which recommendations it supports
@@ -77,7 +105,8 @@ never poll. Recorded decisions are checked for drift, not re-argued.
   workflow for native input; unanswered recommendations remain pending.
 - Record Igor's answers (adopt/reject/defer and reason) in the report and the
   checkpoint, using full fetch/reconcile/`--if-revision`. Update the checkpoint's
-  audit reference, comparable source baseline and milestone counter. Decisions
+  audit reference and due status; only a comprehensive audit resets the comparable
+  source baseline and milestone counter. Decisions
   missing from the plan are named for reconciliation, not silently invented.
 - Stop at the report and decisions. Implementation requires adopted scope;
   an audit recommendation itself grants no authority to change anything.
