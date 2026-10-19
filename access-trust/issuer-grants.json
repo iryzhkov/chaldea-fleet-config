@@ -220,6 +220,20 @@
             ]
           }
         ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-publisher",
+        "project": "chaldea",
+        "source": "omarchy-pc.mission-control",
+        "grants": [
+          {
+            "resource": "omarchy-pc.mission-control",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
       }
     ]
   },
