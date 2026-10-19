@@ -9,11 +9,14 @@ mission_control_pc_permission: false
 # The runtime role refuses an enabled install without that shared version and SHA.
 # Host installer and collector releases inherit the shared inventory selections.
 # Historical PC 044/024 proposal pins remain in Git history, not active inputs.
-chaldea_host_artifact_preserve_versions: [host-v0.2.2, host-v0.2.3, host-v0.2.4, host-v0.2.6]
+# Staging028 keeps actual021022024026 explicitly + newest prior027 + selected028.
+# Actual023 is ABSENT. Fresh full directory/mtime evidence is an operator gate;
+# stop if027 is not newest prior. Do not use the shared022 call's preserve list.
+chaldea_host_artifact_preserve_versions: [host-v0.2.1, host-v0.2.2, host-v0.2.4, host-v0.2.6]
 akasha_collector_mission_control_snapshot_file: /home/igor/.local/state/chaldea/mission-control/latest.json
 # Existing collector UID1000, state/spools, NNP and enabled timer stay unchanged.
 # After separate permission adoption, native enrollment input is exactly:
 # mission_control: {publisher_uid: 1000, pc_publisher_uid: 1000, reader_uid: 940,
 #   read_sources: [agent-a--mission-control, omarchy-pc--mission-control]}
 # Never put rendered ceilings into active issuer-grants.json without publication approval.
-# Helper040, shared trust022 and rollback023 pins/state are unchanged.
+# Helper040/shared trust022 stay unchanged; PC023 remains absent.
