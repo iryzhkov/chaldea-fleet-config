@@ -1,5 +1,6 @@
 """Routing inventory safety and OpenCode registration preservation."""
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -10,19 +11,49 @@ from test_mcp_registration import call, Failed
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_collector_runs_only_on_hosts_with_a_claude_login():
+def test_agent_clients_use_native_t3_quota():
     defaults = yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text())
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert set(hosts) == {"agent-a", "agent-b", "omarchy-pc", "laptop"}
-    assert common["chaldea_client_version"] == "client-v0.3.0"
-    assert common["chaldea_client_sha256"] == "38815b50ae8efbd9379f707af3fe8265a18e1fedd7814c2644ec73c91a8f5fa1"
-    # PC uses native T3 quota after its approved normal-login repair.
-    collectors = {"laptop"}
+    assert common["chaldea_client_version"] == "client-v0.4.2"
+    assert common["chaldea_client_sha256"] == "40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a"
+    # All agent hosts now use native T3 quota after approved local login checks.
     for name, values in hosts.items():
+        assert "chaldea_client_version" not in values
+        assert "chaldea_client_sha256" not in values
         effective = defaults | common | values
         assert effective["chaldea_client_enabled"] is True
-        assert effective["chaldea_client_claude_usage_enabled"] is (name in collectors)
+        assert effective["chaldea_client_claude_usage_enabled"] is False
+        assert effective["chaldea_client_version"] == "client-v0.4.2"
+        assert effective["chaldea_client_quota_enabled"] is True
+        assert effective["chaldea_client_codex_assert_runtime_home"] is True
+
+
+def test_host_settings_do_not_override_shared_software_releases():
+    def check(values, location):
+        if isinstance(values, dict):
+            for key, value in values.items():
+                # Retention records keep rollback artifacts, not desired releases.
+                if key == "chaldea_host_artifact_preserve_versions":
+                    continue
+                assert not re.search(r"(^|_)(versions?|sha256|checksums?|revision|commit|ref|build|release)(_|$)", key), (location, key)
+                check(value, f"{location}.{key}")
+        elif isinstance(values, list):
+            for value in values:
+                check(value, location)
+        elif isinstance(values, str):
+            assert not re.search(r"/(releases|builds)/|/installs/[^/]+/[0-9]", values), (location, values)
+
+    def group(node):
+        for host, values in node.get("hosts", {}).items():
+            check(values or {}, host)
+        for child in node.get("children", {}).values():
+            group(child)
+
+    group(yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"])
+    for path in (ROOT / "inventory/host_vars").rglob("*.yml"):
+        check(yaml.safe_load(path.read_text()), str(path))
 
 
 def test_opencode_preserves_settings_check_mode_removal_and_mode(tmp_path):
