@@ -196,7 +196,7 @@ def test_debian_bootstraps_python_apt_before_package_facts():
 
 def test_ci_scratch_is_runner_neutral_under_work_directory_and_cleaned():
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
-    job = workflow["jobs"]["ci"]
+    job = workflow["jobs"]["checks"]
     scratch = job["env"]["TMPDIR"]
     assert scratch.startswith("${{ github.workspace }}/../chaldea-fleet-ci-")
     assert "${{ github.run_id }}" in scratch and "${{ github.run_attempt }}" in scratch
