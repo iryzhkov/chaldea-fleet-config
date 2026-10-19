@@ -56,7 +56,7 @@ def test_shared_collector_selection_preserves_enrollment_inventory():
     assert inventory["laptop"]["expected_hostname"] == "omarchy-macbook-air-igor"
     normal = hostvars("inventory/hosts.yml")
     for host in ("agent-a", "agent-b", "omarchy-pc", "laptop"):
-        assert normal[host]["akasha_collector_version"] == "host-v0.2.8"
+        assert normal[host]["akasha_collector_version"] == "host-v0.2.9"
         assert normal[host]["akasha_collector_script"] == "/opt/chaldea-host/releases/{{ akasha_collector_version }}/host/akasha-collector.mjs"
         assert normal[host]["chaldea_host_version"] == "host-v0.2.2"
         assert normal[host]["chaldea_host_sha256"] == "ebaf896b2b4552002f00ad9b83855ff2364abe02f57ec667d7c9fcafb308c357"
