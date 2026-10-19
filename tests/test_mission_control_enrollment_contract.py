@@ -94,15 +94,25 @@ def test_pc_existing_collector_prospective_native_contract(hosted, client, tmp_p
     from test_token_helper import render
     active = ROOT / "access-trust/issuer-grants.json"
     before = active.read_bytes()
+    # Exercise the prospective grant even after its approved ceiling is published.
+    fixture_issuers = json.loads(before)
+    pc_ceiling = dict(audience="akasha", profile="mission-control-publisher", project="chaldea",
+        source="omarchy-pc.mission-control",
+        grants=[dict(resource="omarchy-pc.mission-control", actions=["append"])])
+    for row in fixture_issuers:
+        if row["issuer"] == "chaldea:omarchy-pc":
+            row["ceilings"] = [c for c in row["ceilings"] if c != pc_ceiling]
+    fixture_file = tmp_path / "before-pc-status.json"
+    fixture_file.write_text(json.dumps(fixture_issuers))
     data = public_inputs() | dict(laptop_quota=True, pc_quota_reader=True)
     packet = dict(publisher_uid=1000, reader_uid=940, read_sources=["agent-a--mission-control"])
-    old = compose(hosted, data | dict(mission_control=packet))
+    old = compose(hosted, data | dict(mission_control=packet), existing=fixture_file)
     assert old.returncode == 0, old.stderr
-    omitted = compose(hosted, data | dict(mission_control=packet | dict(pc_publisher_uid=None)))
+    omitted = compose(hosted, data | dict(mission_control=packet | dict(pc_publisher_uid=None)), existing=fixture_file)
     assert omitted.returncode == 0 and omitted.stdout == old.stdout
     pc_packet = packet | dict(pc_publisher_uid=1000,
         read_sources=["agent-a--mission-control", "omarchy-pc--mission-control"])
-    result = compose(hosted, data | dict(mission_control=pc_packet))
+    result = compose(hosted, data | dict(mission_control=pc_packet), existing=fixture_file)
     assert result.returncode == 0, result.stderr
     baseline, proposed = json.loads(old.stdout), json.loads(result.stdout)
     pc = next(r for r in proposed["registry"] if r["source"] == "omarchy-pc.mission-control")
@@ -129,6 +139,6 @@ def test_pc_existing_collector_prospective_native_contract(hosted, client, tmp_p
     for invalid in (dict(pc_publisher_uid=938), dict(pc_publisher_uid="1000"), dict(pc_publisher_uid=True),
                     dict(read_sources=["agent-a--mission-control"]), dict(publisher_uid=None),
                     dict(read_sources=["agent-a--mission-control", "foreign"])):
-        denied = compose(hosted, data | dict(mission_control=pc_packet | invalid))
+        denied = compose(hosted, data | dict(mission_control=pc_packet | invalid), existing=fixture_file)
         assert denied.returncode != 0, invalid
     assert active.read_bytes() == before
