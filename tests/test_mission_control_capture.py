@@ -37,6 +37,9 @@ def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_
     assert refused.returncode != 0
     assert "Require an existing private igor read token" in refused.stdout
     assert path.read_bytes() == before
+    checked = play(tmp_path, "agent-a", roles=[role], values=values, check=True)
+    assert checked.returncode != 0 and "Require an existing private igor read token" in checked.stdout
+    assert path.read_bytes() == before
     foreign = play(tmp_path, "other", roles=[role], values=values)
     assert foreign.returncode != 0
     assert "Require the exact capture host" in foreign.stdout
@@ -85,7 +88,19 @@ sys.exit(1 if os.environ.get('FIXTURE_VERIFY_FAIL') else 0)
         assert failed.returncode != 0 and not (tmp_path / "manager.json").exists()
         del os.environ["FIXTURE_VERIFY_FAIL"]
         ok(play(tmp_path, "agent-a", tasks=tasks, values=values))
-        (Path.home() / ".config/chaldea/mission-control-capture.json").write_text("{}")
+        config = Path.home() / ".config/chaldea/mission-control-capture.json"
+        config.write_text("{}")
+        unit = tmp_path / "units/mission-control-capture.service"
+        unit.write_text("[Service]\n")
+        protected = [config, unit, tmp_path / "manager.json", tmp_path / "manager.events", tmp_path / "verify.events"]
+        before = [(p.read_bytes(), p.stat().st_mode, p.stat().st_mtime_ns) for p in protected]
+        checked = play(tmp_path, "agent-a", tasks=tasks, values=values, check=True)
+        ok(checked)
+        assert "t3BaseDir" in checked.stdout and "NoNewPrivileges=yes" in checked.stdout
+        assert "after:" in checked.stdout and "changed=0" not in checked.stdout
+        assert before == [(p.read_bytes(), p.stat().st_mode, p.stat().st_mtime_ns) for p in protected]
+        foreign = play(tmp_path, "other", roles=[role], values=values, check=True)
+        assert foreign.returncode != 0 and "Require the exact capture host" in foreign.stdout
         ok(play(tmp_path, "agent-a", tasks=tasks, values=values))
         events = [json.loads(line) for line in (tmp_path / "manager.events").read_text().splitlines()]
         assert events[-1]["state"] == "restarted"

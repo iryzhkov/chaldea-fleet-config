@@ -126,6 +126,8 @@ def fixture_role(tmp_path, name):
                 continue
             if "block" in row:
                 row["block"] = relocate(row["block"])
+            if row.get("name", "").endswith("identities for a materializable CHECK"):
+                row["loop"] = [["passwd", str(os.getuid())], ["group", str(os.getgid())]]
             if "ansible.builtin.service_facts" in row:
                 row.pop("ansible.builtin.service_facts")
                 row["ansible.builtin.set_fact"] = dict(ansible_facts=dict(
@@ -158,7 +160,10 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
         mission_control_runtime_version="client-v9.8.7", mission_control_reader_cache_file=str(tmp_path / "cache/latest.json"),
         mission_control_reader_grants=[dict(uid=23017, audience="akasha", action="read", source="mission-control-reader",
             host="omarchy-normandy", kind="agent_status", profile="mission-control-reader", project="chaldea")])
-    ok(play(tmp_path, "omarchy-normandy", roles=[role], values=values, check=True))
+    cold = play(tmp_path, "omarchy-normandy", roles=[role], values=values, check=True)
+    ok(cold)
+    assert "Cold CHECK defers staging" in cold.stdout
+    assert not (tmp_path / "reader-config").exists() and not (tmp_path / "cache").exists()
     # Service-manager calls are excluded for the real filesystem fixture.
     path = Path(role) / "tasks/main.yml"
     rows = yaml.safe_load(path.read_text())
@@ -180,6 +185,8 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
         result = play(tmp_path, "omarchy-normandy", roles=[role], values=values | {key: invalid})
         assert result.returncode != 0
         assert "Require a selected dedicated UID" in result.stdout
+        checked = play(tmp_path, "omarchy-normandy", roles=[role], values=values | {key: invalid}, check=True)
+        assert checked.returncode != 0 and "Require a selected dedicated UID" in checked.stdout
 
 
 def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
@@ -316,6 +323,17 @@ def test_reader_stage_refusal_and_in_memory_activation(tmp_path):
     # A warm config change must survive the include and request a restart.
     config = tmp_path / "reader-config/reader.json"
     config.write_text("{}")
+    unit = tmp_path / "units/mission-control-reader.service"
+    installed_unit = unit.read_bytes()
+    unit.write_text("[Service]\n")
+    protected = [config, unit, tmp_path / "manager.json", tmp_path / "manager.events"]
+    before = [(p.read_bytes(), p.stat().st_mode, p.stat().st_mtime_ns) for p in protected]
+    checked = play(tmp_path, "omarchy-normandy", tasks=tasks, values=values, check=True)
+    ok(checked)
+    assert "allowedSourceIds" in checked.stdout and "NoNewPrivileges=no" in checked.stdout
+    assert "after:" in checked.stdout and "changed=0" not in checked.stdout
+    assert before == [(p.read_bytes(), p.stat().st_mode, p.stat().st_mtime_ns) for p in protected]
+    unit.write_bytes(installed_unit)
     ok(play(tmp_path, "omarchy-normandy", tasks=tasks, values=values))
     events = [json.loads(line) for line in (tmp_path / "manager.events").read_text().splitlines()]
     assert events[-1]["state"] == "restarted"

@@ -20,9 +20,10 @@ activate in another. There are no persistent activation markers.
 The capture activation task runs target SYSTEM-mode systemd-analyze verify --man=no
 against its exact installed service before any manager action. Infra verifies the exact
 reader, web, ingress socket and ingress service together before invoking reader and
-web/ingress activation tasks. Verification failure prevents activation. Check mode
-defers account/config/unit staging and verification honestly; it does not qualify
-predicted files or accounts. False flags do not stop or roll back active services.
+web/ingress activation tasks. Verification failure prevents activation. CHECK validates
+the contract and shows warm config/unit template diffs when required identities and
+parents exist. Cold CHECK explicitly defers unmaterializable staging. SYSTEM verification
+is deferred in CHECK; predicted files and accounts are not qualified. False flags do not stop or roll back active services.
 
 The unchanged canonical installer validates the selected immutable release under
 /opt/chaldea-mission-control/releases/VERSION. Existing helper client-v0.4.0,
