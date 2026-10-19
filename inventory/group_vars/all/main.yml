@@ -37,11 +37,12 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Published from Chaldea main 445e730124f3e99c78cba663300e72635f2740ca.
+# Qualified exact-source d024c0a3f775e6d660c3845d588d802c238111ef CI candidate.
+# Publication/download receipt is required before checks, push or deployment.
 # Shared client release pin; native quota is enrolled per host below.
 chaldea_client_enabled: true
-chaldea_client_version: client-v0.4.7
-chaldea_client_sha256: "9c5d1f1d087010d32c5309c3099098b85e5de7015d9a524e2af03f01689861b3"
+chaldea_client_version: client-v0.4.8
+chaldea_client_sha256: "3361f7fe8fef92e77b0e9b56ac58de7c43389ccb81a658887e7df29a99c04586"
 # Observed ordinary-client rollback history, not active per-host version pins.
 # Keep existing payloads/caches only; absent versions are never installed.
 chaldea_client_retained_versions:
