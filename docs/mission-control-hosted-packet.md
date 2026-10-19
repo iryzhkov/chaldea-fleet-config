@@ -23,7 +23,9 @@ shared022 set, raise the bound, or prune an old release.
 Qualify compatible H027 and N047 readers plus ALL four ordinary027 collectors
 BEFORE activating rich047 captures. Keep the existing registry28, ordered
 A/PC/B/canonical-L sources, every grant and signed ceiling, shared022,
-helper040, ordinary clients and T3 unchanged. No signer or helper replay.
+helper040 and T3 unchanged. Ordinary clients now share the qualified047
+archive pin globally, retaining native quota enrollment and existing account modes.
+This source change does not activate captures. No signer or helper replay.
 Use the new exact H host-version/hash qualification variables, installed
 SYSTEM verification before activation, protected snapshots and SECOND changed=0.
 Cold CHECK is not installed-unit verification. No --step or prompt driver.
