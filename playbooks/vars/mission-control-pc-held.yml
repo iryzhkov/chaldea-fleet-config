@@ -9,7 +9,7 @@ mission_control_pc_permission: false
 # The runtime role refuses an enabled install without that shared version and SHA.
 # Host installer and collector releases inherit the shared inventory selections.
 # Historical PC 044/024 proposal pins remain in Git history, not active inputs.
-chaldea_host_artifact_preserve_versions: [host-v0.2.2, host-v0.2.3, host-v0.2.4]
+chaldea_host_artifact_preserve_versions: [host-v0.2.2, host-v0.2.3, host-v0.2.4, host-v0.2.6]
 akasha_collector_mission_control_snapshot_file: /home/igor/.local/state/chaldea/mission-control/latest.json
 # Existing collector UID1000, state/spools, NNP and enabled timer stay unchanged.
 # After separate permission adoption, native enrollment input is exactly:
