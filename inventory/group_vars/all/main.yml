@@ -42,6 +42,13 @@ chaldea_node_version: "26.10.0"
 chaldea_client_enabled: true
 chaldea_client_version: client-v0.4.7
 chaldea_client_sha256: "9c5d1f1d087010d32c5309c3099098b85e5de7015d9a524e2af03f01689861b3"
+# Observed ordinary-client rollback history, not active per-host version pins.
+# Keep existing payloads/caches only; absent versions are never installed.
+chaldea_client_retained_versions:
+  - client-v0.2.0
+  - client-v0.3.0
+  - client-v0.4.0
+  - client-v0.4.2
 # Opt-in requires Igor's approval and verified local account binding on each host.
 chaldea_client_claude_usage_enabled: false
 

@@ -4,6 +4,14 @@
     that:
       - chaldea_client_version is match('^client-v[0-9]+[.][0-9]+[.][0-9]+$')
       - chaldea_client_sha256 is match('^[a-f0-9]{64}$')
+      - chaldea_client_retained_versions | type_debug == 'list'
+      - chaldea_client_retained_versions | length <= 4
+      - chaldea_client_retained_versions | select('string') | list | length == chaldea_client_retained_versions | length
+      - chaldea_client_retained_versions | unique | list | length == chaldea_client_retained_versions | length
+      - >-
+        chaldea_client_retained_versions |
+        select('match', '^client-v(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)\Z') |
+        list | length == chaldea_client_retained_versions | length
       - >-
         (chaldea_client_route_targets | length == 0 and
          chaldea_client_claude_contexts | length == 0 and
@@ -12,7 +20,7 @@
       - not chaldea_client_waits_enabled or chaldea_client_waits_environment | length > 0
       - not chaldea_client_quota_enabled or chaldea_client_codex_home is match('^/')
       - chaldea_client_root == fleet_home ~ '/.local/share/chaldea'
-    fail_msg: Set the published client version and SHA-256, waits environment and explicit Codex home in inventory.
+    fail_msg: Set valid client pins, at most four unique canonical retained client versions, waits environment and explicit Codex home in inventory.
     quiet: true
 
 - name: Inspect operator-provisioned secrets without reading their contents
@@ -315,7 +323,7 @@
     patterns: ['^client-v[0-9]+[.][0-9]+[.][0-9]+$']
   register: chaldea_client_releases
 
-- name: Remove managed releases older than current and previous
+- name: Remove managed releases outside current, previous and explicit rollback history
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: absent
@@ -326,6 +334,7 @@
     - not ansible_check_mode
     - item.path != chaldea_client_root ~ '/releases/' ~ chaldea_client_version
     - item.path != chaldea_client_previous.stat.lnk_target | default('')
+    - item.path | basename not in chaldea_client_retained_versions
 
 - name: Find managed client cache archives and manifests
   ansible.builtin.find:
@@ -336,7 +345,7 @@
     patterns: ['^client-v[0-9]+[.][0-9]+[.][0-9]+[.](tar[.]gz|json)$']
   register: chaldea_client_cached_releases
 
-- name: Remove caches for releases older than current and previous
+- name: Remove caches outside current, previous and explicit rollback history
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: absent
@@ -347,3 +356,4 @@
     - not ansible_check_mode
     - (item.path | basename | regex_replace('[.](tar[.]gz|json)$', '')) != chaldea_client_version
     - (item.path | basename | regex_replace('[.](tar[.]gz|json)$', '')) != (chaldea_client_previous.stat.lnk_target | default('') | basename)
+    - (item.path | basename | regex_replace('[.](tar[.]gz|json)$', '')) not in chaldea_client_retained_versions
