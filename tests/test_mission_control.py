@@ -66,7 +66,8 @@ def test_four_host_seven_default_outputs_and_helper_bytes(tmp_path):
         for index in range(7):
             assert (directory / f"before-{index}").read_bytes() == (directory / f"after-{index}").read_bytes()
         if snapshot := values.get("akasha_collector_mission_control_snapshot_file"):
-            active = defaults | values | dict(fleet_home=str(Path.home()),
+            packet = yaml.safe_load((ROOT / "playbooks/vars/mission-control-deployment.yml").read_text())
+            active = defaults | values | packet | dict(fleet_home=str(Path.home()),
                 chaldea_host_artifact_root=str(tmp_path / "host"))
             for filename, expected in (
                 ("akasha-collector.j2", f'export AKASHA_MISSION_CONTROL_SNAPSHOT_FILE="{snapshot}"'),
