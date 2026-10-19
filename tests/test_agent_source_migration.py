@@ -666,7 +666,7 @@ REVIEW_NOTE_INSERTIONS = {
 NECESSITY_INSERTIONS = {
     "skills/review-delegation/SKILL.md": [
         "## Check necessity and complexity\n\nAsk whether the change is needed as well as whether it is correct. Before accepting\na new process, account, state store or publication path, trace the existing producer\nand consumer and compare a configuration, version-pin or enrollment change.\nCite the exact missing capability or constraint that rules out reuse. Separate\nverified facts, assumptions and optional improvements; check the premise independently\nrather than accepting the brief's proposed architecture as a requirement.\nKeep useful improvements outside the requested outcome as notes. Evidence of needless\ncomplexity uses the existing citation/location blocking rule. Use existing authorized\nevidence and report gaps; this check adds no review round or approval step.\n\n",
-        "Necessity: <existing path and why configuration/pin/enrollment reuse is insufficient>.\nDistinguish verified constraints from assumptions and optional improvements.\n"
+        "Necessity: <existing path and why configuration/pin/enrollment reuse is insufficient;\n  n/a when no new process, account, state store or publication path is proposed>.\nDistinguish verified constraints from assumptions and optional improvements.\n"
     ],
     "skills/roadmap-executor/SKILL.md": [
         "## Check the simplest existing path\n\nBefore proposing new machinery or a large estimate, trace the current implementation\nand authorized deployment evidence. Compare configuration, version-pin and enrollment\nchanges first; name the exact unmet requirement before adding a process, account,\nstate store or publication path. Mark unverified premises as unknown.\nKeep optional UI or completeness improvements separate from the first useful outcome.\nA budget is a ceiling, not a target. If evidence contradicts a design assumption,\nreconcile the plan before continuing dependent work, preserving Igor's explicit goals\nand constraints. Apply review-delegation's necessity check in the existing review.\n\n"
@@ -676,6 +676,9 @@ NECESSITY_INSERTIONS = {
     ],
     "skills/chaldea-audit/SKILL.md": [
         "   Check whether existing configuration, pins or enrollment can meet the same\n   requirement before accepting new processes, identities, state or publication paths.\n"
+    ],
+    "skills/codebase-design/SKILL.md": [
+        "## Check reuse before designing\n\nTrace the existing producer and consumer before proposing a new module. Compare\nconfiguration, version-pin and enrollment changes with the requested outcome.\nSeparate verified constraints from assumptions; cite the unmet requirement before\nadding a process, account, state store or publication path. Keep optional interface\nor completeness improvements outside the first useful outcome unless requested.\nPreserve the user's explicit requirements; use this comparison in the existing plan.\n\n"
     ]
 }
 

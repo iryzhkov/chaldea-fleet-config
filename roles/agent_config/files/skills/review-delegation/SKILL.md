@@ -160,7 +160,8 @@ Review <repository> at commit <sha> on branch <branch> (base <base-sha>).
 Role: <main reviewer | fan-out reviewer for TARGET AREA only>.
 Brief: <plan reference and the milestone's acceptance criteria>.
 Scope: <files or diff range>. Out of scope: <what to leave alone>.
-Necessity: <existing path and why configuration/pin/enrollment reuse is insufficient>.
+Necessity: <existing path and why configuration/pin/enrollment reuse is insufficient;
+  n/a when no new process, account, state store or publication path is proposed>.
 Distinguish verified constraints from assumptions and optional improvements.
 Check two axes separately: repository documented standards and originating issue/spec.
 Sources: <standards files/rules>; <issue/spec reference, or unavailable>.
