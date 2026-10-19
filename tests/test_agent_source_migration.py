@@ -684,7 +684,17 @@ NECESSITY_INSERTIONS = {
 }
 
 
+# Orchestrator-only trigger and compact-context guidance requested by Igor, 2026-10-19.
+# Newest layer: its exact (before, after) blocks are reversed first.
+CONTEXT_TRIGGER_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_context_triggers.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(CONTEXT_TRIGGER_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for insertion in reversed(NECESSITY_INSERTIONS.get(relative, [])):
         insertion = insertion.encode()
         assert data.count(insertion) == 1, relative
@@ -781,7 +791,10 @@ def assert_delegation_contract(read):
                .split("Delegate through T3", 1)[0] for text in instructions]
     assert routing[0] == routing[1] == routing[2]
     skills = [read("skills/" + name + "/SKILL.md")
-              for name in ("chaldea", "review-delegation", "roadmap-executor")]
+              for name in ("chaldea", "review-delegation")]
+    # roadmap-executor defers to the shared section instead of carrying a copy that could drift.
+    roadmap = read("skills/roadmap-executor/SKILL.md")
+    assert "`providerInstanceId`" not in roadmap and "FATE before every `delegate_task`" in roadmap
     for text in instructions + skills:
         text = " ".join(text.split())
         for field in ("`providerInstanceId`", "`model`", "`options`"):

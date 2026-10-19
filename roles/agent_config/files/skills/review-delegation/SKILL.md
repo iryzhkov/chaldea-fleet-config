@@ -150,9 +150,14 @@ as `review_note`. This guidance does not implement a collection pipeline.
 
 ## Delegating work
 
-- Workers get no conversation history. Write a self-contained brief: repository
-  path, branch and base, allowed files, acceptance checks, rules that apply, and
-  what to report.
+- Workers get no conversation history. Write a bounded, self-contained brief:
+  repository path, branch and base, allowed files, the accepted decisions and exact
+  references the task needs, acceptance checks, rules that apply, and what to
+  report. Do not prepend roadmap-executor or require a full plan or checkpoint
+  fetch; the worker loads the skills its task needs, and the parent stays the
+  integration and checkpoint owner.
+- Ask for delta-only results: exact head, check verdicts with job IDs, artifact
+  links and blockers. Raw logs stay retrievable on request.
 - Use `isolation: "worktree"` for code changes in a registered T3 project. A
   worktree starts from the parent's local commit; uncommitted edits are not
   copied.
