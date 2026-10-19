@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        phase: [pytest, converge]
+        phase: [pytest-skills, pytest-roles, pytest-rest, converge]
     # GitHub-hosted: the repository is public, and a self-hosted runner would
     # run pull requests from forks on a fleet host.
     runs-on: ubuntu-24.04
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require both complete verification lanes
+      - name: Require all complete verification lanes
         env:
           CHECKS_RESULT: ${{ needs.checks.result }}
         run: test "$CHECKS_RESULT" = success

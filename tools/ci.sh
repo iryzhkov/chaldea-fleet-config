@@ -6,10 +6,14 @@
 # the workflow supplies a checksum-pinned runtime in job-local disk scratch.
 set -euo pipefail
 phase=${1:-all}
-if (( $# > 1 )) || [[ "$phase" != all && "$phase" != pytest && "$phase" != converge ]]; then
-	echo 'usage: tools/ci.sh [all|pytest|converge]' >&2
+if (( $# > 1 )); then
+	echo 'ci: expected at most one phase' >&2
 	exit 64
 fi
+case "$phase" in
+	all|pytest|pytest-skills|pytest-roles|pytest-rest|converge) ;;
+	*) echo 'usage: tools/ci.sh [all|pytest|pytest-skills|pytest-roles|pytest-rest|converge]' >&2; exit 64 ;;
+esac
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
 # All test programs inherit an isolated home, even when invoked by a real runner.
@@ -56,11 +60,26 @@ python tests/host_artifact_fixture.py "$TMPDIR/host-artifact" >"$TMPDIR/host-art
 python tests/client_artifact_fixture.py "$TMPDIR/client-artifact" >"$TMPDIR/client-artifact-vars.json"
 export HUYANG_PLUGIN_SOURCE="$PWD/roles/agent_config/files/opencode/huyang-profiles.js"
 
+# Whole-file lanes avoid shared-HOME concurrency and keep parameterized cases intact.
+# The remainder collects tests recursively, so new files are included automatically.
+skill_tests=(tests/test_agent_skills.py tests/test_laptop_skill_links.py)
+role_tests=(tests/test_agent_source_migration.py tests/test_chaldea_client.py tests/test_huyang_role.py)
+pytest_targets=(tests)
+case "$phase" in
+	pytest-skills) pytest_targets=("${skill_tests[@]}") ;;
+	pytest-roles) pytest_targets=("${role_tests[@]}") ;;
+	pytest-rest)
+		for path in "${skill_tests[@]}" "${role_tests[@]}"; do
+			pytest_targets+=(--ignore "$path")
+		done
+		;;
+esac
+
 if [[ "$phase" != converge ]]; then
 	export CHALDEA_HOST_TEST_EVIDENCE="$TMPDIR/role-install-evidence"
-	python -m pytest -q -p no:cacheprovider --durations=20 tests
+	python -m pytest -q -p no:cacheprovider --durations=20 "${pytest_targets[@]}"
 fi
-if [[ "$phase" == pytest ]]; then
+if [[ "$phase" == pytest || "$phase" == pytest-* ]]; then
 	exit 0
 fi
 # Scratch may be inside an isolated job workspace; generated fixture plays are not source.
