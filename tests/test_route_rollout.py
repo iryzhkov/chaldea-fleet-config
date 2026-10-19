@@ -15,10 +15,12 @@ def test_agent_clients_use_native_t3_quota():
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert set(hosts) == {"agent-a", "agent-b", "omarchy-pc", "laptop"}
-    assert common["chaldea_client_version"] == "client-v0.3.0"
-    assert common["chaldea_client_sha256"] == "38815b50ae8efbd9379f707af3fe8265a18e1fedd7814c2644ec73c91a8f5fa1"
+    assert common["chaldea_client_version"] == "client-v0.4.2"
+    assert common["chaldea_client_sha256"] == "40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a"
     # All agent hosts now use native T3 quota after approved local login checks.
     for name, values in hosts.items():
+        assert "chaldea_client_version" not in values
+        assert "chaldea_client_sha256" not in values
         effective = defaults | common | values
         assert effective["chaldea_client_enabled"] is True
         assert effective["chaldea_client_claude_usage_enabled"] is False
