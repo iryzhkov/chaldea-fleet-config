@@ -66,7 +66,8 @@ def test_four_host_seven_default_outputs_and_helper_bytes(tmp_path):
         for index in range(7):
             assert (directory / f"before-{index}").read_bytes() == (directory / f"after-{index}").read_bytes()
         if snapshot := values.get("akasha_collector_mission_control_snapshot_file"):
-            active = defaults | values | dict(fleet_home=str(Path.home()),
+            packet = yaml.safe_load((ROOT / "playbooks/vars/mission-control-deployment.yml").read_text())
+            active = defaults | values | packet | dict(fleet_home=str(Path.home()),
                 chaldea_host_artifact_root=str(tmp_path / "host"))
             for filename, expected in (
                 ("akasha-collector.j2", f'export AKASHA_MISSION_CONTROL_SNAPSHOT_FILE="{snapshot}"'),
@@ -125,6 +126,12 @@ def fixture_role(tmp_path, name):
                 continue
             if "block" in row:
                 row["block"] = relocate(row["block"])
+            if row.get("name", "").endswith("identities for a materializable CHECK"):
+                row["loop"] = [["passwd", str(os.getuid())], ["group", str(os.getgid())]]
+            if "ansible.builtin.service_facts" in row:
+                row.pop("ansible.builtin.service_facts")
+                row["ansible.builtin.set_fact"] = dict(ansible_facts=dict(
+                    services="{{ fixture_services | default({}) }}"))
             if "ansible.builtin.systemd_service" in row:
                 row = dict(name=row["name"], **{"ansible.builtin.fail": dict(msg="unit manager must not run in cold check")},
                            when=row.get("when"))
@@ -153,7 +160,10 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
         mission_control_runtime_version="client-v9.8.7", mission_control_reader_cache_file=str(tmp_path / "cache/latest.json"),
         mission_control_reader_grants=[dict(uid=23017, audience="akasha", action="read", source="mission-control-reader",
             host="omarchy-normandy", kind="agent_status", profile="mission-control-reader", project="chaldea")])
-    ok(play(tmp_path, "omarchy-normandy", roles=[role], values=values, check=True))
+    cold = play(tmp_path, "omarchy-normandy", roles=[role], values=values, check=True)
+    ok(cold)
+    assert "Cold CHECK defers staging" in cold.stdout
+    assert not (tmp_path / "reader-config").exists() and not (tmp_path / "cache").exists()
     # Service-manager calls are excluded for the real filesystem fixture.
     path = Path(role) / "tasks/main.yml"
     rows = yaml.safe_load(path.read_text())
@@ -175,6 +185,8 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
         result = play(tmp_path, "omarchy-normandy", roles=[role], values=values | {key: invalid})
         assert result.returncode != 0
         assert "Require a selected dedicated UID" in result.stdout
+        checked = play(tmp_path, "omarchy-normandy", roles=[role], values=values | {key: invalid}, check=True)
+        assert checked.returncode != 0 and "Require a selected dedicated UID" in checked.stdout
 
 
 def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
@@ -237,3 +249,99 @@ def test_capture_and_reader_units_offline_verification(tmp_path):
     result = subprocess.run(["systemd-analyze", "--user", "verify", "--man=no", *units],
         env=dict(os.environ, XDG_RUNTIME_DIR=str(runtime)), text=True, capture_output=True)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def instrument_activation(role, tmp_path):
+    """Replace only OS accounts/manager boundaries; execute real Ansible task flow."""
+    helper = tmp_path / "manager.py"
+    helper.write_text("""import json, pathlib, sys
+p = pathlib.Path(sys.argv[1])
+state = json.loads(p.read_text()) if p.exists() else {}
+args = json.loads(sys.argv[2])
+with p.with_suffix('.events').open('a') as out:
+    out.write(json.dumps(args) + '\\n')
+name = args.get('name', '')
+changed = bool(args.get('daemon_reload', False))
+if name:
+    prior = state.get(name, {})
+    desired = dict(enabled=args.get('enabled', prior.get('enabled', False)),
+                   state='stopped' if args.get('state') == 'stopped' else 'started')
+    changed |= prior != desired or args.get('state') == 'restarted'
+    state[name] = desired
+p.write_text(json.dumps(state))
+print('CHANGED' if changed else 'UNCHANGED')
+""")
+    for source in Path(role).joinpath("tasks").glob("*.yml"):
+        def rewrite(rows):
+            result = []
+            for row in rows:
+                if "block" in row:
+                    row["block"] = rewrite(row["block"])
+                if "ansible.builtin.service_facts" in row:
+                    row.pop("ansible.builtin.service_facts")
+                    row["ansible.builtin.set_fact"] = dict(ansible_facts=dict(
+                        services="{{ fixture_services | default({}) }}"))
+                if "ansible.builtin.systemd_service" in row:
+                    args = row.pop("ansible.builtin.systemd_service")
+                    row["ansible.builtin.command"] = dict(argv=[
+                        sys.executable, str(helper), str(tmp_path / "manager.json"),
+                        "{{ fixture_manager_args | to_json }}"])
+                    row["vars"] = dict(fixture_manager_args=args)
+                    row["register"] = "fixture_manager"
+                    row["changed_when"] = "fixture_manager.stdout == 'CHANGED'"
+                result.append(row)
+            return result
+        source.write_text(yaml.safe_dump(rewrite(yaml.safe_load(source.read_text()))))
+
+
+def test_reader_stage_refusal_and_in_memory_activation(tmp_path):
+    role = fixture_role(tmp_path, "mission_control_reader")
+    instrument_activation(role, tmp_path)
+    values = dict(mission_control_reader_enabled=True, mission_control_runtime_enabled=True,
+        mission_control_reader_uid=23017,
+        mission_control_reader_allowed_source_ids=["agent-a--mission-control"],
+        mission_control_runtime_node="/bin/true", mission_control_runtime_release_root="/fixture",
+        mission_control_runtime_version="client-v9.8.7", mission_control_reader_cache_file=str(tmp_path / "cache/latest.json"),
+        mission_control_reader_grants=[dict(uid=23017, audience="akasha", action="read",
+            source="mission-control-reader", host="omarchy-normandy", kind="agent_status",
+            profile="mission-control-reader", project="chaldea")])
+    for status in (dict(state="running", status="disabled"), dict(state="stopped", status="enabled")):
+        refused = play(tmp_path, "omarchy-normandy", roles=[role], values=values | dict(
+            fixture_services={"mission-control-reader.service": status}))
+        assert refused.returncode != 0, refused.stdout
+        assert not (tmp_path / "reader-config").exists()
+        assert not (tmp_path / "cache").exists()
+    ok(play(tmp_path, "omarchy-normandy", roles=[role], values=values))
+    assert not (tmp_path / "manager.json").exists()
+    tasks = [{"ansible.builtin.include_role": dict(name=role)},
+             {"ansible.builtin.include_role": dict(name=role, tasks_from="activate")}]
+    failed = play(tmp_path, "omarchy-normandy", tasks=tasks, values=values | dict(mission_control_activate=True))
+    assert failed.returncode != 0
+    assert not (tmp_path / "manager.json").exists()
+    values |= dict(mission_control_activate=True, mission_control_system_verification=dict(rc=0))
+    ok(play(tmp_path, "omarchy-normandy", tasks=tasks, values=values))
+    # A warm config change must survive the include and request a restart.
+    config = tmp_path / "reader-config/reader.json"
+    config.write_text("{}")
+    unit = tmp_path / "units/mission-control-reader.service"
+    installed_unit = unit.read_bytes()
+    unit.write_text("[Service]\n")
+    protected = [config, unit, tmp_path / "manager.json", tmp_path / "manager.events"]
+    before = [(p.read_bytes(), p.stat().st_mode, p.stat().st_mtime_ns) for p in protected]
+    checked = play(tmp_path, "omarchy-normandy", tasks=tasks, values=values, check=True)
+    ok(checked)
+    assert "allowedSourceIds" in checked.stdout and "NoNewPrivileges=no" in checked.stdout
+    assert "after:" in checked.stdout and "changed=0" not in checked.stdout
+    assert before == [(p.read_bytes(), p.stat().st_mode, p.stat().st_mtime_ns) for p in protected]
+    unit.write_bytes(installed_unit)
+    ok(play(tmp_path, "omarchy-normandy", tasks=tasks, values=values))
+    events = [json.loads(line) for line in (tmp_path / "manager.events").read_text().splitlines()]
+    assert events[-1]["state"] == "restarted"
+    assert events[-1]["daemon_reload"] is False
+    again = play(tmp_path, "omarchy-normandy", tasks=tasks, values=values)
+    ok(again)
+    assert "changed=0" in again.stdout
+    (tmp_path / "units/mission-control-reader.service").write_text("[Service]\n")
+    ok(play(tmp_path, "omarchy-normandy", tasks=tasks, values=values))
+    events = [json.loads(line) for line in (tmp_path / "manager.events").read_text().splitlines()]
+    assert events[-1]["state"] == "restarted" and events[-1]["daemon_reload"] is True

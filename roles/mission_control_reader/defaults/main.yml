@@ -1,4 +1,6 @@
 ---
+# Shared composition input across the fleet reader/capture and infra web roles.
+mission_control_activate: false  # noqa var-naming[no-role-prefix]
 mission_control_reader_enabled: false
 # Production UID is deliberately unselected. Never use igor's broad sudo identity.
 mission_control_reader_uid: null

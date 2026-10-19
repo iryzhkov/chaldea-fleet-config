@@ -1,4 +1,6 @@
 ---
+# Shared composition input across the fleet reader/capture and infra web roles.
+mission_control_activate: false  # noqa var-naming[no-role-prefix]
 mission_control_capture_enabled: false
 mission_control_capture_home: /home/igor
 mission_control_capture_t3_base_dir: /home/igor/.t3

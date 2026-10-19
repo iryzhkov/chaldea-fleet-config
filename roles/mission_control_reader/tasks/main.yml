@@ -19,58 +19,98 @@
             mission_control_reader_grants | default([]) == [{'uid': mission_control_reader_uid, 'audience': 'akasha', 'action': 'read', 'source': 'mission-control-reader', 'host': 'omarchy-normandy', 'kind': 'agent_status', 'profile': 'mission-control-reader', 'project': 'chaldea'}]
         fail_msg: Select and review the dedicated UID, helper sudo selector and source-bound registry before enabling.
         quiet: true
-    - name: Create the shared cache read group
-      ansible.builtin.group:
-        name: mission-control-cache
-        system: true
-    - name: Create the locked reader identity
-      ansible.builtin.user:
-        name: mission-control-reader
-        uid: "{{ mission_control_reader_uid }}"
-        system: true
-        create_home: false
-        home: /var/lib/mission-control-reader
-        shell: /usr/sbin/nologin
-        password_lock: true
-        groups: mission-control-cache
-        append: true
-    - name: Create private reader configuration and state
-      ansible.builtin.file:
-        path: "{{ item.path }}"
-        state: directory
-        owner: "{{ item.owner }}"
-        group: mission-control-reader
-        mode: "{{ item.mode }}"
+    - name: Inspect owned units before stage-only writes
+      ansible.builtin.service_facts:
+      when: not mission_control_activate | bool and not ansible_check_mode
+    - name: Refuse stage-only updates of an active or enabled unit
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services.get('mission-control-reader.service', {}).get('state', 'stopped') not in ['running', 'active', 'activating', 'reloading']
+          - ansible_facts.services.get('mission-control-reader.service', {}).get('status', 'disabled') not in ['enabled', 'enabled-runtime']
+        fail_msg: Use one complete stage, verify and activate invocation for warm updates.
+        quiet: true
+      when: not mission_control_activate | bool and not ansible_check_mode
+    - name: Inspect existing reader identities for a materializable CHECK
+      ansible.builtin.command:
+        argv: [getent, "{{ item.0 }}", "{{ item.1 }}"]
+      loop: [[passwd, mission-control-reader], [group, mission-control-reader], [group, mission-control-cache]]
+      changed_when: false
+      failed_when: mission_control_reader_check_identities.rc not in [0, 2]
+      check_mode: false
+      register: mission_control_reader_check_identities
+      when: ansible_check_mode
+    - name: Inspect existing reader parents for CHECK diffs
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
       loop:
-        - {path: /etc/mission-control-reader, owner: root, mode: "0750"}
-        - {path: /var/lib/mission-control-reader, owner: mission-control-reader, mode: "0700"}
-    - name: Create the reader-owned web-readable cache directory
-      ansible.builtin.file:
-        path: /var/cache/mission-control
-        state: directory
-        owner: mission-control-reader
-        group: mission-control-cache
-        mode: "2750"
-    - name: Write the private reader configuration
-      ansible.builtin.template:
-        src: reader.json.j2
-        dest: /etc/mission-control-reader/reader.json
-        owner: root
-        group: mission-control-reader
-        mode: "0640"
-      register: mission_control_reader_config
-    - name: Write the dedicated reader service
-      ansible.builtin.template:
-        src: mission-control-reader.service.j2
-        dest: /etc/systemd/system/mission-control-reader.service
-        owner: root
-        group: root
-        mode: "0644"
-      register: mission_control_reader_unit
-    - name: Converge only the reader service
-      ansible.builtin.systemd_service:
-        name: mission-control-reader.service
-        enabled: true
-        daemon_reload: "{{ mission_control_reader_unit is changed }}"
-        state: "{{ 'restarted' if mission_control_reader_unit is changed or mission_control_reader_config is changed else 'started' }}"
-      when: not ansible_check_mode
+        - /etc/mission-control-reader
+        - /var/lib/mission-control-reader
+        - /var/cache/mission-control
+        - /etc/systemd/system
+      register: mission_control_reader_check_parents
+      when: ansible_check_mode
+    - name: Stage reader files or predict changes against existing identities and parents
+      when: >-
+        not ansible_check_mode or
+        (mission_control_reader_check_identities.results | selectattr('rc', 'ne', 0) | list | length == 0 and
+         mission_control_reader_check_parents.results | selectattr('stat.isdir', 'defined') | selectattr('stat.isdir') | list | length == 4)
+      block:
+        - name: Create the shared cache read group
+          ansible.builtin.group:
+            name: mission-control-cache
+            system: true
+        - name: Create the locked reader identity
+          ansible.builtin.user:
+            name: mission-control-reader
+            uid: "{{ mission_control_reader_uid }}"
+            system: true
+            create_home: false
+            home: /var/lib/mission-control-reader
+            shell: /usr/sbin/nologin
+            password_lock: true
+            groups: mission-control-cache
+            append: true
+        - name: Create private reader configuration and state
+          ansible.builtin.file:
+            path: "{{ item.path }}"
+            state: directory
+            owner: "{{ item.owner }}"
+            group: mission-control-reader
+            mode: "{{ item.mode }}"
+          loop:
+            - {path: /etc/mission-control-reader, owner: root, mode: "0750"}
+            - {path: /var/lib/mission-control-reader, owner: mission-control-reader, mode: "0700"}
+        - name: Create the reader-owned web-readable cache directory
+          ansible.builtin.file:
+            path: /var/cache/mission-control
+            state: directory
+            owner: mission-control-reader
+            group: mission-control-cache
+            mode: "2750"
+        - name: Write the private reader configuration
+          ansible.builtin.template:
+            src: reader.json.j2
+            dest: /etc/mission-control-reader/reader.json
+            owner: root
+            group: mission-control-reader
+            mode: "0640"
+          register: mission_control_reader_config
+        - name: Write the dedicated reader service
+          ansible.builtin.template:
+            src: mission-control-reader.service.j2
+            dest: /etc/systemd/system/mission-control-reader.service
+            owner: root
+            group: root
+            mode: "0644"
+          register: mission_control_reader_unit
+    - name: Explain deferred cold reader CHECK staging
+      ansible.builtin.debug:
+        msg: Cold CHECK defers staging because required identities or parents are absent; predicted accounts and files are not qualified.
+      when: ansible_check_mode and mission_control_reader_config is skipped
+    - name: Explain deferred reader SYSTEM verification in CHECK
+      ansible.builtin.debug:
+        msg: CHECK template diffs are predictions; target SYSTEM verification is deferred until installed bytes exist in a real invocation.
+      when: ansible_check_mode

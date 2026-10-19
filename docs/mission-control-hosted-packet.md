@@ -1,44 +1,41 @@
-# Hosted LAN Mission Control: held public activation packet
+# Hosted Mission Control qualified packet
 
-SOURCE ONLY. No host, account, grant publication or service operation is authorized by this file. The normal site, helper0.4.0/Node26.12, user clients, shared host0.2.2, PC NNP and sharing settings remain unchanged. All new service flags remain false. ROOT owns independent reviews, exact-head CI, merges and the final operator release.
+The completed canary and its limits are recorded in
+jocasta:7809f6329c87f8a3c5390221ee4d0d2e@2. Source qualification is
+jocasta:623f53e1c960b0383b2a44b3afcbb981@1, actual package job
+f15bba62-b8c3-4529-8df3-f91952b3f82d on Node26.10.
 
-Qualified actual source is Chaldea main6f3aa16a7c2b6d2cf517d7e8bb3f4b5e3ab7f5c2, reviewedf4b5411. Qualification jocasta:623f53e1c960b0383b2a44b3afcbb981@1 includes final actual-package jobf15bba62-b8c3-4529-8df3-f91952b3f82d, Node26.10. This does not qualify a live broker, reader sudo/DAC or live T3 source.
+The explicit playbooks/vars/mission-control-deployment.yml selects client-v0.4.4
+archive SHA da4b457e7885ffea3dde51c7e93160e90f2e81566d2e33fb9211fb07ca146ca4.
+Release416721739/archive654521129/manifest654521136/run39167627844;
+manifest SHA2a3f4c8d47a2fe888def2de51bdb0fe78c632b59f5b8e7a005eb5fd813ce0fc4.
+Published assets are immutable and must not be rebuilt or replaced.
 
-| Artifact | Version | Archive SHA256 | Manifest SHA256 |
-| --- | --- | --- | --- |
-| Independent capture/reader/web client | client-v0.4.4 | da4b457e7885ffea3dde51c7e93160e90f2e81566d2e33fb9211fb07ca146ca4 | 2a3f4c8d47a2fe888def2de51bdb0fe78c632b59f5b8e7a005eb5fd813ce0fc4 |
-| Homelab server / agent-a collector only | host-v0.2.4 | 531710066a7f67ac68f82ad1234d8f9a32e3311c839a894f86125c7d4f170592 | 0fd697257963498e1f946e4fb5274a0c141cf5287120b6d6617721aa0e788a72 |
+Homelab server and agent-a collector use the already qualified host-v0.2.4 archive
+SHA531710066a7f67ac68f82ad1234d8f9a32e3311c839a894f86125c7d4f170592.
+Release416722339/archive654523759/manifest654523754/run39167630357;
+manifest SHA0fd697257963498e1f946e4fb5274a0c141cf5287120b6d6617721aa0e788a72.
+Infra owns the canonical Homelab pin and role-local022/023 preservation.
 
-Client release416721739/archive654521129/manifest654521136/run39167627844; host release416722339/archive654523759/manifest654523754/run39167630357. Download only the exact version's published chaldea-client.tar.gz or chaldea-host.tar.gz and manifest.json, verify both listed digests and canonical member validation. Keep prior qualified rollback assets. No installer copy or helper upgrade.
+Use the qualified packet only as explicit extra-vars. Its enabled flags and
+mission_control_activate remain false until the exact reviewed invocation selects
+them. Inventory supplies the collector snapshot input without an empty packet override.
+For agent-a use playbooks/mission-control.yml --limit agent-a. For Normandy use
+infra's play with the exact clean reviewed fleet checkout and ANSIBLE_LIBRARY.
+See mission-control-hosted.md for stage, verify and activate behavior.
 
-## One canonical permission render
+Existing six issuer public keys and every old ceiling/grant remain intact.
+The already reviewed SAME native render supplied the publisher UID1000 append-only
+agent-a.mission-control/agent_status/projectchaldea grant and the dedicated reader
+UID940 read-only mission-control-reader grant, restricted to agent-a--mission-control.
+The reader role's one-row grants assertion is not a complete helper grant list.
+Never replace old grants with it. No new signing, publication, mint or enrollment is
+required by this cleanup. Existing canonical registry additions are enrollment-gated;
+the separate infra proposal stays empty and unused.
 
-Existing six public keys and every old issuer ceiling are retained. The proposal fragment selects publisher UID1000 and dedicated Normandy reader UID940. UID940 is selected in this SOURCE packet only; immediately before future creation require NSS passwd940/group940 and all mission-control names absent, check no conflicting operator and existing path/unit ownership. Never reuse igor or a service UID.
-
-In asserted private disk scratch HOME/TMPDIR, use the qualified client-v0.4.4 native decoder with existing tools/akasha-enrollment-inputs.mjs. Construct input from the six existing issuer public keys and playbooks/vars/mission-control-proposal.yml, pc_reader:true, pc_quota:true, laptop_quota:false, pc_quota_reader:false. Do not invent keys. Command shape:
-```sh
-NODE26_10 tools/akasha-enrollment-inputs.mjs QUALIFIED_CLIENT access-trust/akasha-enrollment.json access-trust/issuer-grants.json < APPROVED_PUBLIC_INPUT.json > PRIVATE_SCRATCH/native.json
-python3 EXACT_INFRA/scripts/check-enrollment-registry.py PRIVATE_SCRATCH/native.json --pc-reader --pc-quota
-```
-Do NOT pass --mission-control: the two exact registrations are now in the existing additions list, which the existing Akasha play loads through its existing enrollment gate. The separate empty infra proposal is deliberately unused; passing that option must still refuse it. Old23 full-registry records are preserved by key/content, not promised as a contiguous prefix: the play appends PC rows after additions.
-
-The SAME native.json must supply publisher/reader helper grants and reviewed ceiling/registry equality. Retain all old grants; only agent-a and Normandy receive one additional exact UID selector each. For the future canonical helper-role phase set chaldea_token_helper_grants from native.grants[inventory_hostname], issuer metadata from the fixed enrollment policy, and retain helperclient0.4.0/SHAfc80729f9179340c7a29ff1eac5a310aea013ddb107633e4f9b2f1250691dc8d/Node26.12. Do not replace the complete helper list with mission_control_reader_grants: that one-row value is only the reader-role assertion contract. The old enrollment play's0.4.0 native adapter is not used for this packet.
-
-New publisher: issuerchaldea:agent-a, sourceagent-a.mission-control, source_idagent-a--mission-control, profilemission-control-publisher, projectchaldea, service/append/agent_status. New reader: issuerchaldea:omarchy-normandy, sourcemission-control-reader, source_idomarchy-normandy--mission-control-reader, profilemission-control-reader, projectchaldea, service/read/agent_status, mission_control_read_sources exactly[agent-a--mission-control]. No global_read/quota_fleet_read/rawfeed for either new record.
-
-Editing issuer-grants.json is public source preparation, not publication approval. ROOT must order merger/release of this source with the reviewed canonical publisher workflow: Normandy fetch_grants reads fleet MAIN, so merging the public ceiling change may be consumed by the existing publisher naturally. Do not merge or sign ahead of the exact permission release gate. No mint/sign/fetch/trust operation is part of source checks.
-
-## Held deployment phases
-
-Use playbooks/vars/mission-control-deployment.yml only as explicit EXTRA VARS. No play imports it. Its qualified client pin is independent under /opt/chaldea-mission-control/releases/client-v0.4.4; defaults and all enable flags remain false. Extra-vars are necessary because play vars_files/play vars outrank inventory. Exact F0a47aa2eee09901e7544ca618537f80fb2706e22 remains the canonical Normandy role checkout required by infra; this packet does not repin it.
-
-1. ROOT reviews this public permission/pin packet, exact CI and merged parents. ROOT separately deploys qualified Homelab host0.2.4 with explicit preserve_versions:[host-v0.2.2,host-v0.2.3], retaining shared trust2.2 and the running/rollback server2.3. See infra packet; no all-six upgrade.
-2. Reserve operator ownership, snapshot public hashes/PIDs/units/pull state and collisions. Stage qualified runtime with service flags false. Stage exact reader/web/capture accounts, configuration and units through the separately reviewed private operator phase. Canonical enabled roles start services; false is not a staging feature.
-3. Mandatory Normandy SYSTEM-mode systemd-analyze verify of exact staged web/reader/socket/proxy units before any enable/start. Capture unit also needs agent-a qualification. No --user substitution or hardening change. Prove reader UID940 exact issuer-command-only sudo and namespace ability, negative key/state DAC and foreign commands, with ReadWritePaths=/var/lib/chaldea-issuer/access but issuer-only directory0700/SQLite0600. NNPfalse ONLY for dedicated reader; capture/web NNPyes. No reader helper invocation until account and grants exist.
-4. Canonical signed-bundle/public-helper/registry phases use the reviewed SAME native render and existing custody. Cache reader:mission-control-cache2750, atomic files0640; reader private state0700/config0640. Prove web read but no create/replace/write, no helper/sudo/token/T3.
-5. Enable capture ONLY on literal local agent-a using playbooks/mission-control.yml, --limit agent-a and explicit reviewed extra-vars. Actual official T3 public runtime is /home/igor/.t3/userdata/server-runtime.json, originhttp://127.0.0.1:7391, serverVersion0.1.0 per ROOT read-only attestation. Keep capture t3BaseDir/home/igor/.t3 and existing /home/igor/.config/chaldea/t3-token metadata0600; never copy/read token for source preparation. tokenSemanticsQualified:false.
-6. Collector is a separate agent-a-only canonical akasha_collector phase after schema/grants/capture readiness. Use chaldea_host_version:host-v0.2.4 and chaldea_host_sha256:531710066a7f67ac68f82ad1234d8f9a32e3311c839a894f86125c7d4f170592 scoped ONLY to that role invocation, never shared inventory/trust. During this ONE-OFF host0.2.4 install explicitly set chaldea_host_artifact_preserve_versions:[host-v0.2.2,host-v0.2.4], so trust2.2 retention does not depend on mtime. Privately back up the existing host0.2.1 rollback tree and cache BEFORE GC; do not broaden normal all-host retention. Its script becomes /opt/chaldea-host/releases/host-v0.2.4/host/akasha-collector.mjs. Then explicitly set akasha_collector_mission_control_snapshot_file:/home/igor/.local/state/chaldea/mission-control/latest.json; the runtime/reader/web-only extra-vars file keeps it empty and outranks inventory, so OMIT that file in collector phases or explicitly override this exact snapshot path. Existing timer30s+random5s/timeout300s unchanged, no second collector or T3/quota restart. Wait for the existing natural invocation; do not replay/kill it. The agent-a-only inventory now persists the explicit host0.2.4 collector script, exact snapshot input and preserve_versions:[host-v0.2.4], while global host/SHA/trust/job paths remain2.2. Preservation does NOT install4: ROOT must stage and qualify actual agent-a host0.2.4 through the existing canonical artifact role BEFORE merging this inventory or permitting any normal pull. Hold only an active pull timer under named operator ownership, converge the exact reviewed inventory, then restore its saved state in finally; no indefinite hold. Both wrapper and natural timer service receive the same optional snapshot input. Normal site helper ownership is disabled (no inventory enable; site condition defaultsfalse), so subsequent normal pulls do not rewrite or revoke the reviewed MC helper grants.
-7. Normandy runtime/reader/web/ingress and edge route remain separate held phases. Exact originhttps://chaldeas.ryzhkov.dev, loopback7392, cache-only web. Only edges192.168.20.33/.4 to192.168.70.234:7393, FreeBindyes/BPF enforcement proof; any UDM change is a separate exact TCP7393 rule, never shared portgroup widening. Existing DNS wildcard/TLS covers name, no DNS action.
-8. Check/diff, inspected real, second real changed0 for each released phase. Prove actual-peer LAN20/70/90/130 only, Cf-Ray catchall302 tohttps://igor.ryzhkov.dev/404, forgedXFF denial, Host/Origin denial, SSE15s heartbeat and natural eligible non-PC thread update<90s. No manufactured inference. Verify aged cache/outage/producer1hTTL/replay behavior.
-
-Rollback must explicitly stop/disable only owned new MC units and withdraw only its edge route; flagsfalse do not remove active services. Restore guarded previous helper/config/collector bytes and permission bundle through canonical workflow under ROOT, preserve keys/state/history and trust2.2. Restore every actually held pull timer to its saved active/enabled state in finally; no retiming/disable. No unrelated Akasha1936/Traefik/T3/quota restart. Reconcile disconnected outcomes before retry.
+Before any separately authorized live convergence, inspect CHECK/diff, perform REAL
+and SECOND changed=0, and preserve protected state/PIDs/timers. Revalidate dedicated
+identity ownership, issuer-only sudo/DAC and namespace constraints, web read/no-write,
+exact target SYSTEM units, edge-only7393/BPF, Host/Origin and SSE freshness.
+Source fixtures are isolated evidence, not actual target qualification or a live
+broker/thread-transition/outage proof. Root owns combined reviews and deployment.

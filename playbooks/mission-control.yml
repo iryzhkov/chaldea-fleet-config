@@ -14,5 +14,10 @@
           - ansible_connection == 'local'
         quiet: true
   roles:
-    - mission_control_runtime
     - mission_control_capture
+    - mission_control_runtime
+  tasks:
+    - name: Verify and activate the staged capture
+      ansible.builtin.include_role:
+        name: mission_control_capture
+        tasks_from: activate
