@@ -1,76 +1,44 @@
-# Hosted Mission Control source
+# Hosted Mission Control deployment
 
-All new roles and routing default off. No active inventory or issuer data is changed.
-The agent-a capture uses playbooks/mission-control.yml with a literal --limit agent-a.
-Normandy is composed only by homelab-infra's one-host Mission Control play.
-Neither play installs T3 or changes quota, helper release, user client or Akasha units.
+The LAN canary is deployed at https://chaldeas.ryzhkov.dev. It currently transports
+one agent-a sanitized status source with zero rows. PC threads, jobs, quota and
+roadmap progress are not connected. Token semantics and a real non-PC thread
+transition/outage remain unqualified. Completed deployment evidence and limits:
+jocasta:7809f6329c87f8a3c5390221ee4d0d2e@2.
 
-Select a newly published hosted client version and archive SHA only after its source,
-archive/manifest, imports and assets have passed the root-owned combined review and
-Node26.10 qualification. Defaults deliberately name no release. The existing helper
-client-v0.4.0 and validator Node26.12 remain independent.
+All service enabled flags and mission_control_activate default false. The explicit
+agent-a play requires literal --limit agent-a and local connection. Normandy belongs
+to homelab-infra's literal one-host composition, never fleet site ownership.
 
-The runtime role calls library/chaldea_client_release.py unchanged into
-/opt/chaldea-mission-control/releases/VERSION. It checks every manifest member,
-archive hash and existing immutable tree. Units name the exact version.
-Do not point this root at the helper or user-client tree.
+With selected enabled flags true, main tasks stage accounts, directories, config
+and exact units. Stage-only real runs refuse selected active or enabled units before
+staging writes. Use one complete invocation with mission_control_activate=true for
+warm updates. Includes retain config/unit changed results, so changed services restart
+and an unchanged second real run changes nothing. Do not stage in one invocation and
+activate in another. There are no persistent activation markers.
 
-## Unapplied permission packet
+The capture activation task runs target SYSTEM-mode systemd-analyze verify --man=no
+against its exact installed service before any manager action. Infra verifies the exact
+reader, web, ingress socket and ingress service together before invoking reader and
+web/ingress activation tasks. Verification failure prevents activation. Check mode
+defers account/config/unit staging and verification honestly; it does not qualify
+predicted files or accounts. False flags do not stop or roll back active services.
 
-playbooks/vars/mission-control-proposal.yml records missing UID inputs, not grants.
-The public generator accepts an optional mission_control object with publisher_uid,
-reader_uid and read_sources. Explicit publisher UID1000 selects only agent-a append
-of agent_status, source agent-a.mission-control, profile mission-control-publisher,
-project chaldea and source_id agent-a--mission-control. A dedicated reader UID with
-read_sources [agent-a--mission-control] selects service read only, source/profile
-mission-control-reader on omarchy-normandy, kind agent_status, project chaldea.
-No global_read, quota_fleet_read or raw feed access is emitted.
-An all-null/empty packet is equivalent to omission.
+The unchanged canonical installer validates the selected immutable release under
+/opt/chaldea-mission-control/releases/VERSION. Existing helper client-v0.4.0,
+validator Node26.12, user clients, T3 and quota services remain independent.
+Reader UID940 has only its exact approved issuer sudo command. Its NNP=no permits
+that hop; issuer directory0700/SQLite0600 still deny direct reader access. Web and
+capture retain NNP=yes. Reader state0700/config0640 and cache2750/atomic file0640
+remain required. Web has cache read access without write, helper, sudo or token access.
 
-Run tools/akasha-enrollment-inputs.mjs with a qualified hosted client as its first
-argument and existing public policy/key inputs on stdin. That client's strict
-Authorization decoder must accept mission_control_read_sources. The existing
-enrollment play deliberately still validates its original path with0.4.0; do not
-feed a new packet through that old validator or upgrade it implicitly. Root must
-review the generated ceilings, helper grants and registry together before a separate
-exact one-host helper invocation. Enabling a role never generates a grant.
-The reader role requires the exact reviewed mission_control_reader_grants as input.
-Its systemd mount namespace permits writes to /var/lib/chaldea-issuer/access only
-for the exact sudo issuer hop. Issuer-owned DAC still denies direct reader access.
-Qualification must prove reader direct key/state reads and state writes fail.
+Capture only stats the existing private token and writes its own sanitized snapshot.
+The deployment packet no longer overrides the collector snapshot input. Existing
+agent-a inventory supplies /home/igor/.local/state/chaldea/mission-control/latest.json.
+Collector host024 is role-scoped; global shared trust remains022 and cadence stays
+30s plus5s jitter. No automatic grant, publisher, signing or credential operation
+belongs to staging or activation.
 
-## Ownership and activation gates
-
-Reader UID stays null until selected and qualified. It must be a new locked account,
-never igor or another enrolled service. Qualify its actual sudo -l confinement to only
-/usr/local/libexec/chaldea-token-helper-issuer --audience akasha --action read
---source mission-control-reader --host omarchy-normandy --kind agent_status.
-The web account receives no helper grant, token or sudo. Capture and web keep NNPyes.
-Only this dedicated reader uses NNPno for the existing issuer sudo hop.
-
-Reader state is0700. Reader configuration is root:mission-control-reader0640 inside
-a0750 directory. The cache is reader:mission-control-cache2750. The writer creates
-a same-directory temporary file, sets0640, then renames it, preserving the SGID group.
-The web account has read/traverse access through that group and cannot write cache.
-
-Capture reads only metadata of the existing igor-owned0600 token before starting.
-Its sanitized own latest file is the only capture writable path. Source token
-semantics remain unqualified. The collector snapshot input is absent by default;
-selecting it requires the matching newly released host collector artifact too.
-No timer frequency changes are included.
-
-Before live activation root must qualify dedicated UID availability, exact helper
-confinement and signed ceilings, source/registry equality, artifact custody and
-actual source latency. No credentials are transferred. Existing grants and PC quota,
-sharing, collector limits and routing configuration remain unchanged.
-
-Rollback disables the LAN router and stops only the new Mission Control services,
-then restores a qualified previous exact release/config. Keep the previous release
-and bounded cache for14days. The runtime retains the selected and newest prior
-release, then prunes only other managed releases and caches older than14days.
-
-A new Akasha host artifact is also required for the hosted schema/auth/store. Before
-selecting that pin, preserve the actual shared trust release with the reviewed bounded
-chaldea_host_artifact_preserve_versions list. Its default is empty. It adds exact
-protected versions to current plus newest prior, including their cached artifacts.
-It does not upgrade trust or activate a preservation version. No trust rollback, T3 restart or unrelated grant removal.
+Rollback explicitly withdraws the owned route and stops/disables owned MC units,
+then restores guarded prior config/releases. Preserve keys, antirollback state,
+shared trust022 and server rollback023. Never restore old access databases.

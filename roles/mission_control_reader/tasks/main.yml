@@ -1,6 +1,6 @@
 ---
 - name: Configure only the explicitly authorized Normandy reader
-  when: mission_control_reader_enabled | bool
+  when: mission_control_reader_enabled | bool and not ansible_check_mode
   block:
     - name: Require a selected dedicated UID and exact service selectors
       ansible.builtin.assert:
@@ -19,6 +19,17 @@
             mission_control_reader_grants | default([]) == [{'uid': mission_control_reader_uid, 'audience': 'akasha', 'action': 'read', 'source': 'mission-control-reader', 'host': 'omarchy-normandy', 'kind': 'agent_status', 'profile': 'mission-control-reader', 'project': 'chaldea'}]
         fail_msg: Select and review the dedicated UID, helper sudo selector and source-bound registry before enabling.
         quiet: true
+    - name: Inspect owned units before stage-only writes
+      ansible.builtin.service_facts:
+      when: not mission_control_activate | bool
+    - name: Refuse stage-only updates of an active or enabled unit
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services.get('mission-control-reader.service', {}).get('state', 'stopped') not in ['running', 'active', 'activating', 'reloading']
+          - ansible_facts.services.get('mission-control-reader.service', {}).get('status', 'disabled') not in ['enabled', 'enabled-runtime']
+        fail_msg: Use one complete stage, verify and activate invocation for warm updates.
+        quiet: true
+      when: not mission_control_activate | bool
     - name: Create the shared cache read group
       ansible.builtin.group:
         name: mission-control-cache
@@ -67,10 +78,7 @@
         group: root
         mode: "0644"
       register: mission_control_reader_unit
-    - name: Converge only the reader service
-      ansible.builtin.systemd_service:
-        name: mission-control-reader.service
-        enabled: true
-        daemon_reload: "{{ mission_control_reader_unit is changed }}"
-        state: "{{ 'restarted' if mission_control_reader_unit is changed or mission_control_reader_config is changed else 'started' }}"
-      when: not ansible_check_mode
+- name: Explain deferred reader check-mode staging
+  ansible.builtin.debug:
+    msg: Check mode defers staging and SYSTEM verification; absent accounts and bytes are not qualified.
+  when: mission_control_reader_enabled | bool and ansible_check_mode

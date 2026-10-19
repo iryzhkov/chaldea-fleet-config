@@ -1,4 +1,5 @@
 ---
+mission_control_activate: false
 mission_control_reader_enabled: false
 # Production UID is deliberately unselected. Never use igor's broad sudo identity.
 mission_control_reader_uid: null

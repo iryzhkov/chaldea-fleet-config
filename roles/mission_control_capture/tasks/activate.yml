@@ -1,0 +1,15 @@
+---
+- name: Activate the staged capture
+  when: mission_control_activate | bool and mission_control_capture_enabled | bool and not ansible_check_mode
+  block:
+    - name: Verify the exact installed capture unit in target SYSTEM mode
+      ansible.builtin.command:
+        argv: [systemd-analyze, verify, --man=no, /etc/systemd/system/mission-control-capture.service]
+      changed_when: false
+    - name: Converge only the capture service
+      ansible.builtin.systemd_service:
+        name: mission-control-capture.service
+        enabled: true
+        daemon_reload: "{{ mission_control_capture_unit is changed }}"
+        state: "{{ 'restarted' if mission_control_capture_unit is changed or mission_control_capture_config is changed else 'started' }}"
+      when: not ansible_check_mode

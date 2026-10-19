@@ -1,0 +1,18 @@
+---
+- name: Activate the staged reader
+  when: mission_control_activate | bool and mission_control_reader_enabled | bool and not ansible_check_mode
+  block:
+    - name: Require the composition's successful four-unit SYSTEM verification
+      ansible.builtin.assert:
+        that:
+          - mission_control_system_verification is defined
+          - not mission_control_system_verification.skipped | default(false)
+          - mission_control_system_verification.rc | default(-1) == 0
+        quiet: true
+    - name: Converge only the reader service
+      ansible.builtin.systemd_service:
+        name: mission-control-reader.service
+        enabled: true
+        daemon_reload: "{{ mission_control_reader_unit is changed }}"
+        state: "{{ 'restarted' if mission_control_reader_unit is changed or mission_control_reader_config is changed else 'started' }}"
+      when: not ansible_check_mode

@@ -1,4 +1,5 @@
 ---
+mission_control_activate: false
 mission_control_capture_enabled: false
 mission_control_capture_home: /home/igor
 mission_control_capture_t3_base_dir: /home/igor/.t3
