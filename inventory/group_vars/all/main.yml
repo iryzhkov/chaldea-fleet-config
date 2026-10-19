@@ -37,11 +37,18 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Published from Chaldea main 9d4341953e20f71c023e8fabbb0c7eba0542aaf5.
+# Published from Chaldea main 445e730124f3e99c78cba663300e72635f2740ca.
 # Shared client release pin; native quota is enrolled per host below.
 chaldea_client_enabled: true
-chaldea_client_version: client-v0.4.2
-chaldea_client_sha256: "40a00e518152f1d44251dc1bffddcea34ca613f43453a7dbf26ec890247c539a"
+chaldea_client_version: client-v0.4.7
+chaldea_client_sha256: "9c5d1f1d087010d32c5309c3099098b85e5de7015d9a524e2af03f01689861b3"
+# Observed ordinary-client rollback history, not active per-host version pins.
+# Keep existing payloads/caches only; absent versions are never installed.
+chaldea_client_retained_versions:
+  - client-v0.2.0
+  - client-v0.3.0
+  - client-v0.4.0
+  - client-v0.4.2
 # Opt-in requires Igor's approval and verified local account binding on each host.
 chaldea_client_claude_usage_enabled: false
 

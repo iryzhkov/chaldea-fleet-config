@@ -309,6 +309,83 @@ def test_unexpected_current_refuses_before_replacing_units(tmp_path, monkeypatch
     assert not (home / ".cache/chaldea-client").exists()
 
 
+
+def test_explicit_rollback_history_preserves_payloads_and_cache(tmp_path, monkeypatch):
+    for version in ("client-v0.2.0", "client-v0.3.0"):
+        variables = fixture(tmp_path, monkeypatch, version)
+        result = run(tmp_path, variables)
+        print(result.stdout, result.stderr)
+        success(result)
+    root = Path.home() / ".local/share/chaldea"
+    cache = Path.home() / ".cache/chaldea-client"
+    history = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())[
+        "chaldea_client_retained_versions"]
+    assert history == ["client-v0.2.0", "client-v0.3.0", "client-v0.4.0", "client-v0.4.2"]
+
+    def snapshot():
+        paths = []
+        for version in ("client-v0.2.0", "client-v0.3.0"):
+            release = root / "releases" / version
+            paths.extend([release, *release.rglob("*"), cache / (version + ".json"),
+                          cache / (version + ".tar.gz")])
+        result = {}
+        for path in paths:
+            st = path.lstat()
+            result[str(path)] = (path.read_bytes() if path.is_file() else None,
+                                 st.st_mode, st.st_uid, st.st_gid, st.st_mtime_ns,
+                                 st.st_ino, st.st_size)
+        return result
+
+    before = snapshot()
+    # Managed but unlisted candidates must still be collected.
+    stale = root / "releases/client-v0.1.0"
+    stale.mkdir(mode=0o700)
+    (stale / "sentinel").write_bytes(b"unlisted fixture")
+    for suffix in (".json", ".tar.gz"):
+        (cache / ("client-v0.1.0" + suffix)).write_bytes(b"unlisted fixture")
+    # Nonmanaged names remain outside GC's existing path boundary.
+    (cache / "operator-note").write_bytes(b"preserve unmanaged")
+    variables = fixture(tmp_path, monkeypatch, "client-v0.4.7")
+    variables["chaldea_client_retained_versions"] = history
+    for attempt in range(2):
+        result = run(tmp_path, variables)
+        print(result.stdout, result.stderr)
+        success(result)
+        if attempt:
+            assert "changed=0" in result.stdout, result.stdout
+        assert snapshot() == before
+        assert sorted(p.name for p in (root / "releases").iterdir()) == [
+            "client-v0.2.0", "client-v0.3.0", "client-v0.4.7"]
+        assert sorted(p.name for p in cache.iterdir()) == [
+            "client-v0.2.0.json", "client-v0.2.0.tar.gz",
+            "client-v0.3.0.json", "client-v0.3.0.tar.gz",
+            "client-v0.4.7.json", "client-v0.4.7.tar.gz", "operator-note"]
+        assert (root / "current").resolve() == root / "releases/client-v0.4.7"
+        assert (root / "previous").resolve() == root / "releases/client-v0.3.0"
+
+
+@pytest.mark.parametrize("retained", [
+    "client-v0.2.0", {"client-v0.2.0": True}, None, 1,
+    ["client-v0.2.0"] * 2,
+    ["client-v0.1." + str(n) for n in range(5)],
+    [1], ["../client-v0.2.0"], ["/client-v0.2.0"],
+    ["client-v0.2.0/../escape"], ["client-v00.2.0"],
+    ["client-v0.2.0\n"], ["client-v0.2.0-rc1"],
+])
+def test_invalid_rollback_history_refuses_before_writes(tmp_path, monkeypatch, retained):
+    variables = fixture(tmp_path, monkeypatch)
+    variables["chaldea_client_retained_versions"] = retained
+    result = run(tmp_path, variables)
+    print(result.stdout, result.stderr)
+    assert result.returncode != 0
+    assert "Validate client pins and host configuration before changing files" in result.stdout
+    assert "Create client directories" not in result.stdout
+    assert not (Path.home() / ".local").exists()
+    assert not (Path.home() / ".config").exists()
+    assert not (Path.home() / ".cache").exists()
+    assert not json.loads((tmp_path / "systemctl.json").read_text())["calls"]
+
+
 def test_fresh_check_does_not_write_or_call_user_manager(tmp_path, monkeypatch):
     variables = fixture(tmp_path, monkeypatch)
     success(run(tmp_path, variables, check=True))

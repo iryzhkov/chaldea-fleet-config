@@ -7,7 +7,7 @@ pull_timer_enabled: true
 retention_timer_enabled: true
 
 # The collector was qualified and staged independently of the host installer pin.
-# Keep its existing v0.2.6 selection shared without upgrading other host consumers.
-akasha_collector_version: host-v0.2.6
+# Keep its existing v0.2.7 selection shared without upgrading other host consumers.
+akasha_collector_version: host-v0.2.7
 akasha_collector_script: "/opt/chaldea-host/releases/{{ akasha_collector_version }}/host/akasha-collector.mjs"
 # The separate enrollment inventory has no agent_hosts group and keeps its defaults.
