@@ -7,7 +7,7 @@ import yaml
 from test_chaldea_client import ROOT, fixture, provision, run, success
 
 
-def test_omarchy_reader_and_conservative_pins(tmp_path, monkeypatch):
+def test_omarchy_native_quota_reader_uses_unpinned_role_policy(tmp_path, monkeypatch):
     variables = fixture(tmp_path, monkeypatch)
     inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
@@ -32,12 +32,9 @@ def test_omarchy_reader_and_conservative_pins(tmp_path, monkeypatch):
     assert "claudeContexts" not in quota
     assert route["scores"] == {"enabled": False}
     assert route["analyticsMaxAgeMs"] == 7776000000
-    assert route["pins"] == {
-        "builder": {"model": "gpt-6.1-sol", "providerInstanceId": "codex"},
-        "bulk-read": {"model": "gpt-6-luna", "providerInstanceId": "codex"},
-        "general": {"model": "gpt-6.1-sol", "providerInstanceId": "codex"},
-    }
-    assert "critical-review" not in route["pins"]
+    assert route["pins"] == {}
+    assert route["failureMargin"] == 0.10
+    assert route["minimumTurns"] == 100
     assert "fleet" not in quota
     assert legacy_credential.read_text() == "PRIVATE-LEGACY-SENTINEL"
     assert legacy_credential.stat().st_mode & 0o777 == 0o600
