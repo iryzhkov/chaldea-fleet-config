@@ -320,7 +320,7 @@ def test_explicit_rollback_history_preserves_payloads_and_cache(tmp_path, monkey
     cache = Path.home() / ".cache/chaldea-client"
     history = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())[
         "chaldea_client_retained_versions"]
-    assert history == ["client-v0.2.0", "client-v0.3.0", "client-v0.4.0", "client-v0.4.2"]
+    assert history == ["client-v0.2.0", "client-v0.3.0", "client-v0.4.0", "client-v0.4.2", "client-v0.4.7"]
 
     def snapshot():
         paths = []
@@ -367,7 +367,7 @@ def test_explicit_rollback_history_preserves_payloads_and_cache(tmp_path, monkey
 @pytest.mark.parametrize("retained", [
     "client-v0.2.0", {"client-v0.2.0": True}, None, 1,
     ["client-v0.2.0"] * 2,
-    ["client-v0.1." + str(n) for n in range(5)],
+    ["client-v0.1." + str(n) for n in range(6)],
     [1], ["../client-v0.2.0"], ["/client-v0.2.0"],
     ["client-v0.2.0/../escape"], ["client-v00.2.0"],
     ["client-v0.2.0\n"], ["client-v0.2.0-rc1"],

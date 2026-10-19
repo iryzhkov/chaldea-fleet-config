@@ -11,13 +11,23 @@
           - mission_control_reader_uid > 0
           - mission_control_reader_uid < 4294967295
           - mission_control_reader_uid not in [957, 995, 1000, 1001]
+          - mission_control_reader_operations_enabled is boolean
           - mission_control_reader_allowed_source_ids == (['agent-a--mission-control'] + (['omarchy-pc--mission-control'] if mission_control_pc_permission | bool else []) + (['agent-b--mission-control'] if mission_control_agent_b_permission | bool else []) + (['omarchy-macbook-air-igor--mission-control'] if mission_control_laptop_permission | bool else []))
           - not mission_control_laptop_permission | bool or (mission_control_laptop_qualified | bool and mission_control_runtime_version != 'client-v0.4.4')
+          - >-
+            not mission_control_reader_operations_enabled or
+            (mission_control_pc_permission | bool and mission_control_agent_b_permission | bool and
+             mission_control_laptop_permission | bool and mission_control_reader_allowed_source_ids | length == 4 and
+             mission_control_runtime_version is match('^client-v[0-9]+[.][0-9]+[.][0-9]+$') and
+             mission_control_runtime_version | regex_replace('^client-v', '') is version('0.4.9', '>='))
           - mission_control_reader_url == 'https://akasha.ryzhkov.dev'
           - mission_control_reader_token_helper == '/usr/local/bin/chaldea-token-helper'
           - mission_control_reader_cache_file == '/var/cache/mission-control/latest.json'
           - >-
             mission_control_reader_grants | default([]) == [{'uid': mission_control_reader_uid, 'audience': 'akasha', 'action': 'read', 'source': 'mission-control-reader', 'host': 'omarchy-normandy', 'kind': 'agent_status', 'profile': 'mission-control-reader', 'project': 'chaldea'}]
+            + ([{'uid': mission_control_reader_uid, 'audience': 'akasha', 'action': 'read', 'source': 'mission-control-reader', 'host': 'omarchy-normandy', 'kind': 'job_finished', 'profile': 'mission-control-reader', 'project': 'chaldea'},
+                {'uid': mission_control_reader_uid, 'audience': 'akasha', 'action': 'read', 'source': 'mission-control-reader', 'host': 'omarchy-normandy', 'kind': 'report', 'profile': 'mission-control-reader', 'project': 'chaldea'}]
+               if mission_control_reader_operations_enabled else [])
         fail_msg: Select and review the dedicated UID, helper sudo selector and source-bound registry before enabling.
         quiet: true
     - name: Inspect owned units before stage-only writes

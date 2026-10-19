@@ -8,7 +8,10 @@ from host_artifact_fixture import stage
 from test_host_artifact import run_role
 
 
-@pytest.mark.parametrize("preserve", [False, True])
+FIVE = ["host-v0.2.2", "host-v0.2.1", "host-v0.1.1", "host-v0.2.4", "host-v0.2.6"]
+
+
+@pytest.mark.parametrize("preserve", [False, True, "five"])
 def test_default_two_or_explicit_third_release_and_cache(tmp_path, preserve):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]))
     pins = stage(tmp_path)
@@ -16,7 +19,10 @@ def test_default_two_or_explicit_third_release_and_cache(tmp_path, preserve):
     releases.mkdir()
     cache.mkdir()
     older = ["host-v0.2.2", "host-v0.2.3", "host-v0.2.1"]
-    for version, stamp in zip(older, [100, 300, 50]):
+    if preserve == "five":
+        # Five explicit old releases plus the newest prior and the selected one.
+        older += ["host-v0.1.1", "host-v0.2.4", "host-v0.2.6"]
+    for version, stamp in zip(older, [100, 300, 50, 20, 150, 200]):
         path = releases / version
         path.mkdir()
         (path / "consumer").write_text(version)
@@ -28,14 +34,20 @@ def test_default_two_or_explicit_third_release_and_cache(tmp_path, preserve):
     outside.mkdir()
     (outside / "keep").write_text("untouched")
     (releases / "host-v0.0.1").symlink_to(outside, target_is_directory=True)
-    if preserve:
-        pins["chaldea_host_artifact_preserve_versions"] = ["host-v0.2.2"]
+    explicit = FIVE if preserve == "five" else ["host-v0.2.2"] if preserve else []
+    if explicit:
+        pins["chaldea_host_artifact_preserve_versions"] = explicit
     result = run_role(tmp_path, pins)
     assert result.returncode == 0, result.stdout + result.stderr
-    expected = {pins["chaldea_host_version"], "host-v0.2.3"} | ({"host-v0.2.2"} if preserve else set())
+    expected = {pins["chaldea_host_version"], "host-v0.2.3"} | set(explicit)
     actual = {p.name for p in releases.iterdir() if p.is_dir() and not p.is_symlink()}
     assert actual == expected
+    assert len(actual) == (7 if preserve == "five" else 2 + len(explicit))
     assert {p.name for p in cache.iterdir()} == {v + suffix for v in expected for suffix in (".tar.gz", ".json")}
+    for version in expected - {pins["chaldea_host_version"]}:
+        assert (releases / version / "consumer").read_text() == version
+        for suffix in (".tar.gz", ".json"):
+            assert (cache / (version + suffix)).read_text() == version
     assert (outside / "keep").read_text() == "untouched"
     again = run_role(tmp_path, pins)
     assert again.returncode == 0 and "changed=0" in again.stdout, again.stdout + again.stderr
@@ -43,7 +55,7 @@ def test_default_two_or_explicit_third_release_and_cache(tmp_path, preserve):
 
 @pytest.mark.parametrize("invalid", ["host-v0.2.2", {}, ["/opt/host-v0.2.2"], ["../host-v0.2.2"],
     ["unknown"], [2], ["host-v0.2.2\n"], ["host-v0.2.2"] * 2,
-    [f"host-v0.2.{i}" for i in range(5)]])
+    [f"host-v0.2.{i}" for i in range(6)]])
 def test_malformed_preservation_stops_before_any_install_or_delete(tmp_path, invalid):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]))
     pins = stage(tmp_path)

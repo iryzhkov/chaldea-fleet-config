@@ -210,6 +210,36 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
         ok(play(tmp_path, "omarchy-normandy", roles=[role], values=remaining))
         assert json.loads((tmp_path / "reader-config/reader.json").read_text())["allowedSourceIds"] == remaining["mission_control_reader_allowed_source_ids"]
 
+    # Optional Events/Ops reads: explicit opt-in only, never emitted when off.
+    config = tmp_path / "reader-config/reader.json"
+    legacy = config.read_bytes()
+    assert "operationsEnabled" not in json.loads(legacy)
+    row: dict = copy.deepcopy(values["mission_control_reader_grants"][0])  # type: ignore[index]
+    operations: dict = remaining | dict(mission_control_reader_operations_enabled=True,
+        mission_control_reader_grants=[row, row | dict(kind="job_finished"), row | dict(kind="report")])
+    assert len(operations["mission_control_reader_allowed_source_ids"]) == 4
+    for invalid in (dict(mission_control_reader_operations_enabled="true"),
+                    dict(mission_control_reader_grants=[row]),
+                    dict(mission_control_reader_grants=[row, row | dict(kind="job_finished")]),
+                    dict(mission_control_reader_grants=[row, row | dict(kind="report"), row | dict(kind="job_finished")]),
+                    dict(mission_control_reader_grants=operations["mission_control_reader_grants"] + [row | dict(kind="tool_call")]),
+                    dict(mission_control_reader_grants=[row, row | dict(kind="job_finished", project="homelab"), row | dict(kind="report")]),
+                    dict(mission_control_runtime_version="client-v0.4.8"),
+                    dict(mission_control_agent_b_permission=False, mission_control_reader_allowed_source_ids=
+                         ["agent-a--mission-control", "omarchy-pc--mission-control", "omarchy-macbook-air-igor--mission-control"])):
+        denied = play(tmp_path, "omarchy-normandy", roles=[role], values=operations | invalid)
+        assert denied.returncode != 0 and "Require a selected dedicated UID" in denied.stdout, invalid
+        assert config.read_bytes() == legacy
+    # Legacy grants with operations explicitly off keep exactly the old file bytes.
+    unchanged = play(tmp_path, "omarchy-normandy", roles=[role], values=remaining | dict(
+        mission_control_reader_operations_enabled=False))
+    ok(unchanged)
+    assert "changed=0" in unchanged.stdout and config.read_bytes() == legacy
+    ok(play(tmp_path, "omarchy-normandy", roles=[role], values=operations))
+    assert json.loads(config.read_text()) == json.loads(legacy) | dict(operationsEnabled=True)
+    ok(play(tmp_path, "omarchy-normandy", roles=[role], values=remaining))
+    assert config.read_bytes() == legacy
+
 
 def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
     variables = stage(tmp_path / "artifact")

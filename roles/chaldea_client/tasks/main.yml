@@ -5,7 +5,7 @@
       - chaldea_client_version is match('^client-v[0-9]+[.][0-9]+[.][0-9]+$')
       - chaldea_client_sha256 is match('^[a-f0-9]{64}$')
       - chaldea_client_retained_versions | type_debug == 'list'
-      - chaldea_client_retained_versions | length <= 4
+      - chaldea_client_retained_versions | length <= 5
       - chaldea_client_retained_versions | select('string') | list | length == chaldea_client_retained_versions | length
       - chaldea_client_retained_versions | unique | list | length == chaldea_client_retained_versions | length
       - >-
@@ -20,7 +20,7 @@
       - not chaldea_client_waits_enabled or chaldea_client_waits_environment | length > 0
       - not chaldea_client_quota_enabled or chaldea_client_codex_home is match('^/')
       - chaldea_client_root == fleet_home ~ '/.local/share/chaldea'
-    fail_msg: Set valid client pins, at most four unique canonical retained client versions, waits environment and explicit Codex home in inventory.
+    fail_msg: Set valid client pins, at most five unique canonical retained client versions, waits environment and explicit Codex home in inventory.
     quiet: true
 
 - name: Inspect operator-provisioned secrets without reading their contents
