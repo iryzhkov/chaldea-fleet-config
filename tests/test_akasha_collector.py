@@ -12,6 +12,11 @@ def test_collector_is_disabled_and_uses_one_locked_scoped_service():
     assert defaults["akasha_collector_token_helper"] == ""
     service = (ROOT / "roles/akasha_collector/templates/akasha-collector.service.j2").read_text()
     assert "flock --nonblock" in service
+    timer = (ROOT / "roles/akasha_collector/templates/akasha-collector.timer.j2").read_text()
+    settings = dict(line.split("=", 1) for line in timer.splitlines() if "=" in line)
+    assert settings["OnUnitInactiveSec"] == "5s"
+    assert settings["RandomizedDelaySec"] == "1s"
+    assert settings["AccuracySec"] == "1s"
     assert "AKASHA_TOKEN_HELPER" in service and "UnsetEnvironment=FEED_TOKEN" in service
     assert "feed/key" not in service
     normal = ROOT / "inventory/hosts.yml"

@@ -3,7 +3,8 @@
 Description=Drain the host's Akasha queue
 [Timer]
 OnBootSec=2min
-OnUnitInactiveSec=30s
-RandomizedDelaySec=5s
+OnUnitInactiveSec=5s
+RandomizedDelaySec=1s
+AccuracySec=1s
 [Install]
 WantedBy=timers.target
