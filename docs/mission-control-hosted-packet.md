@@ -1,5 +1,37 @@
 # Hosted Mission Control qualified packet
 
+## B/L source activation, 2026-10-19
+
+The B/L collector selections require host-v0.2.6 staged BEFORE this change merges
+or a normal pull consumes it. Archive SHA
+504326b4d617b8d4f5972f9fab07f6c7c52f6194c1fc149eb9610d5dcba1d74d,
+manifest SHA 3b802e13dd92e1d86719330423b1c04cd97d8ae92c0c4f9a51f6d68ce045350b,
+native manifest has 11 members. Shared022, helper040 and ordinary clients stay pinned.
+Strict known-host public metadata probes found B UID1000 with host021/022 and
+L canonical omarchy-macbook-air-igor UID1001 with host011/022. Inventory preserves
+those exact releases plus026. Revalidate actual preservation before operator work.
+
+The same public-only native composition selects pc_reader=true, pc_quota=true,
+laptop_quota=false, pc_quota_reader=false. Mission Control publisher UIDs are
+A1000/PC1000/B1000/L1001 and reader940. Ordered reader sources are
+agent-a--mission-control, omarchy-pc--mission-control, agent-b--mission-control,
+omarchy-macbook-air-igor--mission-control. Only B/L append ceilings and their
+agent_status helper grants are added; preserve every existing key, window and grant.
+
+ROOT owns final clean-head reviews, native CI and operator release. Stage B/L026
+before merge. Later canonical H runs require explicit
+mission_control_laptop_qualified=true,
+mission_control_laptop_qualified_host_version=host-v0.2.6 and
+mission_control_laptop_qualified_host_sha256=504326b4d617b8d4f5972f9fab07f6c7c52f6194c1fc149eb9610d5dcba1d74d,
+independent of laptop permission. Preserve H registry26, add only B/L to reach28,
+then the four-source N reader. Qualify actual B/L runtime, UID/token permission,
+private snapshot and installed SYSTEM gates before capture; complete helper policy
+from the SAME native render and enable ordinary collectors last. Require inspected
+CHECK, REAL, SECOND changed=0 and protected before/after state at each selected host.
+Source/native output is not installation, a signing run or live qualification.
+
+## Historical canary packet
+
 The completed canary and its limits are recorded in
 jocasta:7809f6329c87f8a3c5390221ee4d0d2e@2. Source qualification is
 jocasta:623f53e1c960b0383b2a44b3afcbb981@1, actual package job

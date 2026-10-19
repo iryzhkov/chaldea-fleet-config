@@ -154,10 +154,26 @@ def test_remaining_collectors_native_uid_scope_and_preservation(hosted, tmp_path
     canonical = tmp_path / "canonical-client"
     shutil.copytree(hosted, canonical)
     (canonical / "src/akasha/auth.ts").write_bytes(auth)
-    data = public_inputs() | dict(pc_reader=True, pc_quota=True, laptop_quota=True, pc_quota_reader=True)
+    from test_akasha_enrollment import ROOT
+    active = ROOT / "access-trust/issuer-grants.json"
+    source = json.loads(active.read_text())
+    assert len(source) == 6
+    previous = copy.deepcopy(source)
+    for host in ("agent-b", "omarchy-macbook-air-igor"):
+        ceiling = dict(audience="akasha", profile="mission-control-publisher", project="chaldea",
+            source=host + ".mission-control",
+            grants=[dict(resource=host + ".mission-control", actions=["append"])])
+        row = next(r for r in previous if r["issuer"] == "chaldea:" + host)
+        assert row["kid"] == host + "-2026-10-cutover"
+        assert row["ceilings"].count(ceiling) == 1
+        assert row["ceilings"][-1] == ceiling
+        row["ceilings"].remove(ceiling)
+    fixture_file = tmp_path / "before-remaining-status.json"
+    fixture_file.write_text(json.dumps(previous))
+    data = public_inputs() | dict(pc_reader=True, pc_quota=True, laptop_quota=False, pc_quota_reader=False)
     packet: dict = dict(publisher_uid=1000, pc_publisher_uid=1000, reader_uid=940,
                   read_sources=["agent-a--mission-control", "omarchy-pc--mission-control"])
-    baseline = compose(canonical, data | dict(mission_control=packet))
+    baseline = compose(canonical, data | dict(mission_control=packet), existing=fixture_file)
     assert baseline.returncode == 0, baseline.stderr
     before = json.loads(baseline.stdout)
     for b, laptop in [(True, False), (False, True), (True, True)]:
@@ -166,7 +182,7 @@ def test_remaining_collectors_native_uid_scope_and_preservation(hosted, tmp_path
                                  read_sources=packet["read_sources"] +
                                     (["agent-b--mission-control"] if b else []) +
                                     (["omarchy-macbook-air-igor--mission-control"] if laptop else []))
-        result = compose(canonical, data | dict(mission_control=selected))
+        result = compose(canonical, data | dict(mission_control=selected), existing=fixture_file)
         assert result.returncode == 0, result.stderr
         after = json.loads(result.stdout)
         hosts = (["agent-b"] if b else []) + (["omarchy-macbook-air-igor"] if laptop else [])
@@ -186,12 +202,21 @@ def test_remaining_collectors_native_uid_scope_and_preservation(hosted, tmp_path
             assert {k:v for k,v in row.items() if k != "ceilings"} == {k:v for k,v in old.items() if k != "ceilings"}
             assert row["ceilings"][:len(old["ceilings"])] == old["ceilings"]
             assert len(row["ceilings"]) == len(old["ceilings"]) + (old["issuer"].removeprefix("chaldea:") in hosts)
+        if b and laptop:
+            assert after["issuers"] == source
+            # The actual source is idempotent under the same native composition.
+            actual = compose(canonical, data | dict(mission_control=selected))
+            assert actual.returncode == 0, actual.stderr
+            assert json.loads(actual.stdout) == after
         if evidence := os.environ.get("MC_REMAINING_RENDER_DIR"):
             Path(evidence).mkdir(parents=True, exist_ok=True)
             (Path(evidence) / f"b{int(b)}-l{int(laptop)}.json").write_text(result.stdout)
+            if b and laptop:
+                (Path(evidence) / "inputs.json").write_text(json.dumps(data | dict(mission_control=selected)))
+                (Path(evidence) / "baseline.json").write_text(baseline.stdout)
         for invalid in [dict(agent_b_publisher_uid=1001), dict(laptop_publisher_uid=1000),
                         dict(read_sources=selected["read_sources"] + ["foreign"]),
                         dict(read_sources=selected["read_sources"] * 2),
                         dict(read_sources=list(reversed(selected["read_sources"]))),
                         dict(unknown_host="other")]:
-            assert compose(canonical, data | dict(mission_control=selected | invalid)).returncode != 0
+            assert compose(canonical, data | dict(mission_control=selected | invalid), existing=fixture_file).returncode != 0
