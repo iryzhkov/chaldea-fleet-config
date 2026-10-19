@@ -188,6 +188,16 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
         checked = play(tmp_path, "omarchy-normandy", roles=[role], values=values | {key: invalid}, check=True)
         assert checked.returncode != 0 and "Require a selected dedicated UID" in checked.stdout
 
+    prospective = values | dict(mission_control_pc_permission=True,
+        mission_control_reader_allowed_source_ids=["agent-a--mission-control", "omarchy-pc--mission-control"])
+    before = (tmp_path / "reader-config/reader.json").read_bytes()
+    denied = play(tmp_path, "omarchy-normandy", roles=[role],
+        values=prospective | dict(mission_control_pc_permission=False))
+    assert denied.returncode != 0
+    assert (tmp_path / "reader-config/reader.json").read_bytes() == before
+    ok(play(tmp_path, "omarchy-normandy", roles=[role], values=prospective))
+    assert json.loads((tmp_path / "reader-config/reader.json").read_text())["allowedSourceIds"] == prospective["mission_control_reader_allowed_source_ids"]
+
 
 def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
     variables = stage(tmp_path / "artifact")
@@ -234,7 +244,7 @@ def test_capture_and_reader_units_offline_verification(tmp_path):
     from jinja2 import Environment, StrictUndefined
     env = Environment(undefined=StrictUndefined)
     env.filters.update(FilterModule().filters())
-    variables = dict(mission_control_runtime_node="/bin/true", mission_control_runtime_release_root="/fixture",
+    variables = dict(inventory_hostname="agent-a", mission_control_runtime_node="/bin/true", mission_control_runtime_release_root="/fixture",
         mission_control_runtime_version="client-v9.8.7", mission_control_capture_home="/home/igor",
         mission_control_capture_snapshot_file="/home/igor/.local/state/chaldea/mission-control/latest.json")
     units = []

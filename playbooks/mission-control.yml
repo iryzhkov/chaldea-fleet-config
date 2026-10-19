@@ -1,5 +1,5 @@
 ---
-# Explicit local agent-a installation only. Normandy composition belongs to infra.
+# Explicit local agent-a or omarchy-pc installation only. Normandy composition belongs to infra.
 - name: Mission Control source capture
   hosts: all
   connection: local
@@ -9,8 +9,8 @@
     - name: Require a literal one-host local invocation
       ansible.builtin.assert:
         that:
-          - ansible_play_hosts_all == ['agent-a']
-          - ansible_limit == 'agent-a'
+          - ansible_play_hosts_all in [['agent-a'], ['omarchy-pc']]
+          - ansible_limit == ansible_play_hosts_all[0]
           - ansible_connection == 'local'
         quiet: true
   roles:

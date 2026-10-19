@@ -3,11 +3,13 @@ import json
 from pathlib import Path
 
 import yaml
+import pytest
 
 from test_mission_control import fixture_role, play, ok
 
 
-def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_path):
+@pytest.mark.parametrize("host", ["agent-a", "omarchy-pc"])
+def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_path, host):
     role = fixture_role(tmp_path, "mission_control_capture")
     token = Path.home() / ".config/chaldea/t3-token"
     token.parent.mkdir(parents=True)
@@ -17,27 +19,27 @@ def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_
     values = dict(mission_control_capture_enabled=True, mission_control_runtime_enabled=True,
         mission_control_runtime_node="/bin/true", mission_control_runtime_release_root=str(tmp_path / "runtime"),
         mission_control_runtime_version="client-v9.8.7", mission_control_capture_t3_base_dir="/fixture/t3")
-    ok(play(tmp_path, "agent-a", roles=[role], values=values, check=True))
+    ok(play(tmp_path, host, roles=[role], values=values, check=True))
     source = Path(role) / "tasks/main.yml"
     tasks = yaml.safe_load(source.read_text())
     tasks[0]["block"] = [row for row in tasks[0]["block"] if "ansible.builtin.fail" not in row]
     source.write_text(yaml.safe_dump(tasks))
-    ok(play(tmp_path, "agent-a", roles=[role], values=values))
+    ok(play(tmp_path, host, roles=[role], values=values))
     path = Path.home() / ".config/chaldea/mission-control-capture.json"
-    assert json.loads(path.read_text()) == dict(host="agent-a", t3BaseDir="/fixture/t3",
+    assert json.loads(path.read_text()) == dict(host=host, t3BaseDir="/fixture/t3",
         tokenFile=str(token), snapshotFile=str(snapshot), tokenSemanticsQualified=False)
     assert path.stat().st_mode & 0o777 == 0o600
     assert token.read_text() == "public-fixture-token"
-    again = play(tmp_path, "agent-a", roles=[role], values=values)
+    again = play(tmp_path, host, roles=[role], values=values)
     ok(again)
     assert "changed=0" in again.stdout
     before = path.read_bytes()
     token.chmod(0o644)
-    refused = play(tmp_path, "agent-a", roles=[role], values=values)
+    refused = play(tmp_path, host, roles=[role], values=values)
     assert refused.returncode != 0
     assert "Require an existing private igor read token" in refused.stdout
     assert path.read_bytes() == before
-    checked = play(tmp_path, "agent-a", roles=[role], values=values, check=True)
+    checked = play(tmp_path, host, roles=[role], values=values, check=True)
     assert checked.returncode != 0 and "Require an existing private igor read token" in checked.stdout
     assert path.read_bytes() == before
     foreign = play(tmp_path, "other", roles=[role], values=values)
@@ -46,7 +48,8 @@ def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_
 
 
 
-def test_capture_system_gate_failure_and_warm_restart(tmp_path):
+@pytest.mark.parametrize("host", ["agent-a", "omarchy-pc"])
+def test_capture_system_gate_failure_and_warm_restart(tmp_path, host):
     import os
     import sys
     from test_mission_control import instrument_activation
@@ -77,34 +80,34 @@ sys.exit(1 if os.environ.get('FIXTURE_VERIFY_FAIL') else 0)
     tasks = [{"ansible.builtin.include_role": dict(name=role)},
              {"ansible.builtin.include_role": dict(name=role, tasks_from="activate")}]
     try:
-        refused = play(tmp_path, "agent-a", roles=[role], values=values | dict(
+        refused = play(tmp_path, host, roles=[role], values=values | dict(
             fixture_services={"mission-control-capture.service": dict(state="running", status="enabled")}))
         assert refused.returncode != 0 and not (tmp_path / "manager.json").exists()
-        ok(play(tmp_path, "agent-a", roles=[role], values=values))
+        ok(play(tmp_path, host, roles=[role], values=values))
         assert not (tmp_path / "manager.json").exists()
         values["mission_control_activate"] = True
         os.environ["FIXTURE_VERIFY_FAIL"] = "1"
-        failed = play(tmp_path, "agent-a", tasks=tasks, values=values)
+        failed = play(tmp_path, host, tasks=tasks, values=values)
         assert failed.returncode != 0 and not (tmp_path / "manager.json").exists()
         del os.environ["FIXTURE_VERIFY_FAIL"]
-        ok(play(tmp_path, "agent-a", tasks=tasks, values=values))
+        ok(play(tmp_path, host, tasks=tasks, values=values))
         config = Path.home() / ".config/chaldea/mission-control-capture.json"
         config.write_text("{}")
         unit = tmp_path / "units/mission-control-capture.service"
         unit.write_text("[Service]\n")
         protected = [config, unit, tmp_path / "manager.json", tmp_path / "manager.events", tmp_path / "verify.events"]
         before = [(p.read_bytes(), p.stat().st_mode, p.stat().st_mtime_ns) for p in protected]
-        checked = play(tmp_path, "agent-a", tasks=tasks, values=values, check=True)
+        checked = play(tmp_path, host, tasks=tasks, values=values, check=True)
         ok(checked)
         assert "t3BaseDir" in checked.stdout and "NoNewPrivileges=yes" in checked.stdout
         assert "after:" in checked.stdout and "changed=0" not in checked.stdout
         assert before == [(p.read_bytes(), p.stat().st_mode, p.stat().st_mtime_ns) for p in protected]
         foreign = play(tmp_path, "other", roles=[role], values=values, check=True)
         assert foreign.returncode != 0 and "Require the exact capture host" in foreign.stdout
-        ok(play(tmp_path, "agent-a", tasks=tasks, values=values))
+        ok(play(tmp_path, host, tasks=tasks, values=values))
         events = [json.loads(line) for line in (tmp_path / "manager.events").read_text().splitlines()]
         assert events[-1]["state"] == "restarted"
-        again = play(tmp_path, "agent-a", tasks=tasks, values=values)
+        again = play(tmp_path, host, tasks=tasks, values=values)
         ok(again)
         assert "changed=0" in again.stdout
     finally:

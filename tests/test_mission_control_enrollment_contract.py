@@ -87,3 +87,48 @@ def test_exact_publisher_reader_registry_helpers_and_ceiling(hosted, client, tmp
         denied = subprocess.run(["node", "--input-type=module", "-e", program, json.dumps(invalid)],
                                 cwd=hosted, text=True, capture_output=True)
         assert denied.returncode != 0, mutation
+
+
+def test_pc_existing_collector_prospective_native_contract(hosted, client, tmp_path):
+    from test_akasha_enrollment import ROOT
+    from test_token_helper import render
+    active = ROOT / "access-trust/issuer-grants.json"
+    before = active.read_bytes()
+    data = public_inputs() | dict(laptop_quota=True, pc_quota_reader=True)
+    packet = dict(publisher_uid=1000, reader_uid=940, read_sources=["agent-a--mission-control"])
+    old = compose(hosted, data | dict(mission_control=packet))
+    assert old.returncode == 0, old.stderr
+    omitted = compose(hosted, data | dict(mission_control=packet | dict(pc_publisher_uid=None)))
+    assert omitted.returncode == 0 and omitted.stdout == old.stdout
+    pc_packet = packet | dict(pc_publisher_uid=1000,
+        read_sources=["agent-a--mission-control", "omarchy-pc--mission-control"])
+    result = compose(hosted, data | dict(mission_control=pc_packet))
+    assert result.returncode == 0, result.stderr
+    baseline, proposed = json.loads(old.stdout), json.loads(result.stdout)
+    pc = next(r for r in proposed["registry"] if r["source"] == "omarchy-pc.mission-control")
+    assert pc == dict(issuer="chaldea:omarchy-pc", source="omarchy-pc.mission-control",
+        host="omarchy-pc", source_id="omarchy-pc--mission-control", profile="mission-control-publisher",
+        project="chaldea", mode="service", kinds=["agent_status"])
+    assert len(proposed["registry"]) == len(baseline["registry"]) + 1
+    assert all(row in proposed["registry"] for row in baseline["registry"] if row["profile"] != "mission-control-reader")
+    reader = next(r for r in proposed["registry"] if r["profile"] == "mission-control-reader")
+    assert reader["mission_control_read_sources"] == pc_packet["read_sources"]
+    for host, grants in baseline["grants"].items():
+        assert proposed["grants"][host][:len(grants)] == grants
+        assert len(proposed["grants"][host]) == len(grants) + (host == "omarchy-pc")
+    for row in baseline["issuers"]:
+        actual = next(r for r in proposed["issuers"] if r["issuer"] == row["issuer"] and r["kid"] == row["kid"])
+        assert {k:v for k,v in actual.items() if k != "ceilings"} == {k:v for k,v in row.items() if k != "ceilings"}
+        assert actual["ceilings"][:len(row["ceilings"])] == row["ceilings"]
+        assert len(actual["ceilings"]) == len(row["ceilings"]) + (row["issuer"] == "chaldea:omarchy-pc")
+    grant = proposed["grants"]["omarchy-pc"][-1]
+    assert grant["uid"] == 1000 and grant["kind"] == "agent_status"
+    sudoers = render("sudoers.j2", dict(chaldea_token_helper_grants=[grant]))
+    assert "#1000 ALL=(chaldea-issuer) NOPASSWD: NOSETENV: /usr/local/libexec/chaldea-token-helper-issuer --audience akasha --action append --source omarchy-pc.mission-control --host omarchy-pc --kind agent_status" in sudoers
+    assert "*" not in sudoers and "/bin/sh" not in sudoers
+    for invalid in (dict(pc_publisher_uid=938), dict(pc_publisher_uid="1000"), dict(pc_publisher_uid=True),
+                    dict(read_sources=["agent-a--mission-control"]), dict(publisher_uid=None),
+                    dict(read_sources=["agent-a--mission-control", "foreign"])):
+        denied = compose(hosted, data | dict(mission_control=pc_packet | invalid))
+        assert denied.returncode != 0, invalid
+    assert active.read_bytes() == before
