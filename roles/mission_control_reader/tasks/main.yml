@@ -11,7 +11,7 @@
           - mission_control_reader_uid > 0
           - mission_control_reader_uid < 4294967295
           - mission_control_reader_uid not in [957, 995, 1000, 1001]
-          - mission_control_reader_allowed_source_ids == ['agent-a--mission-control']
+          - mission_control_reader_allowed_source_ids == (['agent-a--mission-control', 'omarchy-pc--mission-control'] if mission_control_pc_permission | bool else ['agent-a--mission-control'])
           - mission_control_reader_url == 'https://akasha.ryzhkov.dev'
           - mission_control_reader_token_helper == '/usr/local/bin/chaldea-token-helper'
           - mission_control_reader_cache_file == '/var/cache/mission-control/latest.json'

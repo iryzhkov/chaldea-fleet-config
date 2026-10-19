@@ -29,16 +29,21 @@ if (input.pc_quota_reader) grants['omarchy-pc'].push(pc('read', 'quota', 'quota_
 // Explicit permission packet, independent of all installation/enablement flags.
 if (input.mission_control !== undefined) {
   const mc = object(input.mission_control);
-  exact(mc, ['publisher_uid', 'reader_uid', 'read_sources']);
+  exact(mc, ['publisher_uid', 'reader_uid', 'read_sources'], ['pc_publisher_uid']);
+  const pcUid = mc.pc_publisher_uid ?? null;
+  if (pcUid !== null && pcUid !== 1000) throw Error('existing PC collector UID must be 1000');
   if (mc.publisher_uid !== null && mc.publisher_uid !== 1000) throw Error('agent-a publisher UID must be 1000');
   if (mc.reader_uid !== null && (!Number.isSafeInteger(mc.reader_uid) || mc.reader_uid <= 0 ||
       mc.reader_uid >= 4294967295 || [957, 995, 1000, 1001].includes(mc.reader_uid))) throw Error('dedicated reader UID required');
   if (!Array.isArray(mc.read_sources) || mc.read_sources.length > 4 ||
       new Set(mc.read_sources).size !== mc.read_sources.length ||
-      mc.read_sources.some(s => s !== 'agent-a--mission-control') ||
+      mc.read_sources.some(s => !['agent-a--mission-control', ...(pcUid === null ? [] : ['omarchy-pc--mission-control'])].includes(s)) ||
+      (pcUid !== null && (mc.publisher_uid !== 1000 || mc.reader_uid === null ||
+        JSON.stringify(mc.read_sources) !== JSON.stringify(['agent-a--mission-control', 'omarchy-pc--mission-control']))) ||
       (mc.reader_uid === null) !== (mc.read_sources.length === 0)) throw Error('exact reader source selection required');
   if (mc.publisher_uid !== null) grants['agent-a'].push({uid:1000, audience:'akasha', action:'append',
     source:'agent-a.mission-control', host:'agent-a', kind:'agent_status', profile:'mission-control-publisher', project:'chaldea'});
+  if (pcUid !== null) grants['omarchy-pc'].push(pc('append', 'omarchy-pc.mission-control', 'agent_status', 'mission-control-publisher'));
   if (mc.reader_uid !== null) grants['omarchy-normandy'].push({uid:mc.reader_uid, audience:'akasha', action:'read',
     source:'mission-control-reader', host:'omarchy-normandy', kind:'agent_status', profile:'mission-control-reader', project:'chaldea'});
 }
@@ -56,7 +61,7 @@ for (const [host, row] of Object.entries(policy)) {
     const known = host === 'agent-a' && ['agent-a.fleet', 'agent-a.toolfeedback'].includes(g.source);
     let entry = registry.find(r => r.issuer === issuer.name && r.source === g.source);
     if (!entry && !known) {
-      entry = {issuer:issuer.name, source:g.source, host, source_id:g.source === 'agent-a.mission-control' ? 'agent-a--mission-control' : (host + '--' + g.source).replaceAll('.', '_'), profile:g.profile, project:g.project,
+      entry = {issuer:issuer.name, source:g.source, host, source_id:g.profile === 'mission-control-publisher' && g.source === host + '.mission-control' ? host + '--mission-control' : (host + '--' + g.source).replaceAll('.', '_'), profile:g.profile, project:g.project,
         mode:g.action === 'read' && !['quota', 'mission-control-reader'].includes(g.source) ? 'operator' : 'service', kinds:[],
         ...(g.action === 'read' ? (g.source === 'mission-control-reader' ? {mission_control_read_sources:input.mission_control.read_sources} : g.source === 'quota' ? {quota_fleet_read:true} : {global_read:true}) : {})};
       registry.push(entry);

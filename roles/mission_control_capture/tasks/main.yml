@@ -1,11 +1,11 @@
 ---
-- name: Configure the independent agent-a capture
+- name: Configure the independently selected private capture
   when: mission_control_capture_enabled | bool
   block:
     - name: Require the exact capture host and selected runtime
       ansible.builtin.assert:
         that:
-          - inventory_hostname == 'agent-a'
+          - inventory_hostname in ['agent-a', 'omarchy-pc']
           - mission_control_runtime_enabled | bool
           - mission_control_capture_home == '/home/igor'
           - mission_control_capture_t3_base_dir is match('^/')

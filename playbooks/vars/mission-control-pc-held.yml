@@ -1,0 +1,20 @@
+---
+# HELD proposal only. Not imported by site, inventory, either play or trust publisher.
+# Existing published 044/024 bytes require PC target qualification before activation.
+mission_control_activate: false
+mission_control_capture_enabled: false
+mission_control_runtime_enabled: false
+mission_control_pc_permission: false
+mission_control_runtime_version: client-v0.4.4
+mission_control_runtime_sha256: da4b457e7885ffea3dde51c7e93160e90f2e81566d2e33fb9211fb07ca146ca4
+chaldea_host_version: host-v0.2.4
+chaldea_host_sha256: 531710066a7f67ac68f82ad1234d8f9a32e3311c839a894f86125c7d4f170592
+chaldea_host_artifact_preserve_versions: [host-v0.2.2, host-v0.2.3, host-v0.2.4]
+akasha_collector_script: /opt/chaldea-host/releases/host-v0.2.4/host/akasha-collector.mjs
+akasha_collector_mission_control_snapshot_file: /home/igor/.local/state/chaldea/mission-control/latest.json
+# Existing collector UID1000, state/spools, NNP and enabled timer stay unchanged.
+# After separate permission adoption, native enrollment input is exactly:
+# mission_control: {publisher_uid: 1000, pc_publisher_uid: 1000, reader_uid: 940,
+#   read_sources: [agent-a--mission-control, omarchy-pc--mission-control]}
+# Never put rendered ceilings into active issuer-grants.json without publication approval.
+# Helper040, shared trust022 and rollback023 pins/state are unchanged.
