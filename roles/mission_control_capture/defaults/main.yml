@@ -2,6 +2,9 @@
 # Shared composition input across the fleet reader/capture and infra web roles.
 mission_control_activate: false  # noqa var-naming[no-role-prefix]
 mission_control_capture_enabled: false
+mission_control_capture_laptop_qualified: false
+mission_control_capture_host: "{{ 'omarchy-macbook-air-igor' if inventory_hostname == 'laptop' else inventory_hostname }}"
+mission_control_capture_uid: "{{ 1001 if inventory_hostname == 'laptop' else 1000 }}"
 mission_control_capture_home: /home/igor
 mission_control_capture_t3_base_dir: /home/igor/.t3
 mission_control_capture_token_file: /home/igor/.config/chaldea/t3-token

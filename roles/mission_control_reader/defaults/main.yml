@@ -7,6 +7,9 @@ mission_control_reader_uid: null
 mission_control_reader_allowed_source_ids: []
 # Separate future permission packet, never selected by ordinary inventory.
 mission_control_pc_permission: false  # noqa var-naming[no-role-prefix]
+mission_control_agent_b_permission: false  # noqa var-naming[no-role-prefix]
+mission_control_laptop_permission: false  # noqa var-naming[no-role-prefix]
+mission_control_laptop_qualified: false  # noqa var-naming[no-role-prefix]
 mission_control_reader_url: https://akasha.ryzhkov.dev
 mission_control_reader_token_helper: /usr/local/bin/chaldea-token-helper
 mission_control_reader_cache_file: /var/cache/mission-control/latest.json

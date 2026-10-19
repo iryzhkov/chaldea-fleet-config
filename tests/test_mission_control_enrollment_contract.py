@@ -142,3 +142,56 @@ def test_pc_existing_collector_prospective_native_contract(hosted, client, tmp_p
         denied = compose(hosted, data | dict(mission_control=pc_packet | invalid), existing=fixture_file)
         assert denied.returncode != 0, invalid
     assert active.read_bytes() == before
+
+def test_remaining_collectors_native_uid_scope_and_preservation(hosted, tmp_path):
+    import hashlib
+    import os
+    # Exact source fixture, never a production release pin. ROOT publishes C first.
+    auth_url = "https://raw.githubusercontent.com/iryzhkov/chaldea/ee52539baab3fd141ee69b1338a038888fb891b5/src/akasha/auth.ts"
+    local = os.environ.get("MC_CANONICAL_AUTH_FIXTURE")
+    auth = Path(local).read_bytes() if local else urllib.request.urlopen(auth_url, timeout=90).read()
+    assert hashlib.sha256(auth).hexdigest() == "f4c25bc180f5d4cf90efe651bf7b077f20e16c7054733e37df22bfe709241513"
+    canonical = tmp_path / "canonical-client"
+    shutil.copytree(hosted, canonical)
+    (canonical / "src/akasha/auth.ts").write_bytes(auth)
+    data = public_inputs() | dict(pc_reader=True, pc_quota=True, laptop_quota=True, pc_quota_reader=True)
+    packet: dict = dict(publisher_uid=1000, pc_publisher_uid=1000, reader_uid=940,
+                  read_sources=["agent-a--mission-control", "omarchy-pc--mission-control"])
+    baseline = compose(canonical, data | dict(mission_control=packet))
+    assert baseline.returncode == 0, baseline.stderr
+    before = json.loads(baseline.stdout)
+    for b, laptop in [(True, False), (False, True), (True, True)]:
+        selected: dict = packet | dict(agent_b_publisher_uid=1000 if b else None,
+                                 laptop_publisher_uid=1001 if laptop else None,
+                                 read_sources=packet["read_sources"] +
+                                    (["agent-b--mission-control"] if b else []) +
+                                    (["omarchy-macbook-air-igor--mission-control"] if laptop else []))
+        result = compose(canonical, data | dict(mission_control=selected))
+        assert result.returncode == 0, result.stderr
+        after = json.loads(result.stdout)
+        hosts = (["agent-b"] if b else []) + (["omarchy-macbook-air-igor"] if laptop else [])
+        assert len(after["registry"]) == len(before["registry"]) + len(hosts)
+        assert all(row in after["registry"] for row in before["registry"] if row["profile"] != "mission-control-reader")
+        reader = next(row for row in after["registry"] if row["profile"] == "mission-control-reader")
+        assert reader["mission_control_read_sources"] == selected["read_sources"]
+        for host, old in before["grants"].items():
+            assert after["grants"][host][:len(old)] == old
+            assert len(after["grants"][host]) == len(old) + (host in hosts)
+            if host in hosts:
+                assert after["grants"][host][-1] == dict(uid=1001 if host.startswith("omarchy-macbook") else 1000,
+                    audience="akasha", action="append", source=host + ".mission-control", host=host,
+                    kind="agent_status", profile="mission-control-publisher", project="chaldea")
+        for old in before["issuers"]:
+            row = next(r for r in after["issuers"] if r["issuer"] == old["issuer"])
+            assert {k:v for k,v in row.items() if k != "ceilings"} == {k:v for k,v in old.items() if k != "ceilings"}
+            assert row["ceilings"][:len(old["ceilings"])] == old["ceilings"]
+            assert len(row["ceilings"]) == len(old["ceilings"]) + (old["issuer"].removeprefix("chaldea:") in hosts)
+        if evidence := os.environ.get("MC_REMAINING_RENDER_DIR"):
+            Path(evidence).mkdir(parents=True, exist_ok=True)
+            (Path(evidence) / f"b{int(b)}-l{int(laptop)}.json").write_text(result.stdout)
+        for invalid in [dict(agent_b_publisher_uid=1001), dict(laptop_publisher_uid=1000),
+                        dict(read_sources=selected["read_sources"] + ["foreign"]),
+                        dict(read_sources=selected["read_sources"] * 2),
+                        dict(read_sources=list(reversed(selected["read_sources"]))),
+                        dict(unknown_host="other")]:
+            assert compose(canonical, data | dict(mission_control=selected | invalid)).returncode != 0

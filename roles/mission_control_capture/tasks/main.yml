@@ -5,7 +5,10 @@
     - name: Require the exact capture host and selected runtime
       ansible.builtin.assert:
         that:
-          - inventory_hostname in ['agent-a', 'omarchy-pc']
+          - inventory_hostname in ['agent-a', 'omarchy-pc', 'agent-b', 'laptop']
+          - mission_control_capture_host == ('omarchy-macbook-air-igor' if inventory_hostname == 'laptop' else inventory_hostname)
+          - mission_control_capture_uid | int == (1001 if inventory_hostname == 'laptop' else 1000)
+          - inventory_hostname != 'laptop' or (mission_control_capture_laptop_qualified | bool and mission_control_runtime_version != 'client-v0.4.4')
           - mission_control_runtime_enabled | bool
           - mission_control_capture_home == '/home/igor'
           - mission_control_capture_t3_base_dir is match('^/')
@@ -35,7 +38,7 @@
         that:
           - mission_control_capture_token.stat.isreg | default(false)
           - not mission_control_capture_token.stat.islnk | default(false)
-          - mission_control_capture_token.stat.uid | default(-1) == 1000
+          - mission_control_capture_token.stat.uid | default(-1) == mission_control_capture_uid | int
           - mission_control_capture_token.stat.mode | default('') == '0600'
           - mission_control_capture_token.stat.size | default(0) > 0
         quiet: true
