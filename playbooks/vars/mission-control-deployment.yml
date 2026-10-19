@@ -1,8 +1,8 @@
 ---
 # Explicit extra-vars only. This file is not imported by site or either MC play.
-# Qualified actual release416721739, archive654521129, workflow39167627844.
-mission_control_runtime_version: client-v0.4.4
-mission_control_runtime_sha256: da4b457e7885ffea3dde51c7e93160e90f2e81566d2e33fb9211fb07ca146ca4
+# Qualified C57 archive655871105, workflow39233056174; downloaded bytes verified.
+mission_control_runtime_version: client-v0.4.6
+mission_control_runtime_sha256: ffd559aa332b7a6bb13ca59629bce29a57bca11fd9cf597106034fe7ee7ab3b0
 mission_control_activate: false
 mission_control_runtime_enabled: false
 mission_control_capture_enabled: false
