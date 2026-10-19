@@ -16,6 +16,10 @@ adding a process, account, state store or publication path. Keep optional interf
 or completeness improvements outside the first useful outcome unless requested.
 Preserve the user's explicit requirements; use this comparison in the existing plan.
 
+Plan a first observable outcome and a reviewable PR using review-delegation's grouping
+guidance. Module or worker boundaries need not become separate PRs; keep independent
+release, authorization and rollback requirements explicit when choosing the grouping.
+
 ## Glossary
 
 Use these terms exactly: don't substitute "component," "service," "API," or "boundary." Consistent language is the whole point.

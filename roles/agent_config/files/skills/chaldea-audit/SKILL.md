@@ -47,6 +47,9 @@ scratch path and output destination. Cover these lenses (combine for small scope
 5. Size, test health, friction and reboot rules: source/tests/docs by component
    (vendor/generated separate), test ratios, PR/fix rounds, flakes, real use,
    interactive latency/polling, retention and any-host-down recovery.
+   Separate queue/setup, test, review, CI, integration and deployment time using
+   retained evidence; assess missed acceptance outcomes and PR batching/merge-order
+   costs as well as code size. Propose sized remedies with coverage and risk tradeoffs.
 
 Assign heavy measurement only to lens 5 (or one named combined lens): line
 counts, test suites and bounded flake reruns use `chaldea exec` without `--host`.

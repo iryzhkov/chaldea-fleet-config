@@ -113,6 +113,17 @@ Keep useful improvements outside the requested outcome as notes. Evidence of nee
 complexity uses the existing citation/location blocking rule. Use existing authorized
 evidence and report gaps; this check adds no review round or approval step.
 
+## Group related work before review and CI
+
+Prefer one PR for related changes delivering one outcome when the combined diff is
+reviewable and has compatible authorization, deployment and rollback requirements.
+Keep independent releases, unrelated changes or materially different risks separate.
+Use separate commits and disjoint workers within a PR; do not create a PR per worker.
+Plan dependency and merge order before expensive CI, especially with strict base rules.
+Integrate ready related changes before final review and push them as a batch; do not
+hold a useful delivery for speculative additions. Preserve repository ownership and
+linked PRs across repositories. Batching never waives exact-head review or required CI.
+
 ## What blocks
 
 - A finding blocks only when it cites a requirement from the brief or plan, or
