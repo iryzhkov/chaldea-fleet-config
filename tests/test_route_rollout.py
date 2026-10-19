@@ -1,5 +1,6 @@
 """Routing inventory safety and OpenCode registration preservation."""
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,32 @@ def test_agent_clients_use_native_t3_quota():
         assert effective["chaldea_client_version"] == "client-v0.4.2"
         assert effective["chaldea_client_quota_enabled"] is True
         assert effective["chaldea_client_codex_assert_runtime_home"] is True
+
+
+def test_host_settings_do_not_override_shared_software_releases():
+    def check(values, location):
+        if isinstance(values, dict):
+            for key, value in values.items():
+                # Retention records keep rollback artifacts, not desired releases.
+                if key == "chaldea_host_artifact_preserve_versions":
+                    continue
+                assert not re.search(r"(^|_)(versions?|sha256|checksums?|revision|commit|ref|build|release)(_|$)", key), (location, key)
+                check(value, f"{location}.{key}")
+        elif isinstance(values, list):
+            for value in values:
+                check(value, location)
+        elif isinstance(values, str):
+            assert not re.search(r"/(releases|builds)/|/installs/[^/]+/[0-9]", values), (location, values)
+
+    def group(node):
+        for host, values in node.get("hosts", {}).items():
+            check(values or {}, host)
+        for child in node.get("children", {}).values():
+            group(child)
+
+    group(yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"])
+    for path in (ROOT / "inventory/host_vars").rglob("*.yml"):
+        check(yaml.safe_load(path.read_text()), str(path))
 
 
 def test_opencode_preserves_settings_check_mode_removal_and_mode(tmp_path):
