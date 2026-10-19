@@ -6,6 +6,10 @@ name: ci
     branches: [main]
 permissions:
   contents: read
+# Superseded PR heads may stop; every merged-main run remains independent.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   checks:
     strategy:
