@@ -32,7 +32,9 @@ def hosted(client, tmp_path_factory):
             assert not relative.is_absolute() and ".." not in relative.parts
             path = destination / "src" / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(archive.extractfile(member).read())
+            content = archive.extractfile(member)
+            assert content is not None
+            path.write_bytes(content.read())
     return destination
 
 
@@ -281,16 +283,26 @@ def test_operations_read_is_refused_by_a_legacy_registry_decoder(canonical):
 
 @pytest.fixture(scope="module")
 def operations_client(hosted, tmp_path_factory):
-    import os
-    # No published client with the operations registry schema exists yet. ROOT supplies
-    # the exact qualified Chaldea source tree here, then replaces this with a pin.
-    source = os.environ.get("MC_OPERATIONS_CLIENT_SOURCE")
-    if not source:
-        pytest.skip("MC_OPERATIONS_CLIENT_SOURCE must name a qualified client>=0.4.9 source tree")
+    # SOURCE FIXTURE ONLY, not a production release or artifact pin. PR63 publishes
+    # this exact checked source so CI always exercises the opt-in without a skip.
+    source = "0654ffae3d15dea488ff9fe11879103fb90fc140"
     destination = tmp_path_factory.mktemp("operations-source-fixture") / "client"
     shutil.copytree(hosted, destination)
     shutil.rmtree(destination / "src")
-    shutil.copytree(Path(source) / "src", destination / "src")
+    raw = urllib.request.urlopen(
+        "https://codeload.github.com/iryzhkov/chaldea/tar.gz/" + source, timeout=90).read()
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as archive:
+        prefix = "chaldea-" + source + "/src/"
+        files = [m for m in archive.getmembers() if m.isfile() and m.name.startswith(prefix)]
+        assert files
+        for member in files:
+            relative = Path(member.name.removeprefix(prefix))
+            assert not relative.is_absolute() and ".." not in relative.parts
+            path = destination / "src" / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            content = archive.extractfile(member)
+            assert content is not None
+            path.write_bytes(content.read())
     return destination
 
 
