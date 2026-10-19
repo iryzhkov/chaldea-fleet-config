@@ -1,5 +1,35 @@
 # Hosted Mission Control qualified packet
 
+## Rich resources and thread details, C58
+
+Client-v0.4.7 and host-v0.2.7 are immutable releases from merged
+445e730124f3e99c78cba663300e72635f2740ca. ROOT downloaded all four assets
+and matched the agent-a double-build qualification in
+jocasta:3d3fb074ce60e538ac359f0cbdb7ccf8@1.
+Client archive SHA 9c5d1f1d087010d32c5309c3099098b85e5de7015d9a524e2af03f01689861b3,
+manifest SHA b32de16b9b39c192dda21568735222bd47d0e87ca711a4b830ac44de615bce7b.
+Host archive SHA fabf83d5814a8c997f57691dea4b711b245ffd37b29783b1e0fd1b0ec122e218,
+manifest SHA f8c31218cc1b5a569aa690115feeae8c1cc3ed02775878a358eb582469def2b8.
+
+Before this collector-selection change merges, stage027 on A/PC/B/L through
+the unchanged canonical artifact role, preserving every actual old release
+and cache. Fresh preflight: H[022,023,024,026], PC[021,022,024,026],
+A[022,024,026], B[021,022,026], L[011,022,026]. These are staging027
+preserve sets. The inventory sets instead protect every NONselected release
+during ordinary shared022 calls, including027. MAX4 limits the explicit list,
+not the total installed releases. Never replace a staging set with the
+shared022 set, raise the bound, or prune an old release.
+
+Qualify compatible H027 and N047 readers plus ALL four ordinary027 collectors
+BEFORE activating rich047 captures. Keep the existing registry28, ordered
+A/PC/B/canonical-L sources, every grant and signed ceiling, shared022,
+helper040, ordinary clients and T3 unchanged. No signer or helper replay.
+Use the new exact H host-version/hash qualification variables, installed
+SYSTEM verification before activation, protected snapshots and SECOND changed=0.
+Cold CHECK is not installed-unit verification. No --step or prompt driver.
+New fields and provider permissions require actual live proof; old046 remains
+valid during the consumer-first upgrade. No latency SLA or all-page claim.
+
 ## B/L source activation, 2026-10-19
 
 The B/L collector selections require host-v0.2.6 staged BEFORE this change merges
@@ -21,8 +51,8 @@ agent_status helper grants are added; preserve every existing key, window and gr
 ROOT owns final clean-head reviews, native CI and operator release. Stage B/L026
 before merge. Later canonical H runs require explicit
 mission_control_laptop_qualified=true,
-mission_control_laptop_qualified_host_version=host-v0.2.6 and
-mission_control_laptop_qualified_host_sha256=504326b4d617b8d4f5972f9fab07f6c7c52f6194c1fc149eb9610d5dcba1d74d,
+mission_control_laptop_host_version=host-v0.2.6 and
+mission_control_laptop_host_sha256=504326b4d617b8d4f5972f9fab07f6c7c52f6194c1fc149eb9610d5dcba1d74d,
 independent of laptop permission. Preserve H registry26, add only B/L to reach28,
 then the four-source N reader. Qualify actual B/L runtime, UID/token permission,
 private snapshot and installed SYSTEM gates before capture; complete helper policy
