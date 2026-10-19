@@ -46,6 +46,7 @@ agent_config_skills:
   - resolving-merge-conflicts
   - review-delegation
   - roadmap-executor
+  - roadmap-planner
   - safety-critical-code
   - tdd
   - unslop

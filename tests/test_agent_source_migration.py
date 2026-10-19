@@ -684,7 +684,19 @@ NECESSITY_INSERTIONS = {
 }
 
 
+# Orchestrator-only trigger and compact-context guidance requested by Igor, 2026-10-19.
+# Newest layer: its exact (before, after) blocks are reversed first.
+CONTEXT_TRIGGER_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_context_triggers.json").read_text())
+# Files added after the move have no pre-move bytes; they install unchanged.
+ADDED_FILES = {"skills/roadmap-planner/SKILL.md"}
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(CONTEXT_TRIGGER_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for insertion in reversed(NECESSITY_INSERTIONS.get(relative, [])):
         insertion = insertion.encode()
         assert data.count(insertion) == 1, relative
@@ -735,8 +747,8 @@ def compare(relative, data):
 def test_source_only_move_recovers_all_pre_move_bytes():
     paths = {p.relative_to(ROOT).as_posix() for p in FILES.rglob("*")
              if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
-    assert paths == BEFORE["files"].keys()
-    for path in paths:
+    assert paths == BEFORE["files"].keys() | {"roles/agent_config/files/" + p for p in ADDED_FILES}
+    for path in BEFORE["files"]:
         compare(Path(path).relative_to("roles/agent_config/files").as_posix(), (ROOT / path).read_bytes())
 
 
@@ -771,6 +783,9 @@ def test_before_after_render_for_every_host(tmp_path, host):
         relative = Path(path).relative_to("roles/agent_config/files").as_posix()
         for target in (".agents", ".claude"):
             compare(relative, (home / target / relative).read_bytes())
+    for relative in ADDED_FILES:
+        for target in (".agents", ".claude"):
+            assert (home / target / relative).read_bytes() == (FILES / relative).read_bytes()
 
 
 def assert_delegation_contract(read):
@@ -781,7 +796,10 @@ def assert_delegation_contract(read):
                .split("Delegate through T3", 1)[0] for text in instructions]
     assert routing[0] == routing[1] == routing[2]
     skills = [read("skills/" + name + "/SKILL.md")
-              for name in ("chaldea", "review-delegation", "roadmap-executor")]
+              for name in ("chaldea", "review-delegation")]
+    # roadmap-executor defers to the shared section instead of carrying a copy that could drift.
+    roadmap = read("skills/roadmap-executor/SKILL.md")
+    assert "`providerInstanceId`" not in roadmap and "FATE before every `delegate_task`" in roadmap
     for text in instructions + skills:
         text = " ".join(text.split())
         for field in ("`providerInstanceId`", "`model`", "`options`"):

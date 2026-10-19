@@ -112,6 +112,8 @@ rather than accepting the brief's proposed architecture as a requirement.
 Keep useful improvements outside the requested outcome as notes. Evidence of needless
 complexity uses the existing citation/location blocking rule. Use existing authorized
 evidence and report gaps; this check adds no review round or approval step.
+For a plan review, also weigh information gained per time and token, and whether a
+bounded spike could settle a question before any deployment.
 
 ## Group related work before review and CI
 
@@ -150,9 +152,16 @@ as `review_note`. This guidance does not implement a collection pipeline.
 
 ## Delegating work
 
-- Workers get no conversation history. Write a self-contained brief: repository
-  path, branch and base, allowed files, acceptance checks, rules that apply, and
-  what to report.
+- Workers get no conversation history. Write a minimal self-contained brief:
+  objective, repository path, branch and base, allowed files, the agreed interface,
+  accepted decisions and exact evidence references the task needs, constraints,
+  acceptance checks and what to report. Leave out the transcript and the global
+  roadmap; do not prepend roadmap-executor or require a full plan or checkpoint
+  fetch. The worker loads only its task's skills and relevant references; the
+  parent stays the integration and checkpoint owner.
+- Ask for concise results: verdict, exact head and tree state, actual check
+  outcomes with job IDs, remaining gaps and artifact links. No diary, raw logs or
+  tool catalog; raw logs stay retrievable on request.
 - Use `isolation: "worktree"` for code changes in a registered T3 project. A
   worktree starts from the parent's local commit; uncommitted edits are not
   copied.

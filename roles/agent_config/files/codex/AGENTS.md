@@ -75,7 +75,8 @@ precedence.
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
 making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta and carry it
 out in the session; do not ask again for routine work inside that agreement.
-When carrying out an agreed roadmap, load the roadmap-executor skill first.
+When you own orchestration of an agreed roadmap, load the roadmap-executor skill first;
+a delegated worker follows its brief instead.
 
 Before each T3 `delegate_task`, call FATE through `chaldea_route` or
 `chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,

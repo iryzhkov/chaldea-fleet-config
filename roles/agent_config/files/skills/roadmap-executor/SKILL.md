@@ -1,104 +1,85 @@
 ---
 name: roadmap-executor
 description: >-
-  Execute an agreed roadmap or plan of record as the orchestrator. Load first
-  when carrying out roadmap work, resuming orchestration, or taking over an
-  execution handoff; keep milestones, decisions and the next handoff resumable.
+  Execute an adopted roadmap or plan of record as its current primary
+  orchestrator, including resuming or taking over an explicit orchestration
+  handoff. Not for delegated implementer, reviewer, reader, operator or spike
+  tasks unless their brief assigns orchestration ownership; planning or
+  reshaping an uncertain roadmap uses roadmap-planner.
 ---
 
-# Execute the agreed roadmap
+# Execute the adopted roadmap
 
-This is a tool for agreed plan execution, not a startup checklist for ordinary
-sessions. Continue routine work inside Igor's agreement without asking again.
+Use this only while you own orchestration: you choose milestones, integrate work
+and keep the checkpoint. A delegated worker follows its brief and loads the skills
+its own task needs, even when the parent uses this skill. Continue routine work
+inside Igor's agreement without asking again.
 
-## Resume from durable state
+## Keep a small working set
 
-- First fetch the full plan of record and execution checkpoint from Jocasta.
-  For Chaldea these are `tooling/plans/chaldea-rebuild-plan-2026-10-16.md` and
-  `tooling/handoffs/chaldea-execution-checkpoint.md`. Read relevant briefs,
-  recorded decisions and the latest audit; use current revisions, not old
-  transcript summaries. A supplied handoff points to these, not replaces them.
+- Start from the execution checkpoint or handoff: current outcome and decisions,
+  state, source refs, active task/thread/run/wait/PR and CI IDs, blockers and next
+  action. For Chaldea the checkpoint is
+  `tooling/handoffs/chaldea-execution-checkpoint.md` and the plan of record
+  `tooling/plans/chaldea-rebuild-plan-2026-10-16.md` in Jocasta. Use current
+  revisions, not old transcript summaries.
+- Read the plan sections, decisions and findings the next action depends on.
+  Linked PRs, reviews, job logs and audits are immutable evidence; open one when a
+  decision needs it, not to rebuild history.
+- Fetch a full document only when needed, as before every Jocasta update: fetch
+  it in full, reconcile and write with `--if-revision N`
+  (`~/.config/agents/jocasta.md`), then work from its operative part rather than
+  printing it all. Never overwrite a concurrent update.
+- Measure context in bytes or tokens, not lines. Project tool output to the fields
+  you need, use scoped reads, and read one channel when a tool returns both text
+  and structured duplicates.
 - Keep plan order, measured-friction reasons, simplicity guardrails and budgets.
-  Re-scope overruns with Igor; do not add capabilities without a measured need
-  or his decision. Recorded decisions are binding, not review debate topics.
-- Read `~/.config/agents/jocasta.md` before writes. Fetch in full, reconcile
-  and update with `--if-revision N`; never overwrite a concurrent update.
+  Re-scope overruns with Igor; add capabilities only for a measured need or his
+  decision. Recorded decisions are binding, not review debate topics.
 
-## Use review notes when selecting work
+## Select work
 
-At kickoff/resume, audit boundaries and before selecting the next milestone, read a
-bounded set of untriaged review notes through authorized Akasha reads when available;
-otherwise use linked PR/Jocasta records and report the collection gap. Retain the
-last triage references in the existing checkpoint/backlog; do not reread all history
-every turn or add polling/cron.
+At kickoff, resume, audit nodes and before choosing the next milestone, triage a
+bounded set of untriaged review notes: authorized Akasha reads when available,
+otherwise linked PR/Jocasta records, reporting the collection gap. Deduplicate
+underlying issues, keep exact reviewed heads, task/thread IDs, models,
+citations/locations and links, revalidate against current code, and rank by roadmap
+fit, concrete benefit/risk, effort and dependencies. Record each disposition and the
+adopted work's link in the existing checkpoint or backlog, with the last triage
+reference so history is not reread. Notes do not reopen accepted reviews or block a
+milestone by default. New milestones, out-of-scope work, large cost,
+security/credential changes or multi-host work need separate authority when not
+already authorized. No polling, cron or new tracking database.
 
-Aggregate and deduplicate underlying issues before selecting work. Preserve exact
-reviewed heads, task/thread IDs, reviewer models, citations/locations and source links.
-Revalidate against current code for fixes or superseded findings. Rank by roadmap fit,
-concrete benefit/risk, effort and dependencies.
+## Follow the adopted plan
 
-Select useful bounded work within existing roadmap/autonomy authority. Record a brief
-disposition, reason and adopted work's PR/milestone link in the existing checkpoint or
-backlog. Notes do not reopen accepted reviews or block a milestone by default. New
-milestones, out-of-scope work, large cost, security/credential changes or multi-host
-work require separate authority when not already authorized. No new tracking database.
+Carry out the plan's milestones, lanes, test and deployment strategy and audit
+nodes; do not rediscover the method at each step. Revise the strategy only when
+evidence changes it; reshaping milestones or settling new unknowns uses
+roadmap-planner. Source, review and merge are intermediate states of an observable
+outcome. Keep one integration owner and batch related ready changes for final
+review and CI. Apply review-delegation's necessity check in the existing review.
 
-## Check the simplest existing path
-
-Before proposing new machinery or a large estimate, trace the current implementation
-and authorized deployment evidence. Compare configuration, version-pin and enrollment
-changes first; name the exact unmet requirement before adding a process, account,
-state store or publication path. Mark unverified premises as unknown.
-Keep optional UI or completeness improvements separate from the first useful outcome.
-A budget is a ceiling, not a target. If evidence contradicts a design assumption,
-reconcile the plan before continuing dependent work, preserving Igor's explicit goals
-and constraints. Apply review-delegation's necessity check in the existing review.
-
-Define the first milestone by an observable user outcome, including deployed data
-when requested; source, review and merge are intermediate states. Choose PR boundaries
-with review-delegation's grouping guidance before dispatching disjoint source workers.
-Keep one integration owner and batch related ready changes for final review and CI.
-Measure source-to-useful-result time, separating overlapping work, queue/setup, tests,
-review, CI, integration fixes and deployment waits using existing retained evidence.
-Address routine measured friction within authorization; do not wait for an audit.
-A need for extensive new fixtures should prompt checking the design premise again.
+Reuse exact accepted reviews and passing checks rather than repeating them; add
+tests only for changed behavior. Measure source-to-useful-result time from retained
+evidence, separating overlapping work, queue/setup, tests, review, CI, integration
+fixes and deployment waits. Address routine measured friction within authorization
+without waiting for an audit. Diagnose repeated failures rather than retrying the
+same repair or weakening verification.
 
 ## Delegate and follow work
 
-- Before each T3 `delegate_task`, call FATE through `chaldea_route` or
-  `chaldea route --role ROLE`. Pass the selected `providerInstanceId`, `model`
-  and `options` exactly as the delegate target, including effort.
-  Use `builder` for implementation and main diff reviews, `critical-review` for
-  consequential design or disputed findings, `bulk-read` for readers and `general`
-  for other work. Main other-provider reviews pass the writer's driver as
-  `authorProvider`, `claudeAgent` or `codex`, or CLI `--author-provider`. Route the
-  independent peer under `review-delegation`'s pair rule. Honor
-  explicit user/model overrides. If MCP rejects newer configuration keys, use the
-  installed CLI without restarting T3. If neither can recommend a target, use the
-  `chaldea` skill's documented outage fallback and live catalog IDs. For main reviews,
-  a Codex builder pin refusal uses `review-delegation`'s approved other-provider
-  main-review fallback. Apply its provider rule and "Quota exception", including
-  its PR comment and checkpoint evidence. Reject a same-provider target unless
-  that quota exception qualifies; compare underlying provider drivers in the live
-  catalog. Maximum effort is high; only Luna/Haiku may use xhigh.
-  These are ceilings, not defaults. Choose only available live-catalog models/options;
-  Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode.
-- Load review-delegation for self-contained worker briefs, worktree isolation
-  and review rules. Prefer independent Sol 6.1 high and Opus 5.5 medium reviews with
-  both providers whenever quota allows. Its "Quota exception" allows two different
-  models on one provider when quota is tight, with fresh evidence and honest labeling;
-  one independent review is acceptable if quota or availability prevents the pair. Builders may run their own compliant T3 reviews; reuse
-  their final-commit acceptance rather than repeating it. Do not restate or
-  enlarge that skill's review process.
-- Give workers exact repositories/refs, allowed files, acceptance commands,
-  decisions, scratch paths and deployment boundaries. Require Huyang for
-  repository reads/edits and `chaldea exec` for builds/tests/heavy runs.
-  Load chaldea for snapshots, artifacts, scratch HOME and uncertain outcomes.
+- Route each delegation under the shared "Interactive work and delegation"
+  instructions, calling FATE before every `delegate_task`. review-delegation owns
+  review pairs, fallbacks, the quota exception and brief templates; builders'
+  compliant final-commit reviews count and are not repeated.
+- Write worker briefs under review-delegation's "Delegating work". Do not tell a
+  worker to load this skill or fetch the full plan or checkpoint, and omit lanes
+  that are already terminal. You stay the sole integration and checkpoint owner.
 - Children wake the parent on completion. Use `watch_pull_request` for CI and
-  review events and Chaldea waits for external time/thread dependencies.
-  Several waits per thread are allowed; save their IDs and retry keys.
-  Register then yield; never poll, sleep-loop or create duplicate watchers.
-  Quota recovery resumes automatically; do not ask Igor to resume manually.
+  review events and Chaldea waits for external time/thread dependencies; save
+  their IDs and retry keys. Register then yield; never poll, sleep-loop or create
+  duplicate watchers.
 
 ## Merge and converge within authorization
 
@@ -108,9 +89,8 @@ A need for extensive new fixtures should prompt checking the design premise agai
 - Ask Igor before changes to multiple hosts, credentials, homelab or Normandy
   deployments, or UDM/NAS work, unless that exact scope is already authorized.
   Source implementation is not deployment authority. Never expose secrets.
-- Load fleet-rollout for authorized deployments: pinned host-side ansible-pull,
-  check, real, second real `changed=0`, and before/after unit/timer snapshots.
-  It owns the converge procedure; report verification evidence per host.
+- Load fleet-rollout for authorized deployments; it owns the converge procedure.
+  Report verification evidence per host.
 - Background long converges in delegated threads, using their completion wake
   or one Chaldea thread wait for a non-child thread. Preserve command, target,
   log and outcome; reconcile a disconnect or reboot before any retry.
@@ -121,33 +101,29 @@ A need for extensive new fixtures should prompt checking the design premise agai
 
 ## Keep the next milestone resumable
 
-- After every milestone, update the checkpoint: current lanes, exact commits/
-  PRs, review thread IDs/models/verdicts, CI, deployment/verification by host,
-  open decisions/risks and next action. Keep it compact (aim under 80 lines,
-  about five per lane); history belongs in linked PRs, audits and handoffs.
-  Reconcile adopted decisions and accepted progress into the plan of record.
+- Update the checkpoint at milestones and genuine state changes, not after every
+  tool call: current outcome and lanes, exact commits/PRs, review thread
+  IDs/models/verdicts, CI, deployment/verification by host, open decisions/risks
+  and next action. Link history instead of copying it; keep entries short rather
+  than packing long lines. Reconcile adopted decisions and accepted progress into
+  the plan of record.
 - Keep a short friction log in the checkpoint or its linked Jocasta document:
   action attempted, observed failure/delay, impact and evidence. Record actual
   tool use, missing consumers, test flakes and review rounds, not speculation.
-- Track merged milestones since the last audit and its per-repository source
-  baseline/counting method. Run `/chaldea-audit` after five merged milestones,
-  before starting a new roadmap step, or when the largest repository's source
-  lines grow about 50% since the last audit, whichever comes first. Use
-  `chaldea exec` for counts; these are audit triggers, never LOC budgets.
-  Pause dependent roadmap work for Igor's adoption decisions, then record
-  them and the new baseline in the report and checkpoint before continuing.
-- End the execution session with a Jocasta handoff whose literal first line is
-  "Load the roadmap-executor skill first." Include exact plan/checkpoint/audit
-  references, active task/thread/run/wait IDs, repository branches and commits,
-  PRs/CI/reviews, permissions, blockers and the next concrete action.
+- Run the plan's audit nodes, and track comprehensive-audit due status as
+  chaldea-audit defines it. Pause dependent roadmap work for Igor's adoption
+  decisions and record them before continuing.
+- End the execution session with a Jocasta handoff for the next orchestrator
+  whose literal first line is "Load the roadmap-executor skill first." Include
+  exact plan/checkpoint/audit references, active task/thread/run/wait IDs,
+  repository branches and commits, PRs/CI/reviews, permissions, blockers and the
+  next concrete action.
 
-## Focused handoff / kickoff template
+## Orchestration handoff / kickoff template
 
+For the next orchestrator only; worker and reviewer briefs use review-delegation.
 Fill from verified evidence, remove unused clauses and unresolved placeholders,
 and link detailed logs. Preparing a prompt does not authorize its execution.
-Keep the first milestone end to end; investigate an uncertain seam before a
-broad build. Preserve successful checks and diagnose repeated failures rather
-than retrying the same repair or weakening verification.
 
 ```text
 Load the roadmap-executor skill first.

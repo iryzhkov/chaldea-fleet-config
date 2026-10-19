@@ -80,17 +80,12 @@ do not imply activation. Pins are explicit operator fallback choices, not AA
 quality qualification. Never lower floors or invent missing coding metrics.
 The AA key stays only on homelab; any future shared scores contain no secrets.
 
-On 2026-10-18, omarchy-pc alone deployed and verified client-v0.4.2.
-Native T3 quota was verified fresh, account-bound and error-free; the old
-HTTP collector is off and its private 0600 env file is preserved. Normal
-Claude/T3 owns credential renewal; no custom refresh is configured.
-Codex pins remain Sol 6.1 high builder, Luna 6 medium bulk-read and Sol 6.1
-medium general. Installed CLI checks confirmed Codex-author builder refusal
-and other-provider critical review. Pins are conservative fallback, not AA
-qualification. Agent-a, agent-b and laptop user clients were not upgraded or
-verified for new quota routing; laptop's legacy client remains unmigrated.
-Scores, shared quota and automatic switching remain off. Strict floors and
-unknown missing metrics remain unchanged. Report distribution per host.
+Client versions per host, quota collection, pins in force and whether scores,
+shared quota or automatic switching are on change between rollouts. Read them
+from the current execution checkpoint or verify them live with the installed CLI
+(`chaldea route`, `chaldea quota status`); do not rely on a remembered snapshot.
+Normal Claude/T3 owns credential renewal; add no custom refresh. Explicit user
+policy takes precedence. Report distribution per host.
 
 ## Run work on a job host
 
