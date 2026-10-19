@@ -111,7 +111,7 @@ def fixture_role(tmp_path, name):
             text = text.replace("- /opt\n", "- " + str(protected_opt) + "\n")
             text = text.replace("item.stat.uid == 0", "item.stat.uid == " + str(os.getuid()))
         if name == "mission_control_capture":
-            text = text.replace("default(-1) == 1000", "default(-1) == " + str(os.getuid()))
+            text = text.replace("1001 if inventory_hostname == 'laptop' else 1000", str(os.getuid()))
         file.write_text(text)
     node = tmp_path / "node/bin/node"
     node.parent.mkdir(parents=True, exist_ok=True)
@@ -188,7 +188,7 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
         checked = play(tmp_path, "omarchy-normandy", roles=[role], values=values | {key: invalid}, check=True)
         assert checked.returncode != 0 and "Require a selected dedicated UID" in checked.stdout
 
-    prospective = values | dict(mission_control_pc_permission=True,
+    prospective: dict = values | dict(mission_control_pc_permission=True,
         mission_control_reader_allowed_source_ids=["agent-a--mission-control", "omarchy-pc--mission-control"])
     before = (tmp_path / "reader-config/reader.json").read_bytes()
     denied = play(tmp_path, "omarchy-normandy", roles=[role],
@@ -197,6 +197,18 @@ def test_reader_exact_contract_real_writes_cold_check_and_second_real(tmp_path):
     assert (tmp_path / "reader-config/reader.json").read_bytes() == before
     ok(play(tmp_path, "omarchy-normandy", roles=[role], values=prospective))
     assert json.loads((tmp_path / "reader-config/reader.json").read_text())["allowedSourceIds"] == prospective["mission_control_reader_allowed_source_ids"]
+    for b, laptop in [(True, False), (False, True), (True, True)]:
+        remaining = prospective | dict(mission_control_agent_b_permission=b,
+            mission_control_laptop_permission=laptop, mission_control_laptop_qualified=True,
+            mission_control_reader_allowed_source_ids=prospective["mission_control_reader_allowed_source_ids"] +
+                (["agent-b--mission-control"] if b else []) +
+                (["omarchy-macbook-air-igor--mission-control"] if laptop else []))
+        if laptop:
+            denied = play(tmp_path, "omarchy-normandy", roles=[role],
+                values=remaining | dict(mission_control_laptop_qualified=False))
+            assert denied.returncode != 0
+        ok(play(tmp_path, "omarchy-normandy", roles=[role], values=remaining))
+        assert json.loads((tmp_path / "reader-config/reader.json").read_text())["allowedSourceIds"] == remaining["mission_control_reader_allowed_source_ids"]
 
 
 def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):

@@ -29,21 +29,29 @@ if (input.pc_quota_reader) grants['omarchy-pc'].push(pc('read', 'quota', 'quota_
 // Explicit permission packet, independent of all installation/enablement flags.
 if (input.mission_control !== undefined) {
   const mc = object(input.mission_control);
-  exact(mc, ['publisher_uid', 'reader_uid', 'read_sources'], ['pc_publisher_uid']);
+  exact(mc, ['publisher_uid', 'reader_uid', 'read_sources'], ['pc_publisher_uid', 'agent_b_publisher_uid', 'laptop_publisher_uid']);
   const pcUid = mc.pc_publisher_uid ?? null;
   if (pcUid !== null && pcUid !== 1000) throw Error('existing PC collector UID must be 1000');
+  const extra = [['agent-b', mc.agent_b_publisher_uid ?? null, 1000],
+    ['omarchy-macbook-air-igor', mc.laptop_publisher_uid ?? null, 1001]];
+  for (const [host, uid, expected] of extra)
+    if (uid !== null && uid !== expected) throw Error('existing collector UID mismatch: ' + host);
+  const selected = ['agent-a--mission-control', ...(pcUid === null ? [] : ['omarchy-pc--mission-control']),
+    ...extra.filter(([, uid]) => uid !== null).map(([host]) => host + '--mission-control')];
   if (mc.publisher_uid !== null && mc.publisher_uid !== 1000) throw Error('agent-a publisher UID must be 1000');
   if (mc.reader_uid !== null && (!Number.isSafeInteger(mc.reader_uid) || mc.reader_uid <= 0 ||
       mc.reader_uid >= 4294967295 || [957, 995, 1000, 1001].includes(mc.reader_uid))) throw Error('dedicated reader UID required');
   if (!Array.isArray(mc.read_sources) || mc.read_sources.length > 4 ||
       new Set(mc.read_sources).size !== mc.read_sources.length ||
-      mc.read_sources.some(s => !['agent-a--mission-control', ...(pcUid === null ? [] : ['omarchy-pc--mission-control'])].includes(s)) ||
-      (pcUid !== null && (mc.publisher_uid !== 1000 || mc.reader_uid === null ||
-        JSON.stringify(mc.read_sources) !== JSON.stringify(['agent-a--mission-control', 'omarchy-pc--mission-control']))) ||
+      mc.read_sources.some(s => !selected.includes(s)) ||
+      ((pcUid !== null || extra.some(([, uid]) => uid !== null)) && (mc.publisher_uid !== 1000 || mc.reader_uid === null ||
+        JSON.stringify(mc.read_sources) !== JSON.stringify(selected))) ||
       (mc.reader_uid === null) !== (mc.read_sources.length === 0)) throw Error('exact reader source selection required');
   if (mc.publisher_uid !== null) grants['agent-a'].push({uid:1000, audience:'akasha', action:'append',
     source:'agent-a.mission-control', host:'agent-a', kind:'agent_status', profile:'mission-control-publisher', project:'chaldea'});
   if (pcUid !== null) grants['omarchy-pc'].push(pc('append', 'omarchy-pc.mission-control', 'agent_status', 'mission-control-publisher'));
+  for (const [host, uid] of extra) if (uid !== null) grants[host].push({uid, audience:'akasha', action:'append',
+    source:host + '.mission-control', host, kind:'agent_status', profile:'mission-control-publisher', project:'chaldea'});
   if (mc.reader_uid !== null) grants['omarchy-normandy'].push({uid:mc.reader_uid, audience:'akasha', action:'read',
     source:'mission-control-reader', host:'omarchy-normandy', kind:'agent_status', profile:'mission-control-reader', project:'chaldea'});
 }

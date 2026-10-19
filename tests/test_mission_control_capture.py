@@ -8,7 +8,7 @@ import pytest
 from test_mission_control import fixture_role, play, ok
 
 
-@pytest.mark.parametrize("host", ["agent-a", "omarchy-pc"])
+@pytest.mark.parametrize("host", ["agent-a", "omarchy-pc", "agent-b", "laptop"])
 def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_path, host):
     role = fixture_role(tmp_path, "mission_control_capture")
     token = Path.home() / ".config/chaldea/t3-token"
@@ -18,7 +18,13 @@ def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_
     snapshot = Path.home() / ".local/state/chaldea/mission-control/latest.json"
     values = dict(mission_control_capture_enabled=True, mission_control_runtime_enabled=True,
         mission_control_runtime_node="/bin/true", mission_control_runtime_release_root=str(tmp_path / "runtime"),
-        mission_control_runtime_version="client-v9.8.7", mission_control_capture_t3_base_dir="/fixture/t3")
+        mission_control_runtime_version="client-v9.8.7", mission_control_capture_laptop_qualified=True,
+        mission_control_capture_t3_base_dir="/fixture/t3")
+    if host == "laptop":
+        denied = play(tmp_path, host, roles=[role], values=values | dict(mission_control_capture_laptop_qualified=False))
+        assert denied.returncode != 0 and "Require the exact capture host" in denied.stdout
+        denied = play(tmp_path, host, roles=[role], values=values | dict(mission_control_capture_host="laptop"))
+        assert denied.returncode != 0 and "Require the exact capture host" in denied.stdout
     ok(play(tmp_path, host, roles=[role], values=values, check=True))
     source = Path(role) / "tasks/main.yml"
     tasks = yaml.safe_load(source.read_text())
@@ -26,7 +32,7 @@ def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_
     source.write_text(yaml.safe_dump(tasks))
     ok(play(tmp_path, host, roles=[role], values=values))
     path = Path.home() / ".config/chaldea/mission-control-capture.json"
-    assert json.loads(path.read_text()) == dict(host=host, t3BaseDir="/fixture/t3",
+    assert json.loads(path.read_text()) == dict(host="omarchy-macbook-air-igor" if host == "laptop" else host, t3BaseDir="/fixture/t3",
         tokenFile=str(token), snapshotFile=str(snapshot), tokenSemanticsQualified=False)
     assert path.stat().st_mode & 0o777 == 0o600
     assert token.read_text() == "public-fixture-token"
@@ -48,7 +54,7 @@ def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_
 
 
 
-@pytest.mark.parametrize("host", ["agent-a", "omarchy-pc"])
+@pytest.mark.parametrize("host", ["agent-a", "omarchy-pc", "agent-b", "laptop"])
 def test_capture_system_gate_failure_and_warm_restart(tmp_path, host):
     import os
     import sys
@@ -76,7 +82,7 @@ sys.exit(1 if os.environ.get('FIXTURE_VERIFY_FAIL') else 0)
     os.environ["FIXTURE_VERIFY_LOG"] = str(tmp_path / "verify.events")
     values = dict(mission_control_capture_enabled=True, mission_control_runtime_enabled=True,
         mission_control_runtime_node="/bin/true", mission_control_runtime_release_root="/fixture",
-        mission_control_runtime_version="client-v9.8.7")
+        mission_control_runtime_version="client-v9.8.7", mission_control_capture_laptop_qualified=True)
     tasks = [{"ansible.builtin.include_role": dict(name=role)},
              {"ansible.builtin.include_role": dict(name=role, tasks_from="activate")}]
     try:
