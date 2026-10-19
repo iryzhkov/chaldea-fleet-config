@@ -43,6 +43,26 @@ backlog. Notes do not reopen accepted reviews or block a milestone by default. N
 milestones, out-of-scope work, large cost, security/credential changes or multi-host
 work require separate authority when not already authorized. No new tracking database.
 
+## Check the simplest existing path
+
+Before proposing new machinery or a large estimate, trace the current implementation
+and authorized deployment evidence. Compare configuration, version-pin and enrollment
+changes first; name the exact unmet requirement before adding a process, account,
+state store or publication path. Mark unverified premises as unknown.
+Keep optional UI or completeness improvements separate from the first useful outcome.
+A budget is a ceiling, not a target. If evidence contradicts a design assumption,
+reconcile the plan before continuing dependent work, preserving Igor's explicit goals
+and constraints. Apply review-delegation's necessity check in the existing review.
+
+Define the first milestone by an observable user outcome, including deployed data
+when requested; source, review and merge are intermediate states. Choose PR boundaries
+with review-delegation's grouping guidance before dispatching disjoint source workers.
+Keep one integration owner and batch related ready changes for final review and CI.
+Measure source-to-useful-result time, separating overlapping work, queue/setup, tests,
+review, CI, integration fixes and deployment waits using existing retained evidence.
+Address routine measured friction within authorization; do not wait for an audit.
+A need for extensive new fixtures should prompt checking the design premise again.
+
 ## Delegate and follow work
 
 - Before each T3 `delegate_task`, call FATE through `chaldea_route` or

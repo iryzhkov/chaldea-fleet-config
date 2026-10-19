@@ -101,6 +101,29 @@ The exact reviewed commit, clean-tree acceptance, citation/location blocking
 rule and two-fix-round limit below still apply. Existing reviews on an available
 other provider continue.
 
+## Check necessity and complexity
+
+Ask whether the change is needed as well as whether it is correct. Before accepting
+a new process, account, state store or publication path, trace the existing producer
+and consumer and compare a configuration, version-pin or enrollment change.
+Cite the exact missing capability or constraint that rules out reuse. Separate
+verified facts, assumptions and optional improvements; check the premise independently
+rather than accepting the brief's proposed architecture as a requirement.
+Keep useful improvements outside the requested outcome as notes. Evidence of needless
+complexity uses the existing citation/location blocking rule. Use existing authorized
+evidence and report gaps; this check adds no review round or approval step.
+
+## Group related work before review and CI
+
+Prefer one PR for related changes delivering one outcome when the combined diff is
+reviewable and has compatible authorization, deployment and rollback requirements.
+Keep independent releases, unrelated changes or materially different risks separate.
+Use separate commits and disjoint workers within a PR; do not create a PR per worker.
+Plan dependency and merge order before expensive CI, especially with strict base rules.
+Integrate ready related changes before final review and push them as a batch; do not
+hold a useful delivery for speculative additions. Preserve repository ownership and
+linked PRs across repositories. Batching never waives exact-head review or required CI.
+
 ## What blocks
 
 - A finding blocks only when it cites a requirement from the brief or plan, or
@@ -148,6 +171,9 @@ Review <repository> at commit <sha> on branch <branch> (base <base-sha>).
 Role: <main reviewer | fan-out reviewer for TARGET AREA only>.
 Brief: <plan reference and the milestone's acceptance criteria>.
 Scope: <files or diff range>. Out of scope: <what to leave alone>.
+Necessity: <existing path and why configuration/pin/enrollment reuse is insufficient;
+  n/a when no new process, account, state store or publication path is proposed>.
+Distinguish verified constraints from assumptions and optional improvements.
 Check two axes separately: repository documented standards and originating issue/spec.
 Sources: <standards files/rules>; <issue/spec reference, or unavailable>.
 Cite each applicable rule/requirement; do not let one axis mask the other.

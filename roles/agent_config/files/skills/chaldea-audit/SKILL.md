@@ -38,6 +38,8 @@ scratch path and output destination. Cover these lenses (combine for small scope
    budgets versus actuals, and Igor decisions missing from the plan.
 2. Logic duplication and ownership: repeated mechanisms, unjustified layers,
    code in configuration repositories, and the smallest consolidation.
+   Check whether existing configuration, pins or enrollment can meet the same
+   requirement before accepting new processes, identities, state or publication paths.
 3. Cross-component consistency: protocols, configuration, paths, pins, defaults,
    logging, errors and documentation versus implementation.
 4. Security-boundary coherence: issuer, verifier and consumer contracts, trust,
@@ -45,6 +47,9 @@ scratch path and output destination. Cover these lenses (combine for small scope
 5. Size, test health, friction and reboot rules: source/tests/docs by component
    (vendor/generated separate), test ratios, PR/fix rounds, flakes, real use,
    interactive latency/polling, retention and any-host-down recovery.
+   Separate queue/setup, test, review, CI, integration and deployment time using
+   retained evidence; assess missed acceptance outcomes and PR batching/merge-order
+   costs as well as code size. Propose sized remedies with coverage and risk tradeoffs.
 
 Assign heavy measurement only to lens 5 (or one named combined lens): line
 counts, test suites and bounded flake reruns use `chaldea exec` without `--host`.
