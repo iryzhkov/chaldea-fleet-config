@@ -17,22 +17,24 @@ inside Igor's agreement without asking again.
 
 ## Keep a small working set
 
-- Start from the execution checkpoint or handoff: current outcome and decisions,
-  state, source refs, active task/thread/run/wait/PR and CI IDs, blockers and next
-  action. For Chaldea the checkpoint is
-  `tooling/handoffs/chaldea-execution-checkpoint.md` and the plan of record
-  `tooling/plans/chaldea-rebuild-plan-2026-10-16.md` in Jocasta. Use current
-  revisions, not old transcript summaries.
-- Read the plan sections, decisions and findings the next action depends on.
-  Linked PRs, reviews, job logs and audits are immutable evidence; open one when a
-  decision needs it, not to rebuild history.
-- Fetch a full document only when needed, as before every Jocasta update: fetch
-  it in full, reconcile and write with `--if-revision N`
-  (`~/.config/agents/jocasta.md`), then work from its operative part rather than
-  printing it all. Never overwrite a concurrent update.
-- Measure context in bytes or tokens, not lines. Project tool output to the fields
-  you need, use scoped reads, and read one channel when a tool returns both text
-  and structured duplicates.
+- Start with the current checkpoint's outcome, execution status, authority,
+  active ownership, blockers and next action. A stopped roadmap stays stopped;
+  delayed notifications do not authorize continuation. For Chaldea use
+  `tooling/handoffs/chaldea-execution-checkpoint.md` and plan
+  `tooling/plans/chaldea-rebuild-plan-2026-10-16.md` in Jocasta.
+- Read only the plan sections and evidence needed for the next decision.
+  Reuse skills and references already read while their version and applicability
+  remain valid; reload when they change or missing context requires it.
+- Fetch the full current document before every Jocasta update, reconcile and use
+  `--if-revision N` under `~/.config/agents/jocasta.md`. Full fetch is required
+  for safe editing; printing the full body into context is not.
+- Project tool results to needed fields and use one response channel when text
+  and structured content duplicate each other. Scope catalog/schema discovery
+  to the capability needed; keep raw logs on disk and read relevant windows.
+  Preserve IDs, errors and evidence required for the decision.
+- Keep each fact in its owning document: plan for outcome, decisions and strategy;
+  checkpoint for current execution state; linked receipts for detailed evidence.
+  Do not copy the same completed history into all three.
 - Keep plan order, measured-friction reasons, simplicity guardrails and budgets.
   Re-scope overruns with Igor; add capabilities only for a measured need or his
   decision. Recorded decisions are binding, not review debate topics.
@@ -118,12 +120,22 @@ source/review/deployment gates remain binding.
 
 ## Keep the next milestone resumable
 
-- Update the checkpoint at milestones and genuine state changes, not after every
-  tool call: current outcome and lanes, exact commits/PRs, review thread
-  IDs/models/verdicts, CI, deployment/verification by host, open decisions/risks
-  and next action. Link history instead of copying it; keep entries short rather
-  than packing long lines. Reconcile adopted decisions and accepted progress into
-  the plan of record.
+- Replace obsolete checkpoint state at milestones and genuine state changes,
+  not after every tool call. Keep one current account of outcome/status,
+  authority and safety constraints, active owners and task/run/wait IDs, exact
+  source/PR/review/CI references, per-host deployed and verified state,
+  unresolved findings and next action. Explicitly record none where ownership
+  is released. Never leave superseded "active" or "pending" entries underneath
+  a new summary.
+- Aim for roughly 1,000 to 2,000 words for the operative checkpoint, a soft
+  target rather than a gate. Preserve all live IDs, permissions, recovery
+  obligations and unresolved risks even when more space is needed. Jocasta
+  revisions preserve old state; link an exact prior revision or durable receipt
+  before removing detail still needed as evidence. Keep ordinary spacing and
+  readable sentences instead of compressing words together.
+- Reconcile outcome or strategy changes into the plan; keep routine task/CI
+  transitions in the checkpoint. A completed review or job usually needs its
+  result, exact source and durable evidence link, not its full log or history.
 - Keep a short friction log in the checkpoint or its linked Jocasta document:
   action attempted, observed failure/delay, impact and evidence. Record actual
   tool use, missing consumers, test flakes and review rounds, not speculation.
@@ -139,8 +151,10 @@ source/review/deployment gates remain binding.
 ## Orchestration handoff / kickoff template
 
 For the next orchestrator only; worker and reviewer briefs use review-delegation.
-Fill from verified evidence, remove unused clauses and unresolved placeholders,
-and link detailed logs. Preparing a prompt does not authorize its execution.
+Fill from the current checkpoint and link exact evidence; do not create another
+copy of the execution history. Remove unused clauses and unresolved placeholders.
+Keep execution status and stop instructions explicit. Preparing a prompt does
+not authorize its execution.
 
 ```text
 Load the roadmap-executor skill first.

@@ -684,6 +684,10 @@ NECESSITY_INSERTIONS = {
 }
 
 
+# Context efficiency requested by Igor, 2026-10-20; preserve the original byte baseline.
+CONTEXT_EFFICIENCY_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_context_efficiency.json").read_text())
+
 # Autonomous routine adoption requested by Igor, 2026-10-20.
 # Reverse this latest authorized layer without changing the pre-move byte fixture.
 AUDIT_AUTONOMY_CHANGES = json.loads(
@@ -700,6 +704,10 @@ HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetc
 
 
 def old_bytes(relative, data):
+    for before, after in reversed(CONTEXT_EFFICIENCY_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(AUDIT_AUTONOMY_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
