@@ -18,6 +18,7 @@ ExecStart=%h/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node
 Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=TMPDIR=%h/.cache/chaldea
 StateDirectory=chaldea
+StateDirectoryMode=0700
 CacheDirectory=chaldea
 UMask=0077
 NoNewPrivileges=yes

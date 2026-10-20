@@ -1,4 +1,5 @@
 """Apply the real client role only in scratch homes, behind a fake user manager."""
+import configparser
 import hashlib
 import io
 import json
@@ -87,7 +88,8 @@ def success(result):
     assert "FIXTURE-SECRET-NEVER-PRINT" not in result.stdout + result.stderr
 
 
-def test_directory_provisioning_repairs_private_quota_state():
+@pytest.mark.parametrize("quota_runtime", [False, True])
+def test_directory_provisioning_repairs_private_quota_state(quota_runtime):
     home = Path.home()
     safe(home)
     assert home == Path(os.environ["HOME"]).resolve()
@@ -100,6 +102,12 @@ def test_directory_provisioning_repairs_private_quota_state():
     tasks = [task for task in canonical if task.get("name") in names]
     assert len(tasks) == 2
     assert all(task["ansible.builtin.file"]["state"] == "directory" for task in tasks)
+    unit_task = next(task for task in canonical if task.get("name") ==
+                     "Atomically replace hand-made units with managed units")
+    unit_task = unit_task | {"ansible.builtin.template": unit_task["ansible.builtin.template"] | {
+        "src": str(ROOT / "roles/chaldea_client/templates") + "/{{ item }}.service.j2",
+    }}
+    tasks.append(unit_task)
     state = home / ".local/state/chaldea"
     generic = {home / ".local/share/chaldea": 0o755,
                home / ".config/systemd/user": 0o775,
@@ -133,7 +141,10 @@ def test_directory_provisioning_repairs_private_quota_state():
         "name": "Canonical directory tasks in scratch", "hosts": "localhost",
         "connection": "local", "gather_facts": False,
         "vars": defaults | {"fleet_home": str(home),
-                            "ansible_python_interpreter": sys.executable},
+                            "ansible_python_interpreter": sys.executable,
+                            "chaldea_node_version": "26.10.0",
+                            "chaldea_client_quota_runtime_enabled": quota_runtime,
+                            "chaldea_client_quota_runtime_version": "client-v9.0.0"},
         "tasks": tasks,
     }]))
     for attempt in range(2):
@@ -144,7 +155,7 @@ def test_directory_provisioning_repairs_private_quota_state():
             capture_output=True, text=True)
         print(result.stdout, result.stderr)
         success(result)
-        assert ("changed=1" if attempt == 0 else "changed=0") in result.stdout
+        assert ("changed=2" if attempt == 0 else "changed=0") in result.stdout
         st = state.stat()
         assert st.st_mode & 0o777 == 0o700
         assert (st.st_uid, st.st_gid, st.st_ino) == (
@@ -152,6 +163,13 @@ def test_directory_provisioning_repairs_private_quota_state():
         assert snapshot() == before
         for path, mode in generic.items():
             assert path.stat().st_mode & 0o777 == mode
+        for name in ("chaldea-quota", "chaldea-waits"):
+            unit = configparser.ConfigParser(interpolation=None, strict=False)
+            unit.read(home / f".config/systemd/user/{name}.service")
+            # systemd otherwise defaults to 0755 and resets the directory on start.
+            assert unit["Service"]["StateDirectory"] == "chaldea"
+            assert unit["Service"]["StateDirectoryMode"] == "0700"
+        print(f"rendered StateDirectoryMode=0700 for both units, quota_runtime={quota_runtime}")
 
 
 def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
