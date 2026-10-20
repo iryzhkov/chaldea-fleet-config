@@ -43,6 +43,7 @@ def origin(url):
 def canonical(url, strict=False):
     require(matches(url, CANONICAL), "canonical HTTPS URL")
     if strict:
+        require(len(url.encode("utf-8")) <= 2048, "URL exceeds 2048 bytes")
         parts = urlsplit(url)
         try:
             port = parts.port

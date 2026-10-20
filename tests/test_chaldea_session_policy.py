@@ -681,3 +681,48 @@ def test_invalid_ceiling_service_lists_refuse_before_credential_stat_or_write(tm
     assert not marker.exists()
     assert not (tmp_path / "protected/etc/chaldea").exists()
     assert not (Path.home() / ".config/chaldea/waits.json").exists()
+
+
+@pytest.mark.parametrize("length", [2048, 2049])
+def test_new_url_byte_boundary_preserves_legacy(validator, length):
+    prefix = "https://auth.example.test/"
+    url = prefix + "a" * (length - len(prefix) - 1) + "/"
+    assert len(url.encode("utf-8")) == length
+    validator.canonical(url)  # Legacy URLs retain their existing behavior.
+    if length == 2048:
+        validator.canonical(url, strict=True)
+    else:
+        with pytest.raises(validator.AnsibleFilterError, match="URL exceeds 2048 bytes"):
+            validator.canonical(url, strict=True)
+
+
+@pytest.mark.parametrize("audience", GRANTS)
+@pytest.mark.parametrize("issuer_length", [2043, 2044])
+def test_new_enrollment_jwks_url_byte_boundary(validator, tmp_path, monkeypatch, audience, issuer_length):
+    variables = service_variables(tmp_path, monkeypatch, audience)
+    prefix = "https://auth.example.test/"
+    issuer = prefix + "a" * (issuer_length - len(prefix) - 1) + "/"
+    variables["chaldea_client_session_enrollments"][PRESET].update(issuer=issuer, jwksUrl=issuer + "jwks/")
+    assert len((issuer + "jwks/").encode("utf-8")) == issuer_length + 5
+    if issuer_length == 2043:
+        assert validate(validator, variables)
+    else:
+        with pytest.raises(validator.AnsibleFilterError, match="URL exceeds 2048 bytes"):
+            validate(validator, variables)
+
+
+@pytest.mark.parametrize("issuer_length", [2044, len("https://auth.example.test/") + 2101])
+def test_oversized_provider_urls_refuse_before_credential_stat_or_write(tmp_path, monkeypatch, issuer_length):
+    variables = service_variables(tmp_path, monkeypatch, "ov")
+    prefix = "https://auth.example.test/"
+    issuer = prefix + "a" * (issuer_length - len(prefix) - 1) + "/"
+    variables["chaldea_client_session_enrollments"][PRESET].update(issuer=issuer, jwksUrl=issuer + "jwks/")
+    provision()
+    marker = forbid_password_opens(tmp_path, monkeypatch)
+    result = run(tmp_path, variables, protected_tree(tmp_path))
+    assert result.returncode != 0
+    assert "URL exceeds 2048 bytes" in result.stdout, result.stdout
+    assert "Inspect operator-provisioned" not in result.stdout
+    assert not marker.exists()
+    assert not (tmp_path / "protected/etc/chaldea").exists()
+    assert not (Path.home() / ".config/chaldea/waits.json").exists()
