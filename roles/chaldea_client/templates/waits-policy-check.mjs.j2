@@ -1,0 +1,3 @@
+// Run the maintained loader before the daemon opens private credentials.
+import { loadSessionPolicy } from {{ (chaldea_client_waits_resolved_runtime ~ '/src/session/policy.ts') | to_json }};
+loadSessionPolicy({{ chaldea_client_session_policy_path | to_json }}, {{ chaldea_client_waits_environment | to_json }});

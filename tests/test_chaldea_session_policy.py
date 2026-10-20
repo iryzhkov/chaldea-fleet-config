@@ -38,6 +38,7 @@ def policy_variables(tmp_path, monkeypatch):
     variables |= {
         "chaldea_client_waits_enabled": True,
         "chaldea_client_session_policy_enabled": True,
+        "chaldea_client_waits_service_mode": "system",
         "chaldea_client_session_ceilings": [{"project": "projectA", "maxSeconds": 3600,
                                              "destinations": ["caller-project"], "services": SERVICES}],
         "chaldea_client_session_presets": {PRESET: {
@@ -81,7 +82,15 @@ def run(base, variables, extra, check=False):
     play = base / "policy.yml"
     play.write_text(yaml.safe_dump([{"name": "Client role with a session policy in scratch", "hosts": "localhost",
                                     "connection": "local", "gather_facts": False,
-                                    "vars": variables, "roles": ["chaldea_client"]}]))
+                                    "vars": yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text()) | variables,
+                                    "tasks": [
+                                        {"name": "Exercise the policy writer independently of service activation",
+                                         "ansible.builtin.include_role": {"name": "chaldea_client", "tasks_from": "session-policy", "public": True},
+                                         "when": "chaldea_client_session_policy_enabled | bool"},
+                                        {"name": "Render its waits policy pointer",
+                                         "ansible.builtin.template": {"src": str(ROOT / "roles/chaldea_client/templates/waits.json.j2"),
+                                                                    "dest": "{{ fleet_home }}/.config/chaldea/waits.json",
+                                                                    "mode": "0600"}}]}]))
     extra_file = base / "protected.json"
     extra_file.write_text(json.dumps(extra))
     env = dict(os.environ, ANSIBLE_ROLES_PATH=str(ROOT / "roles"),
@@ -177,7 +186,7 @@ REFUSALS = {
     "delegating preset": (mutate(lambda e, p, v: p.update(delegate=True)), "delegate: false"),
     "unknown preset": (mutate(lambda e, p, v: v["chaldea_client_session_enrollments"].update(
         other=copy.deepcopy(e))), "enrollments only for declared presets"),
-    "waits off": (mutate(lambda e, p, v: v.update(chaldea_client_waits_enabled=False)), "needs waits enabled"),
+    "waits off": (mutate(lambda e, p, v: v.update(chaldea_client_waits_enabled=False)), "waits enabled"),
 }
 
 

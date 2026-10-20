@@ -4,6 +4,9 @@
 # The client parses the file again at every start; these checks only refuse
 # what it would refuse, earlier and with the inventory field named.
 
+- name: Refuse incompatible policy mode even through the role-only policy entrypoint
+  ansible.builtin.import_tasks: waits-validate.yml
+
 - name: Validate the session policy shape
   ansible.builtin.assert:
     that:

@@ -1,0 +1,124 @@
+---
+# Role-only pre-enrollment entrypoint. Does not read/render waits.json or policy
+# contents, stat private credentials, load SOPS, enroll, or start a daemon.
+- name: Validate preflight identity and paths
+  ansible.builtin.import_tasks: waits-system-validate.yml
+
+- name: Inspect public ancestors before creating missing leaf directories
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: [/, /etc, /etc/chaldea, /etc/chaldea/sessions]
+  register: chaldea_client_waits_public_ancestors
+
+- name: Refuse unsafe existing public ancestors
+  ansible.builtin.assert:
+    that:
+      - >-
+        not item.stat.exists or
+        (item.stat.isdir and not item.stat.islnk and item.stat.uid == 0 and item.stat.gid == 0 and
+         item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7'])
+    quiet: true
+  loop: "{{ chaldea_client_waits_public_ancestors.results }}"
+
+- name: Inspect the preflight manager before any writes
+  become: true
+  ansible.builtin.command:
+    argv: [systemctl, --system, show, chaldea-waits-preflight.service, "--property=DropInPaths,ActiveState,LoadState,FragmentPath"]
+  changed_when: false
+  check_mode: false
+  register: chaldea_client_waits_probe_manager
+  failed_when: chaldea_client_waits_probe_manager.rc != 0 and 'LoadState=not-found' not in chaldea_client_waits_probe_manager.stdout_lines
+
+- name: Refuse preflight overrides or an already running probe
+  ansible.builtin.assert:
+    that:
+      - "'DropInPaths=' in chaldea_client_waits_probe_manager.stdout_lines"
+      - "'ActiveState=inactive' in chaldea_client_waits_probe_manager.stdout_lines"
+      - >-
+        'LoadState=not-found' in chaldea_client_waits_probe_manager.stdout_lines or
+        ('LoadState=loaded' in chaldea_client_waits_probe_manager.stdout_lines and
+         'FragmentPath=/etc/systemd/system/chaldea-waits-preflight.service' in chaldea_client_waits_probe_manager.stdout_lines)
+    quiet: true
+
+- name: Prepare only the exact proposed waits sandbox directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ fleet_home }}/.config/chaldea"
+    - "{{ fleet_home }}/.local/state/chaldea"
+
+- name: Create only root-owned public policy ancestor directories
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: [/etc/chaldea, /etc/chaldea/sessions]
+
+- name: Render the credential-free namespace checker
+  ansible.builtin.template:
+    src: waits-namespace-check.mjs.j2
+    dest: "{{ fleet_home }}/.config/chaldea/waits-namespace-check.mjs"
+    mode: "0600"
+
+- name: Inspect the reserved preflight unit without following links
+  ansible.builtin.stat:
+    path: /etc/systemd/system/chaldea-waits-preflight.service
+    follow: false
+    checksum_algorithm: sha256
+  register: chaldea_client_waits_probe_unit
+
+- name: Refuse a foreign preflight definition
+  ansible.builtin.assert:
+    that:
+      - >-
+        not chaldea_client_waits_probe_unit.stat.exists or
+        (chaldea_client_waits_probe_unit.stat.isreg | default(false) and
+         chaldea_client_waits_probe_unit.stat.mode == '0644' and chaldea_client_waits_probe_unit.stat.nlink == 1 and
+         chaldea_client_waits_probe_unit.stat.uid == 0 and
+         chaldea_client_waits_probe_unit.stat.checksum ==
+           lookup('ansible.builtin.template', 'chaldea-waits-preflight.service.j2') | hash('sha256'))
+    quiet: true
+
+- name: Install the preflight in the system manager
+  become: true
+  ansible.builtin.template:
+    src: chaldea-waits-preflight.service.j2
+    dest: /etc/systemd/system/chaldea-waits-preflight.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Run the credential-free probe in the exact service sandbox
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits-preflight.service
+    scope: system
+    daemon_reload: true
+    state: restarted
+  register: chaldea_client_waits_probe
+  when: not ansible_check_mode
+
+- name: Read the completed probe result after execution
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits-preflight.service
+    scope: system
+  register: chaldea_client_waits_probe
+  when: not ansible_check_mode
+
+- name: Require actual namespace and ancestor probe success
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_waits_probe.status.Result == 'success'
+      - chaldea_client_waits_probe.status.ExecMainStatus == '0'
+    fail_msg: Namespace preflight failed; do not enroll or deliver private credentials.
+    quiet: true
+  when: not ansible_check_mode

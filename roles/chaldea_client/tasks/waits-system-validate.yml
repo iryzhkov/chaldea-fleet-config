@@ -1,0 +1,97 @@
+---
+- name: Validate the opted-in waits mode
+  ansible.builtin.import_tasks: waits-validate.yml
+
+- name: Require an existing ordinary fleet identity and safe explicit paths
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_waits_service_mode == 'system'
+      - ansible_facts.user_uid | int > 0
+      - ansible_facts.user_gid | int > 0
+      - fleet_home is match('^/home/[A-Za-z0-9._/-]+$')
+      - fleet_home | normpath == fleet_home
+      - "'..' not in fleet_home.split('/')"
+      - chaldea_client_root == fleet_home ~ '/.local/share/chaldea'
+      - chaldea_client_waits_runtime_root.startswith(chaldea_client_root ~ '/')
+      - chaldea_client_waits_runtime_root | normpath == chaldea_client_waits_runtime_root
+      - chaldea_client_waits_runtime_root is match('^/home/[A-Za-z0-9._/-]+$')
+      - "'..' not in chaldea_client_waits_runtime_root.split('/')"
+      - chaldea_node_version is match('^[0-9]+[.][0-9]+[.][0-9]+$')
+      - chaldea_client_waits_socket == '/run/chaldea-waits-' ~ ansible_facts.user_uid ~ '/waits.sock'
+      - chaldea_client_waits_environment | length > 0
+    fail_msg: System waits requires the existing non-root fleet account, canonical home and private runtime socket.
+    quiet: true
+
+- name: Resolve the existing fleet account without creating an account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_facts.user_uid }}"
+
+- name: Bind the system service identity to the existing home and primary group
+  ansible.builtin.assert:
+    that:
+      - getent_passwd | length == 1
+      - (getent_passwd.values() | list)[0][2] | int == ansible_facts.user_gid | int
+      - (getent_passwd.values() | list)[0][4] == fleet_home
+    quiet: true
+
+- name: Resolve the existing waits runtime and its required entrypoints
+  ansible.builtin.command:
+    argv: >-
+      {{ ['realpath', '--canonicalize-existing', '--', chaldea_client_root,
+          chaldea_client_waits_runtime_root, chaldea_client_waits_runtime_root ~ '/bin/chaldea'] +
+         ([chaldea_client_waits_runtime_root ~ '/src/session/policy.ts'] if chaldea_client_session_policy_enabled | bool else []) }}
+  changed_when: false
+  check_mode: false
+  register: chaldea_client_waits_runtime_paths
+
+- name: Refuse resolved runtime or entrypoint escapes
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_waits_runtime_paths.stdout_lines | length == (4 if chaldea_client_session_policy_enabled | bool else 3)
+      - resolved | select('regex', '^/([A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+$', match_type='fullmatch') | list | length == resolved | length
+      - resolved[1].startswith(resolved[0] ~ '/')
+      - resolved[2].startswith(resolved[1] ~ '/')
+      - not chaldea_client_session_policy_enabled | bool or resolved[3].startswith(resolved[1] ~ '/')
+    fail_msg: The installed waits runtime and entrypoints must resolve inside the existing Chaldea root.
+    quiet: true
+  vars:
+    resolved: "{{ chaldea_client_waits_runtime_paths.stdout_lines }}"
+
+- name: Name the resolved runtime ancestry and entrypoints
+  ansible.builtin.set_fact:
+    chaldea_client_waits_resolved_runtime: "{{ resolved[1] }}"
+    chaldea_client_waits_runtime_inspection_paths: >-
+      {%- set paths = ['/'] -%}
+      {%- for entry in resolved -%}
+      {%- set parts = entry.split('/')[1:] -%}
+      {%- for i in range(parts | length) -%}
+      {%- set _ = paths.append('/' ~ (parts[:i + 1] | join('/'))) -%}
+      {%- endfor -%}
+      {%- endfor -%}
+      {{ paths | unique | list }}
+  vars:
+    resolved: "{{ chaldea_client_waits_runtime_paths.stdout_lines }}"
+
+- name: Inspect the canonical installed runtime without following further links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ chaldea_client_waits_runtime_inspection_paths }}"
+  register: chaldea_client_waits_runtime_files
+
+- name: Require safe existing runtime directories and regular entrypoints
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and not item.stat.islnk
+      - item.stat.uid in [0, ansible_facts.user_uid | int]
+      - item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - >-
+        (item.stat.isreg and item.stat.nlink == 1 and item.stat.readable)
+        if item.item in chaldea_client_waits_runtime_paths.stdout_lines[2:]
+        else (item.stat.isdir and item.stat.readable and item.stat.executable)
+    fail_msg: Refusing a missing linked foreign-owned or writable installed waits runtime path.
+    quiet: true
+  loop: "{{ chaldea_client_waits_runtime_files.results }}"

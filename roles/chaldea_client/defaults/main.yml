@@ -13,6 +13,10 @@ chaldea_client_root: "{{ fleet_home }}/.local/share/chaldea"
 chaldea_client_cache: "{{ fleet_home }}/.cache/chaldea-client"
 chaldea_client_quota_enabled: false
 chaldea_client_waits_enabled: false
+# System mode converges waits only, using the existing client and fleet account.
+chaldea_client_waits_service_mode: user
+# Already-installed waits runtime only; never changes global current/previous.
+chaldea_client_waits_runtime_root: "{{ chaldea_client_root }}/current"
 chaldea_client_t3_home: "{{ fleet_home }}/.t3"
 chaldea_client_quota_token: "{{ fleet_home }}/.config/chaldea/t3-token"
 chaldea_client_waits_token: "{{ fleet_home }}/.config/chaldea/waits-t3-token"
@@ -21,7 +25,7 @@ chaldea_client_waits_environment: ""
 chaldea_client_waits_listen: "127.0.0.1"
 chaldea_client_waits_port: 7385
 chaldea_client_answer_url: "http://127.0.0.1:{{ chaldea_client_waits_port }}"
-chaldea_client_waits_socket: "/run/user/{{ ansible_facts.user_uid }}/chaldea-waits.sock"
+chaldea_client_waits_socket: "{{ ('/run/chaldea-waits-' ~ ansible_facts.user_uid ~ '/waits.sock') if chaldea_client_waits_service_mode == 'system' else ('/run/user/' ~ ansible_facts.user_uid ~ '/chaldea-waits.sock') }}"
 # Explicit provider-to-auth-context binding, never inferred from the shell.
 chaldea_client_codex_home: ""
 chaldea_client_codex_providers: [codex]

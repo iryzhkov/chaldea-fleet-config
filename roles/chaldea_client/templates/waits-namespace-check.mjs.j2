@@ -1,0 +1,27 @@
+// Credential-free probe: only proc maps and fixed public policy ancestors.
+// No config, private file, policy content, network or provider imports.
+import { readFileSync, lstatSync, accessSync, constants } from 'node:fs';
+const uid = {{ ansible_facts.user_uid | int }};
+const gid = {{ ansible_facts.user_gid | int }};
+if (process.getuid() !== uid || process.getgid() !== gid || uid === 0 || gid === 0)
+  throw new Error('expected existing non-root fleet identity');
+const maps = {};
+for (const [kind, own] of [['uid', uid], ['gid', gid]]) {
+  const rows = readFileSync('/proc/self/' + kind + '_map', 'utf8').trim()
+    .split('\n').map(line => line.trim().split(/\s+/).map(Number));
+  const expected = [[0, 0, 1], [own, own, 1]].sort((a, b) => a[0] - b[0]);
+  rows.sort((a, b) => a[0] - b[0]);
+  if (JSON.stringify(rows) !== JSON.stringify(expected))
+    throw new Error(kind + '_map must map exactly root and self');
+  maps[kind] = rows;
+}
+const ancestors = ['/', '/etc', '/etc/chaldea', '/etc/chaldea/sessions'];
+const ownership = [];
+for (const path of ancestors) {
+  const s = lstatSync(path);
+  if (!s.isDirectory() || s.isSymbolicLink() || s.uid !== 0 || s.gid !== 0 || (s.mode & 0o022))
+    throw new Error('unsafe public ancestor: ' + path);
+  accessSync(path, constants.R_OK | constants.X_OK);
+  ownership.push({path, uid: s.uid, gid: s.gid, mode: (s.mode & 0o7777).toString(8)});
+}
+console.log(JSON.stringify({uid, gid, maps, ownership, runtime: {{ chaldea_client_waits_resolved_runtime | to_json }}}));

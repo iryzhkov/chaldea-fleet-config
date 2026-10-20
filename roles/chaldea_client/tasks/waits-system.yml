@@ -1,0 +1,221 @@
+---
+# Reusable waits-only entrypoint: never downloads a release or changes current/previous.
+- name: Validate system waits identity and paths
+  ansible.builtin.import_tasks: waits-system-validate.yml
+
+- name: Guard single waits ownership before mutation
+  ansible.builtin.import_tasks: waits-owner.yml
+
+- name: Create only private waits directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ fleet_home }}/.config/chaldea"
+    - "{{ fleet_home }}/.local/state/chaldea"
+
+- name: Predict waits changes before writing definitions or configuration
+  become: "{{ item.system | default(false) }}"
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  check_mode: true
+  diff: false
+  loop:
+    - {src: waits.json.j2, dest: "{{ fleet_home }}/.config/chaldea/waits.json", mode: "0600", enabled: true}
+    - {src: waits-namespace-check.mjs.j2, dest: "{{ fleet_home }}/.config/chaldea/waits-namespace-check.mjs", mode: "0600", enabled: true}
+    - {src: waits-policy-check.mjs.j2, dest: "{{ fleet_home }}/.config/chaldea/waits-policy-check.mjs", mode: "0600", enabled: "{{ chaldea_client_session_policy_enabled }}"}
+    - {src: chaldea-waits-system.service.j2, dest: /etc/systemd/system/chaldea-waits.service, mode: "0644", enabled: true, system: true}
+    - {src: chaldea-waits-preflight.service.j2, dest: /etc/systemd/system/chaldea-waits-preflight.service, mode: "0644", enabled: true, system: true}
+    - {src: policy.json.j2, dest: "{{ chaldea_client_session_policy_path }}", mode: "0644", enabled: "{{ chaldea_client_session_policy_enabled }}", system: true}
+  when: item.enabled | bool
+  register: chaldea_client_waits_predicted
+
+- name: Persist waits restart intent before changing files  # noqa: no-handler -- intent must precede writes, not run at handler flush
+  ansible.builtin.copy:
+    content: "Restart the system waits owner after loading managed definitions and configuration.\n"
+    dest: "{{ fleet_home }}/.local/state/chaldea/waits-system-restart-required"
+    mode: "0600"
+  when: chaldea_client_waits_predicted.changed
+
+- name: Inspect durable waits restart intent
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/.local/state/chaldea/waits-system-restart-required"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: chaldea_client_waits_restart
+
+- name: Prove the proposed namespace before any credential inspection
+  ansible.builtin.import_tasks: waits-preflight.yml
+
+- name: Inspect waits tokens without reading them
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: ["{{ chaldea_client_waits_token }}", "{{ chaldea_client_answer_token }}"]
+  register: chaldea_client_waits_credentials
+
+- name: Require owner-only existing waits tokens
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not item.stat.islnk | default(false)
+      - item.stat.uid | default(-1) == ansible_facts.user_uid | int
+      - item.stat.mode | default('') == '0600'
+      - item.stat.size | default(0) > 0
+    quiet: true
+  loop: "{{ chaldea_client_waits_credentials.results }}"
+
+- name: Stop and disable only the verified role-owned user unit
+  ansible.builtin.systemd_service:
+    name: chaldea-waits.service
+    scope: user
+    state: stopped
+    enabled: false
+  when: chaldea_client_waits_owner_files.results[0].stat.isreg | default(false) and not ansible_check_mode
+
+- name: Preserve the old role-owned user unit for explicit rollback
+  ansible.builtin.copy:
+    src: "{{ fleet_home }}/.config/systemd/user/chaldea-waits.service"
+    dest: "{{ fleet_home }}/.config/systemd/user/chaldea-waits.service.pre-system"
+    remote_src: true
+    force: false
+    mode: "0644"
+  when: chaldea_client_waits_owner_files.results[0].stat.isreg | default(false)
+
+- name: Ensure the user unit directory exists on a fresh system-mode setup
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.config/systemd/user"
+    state: directory
+    mode: u+rwx
+
+- name: Mask the user unit so there can be only one waits database owner
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.config/systemd/user/chaldea-waits.service"
+    src: /dev/null
+    state: link
+    force: true
+
+- name: Reload the user manager after masking
+  ansible.builtin.systemd_service:
+    scope: user
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Confirm the user owner is inactive and masked before system convergence
+  ansible.builtin.command:
+    argv: [systemctl, --user, show, chaldea-waits.service, "--property=LoadState,ActiveState"]
+  changed_when: false
+  register: chaldea_client_waits_user_stopped
+  failed_when: >-
+    'LoadState=masked' not in chaldea_client_waits_user_stopped.stdout_lines or
+    'ActiveState=inactive' not in chaldea_client_waits_user_stopped.stdout_lines
+  when: not ansible_check_mode
+
+- name: Validate and render protected profiles after namespace qualification
+  ansible.builtin.include_tasks: session-policy.yml
+  when: chaldea_client_session_policy_enabled | bool
+
+- name: Render waits configuration retaining the existing database and auth pointers
+  ansible.builtin.template:
+    src: waits.json.j2
+    dest: "{{ fleet_home }}/.config/chaldea/waits.json"
+    mode: "0600"
+    backup: true
+  register: chaldea_client_waits_system_config
+
+- name: Render the maintained policy loader startup check
+  ansible.builtin.template:
+    src: waits-policy-check.mjs.j2
+    dest: "{{ fleet_home }}/.config/chaldea/waits-policy-check.mjs"
+    mode: "0600"
+  when: chaldea_client_session_policy_enabled | bool
+  register: chaldea_client_waits_system_check
+
+- name: Install the system waits definition
+  become: true
+  ansible.builtin.template:
+    src: chaldea-waits-system.service.j2
+    dest: /etc/systemd/system/chaldea-waits.service
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: chaldea_client_waits_system_unit
+
+- name: Start the sole system waits owner
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits.service
+    scope: system
+    enabled: true
+    daemon_reload: true
+    state: "{{ 'restarted' if chaldea_client_waits_restart.stat.exists else 'started' }}"
+  register: chaldea_client_waits_system_started
+  when: not ansible_check_mode
+
+- name: Wait for the private waits socket before reading readiness
+  ansible.builtin.wait_for:
+    path: "{{ chaldea_client_waits_socket }}"
+    state: present
+    timeout: 10
+  when: not ansible_check_mode
+
+- name: Inspect the private waits socket
+  ansible.builtin.stat:
+    path: "{{ chaldea_client_waits_socket }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  register: chaldea_client_waits_system_socket
+  when: not ansible_check_mode
+
+- name: Require an owner-only socket before accepting readiness
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_waits_system_socket.stat.issock | default(false)
+      - chaldea_client_waits_system_socket.stat.uid | default(-1) == ansible_facts.user_uid | int
+      - chaldea_client_waits_system_socket.stat.mode | default('') == '0600'
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Read system readiness after starting
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits.service
+    scope: system
+  register: chaldea_client_waits_system_started
+  when: not ansible_check_mode
+
+- name: Require the managed system service to be active under the fleet identity
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_waits_system_started.status.ActiveState == 'active'
+      - chaldea_client_waits_system_started.status.SubState == 'running'
+      - chaldea_client_waits_system_started.status.MainPID | int > 0
+      - chaldea_client_waits_system_started.status.ExecMainStatus == '0'
+      - chaldea_client_waits_system_started.status.User == ansible_facts.user_uid | string
+      - chaldea_client_waits_system_started.status.FragmentPath == '/etc/systemd/system/chaldea-waits.service'
+      - >-
+        (fleet_home ~ '/.local/share/mise/installs/node/' ~ chaldea_node_version ~ '/bin/node ' ~
+         chaldea_client_waits_resolved_runtime ~ '/bin/chaldea waits serve --config ' ~
+         fleet_home ~ '/.config/chaldea/waits.json') in chaldea_client_waits_system_started.status.ExecStart
+      - chaldea_client_waits_system_started.status.DropInPaths | default('') == ''
+      - chaldea_client_waits_system_started.status.PrivateUsers in ['yes', 'self', 'true']
+      - chaldea_client_waits_system_started.status.NoNewPrivileges == 'yes'
+      - chaldea_client_waits_system_started.status.ProtectSystem == 'strict'
+      - chaldea_client_waits_system_started.status.ProtectHome == 'read-only'
+    fail_msg: System waits readiness is unproven; retain backups and restart intent and refuse further activation.
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Clear waits restart intent only after successful verification
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.local/state/chaldea/waits-system-restart-required"
+    state: absent
+  when: not ansible_check_mode
