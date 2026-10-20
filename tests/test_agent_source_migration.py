@@ -692,7 +692,15 @@ CONTEXT_TRIGGER_CHANGES = json.loads(
 ADDED_FILES = {"skills/roadmap-planner/SKILL.md"}
 
 
+HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetch the full current Jocasta guide\n`tooling/guides/web-mcp-authentik-authoring-2026-10-19.md`\n(initial validated revision `jocasta:38a63cf8918eebae2dd7c8911eacd89c@1`).\nIt covers Authentik token verification, resource ACLs, protected credential helpers,\nTraefik HTTPS and native-client acceptance checks. Preserve its tested/unqualified\nboundaries; the guide does not grant enrollment or deployment authority.\n\n"
+
+
 def old_bytes(relative, data):
+    if relative in {"agents/AGENTS.md", "codex/AGENTS.md", "claude/omarchy-setup/CLAUDE.md"}:
+        heading = "#" if relative.startswith("claude/") else "##"
+        block = (heading + " Authoring HTTP MCP tools\n\n" + HTTP_MCP_AUTHORING_BODY).encode()
+        assert data.count(block) == 1, relative
+        data = data.replace(block, b"", 1)
     for before, after in reversed(CONTEXT_TRIGGER_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative

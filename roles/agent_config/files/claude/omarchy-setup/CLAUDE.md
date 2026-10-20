@@ -173,6 +173,15 @@ path. Do not use host `/tmp`: it is RAM tmpfs with a quota. Tests must never wri
 outside a scratch HOME; assert the HOME is the intended scratch directory before writing.
 A test overwrote a real key on 2026-10-17.
 
+# Authoring HTTP MCP tools
+
+Before building or migrating an HTTP MCP server, fetch the full current Jocasta guide
+`tooling/guides/web-mcp-authentik-authoring-2026-10-19.md`
+(initial validated revision `jocasta:38a63cf8918eebae2dd7c8911eacd89c@1`).
+It covers Authentik token verification, resource ACLs, protected credential helpers,
+Traefik HTTPS and native-client acceptance checks. Preserve its tested/unqualified
+boundaries; the guide does not grant enrollment or deployment authority.
+
 # Working documents: Jocasta
 
 Use Jocasta for shared plans, handoffs, research and prompts. Search before creating a document.
