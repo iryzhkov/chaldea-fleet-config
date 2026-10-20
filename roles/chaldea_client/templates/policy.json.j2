@@ -1,0 +1,7 @@
+{{ ({
+  'version': 1,
+  'environment': chaldea_client_waits_environment,
+  'ceilings': chaldea_client_session_ceilings,
+  'presets': chaldea_client_session_presets
+} | combine({'enrollments': chaldea_client_session_enrollments}
+            if chaldea_client_session_enrollments | length > 0 else {})) | to_nice_json }}

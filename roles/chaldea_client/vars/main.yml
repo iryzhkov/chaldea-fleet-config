@@ -1,0 +1,11 @@
+---
+# Fixed protected location of the session policy. Inventory cannot change
+# these (role vars outrank it); the tests override them with extra vars only,
+# to render into a scratch tree without root.
+chaldea_client_session_policy_path: /etc/chaldea/sessions/policy.json
+# The policy file and every directory from here down to it must be owned by
+# this account and writable by no one else.
+chaldea_client_session_policy_root: /
+chaldea_client_session_policy_owner: root
+chaldea_client_session_policy_owner_uid: 0
+chaldea_client_session_policy_become: true

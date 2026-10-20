@@ -108,7 +108,67 @@ Check `systemctl --user status chaldea-quota.service chaldea-waits.service`, the
 
 For later rollback, pin the retained prior version and its published checksum in inventory and converge again. The prior current becomes `previous`. Services must start successfully before old releases are pruned. If a service fails, inspect its journal and re-converge with the prior pin; the role leaves the old release and legacy checkout available.
 
+## Session policy
+
+Off on every host. `chaldea_client_session_policy_enabled: false` renders no
+policy and leaves `waits.json` without a `sessionPolicy` key, byte for byte as
+before. Inventory enables nothing here.
+
+When enabled on a host with waits enabled, the role renders the protected
+Chaldea session policy at the fixed path `/etc/chaldea/sessions/policy.json`
+(role `vars/`, not settable from inventory) and adds
+`"sessionPolicy": "/etc/chaldea/sessions/policy.json"` to `waits.json`. The
+policy is public configuration read by the ordinary service user, so it is
+root-owned, mode 0644 and a single link, and `/`, `/etc`, `/etc/chaldea` and
+`/etc/chaldea/sessions` must be root-owned directories, not links and not
+group- or other-writable. The role creates the last two as root (become) and
+refuses any other layout before writing. It holds no credential.
+
+Inventory supplies:
+
+- `chaldea_client_session_ceilings`: one to eight operator ceilings;
+- `chaldea_client_session_presets`: one to sixteen fixed presets, each with
+  exactly the policy's preset fields and `delegate: false`;
+- `chaldea_client_session_enrollments`: optional, keyed by preset ID. Each
+  entry is exactly `{form: app_password, issuer, tokenUrl, jwksUrl, clientId,
+  username, scope: jocasta.read, resource, project, maxTokenSeconds: 300,
+  secretFile}`. The URLs must be canonical HTTPS (lower-case host, no default
+  port, no userinfo, query or fragment), with the token and JWKS URLs on the
+  issuer's origin. `project` must equal the preset's project, whose only
+  Jocasta grant resource must be `project:<project>`. `secretFile` must be
+  `~/.config/chaldea/authentik/<preset>.app-password`, the file
+  homelab-infra's `authentik_machine_identities` role delivers. Without
+  enrollments the policy has no `enrollments` key, so preset hashes stay the
+  same.
+
+Each `secretFile` is checked with `stat` only, like the unit tokens above: a
+nonempty regular 0600 file owned by the converging user, not a link, in a
+directory owned by that user with no group or other access. The role never
+creates, reads, prints or repairs it. The client parses the policy again at
+every start, and its rules are authoritative; this role refuses what it would
+refuse, earlier and naming the inventory field. A policy with enrollments needs
+a client release whose parser accepts `enrollments`; selecting that release is a
+separate pin change. Disabling the policy later leaves an existing policy file
+in place, inert because `waits.json` no longer names it.
+
+Only the enrollment assertion in `tasks/session-policy.yml` is Jocasta-specific
+(form, scope, 300 seconds, the `project:<project>` grant). The policy file,
+its protected layout, the stat-only secret checks and the per-preset secret
+path are service-independent. A second Authentik-protected service needs
+Chaldea's parser to accept it first; then that one assertion gains the
+service's scope, audience and grant rule, in the same change set as
+homelab-infra's second service profile (its
+`docs/authentik-machine-identities.md`, "A second service").
+
 ## Tests
+
+`tests/test_chaldea_session_policy.py` applies the real role with the protected
+root, owner and become replaced by extra vars, so the policy renders into a
+scratch tree. It covers the default (no file, unchanged `waits.json`), check
+mode, the exact rendered policy and its protected layout, a second converge
+with no change, a policy without enrollments, each unsupported enrollment or
+preset value, unsafe app-password files and unprotected policy paths, all
+refused before any write, and that no fixture secret reaches the output.
 
 `tests/test_chaldea_client.py` applies the real role under an asserted scratch HOME with a fake systemctl. It covers apply, repeat apply and check-mode idempotence, interrupted reload recovery, preflight before unit replacement, enabled services, missing/unsafe secret refusal, legacy checkout migration, preservation of config/state, rendered `%h` units, release retention, checksum/manifest/path/link refusal and disabled services without credentials. It never opens the live tokens or user manager.
 

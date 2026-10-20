@@ -57,3 +57,13 @@ chaldea_client_reserve_fraction: 0.05
 chaldea_client_expiry_horizon_ms: 86400000
 # No illustrative credit conversion or unverified refill/expiry assertion.
 chaldea_client_capacity_providers: {}
+# Protected fixed session presets (docs/chaldea-client.md, "Session policy").
+# Off: no policy file is rendered and waits.json names none. Enabling needs
+# waits enabled; the policy is public configuration and holds no credential.
+chaldea_client_session_policy_enabled: false
+chaldea_client_session_ceilings: []
+chaldea_client_session_presets: {}
+# Authentik app-password enrollments keyed by preset ID. Each secretFile is an
+# operator-provisioned file the role only inspects with stat. Needs a client
+# whose policy parser accepts `enrollments`; empty renders no such key.
+chaldea_client_session_enrollments: {}

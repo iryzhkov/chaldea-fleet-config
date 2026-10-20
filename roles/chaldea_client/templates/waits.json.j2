@@ -1,4 +1,4 @@
-{{ {
+{{ ({
   'environment': chaldea_client_waits_environment,
   't3BaseDir': chaldea_client_t3_home,
   'tokenFile': chaldea_client_waits_token,
@@ -9,4 +9,5 @@
   'port': chaldea_client_waits_port,
   'answerBaseUrl': chaldea_client_answer_url,
   'logFile': fleet_home ~ '/.local/state/chaldea/waits.log'
-} | to_nice_json }}
+} | combine({'sessionPolicy': chaldea_client_session_policy_path}
+            if chaldea_client_session_policy_enabled | bool else {})) | to_nice_json }}
