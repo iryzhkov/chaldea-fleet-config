@@ -1,0 +1,62 @@
+{
+  "skills/roadmap-executor/SKILL.md": [
+    [
+      "## Keep a small working set\n\n- Start from the execution checkpoint or handoff: current outcome and decisions,\n  state, source refs, active task/thread/run/wait/PR and CI IDs, blockers and next\n  action. For Chaldea the checkpoint is\n  `tooling/handoffs/chaldea-execution-checkpoint.md` and the plan of record\n  `tooling/plans/chaldea-rebuild-plan-2026-10-16.md` in Jocasta. Use current\n  revisions, not old transcript summaries.\n- Read the plan sections, decisions and findings the next action depends on.\n  Linked PRs, reviews, job logs and audits are immutable evidence; open one when a\n  decision needs it, not to rebuild history.\n- Fetch a full document only when needed, as before every Jocasta update: fetch\n  it in full, reconcile and write with `--if-revision N`\n  (`~/.config/agents/jocasta.md`), then work from its operative part rather than\n  printing it all. Never overwrite a concurrent update.\n- Measure context in bytes or tokens, not lines. Project tool output to the fields\n  you need, use scoped reads, and read one channel when a tool returns both text\n  and structured duplicates.\n- Keep plan order, measured-friction reasons, simplicity guardrails and budgets.\n  Re-scope overruns with Igor; add capabilities only for a measured need or his\n  decision. Recorded decisions are binding, not review debate topics.\n\n",
+      "## Keep a small working set\n\n- Start with the current checkpoint's outcome, execution status, authority,\n  active ownership, blockers and next action. A stopped roadmap stays stopped;\n  delayed notifications do not authorize continuation. For Chaldea use\n  `tooling/handoffs/chaldea-execution-checkpoint.md` and plan\n  `tooling/plans/chaldea-rebuild-plan-2026-10-16.md` in Jocasta.\n- Read only the plan sections and evidence needed for the next decision.\n  Reuse skills and references already read while their version and applicability\n  remain valid; reload when they change or missing context requires it.\n- Fetch the full current document before every Jocasta update, reconcile and use\n  `--if-revision N` under `~/.config/agents/jocasta.md`. Full fetch is required\n  for safe editing; printing the full body into context is not.\n- Project tool results to needed fields and use one response channel when text\n  and structured content duplicate each other. Scope catalog/schema discovery\n  to the capability needed; keep raw logs on disk and read relevant windows.\n  Preserve IDs, errors and evidence required for the decision.\n- Keep each fact in its owning document: plan for outcome, decisions and strategy;\n  checkpoint for current execution state; linked receipts for detailed evidence.\n  Do not copy the same completed history into all three.\n- Keep plan order, measured-friction reasons, simplicity guardrails and budgets.\n  Re-scope overruns with Igor; add capabilities only for a measured need or his\n  decision. Recorded decisions are binding, not review debate topics.\n\n"
+    ],
+    [
+      "- Update the checkpoint at milestones and genuine state changes, not after every\n  tool call: current outcome and lanes, exact commits/PRs, review thread\n  IDs/models/verdicts, CI, deployment/verification by host, open decisions/risks\n  and next action. Link history instead of copying it; keep entries short rather\n  than packing long lines. Reconcile adopted decisions and accepted progress into\n  the plan of record.",
+      "- Replace obsolete checkpoint state at milestones and genuine state changes,\n  not after every tool call. Keep one current account of outcome/status,\n  authority and safety constraints, active owners and task/run/wait IDs, exact\n  source/PR/review/CI references, per-host deployed and verified state,\n  unresolved findings and next action. Explicitly record none where ownership\n  is released. Never leave superseded \"active\" or \"pending\" entries underneath\n  a new summary.\n- Aim for roughly 1,000 to 2,000 words for the operative checkpoint, a soft\n  target rather than a gate. Preserve all live IDs, permissions, recovery\n  obligations and unresolved risks even when more space is needed. Jocasta\n  revisions preserve old state; link an exact prior revision or durable receipt\n  before removing detail still needed as evidence. Keep ordinary spacing and\n  readable sentences instead of compressing words together.\n- Reconcile outcome or strategy changes into the plan; keep routine task/CI\n  transitions in the checkpoint. A completed review or job usually needs its\n  result, exact source and durable evidence link, not its full log or history."
+    ],
+    [
+      "Fill from verified evidence, remove unused clauses and unresolved placeholders,\nand link detailed logs. Preparing a prompt does not authorize its execution.",
+      "Fill from the current checkpoint and link exact evidence; do not create another\ncopy of the execution history. Remove unused clauses and unresolved placeholders.\nKeep execution status and stop instructions explicit. Preparing a prompt does\nnot authorize its execution."
+    ]
+  ],
+  "skills/review-delegation/SKILL.md": [
+    [
+      "  parent stays the integration and checkpoint owner.\n- Ask for concise results:",
+      "  parent stays the integration and checkpoint owner.\n  Include only facts that can change this worker's action or verdict. Link exact\n  evidence and relevant sections instead of copying terminal lanes, full skill\n  bodies, tool catalogs or prior failure diaries. Keep authority, interfaces,\n  safety constraints and unresolved review findings explicit; brevity never\n  removes them. Use normal spacing and readable sentences.\n- Ask for concise results:"
+    ]
+  ],
+  "agents/AGENTS.md": [
+    [
+      "Read a quick lookup in a known file directly.",
+      "Read a quick lookup in a known file directly. Reuse guidance already read while\nits version and applicability remain valid. Project tool output to needed fields\nand read one channel when text and structured responses duplicate each other.\nReduce context by selecting relevant material, not by packing words together."
+    ]
+  ],
+  "codex/AGENTS.md": [
+    [
+      "Read a quick lookup in a known file directly.",
+      "Read a quick lookup in a known file directly. Reuse guidance already read while\nits version and applicability remain valid. Project tool output to needed fields\nand read one channel when text and structured responses duplicate each other.\nReduce context by selecting relevant material, not by packing words together."
+    ]
+  ],
+  "claude/omarchy-setup/CLAUDE.md": [
+    [
+      "Read a quick lookup in a known file directly.",
+      "Read a quick lookup in a known file directly. Reuse guidance already read while\nits version and applicability remain valid. Project tool output to needed fields\nand read one channel when text and structured responses duplicate each other.\nReduce context by selecting relevant material, not by packing words together."
+    ]
+  ],
+  "agents/jocasta.md": [
+    [
+      "/tmp/plan.md",
+      "~/.cache/<task>/plan.md"
+    ],
+    [
+      "/tmp/handoff.md",
+      "~/.cache/<task>/handoff.md"
+    ],
+    [
+      "Jocasta is the shared working-document store: repository source stays in Git and is read and\nedited through Huyang and OV stays curated long-term memory.",
+      "Keep working documents current rather than append-only. Replace obsolete active/pending\nstate when reconciling; do not leave contradictory stage summaries below a new update.\nBefore removing detail still needed as evidence, retain an exact revision link or durable\nreceipt. Jocasta revisions preserve history; do not duplicate it in every plan, checkpoint\nand handoff. Keep the plan's decisions and strategy separate from checkpoint task/run state.\nFetch the whole document for a safe update, then inspect and print only the operative parts\nneeded for the decision. Use readable sentences and normal spacing. Roadmap-executor owns\nthe operative checkpoint shape and soft size target; this guidance adds no new report.\n\nJocasta is the shared working-document store: repository source stays in Git and is read and\nedited through Huyang and OV stays curated long-term memory."
+    ],
+    [
+      "~/.cache/<task>/plan.md",
+      "~/.cache/roadmap-work/plan.md"
+    ],
+    [
+      "~/.cache/<task>/handoff.md",
+      "~/.cache/roadmap-work/handoff.md"
+    ]
+  ]
+}
