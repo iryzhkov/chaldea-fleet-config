@@ -74,7 +74,10 @@ def recovery(tmp_path, monkeypatch):
     monkeypatch.setenv("WAITS_RECOVERY_CONFIG", str(config))
     listener = socket.socket(socket.AF_UNIX)
     endpoint = home / ".runtime/waits.sock"
-    listener.bind(str(endpoint))
+    # AF_UNIX limits the bind name, even when the scratch directory is valid.
+    with monkeypatch.context() as scratch:
+        scratch.chdir(endpoint.parent)
+        listener.bind(endpoint.name)
     endpoint.chmod(0o600)
     defaults = yaml.safe_load((ROLE / "defaults/main.yml").read_text())
     variables = defaults | yaml.safe_load((ROLE / "vars/main.yml").read_text()) | {
