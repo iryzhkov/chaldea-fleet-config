@@ -1,10 +1,11 @@
 ---
 # Explicit extra-vars only. This file is not imported by site or either MC play.
-# Published C63 client049; actual downloads verified in cd2e425300544d65e90ba99c4d4bbc2e@1.
-# Preserve actual 044/046/047/048 payloads and caches; fresh age/mtime inventory is an
-# operator gate because the unchanged runtime role prunes inactive bytes after 14d.
-mission_control_runtime_version: client-v0.4.9
-mission_control_runtime_sha256: 4029833d7b013571ff375a8bb58d355fcab3ab54e682038a2a65a598751a1535
+# Published C67 client0413; archive and manifest match the qualified native bytes.
+# Upgrade H/N consumers and all four collector0210 units before capture0413.
+# Preserve actual 044/046/047/048/049 payloads and caches; fresh age/mtime inventory
+# gates the unchanged runtime role's pruning of inactive bytes after 14d.
+mission_control_runtime_version: client-v0.4.13
+mission_control_runtime_sha256: 82a618bb5d3148da57c4cabe040ea275ac1bf1f71f303c65073fe8ec54498912
 mission_control_activate: false
 mission_control_runtime_enabled: false
 mission_control_capture_enabled: false

@@ -684,8 +684,12 @@ NECESSITY_INSERTIONS = {
 }
 
 
+# Autonomous routine adoption requested by Igor, 2026-10-20.
+# Reverse this latest authorized layer without changing the pre-move byte fixture.
+AUDIT_AUTONOMY_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_audit_autonomy.json").read_text())
+
 # Orchestrator-only trigger and compact-context guidance requested by Igor, 2026-10-19.
-# Newest layer: its exact (before, after) blocks are reversed first.
 CONTEXT_TRIGGER_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_context_triggers.json").read_text())
 # Files added after the move have no pre-move bytes; they install unchanged.
@@ -696,6 +700,10 @@ HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetc
 
 
 def old_bytes(relative, data):
+    for before, after in reversed(AUDIT_AUTONOMY_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     if relative in {"agents/AGENTS.md", "codex/AGENTS.md", "claude/omarchy-setup/CLAUDE.md"}:
         heading = "#" if relative.startswith("claude/") else "##"
         block = (heading + " Authoring HTTP MCP tools\n\n" + HTTP_MCP_AUTHORING_BODY).encode()
