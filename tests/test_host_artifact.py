@@ -282,13 +282,13 @@ def test_retention_keeps_configured_and_one_prior_release_and_cache(tmp_path):
     ])
 
 
-def test_retention_keeps_all_eight_through_runtime_then_shared_calls(tmp_path):
+def test_retention_keeps_all_nine_through_runtime_then_shared_calls(tmp_path):
     pins = stage(tmp_path)
     root = Path(pins["chaldea_host_artifact_release_root"])
     cache = Path(pins["chaldea_host_artifact_cache"])
     root.mkdir()
     cache.mkdir()
-    older = [f"host-v0.2.{i}" for i in (2, 3, 4, 6, 7, 8, 9)]
+    older = [f"host-v0.2.{i}" for i in (2, 3, 4, 6, 7, 8, 9, 10)]
     archive = Path(pins["chaldea_host_artifact_archive_source"]).read_bytes()
     original_cache = {}
     for index, version in enumerate(older):
@@ -304,8 +304,8 @@ def test_retention_keeps_all_eight_through_runtime_then_shared_calls(tmp_path):
             (cache / name).write_bytes(content)
             original_cache[name] = content
     calls = (
-        ("host-v0.2.10", older[:-1]),  # newest prior029 plus six explicit old releases
-        ("host-v0.2.2", older[1:]),   # newest prior0210 plus six other old releases
+        ("host-v0.2.11", older[:-1]),  # newest prior0210 plus seven explicit old releases
+        ("host-v0.2.2", older[1:]),   # newest prior0211 plus seven other old releases
     )
     for selected, preserved in calls:
         pins["chaldea_host_version"] = selected
@@ -314,13 +314,13 @@ def test_retention_keeps_all_eight_through_runtime_then_shared_calls(tmp_path):
             json.dumps({"version": selected, "sha256": pins["chaldea_host_sha256"]}))
         result = run_role(tmp_path, pins)
         assert result.returncode == 0, result.stdout + result.stderr
-        assert {p.name for p in root.iterdir()} == set(older) | {"host-v0.2.10"}
+        assert {p.name for p in root.iterdir()} == set(older) | {"host-v0.2.11"}
         assert {p.name for p in cache.iterdir()} == {
-            version + suffix for version in [*older, "host-v0.2.10"] for suffix in (".tar.gz", ".json")
+            version + suffix for version in [*older, "host-v0.2.11"] for suffix in (".tar.gz", ".json")
         }
         for version in older:
             assert (root / version / "consumer").read_text() == version
         for name, content in original_cache.items():
             assert (cache / name).read_bytes() == content
         # Fixture ordering only. Real target mtimes remain an operator gate.
-        os.utime(root / "host-v0.2.10", (100, 100))
+        os.utime(root / "host-v0.2.11", (100, 100))
