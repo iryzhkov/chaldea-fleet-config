@@ -75,7 +75,13 @@ the previously masked user unit are allowed. Unknown states, foreign units,
 aliases and two active owners fail. An unavailable user manager also fails.
 The migration stops/disables only the verified role-owned user unit, backs it
 up as chaldea-waits.service.pre-system, masks it and verifies inactivity before
-system startup. It never runs both against the DB. Exact definition admission
+system startup. It never runs both against the DB. Before changing any waits configuration,
+checker, public policy or unit, check-mode prediction persists restart intent in
+`HOME/.local/state/chaldea/waits-system-restart-required`. Interrupted runs retain
+that intent and force a restart even when the next render matches. Restart or
+readiness failure keeps it; only verified success clears it. A converged run
+without pending intent does not restart again. Readiness also checks the loaded
+ExecStart uses the measured runtime and expected config path. Exact definition admission
 can refuse later configuration changes; review the old definition explicitly
 instead of bypassing the refusal.
 
