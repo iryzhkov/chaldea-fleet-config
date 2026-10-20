@@ -53,6 +53,10 @@
   loop_control:
     label: "{{ item.item.unit }} credential {{ item.item.path }}"
 
+- name: Validate and render the protected session policy
+  ansible.builtin.include_tasks: session-policy.yml
+  when: chaldea_client_session_policy_enabled | bool
+
 - name: Inspect current release link
   ansible.builtin.stat:
     path: "{{ chaldea_client_root }}/current"
