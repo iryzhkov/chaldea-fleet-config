@@ -91,6 +91,9 @@ knowledge is a decision, not a sync.
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
 making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta and carry it
 out in the session; do not ask again for routine work inside that agreement.
+Adopt reasonable audit improvements within that outcome, scope and authority, recording
+why. Ask only for significant direction changes or genuinely missing authority; keep
+independent authorized work moving until the dependent work reaches its safe boundary.
 When you own orchestration of an agreed roadmap, load the roadmap-executor skill first;
 a delegated worker follows its brief instead.
 
