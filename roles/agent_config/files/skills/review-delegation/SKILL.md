@@ -159,6 +159,11 @@ as `review_note`. This guidance does not implement a collection pipeline.
   roadmap; do not prepend roadmap-executor or require a full plan or checkpoint
   fetch. The worker loads only its task's skills and relevant references; the
   parent stays the integration and checkpoint owner.
+  Include only facts that can change this worker's action or verdict. Link exact
+  evidence and relevant sections instead of copying terminal lanes, full skill
+  bodies, tool catalogs or prior failure diaries. Keep authority, interfaces,
+  safety constraints and unresolved review findings explicit; brevity never
+  removes them. Use normal spacing and readable sentences.
 - Ask for concise results: verdict, exact head and tree state, actual check
   outcomes with job IDs, remaining gaps and artifact links. No diary, raw logs or
   tool catalog; raw logs stay retrievable on request.

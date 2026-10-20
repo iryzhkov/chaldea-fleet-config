@@ -129,7 +129,10 @@ allowed when selected. Maximum effort is high; only Luna/Haiku may use xhigh.
 These are ceilings, not defaults. Choose only available live-catalog models/options;
 Haiku needs an available catalog target. Never use max, ultra, ultrathink or ultracode.
 Conserve Claude for required main cross-provider reviews; avoid optional Claude fan-outs.
-Read a quick lookup in a known file directly.
+Read a quick lookup in a known file directly. Reuse guidance already read while
+its version and applicability remain valid. Project tool output to needed fields
+and read one channel when text and structured responses duplicate each other.
+Reduce context by selecting relevant material, not by packing words together.
 
 Ask first when the estimated cost is large, the work needs operator-level access, or it
 changes more than one host.
