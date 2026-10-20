@@ -6,9 +6,9 @@
 pull_timer_enabled: true
 retention_timer_enabled: true
 
-# The collector was qualified and staged independently of the host installer pin.
-# Published029 verified in cd2e425300544d65e90ba99c4d4bbc2e@1; stage before selection.
-# Keep this selection shared without upgrading other host consumers.
-akasha_collector_version: host-v0.2.9
+# Published C67 host0210 is independent of the shared host022 installer pin.
+# Stage and verify all four host0210 artifacts before merging this selection.
+# Upgrade H/N consumers and collector0210 before starting capture0413.
+akasha_collector_version: host-v0.2.10
 akasha_collector_script: "/opt/chaldea-host/releases/{{ akasha_collector_version }}/host/akasha-collector.mjs"
 # The separate enrollment inventory has no agent_hosts group and keeps its defaults.
