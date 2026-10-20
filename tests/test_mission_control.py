@@ -266,6 +266,34 @@ def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
         assert not (tmp_path / "runtime/releases/client-v9.8.7").exists()
     finally:
         protected_opt.chmod(0o755)
+    cache = tmp_path / "runtime/cache"
+    cache.mkdir(parents=True)
+    inputs = [(cache / "client-v9.8.7.tar.gz", Path(str(values["mission_control_runtime_archive_source"]))),
+              (cache / "client-v9.8.7.json", Path(str(values["mission_control_runtime_manifest_source"])))]
+    snapshot = lambda: sorted((str(p), p.lstat().st_mode, p.lstat().st_mtime_ns,
+        p.read_bytes() if p.is_file() else None) for p in (tmp_path / "runtime").rglob("*"))
+    for present in ([0], [], [1], [0, 1], "corrupt", "linked"):
+        for target, source in inputs:
+            target.unlink(missing_ok=True)
+        for index in (present if isinstance(present, list) else [0, 1]):
+            shutil.copyfile(inputs[index][1], inputs[index][0])
+        if present == "corrupt":
+            inputs[0][0].write_bytes(b"corrupt archive")
+        if present == "linked":
+            inputs[1][0].unlink()
+            inputs[1][0].symlink_to(inputs[1][1])
+        before = snapshot()
+        checked = play(tmp_path, "fixture", roles=[role], values=values, check=True)
+        if isinstance(present, list):
+            ok(checked)
+            if len(present) < 2:
+                assert "canonical validation deferred" in checked.stdout
+        else:
+            assert checked.returncode != 0, checked.stdout
+        assert snapshot() == before
+        assert not (tmp_path / "runtime/releases/client-v9.8.7").exists()
+    for target, source in inputs:
+        target.unlink()
     ok(play(tmp_path, "fixture", roles=[role], values=values, check=True))
     ok(play(tmp_path, "fixture", roles=[role], values=values))
     again = play(tmp_path, "fixture", roles=[role], values=values)
@@ -275,6 +303,13 @@ def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
     assert not (tmp_path / "runtime/releases/client-v0.0.1").exists()
     assert (tmp_path / "runtime/releases/client-v0.0.2/sentinel").exists()
     assert (tmp_path / "runtime/releases/client-v9.8.7/bin/chaldea").exists()
+    manifest_source = inputs[1][1]
+    original = manifest_source.read_bytes()
+    for bad in (b"{}", None):
+        manifest_source.unlink() if bad is None else manifest_source.write_bytes(bad)
+        rejected = play(tmp_path, "fixture", roles=[role], values=values)
+        assert rejected.returncode != 0, rejected.stdout
+        manifest_source.write_bytes(original)
     drift = tmp_path / "runtime/releases/client-v9.8.7/src/cli.ts"
     drift.write_text("drift")
     refused = play(tmp_path, "fixture", roles=[role], values=values)
