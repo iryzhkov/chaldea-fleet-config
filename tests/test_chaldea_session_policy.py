@@ -206,7 +206,25 @@ def test_unsupported_policy_is_refused_before_any_write(tmp_path, monkeypatch, c
     assert not (Path.home() / ".config/chaldea/waits.json").exists()
 
 
-@pytest.mark.parametrize("failure", ["missing", "mode", "empty", "symlink", "directory"])
+def forbid_password_opens(tmp_path, monkeypatch):
+    # Every Python process, including remote Ansible modules, refuses an attempt
+    # to open an app-password. stat/lstat are allowed. No secret bytes are read.
+    audit = tmp_path / "audit"
+    audit.mkdir()
+    marker = audit / "opened"
+    (audit / "sitecustomize.py").write_text(
+        "import os, sys\n"
+        "def audit(event, args):\n"
+        "    if event == 'open' and isinstance(args[0], (str, bytes)) "
+        "and os.fsdecode(args[0]).endswith('.app-password'):\n"
+        "        with open(" + repr(str(marker)) + ", 'w') as out: out.write('attempt')\n"
+        "        raise PermissionError('fixture forbids secret open')\n"
+        "sys.addaudithook(audit)\n")
+    monkeypatch.setenv("PYTHONPATH", str(audit))
+    return marker
+
+
+@pytest.mark.parametrize("failure", ["missing", "mode", "empty", "symlink", "directory", "hardlink"])
 def test_unsafe_app_password_is_refused_by_stat_only(tmp_path, monkeypatch, failure):
     variables = policy_variables(tmp_path, monkeypatch)
     provision()
@@ -222,10 +240,17 @@ def test_unsafe_app_password_is_refused_by_stat_only(tmp_path, monkeypatch, fail
         path.symlink_to(target)
     elif failure == "directory":
         path.parent.chmod(0o755)
+    elif failure == "hardlink":
+        alias = tmp_path / "alias.app-password"
+        os.link(path, alias)
+        assert path.lstat().st_nlink == alias.lstat().st_nlink == 2
+    marker = forbid_password_opens(tmp_path, monkeypatch)
     result = run(tmp_path, variables, protected_tree(tmp_path))
     assert result.returncode != 0
     assert "Refusing the session policy" in result.stdout, result.stdout
+    assert not marker.exists(), "the role attempted to open an app-password"
     assert not (tmp_path / "protected/etc/chaldea").exists()
+    assert not (Path.home() / ".config/chaldea/waits.json").exists()
 
 
 @pytest.mark.parametrize("failure", ["writable", "linked", "hard link"])
@@ -306,20 +331,7 @@ def test_new_profiles_render_exactly_idempotently_without_secret_opens(tmp_path,
     variables = service_variables(tmp_path, monkeypatch, audience)
     provision()
     provision_app_password()
-    # Every Python process, including remote Ansible modules, refuses an attempt
-    # to open an app-password. stat/lstat are allowed. No secret bytes are read.
-    audit = tmp_path / "audit"
-    audit.mkdir()
-    marker = audit / "opened"
-    (audit / "sitecustomize.py").write_text(
-        "import os, sys\n"
-        "def audit(event, args):\n"
-        "    if event == 'open' and isinstance(args[0], (str, bytes)) "
-        "and os.fsdecode(args[0]).endswith('.app-password'):\n"
-        "        with open(" + repr(str(marker)) + ", 'w') as out: out.write('attempt')\n"
-        "        raise PermissionError('fixture forbids secret open')\n"
-        "sys.addaudithook(audit)\n")
-    monkeypatch.setenv("PYTHONPATH", str(audit))
+    marker = forbid_password_opens(tmp_path, monkeypatch)
     extra = protected_tree(tmp_path)
     ok(run(tmp_path, variables, extra, check=True))
     path = Path(extra["chaldea_client_session_policy_path"])
@@ -603,3 +615,69 @@ def test_secret_path_cannot_follow_noncanonical_home(validator, tmp_path, monkey
         variables["fleet_home"] + "/.config/chaldea/authentik/" + PRESET + ".app-password")
     with pytest.raises(validator.AnsibleFilterError, match="secretFile"):
         validate(validator, variables)
+
+
+def legacy_service_entries():
+    return [{"audience": audience,
+             "grants": [{"resource": "project:projectA", "actions": ["get"]}]}
+            for audience in ("homelab", "feed", "akasha", "jocasta", "ov", "huyang", "github-broker")]
+
+
+def oversized_service_entries():
+    # Eight distinct audiences. The typed OV still admits the enrolled preset,
+    # so neither duplicates nor missing ceiling containment can mask the bound.
+    entries = legacy_service_entries()
+    entries[4] = copy.deepcopy(GRANTS["ov"])
+    return entries + [copy.deepcopy(GRANTS["ha"])]
+
+
+@pytest.mark.parametrize("location", ["ceiling", "preset"])
+@pytest.mark.parametrize("failure", ["empty", "eight", "typed duplicate", "legacy duplicate", "mixed duplicate"])
+def test_service_list_bounds_and_unique_audiences(validator, tmp_path, monkeypatch, location, failure):
+    variables = policy_variables(tmp_path, monkeypatch)
+    if failure == "empty":
+        entries = []
+    elif failure == "eight":
+        entries = oversized_service_entries()
+    elif failure == "typed duplicate":
+        entries = [copy.deepcopy(GRANTS["ov"]), copy.deepcopy(GRANTS["ov"])]
+    elif failure == "legacy duplicate":
+        entries = [copy.deepcopy(SERVICES[0]), copy.deepcopy(SERVICES[0])]
+    else:
+        entries = [copy.deepcopy(GRANTS["ov"]), legacy_service_entries()[4]]
+    target = (variables["chaldea_client_session_ceilings"][0] if location == "ceiling"
+              else variables["chaldea_client_session_presets"][PRESET])
+    target["services"] = entries
+    message = "services list" if failure in {"empty", "eight"} else "unique service audiences"
+    with pytest.raises(validator.AnsibleFilterError, match=message):
+        validate(validator, variables)
+
+
+def test_seven_unique_legacy_services_preserve_payload_and_order(validator, tmp_path, monkeypatch):
+    variables = policy_variables(tmp_path, monkeypatch)
+    variables["chaldea_client_session_ceilings"][0]["services"] = legacy_service_entries()
+    variables["chaldea_client_session_presets"][PRESET]["services"] = legacy_service_entries()
+    before = copy.deepcopy(variables)
+    assert validate(validator, variables)
+    assert variables == before
+
+
+@pytest.mark.parametrize("failure", ["duplicate OV", "empty", "eight"])
+def test_invalid_ceiling_service_lists_refuse_before_credential_stat_or_write(tmp_path, monkeypatch, failure):
+    variables = service_variables(tmp_path, monkeypatch, "ov")
+    if failure == "duplicate OV":
+        entries = [copy.deepcopy(GRANTS["ov"]), copy.deepcopy(GRANTS["ov"])]
+        message = "unique service audiences"
+    else:
+        entries = [] if failure == "empty" else oversized_service_entries()
+        message = "services list"
+    variables["chaldea_client_session_ceilings"][0]["services"] = entries
+    provision()
+    marker = forbid_password_opens(tmp_path, monkeypatch)
+    result = run(tmp_path, variables, protected_tree(tmp_path))
+    assert result.returncode != 0
+    assert message in result.stdout, result.stdout
+    assert "Inspect operator-provisioned" not in result.stdout
+    assert not marker.exists()
+    assert not (tmp_path / "protected/etc/chaldea").exists()
+    assert not (Path.home() / ".config/chaldea/waits.json").exists()

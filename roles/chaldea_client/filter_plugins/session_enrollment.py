@@ -99,10 +99,14 @@ def subset(request, ceiling):
 
 
 def typed_services(values):
-    require(isinstance(values, list), "services list")
+    require(isinstance(values, list) and 1 <= len(values) <= 7, "services list")
     typed = []
+    seen = set()
     for value in values:
         require(isinstance(value, Mapping), "service object")
+        audience = value.get("audience")
+        require(isinstance(audience, str) and audience not in seen, "unique service audiences")
+        seen.add(audience)
         # The old grants codec remains parse-only, including in ceilings.
         if "grants" in value:
             require(set(value) == {"audience", "grants"}, "legacy service fields")
