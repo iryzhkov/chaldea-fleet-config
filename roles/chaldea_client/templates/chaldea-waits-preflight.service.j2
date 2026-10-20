@@ -4,6 +4,8 @@ Description=Chaldea waits pre-enrollment namespace and public ownership prefligh
 
 [Service]
 Type=oneshot
+TimeoutStartSec=90s
+TimeoutStopSec=5s
 {% include 'chaldea-waits-system-sandbox.j2' %}
 
 ExecStart={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ fleet_home }}/.config/chaldea/waits-namespace-check.mjs
