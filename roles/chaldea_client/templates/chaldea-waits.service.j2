@@ -9,6 +9,7 @@ Type=simple
 ExecStart=%h/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node %h/.local/share/chaldea/current/bin/chaldea waits serve --config %h/.config/chaldea/waits.json
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 StateDirectory=chaldea
+StateDirectoryMode=0700
 CacheDirectory=chaldea-waits
 Restart=on-failure
 RestartSec=5

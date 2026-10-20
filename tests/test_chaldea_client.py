@@ -1,4 +1,5 @@
 """Apply the real client role only in scratch homes, behind a fake user manager."""
+import configparser
 import hashlib
 import io
 import json
@@ -85,6 +86,90 @@ def provision():
 def success(result):
     assert result.returncode == 0, result.stdout + result.stderr
     assert "FIXTURE-SECRET-NEVER-PRINT" not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("quota_runtime", [False, True])
+def test_directory_provisioning_repairs_private_quota_state(quota_runtime):
+    home = Path.home()
+    safe(home)
+    assert home == Path(os.environ["HOME"]).resolve()
+    base = home / "directory-fixture"
+    base.mkdir()
+    defaults = yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text())
+    canonical = yaml.safe_load((ROOT / "roles/chaldea_client/tasks/main.yml").read_text())
+    names = {"Create client directories without touching other config or state",
+             "Create private client-owned directories"}
+    tasks = [task for task in canonical if task.get("name") in names]
+    assert len(tasks) == 2
+    assert all(task["ansible.builtin.file"]["state"] == "directory" for task in tasks)
+    unit_task = next(task for task in canonical if task.get("name") ==
+                     "Atomically replace hand-made units with managed units")
+    unit_task = unit_task | {"ansible.builtin.template": unit_task["ansible.builtin.template"] | {
+        "src": str(ROOT / "roles/chaldea_client/templates") + "/{{ item }}.service.j2",
+    }}
+    tasks.append(unit_task)
+    state = home / ".local/state/chaldea"
+    generic = {home / ".local/share/chaldea": 0o755,
+               home / ".config/systemd/user": 0o775,
+               home / ".local/bin": 0o751}
+    for path, mode in {
+        **generic, state: 0o755,
+        home / ".local/share/chaldea/releases": 0o700,
+        home / ".cache/chaldea-client": 0o700,
+        home / ".config/chaldea": 0o700,
+    }.items():
+        assert path.resolve().is_relative_to(home)
+        path.mkdir(parents=True, exist_ok=True)
+        path.chmod(mode)
+    observer = state / "quota-observer.json"
+    observer.write_bytes(b"quota fixture\n" + b"x" * (45878 - 14))
+    observer.chmod(0o600)
+    os.utime(observer, ns=(1700000000000000000, 1700000000000000000))
+
+    def snapshot():
+        st = observer.lstat()
+        assert observer.is_file() and not observer.is_symlink()
+        return (observer.read_bytes(), st.st_mode, st.st_uid, st.st_gid,
+                st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+
+    before = snapshot()
+    state_before = state.stat()
+    assert state_before.st_mode & 0o777 == 0o755
+    assert state_before.st_uid == before[2] == os.getuid()
+    play = base / "directories.yml"
+    play.write_text(yaml.safe_dump([{
+        "name": "Canonical directory tasks in scratch", "hosts": "localhost",
+        "connection": "local", "gather_facts": False,
+        "vars": defaults | {"fleet_home": str(home),
+                            "ansible_python_interpreter": sys.executable,
+                            "chaldea_node_version": "26.10.0",
+                            "chaldea_client_quota_runtime_enabled": quota_runtime,
+                            "chaldea_client_quota_runtime_version": "client-v9.0.0"},
+        "tasks": tasks,
+    }]))
+    for attempt in range(2):
+        result = subprocess.run(
+            ["ansible-playbook", "-i", "localhost,", str(play)], cwd=ROOT,
+            env=dict(os.environ, ANSIBLE_LOCAL_TEMP=str(base / "ansible-local"),
+                     ANSIBLE_REMOTE_TEMP=str(base / "ansible-remote")),
+            capture_output=True, text=True)
+        print(result.stdout, result.stderr)
+        success(result)
+        assert ("changed=2" if attempt == 0 else "changed=0") in result.stdout
+        st = state.stat()
+        assert st.st_mode & 0o777 == 0o700
+        assert (st.st_uid, st.st_gid, st.st_ino) == (
+            state_before.st_uid, state_before.st_gid, state_before.st_ino)
+        assert snapshot() == before
+        for path, mode in generic.items():
+            assert path.stat().st_mode & 0o777 == mode
+        for name in ("chaldea-quota", "chaldea-waits"):
+            unit = configparser.ConfigParser(interpolation=None, strict=False)
+            unit.read(home / f".config/systemd/user/{name}.service")
+            # systemd otherwise defaults to 0755 and resets the directory on start.
+            assert unit["Service"]["StateDirectory"] == "chaldea"
+            assert unit["Service"]["StateDirectoryMode"] == "0700"
+        print(f"rendered StateDirectoryMode=0700 for both units, quota_runtime={quota_runtime}")
 
 
 def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
