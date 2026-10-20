@@ -96,7 +96,7 @@ def test_directory_provisioning_repairs_private_quota_state(quota_runtime):
     base = home / "directory-fixture"
     base.mkdir()
     defaults = yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text())
-    canonical = yaml.safe_load((ROOT / "roles/chaldea_client/tasks/main.yml").read_text())
+    canonical = yaml.safe_load((ROOT / "roles/chaldea_client/tasks/client.yml").read_text())
     names = {"Create client directories without touching other config or state",
              "Create private client-owned directories"}
     tasks = [task for task in canonical if task.get("name") in names]

@@ -1,0 +1,78 @@
+---
+# A failed/unavailable manager or an unknown definition is not permission to take over.
+- name: Read waits ownership from both managers before writing or stopping anything
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - "{{ item.scope }}"
+      - show
+      - chaldea-waits.service
+      - --property=LoadState,ActiveState,FragmentPath,DropInPaths,UnitFileState
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  become: "{{ item.scope == '--system' }}"
+  changed_when: false
+  check_mode: false
+  loop:
+    - {scope: --user, path: "{{ fleet_home }}/.config/systemd/user/chaldea-waits.service", template: chaldea-waits.service.j2}
+    - {scope: --system, path: /etc/systemd/system/chaldea-waits.service, template: chaldea-waits-system.service.j2}
+  register: chaldea_client_waits_owners
+  failed_when: chaldea_client_waits_owners.rc != 0 and 'LoadState=not-found' not in chaldea_client_waits_owners.stdout_lines
+
+- name: Inspect only candidate waits unit files without following links
+  ansible.builtin.stat:
+    path: "{{ item.item.path }}"
+    follow: false
+    get_checksum: true
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ chaldea_client_waits_owners.results }}"
+  register: chaldea_client_waits_owner_files
+
+- name: Inspect the reserved user rollback definition
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/.config/systemd/user/chaldea-waits.service.pre-system"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  register: chaldea_client_waits_user_backup
+
+- name: Refuse to reuse an unknown rollback definition
+  ansible.builtin.assert:
+    that:
+      - >-
+        not chaldea_client_waits_user_backup.stat.exists or
+        (chaldea_client_waits_user_backup.stat.isreg | default(false) and
+         chaldea_client_waits_user_backup.stat.mode == '0644' and chaldea_client_waits_user_backup.stat.nlink == 1 and
+         chaldea_client_waits_user_backup.stat.uid == ansible_facts.user_uid | int and
+         chaldea_client_waits_user_backup.stat.checksum ==
+           lookup('ansible.builtin.template', 'chaldea-waits.service.j2') | hash('sha256'))
+    quiet: true
+
+- name: Refuse foreign definitions drop-ins aliases collisions and unknown manager state
+  ansible.builtin.assert:
+    that:
+      - "'DropInPaths=' in item.item.stdout_lines"
+      - "'ActiveState=inactive' in item.item.stdout_lines or 'ActiveState=active' in item.item.stdout_lines"
+      - >-
+        'UnitFileState=enabled' in item.item.stdout_lines or 'UnitFileState=disabled' in item.item.stdout_lines or
+        'UnitFileState=masked' in item.item.stdout_lines or
+        ('LoadState=not-found' in item.item.stdout_lines and 'UnitFileState=' in item.item.stdout_lines)
+      - >-
+        (not item.stat.exists and 'LoadState=not-found' in item.item.stdout_lines) or
+        (item.stat.isreg | default(false) and item.stat.mode == '0644' and item.stat.nlink == 1 and
+         item.stat.checksum == lookup('ansible.builtin.template', item.item.item.template) | hash('sha256') and
+         ('FragmentPath=' ~ item.item.item.path) in item.item.stdout_lines and
+         'LoadState=loaded' in item.item.stdout_lines and
+         (item.stat.uid == (0 if item.item.item.scope == '--system' else ansible_facts.user_uid | int))) or
+        (item.item.item.scope == '--user' and item.stat.islnk | default(false) and
+         item.stat.lnk_target == '/dev/null' and 'LoadState=masked' in item.item.stdout_lines and
+         'ActiveState=inactive' in item.item.stdout_lines)
+      - >-
+        not ('ActiveState=active' in chaldea_client_waits_owners.results[0].stdout_lines and
+             'ActiveState=active' in chaldea_client_waits_owners.results[1].stdout_lines)
+    fail_msg: Refusing unknown waits ownership or two active database owners. Restore a reviewed role definition first.
+    quiet: true
+  loop: "{{ chaldea_client_waits_owner_files.results }}"
+  loop_control:
+    label: "{{ item.item.item.scope }}"

@@ -110,6 +110,12 @@ For later rollback, pin the retained prior version and its published checksum in
 
 ## Session policy
 
+Protected sessions require the explicitly opted-in system waits mode. User mode
+refuses this combination before writes because its namespace omits root. See
+[system waits preflight](waits-system-preflight.md) for the role-only entrypoints,
+pre-enrollment qualification and rollback packet. This source does not activate
+or migrate any host.
+
 Off on every host. `chaldea_client_session_policy_enabled: false` renders no
 policy and leaves `waits.json` without a `sessionPolicy` key, byte for byte as
 before. Inventory enables nothing here.

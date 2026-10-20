@@ -1,0 +1,16 @@
+User={{ ansible_facts.user_uid }}
+Group={{ ansible_facts.user_gid }}
+Environment=HOME={{ fleet_home }}
+Environment=PATH={{ fleet_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=TMPDIR=/run/chaldea-waits-{{ ansible_facts.user_uid }}
+RuntimeDirectory=chaldea-waits-{{ ansible_facts.user_uid }}
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+UMask=0077
+PrivateUsers=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths={{ fleet_home }}/.local/state/chaldea /run/chaldea-waits-{{ ansible_facts.user_uid }}
+PrivateTmp=false
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

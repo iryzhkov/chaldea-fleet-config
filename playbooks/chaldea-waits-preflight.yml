@@ -1,0 +1,18 @@
+---
+# Credential-free only. Running this requires a separately approved host packet.
+- name: Qualify the proposed waits namespace before enrollment
+  hosts: agent_hosts
+  gather_facts: true
+  gather_subset: [min]
+  pre_tasks:
+    - name: Require a single explicitly selected matching host
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+          - ansible_facts.hostname == expected_hostname
+        quiet: true
+  tasks:
+    - name: Run only the waits namespace preflight
+      ansible.builtin.include_role:
+        name: chaldea_client
+        tasks_from: waits-preflight
