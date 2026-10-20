@@ -22,7 +22,10 @@ description: >-
 - Executing an adopted plan: roadmap-executor. Routine or trivial changes with a
   known path: do them directly.
 
-A plan is not deployment or spending authority. Igor adopts it.
+A new plan or significant change of direction needs Igor's adoption. Routine,
+evidence-backed adjustments within an adopted outcome, scope, authority and cost
+can be adopted by the orchestrator under roadmap-executor without another approval.
+A plan is not additional deployment or spending authority.
 
 ## Start from the outcome and what exists
 
@@ -111,5 +114,7 @@ normal citation rule; this adds no review gate.
 
 Record the plan in Jocasta compactly: outcome, decisions, milestones, strategy,
 lanes and audit nodes, linking evidence instead of copying it. There is no fixed
-research, spike, review, CI and all-host sequence. Once Igor adopts the plan,
-roadmap-executor carries it out.
+research, spike, review, CI and all-host sequence. For a significant direction
+choice, name the latest safe decision point and useful independent work so execution
+can continue while Igor is unavailable. Roadmap-executor carries out the adopted
+plan and routine adjustments; do not turn every revision into an adoption gate.

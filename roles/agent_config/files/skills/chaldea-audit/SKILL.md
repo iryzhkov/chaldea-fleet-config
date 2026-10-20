@@ -96,17 +96,25 @@ never poll. Recorded decisions are checked for drift, not re-argued.
   merges duplicates and writes a ranked report to
   `tooling/handoffs/chaldea-audit-<date>.md` in Jocasta. Include scope/commits,
   reviewer thread IDs/models, numbers and delta against the previous audit,
-  findings in audit-lens format, unknowns and recommendations awaiting Igor.
+  findings in audit-lens format, unknowns and proposed dispositions.
   Keep it to decisions, material findings and evidence links, not a diary.
   Fetch an existing same-date report in full and use `--if-revision N`;
   create only if absent. Preserve earlier audit evidence and decisions.
-- The orchestrator judges the report, states which recommendations it supports
-  and why, and asks Igor which to adopt. Use the chaldea skill's decision
-  workflow for native input; unanswered recommendations remain pending.
-- Record Igor's answers (adopt/reject/defer and reason) in the report and the
-  checkpoint, using full fetch/reconcile/`--if-revision`. Update the checkpoint's
-  audit reference and due status; only a comprehensive audit resets the comparable
-  source baseline and milestone counter. Decisions
-  missing from the plan are named for reconciliation, not silently invented.
-- Stop at the report and decisions. Implementation requires adopted scope;
-  an audit recommendation itself grants no authority to change anything.
+- The orchestrator judges each recommendation and adopts reasonable, evidence-backed
+  improvements within the agreed outcome, scope, authority and cost without asking
+  Igor again. Reject or defer unsupported or unnecessary suggestions. Record the
+  disposition and reason; an audit finding is evidence, not an instruction.
+- Ask Igor only for a significant change of direction or a real unresolved choice:
+  changed goals or acceptance, material scope/cost or architectural tradeoffs, or
+  actions beyond existing authority. Existing deployment, credential and security
+  boundaries still apply; routine adoption grants no additional permissions.
+- Use roadmap-executor to identify the latest safe decision point and continue
+  authorized work that does not depend on the answer. Use the chaldea decision
+  workflow when input is needed; no answer only defers dependent work.
+- Record orchestrator dispositions and any Igor decisions in the report, checkpoint
+  and plan with full fetch/reconcile/`--if-revision`. Close a completed audit and
+  update its reference and due status without waiting on unrelated proposals; only
+  a comprehensive audit resets the comparable baseline and milestone counter.
+  Unresolved blocking findings still gate the affected work.
+- Keep the audit read-only. Carry out adopted improvements as separate execution
+  work under existing authority, with the normal review, checks and release gates.
