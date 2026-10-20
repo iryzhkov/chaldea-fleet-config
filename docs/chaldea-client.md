@@ -151,6 +151,15 @@ a client release whose parser accepts `enrollments`; selecting that release is a
 separate pin change. Disabling the policy later leaves an existing policy file
 in place, inert because `waits.json` no longer names it.
 
+Only the enrollment assertion in `tasks/session-policy.yml` is Jocasta-specific
+(form, scope, 300 seconds, the `project:<project>` grant). The policy file,
+its protected layout, the stat-only secret checks and the per-preset secret
+path are service-independent. A second Authentik-protected service needs
+Chaldea's parser to accept it first; then that one assertion gains the
+service's scope, audience and grant rule, in the same change set as
+homelab-infra's second service profile (its
+`docs/authentik-machine-identities.md`, "A second service").
+
 ## Tests
 
 `tests/test_chaldea_session_policy.py` applies the real role with the protected
