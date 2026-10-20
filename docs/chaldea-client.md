@@ -136,7 +136,7 @@ Inventory supplies:
 - `chaldea_client_session_presets`: one to sixteen fixed presets, each with
   exactly the policy's preset fields and `delegate: false`;
 - `chaldea_client_session_enrollments`: optional, keyed by preset ID. Each
-  entry is exactly `{form: app_password, issuer, tokenUrl, jwksUrl, clientId,
+  legacy Jocasta entry is exactly `{form: app_password, issuer, tokenUrl, jwksUrl, clientId,
   username, scope: jocasta.read, resource, project, maxTokenSeconds: 300,
   secretFile}`. The URLs must be canonical HTTPS (lower-case host, no default
   port, no userinfo, query or fragment), with the token and JWKS URLs on the
@@ -157,14 +157,59 @@ a client release whose parser accepts `enrollments`; selecting that release is a
 separate pin change. Disabling the policy later leaves an existing policy file
 in place, inert because `waits.json` no longer names it.
 
-Only the enrollment assertion in `tasks/session-policy.yml` is Jocasta-specific
-(form, scope, 300 seconds, the `project:<project>` grant). The policy file,
-its protected layout, the stat-only secret checks and the per-preset secret
-path are service-independent. A second Authentik-protected service needs
-Chaldea's parser to accept it first; then that one assertion gains the
-service's scope, audience and grant rule, in the same change set as
-homelab-infra's second service profile (its
-`docs/authentik-machine-identities.md`, "A second service").
+The role-local `session_enrollment.py` filter validates public data before
+stat or writes. Legacy Jocasta enrollment fields and rendered JSON stay unchanged.
+New enrollments replace `project` with `audience` and the matching grant arrays.
+Their preset must have exactly one service, equal to that flat grant, including
+scope spelling and array order. The preset's `project` remains the local
+authorization/accounting domain. New enrollments contain no Jocasta project.
+
+| Audience | Fixed resource | Required flat fields |
+| --- | --- | --- |
+| `ov` | `https://ov.mcp.ryzhkov.dev/mcp` | `scope: ov.read`, `ov_namespaces` |
+| `homelab` | `https://homelab.mcp.ryzhkov.dev/mcp` | `scope: homelab.read`, `homelab_services`, `homelab_hosts` |
+| `ha` | `https://ha.mcp.ryzhkov.dev/mcp` | `scope`, `ha_entities`, `ha_actions` |
+
+OV needs 1..16 unique nonoverlapping canonical roots of at most 1024 ASCII
+characters. Roots use `viking://resources/(segment/)*segment`; segments contain
+only letters, digits or `_@+.,=-`, excluding dot segments. Escaping, wildcards,
+empty segments and trailing slashes refuse. Each homelab list has 0..128 unique
+IDs matching `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`. Explicit empty lists grant nothing.
+
+HA needs 1..64 unique entities matching
+`(light|switch|sensor|binary_sensor)[.][a-z0-9_]{1,96}`, each at most 112
+characters, and 1..3 unique actions from `state.read`, `light.control` and
+`switch.control`. Scope is exactly `ha.read`, `ha.control`,
+`ha.read ha.control` or `ha.control ha.read`. State reads require `ha.read`;
+control actions require `ha.control`. Initial approved presets remain
+`ha.read` with `state.read`. Control requires explicit protected operator
+grants and live registry/control qualification. This validator cannot establish
+that qualification.
+
+Every new enrollment has exactly the common fields `form: app_password`,
+`issuer`, `tokenUrl`, `jwksUrl`, `clientId`, `username`, `resource`,
+`maxTokenSeconds: 300`, `secretFile`, plus its flat service fields above.
+Missing/null arrays, duplicates, extra keys and arbitrary claims refuse.
+Canonical provider URLs have no escaping, dot or empty path segments. Issuer
+ends in `/`; JWKS equals issuer plus `jwks/`; token URL equals the issuer
+origin plus `/application/o/token/`. Secret paths retain the exact per-preset
+path above. New presets cannot reuse a secret file or ordinary account at one
+Authentik origin. Different services at that origin need distinct issuers and
+client IDs; presets of one service may share a provider.
+
+New grants must fit one whole ceiling with matching local project, sufficient
+duration and allowed destinations. OV uses equal/ancestor roots at slash
+boundaries, homelab uses both list subsets, and HA uses entity/action/scope
+subsets. Ceilings never merge. Legacy `{audience, grants}` entries remain
+parse-only for other services, including in ceilings, and cannot authorize a
+new flat enrollment. The validator leaves declaration order intact.
+
+The rendered UTF-8 policy must fit 64 KiB before any stat or write. Maximal
+individual arrays can still exceed this whole-file bound. The existing
+actual-user policy-load preflight remains authoritative before activation.
+No service manager, native HTTP MCP binding, provider, account or release pin
+is installed by this validation change. Deployment requires a compatible
+Chaldea release and separate live helper/endpoint qualification.
 
 ## Tests
 

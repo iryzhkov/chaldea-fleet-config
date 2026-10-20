@@ -253,3 +253,353 @@ def test_unprotected_policy_path_is_refused(tmp_path, monkeypatch, failure):
     assert "writable by no one else" in result.stdout, result.stdout
     if failure != "writable":
         assert (tmp_path / "other.json").read_text() == "{}"
+
+
+# New service profiles use the same flat public grant in all three locations.
+GRANTS = {
+    "ov": {"audience": "ov", "scope": "ov.read",
+           "ov_namespaces": ["viking://resources/namespaceA/child", "viking://resources/namespaceB"]},
+    "homelab": {"audience": "homelab", "scope": "homelab.read",
+                "homelab_services": ["dns"], "homelab_hosts": ["host-a"]},
+    "ha": {"audience": "ha", "scope": "ha.read",
+           "ha_entities": ["sensor.qualified_example"], "ha_actions": ["state.read"]},
+}
+
+
+def service_variables(tmp_path, monkeypatch, audience):
+    variables = policy_variables(tmp_path, monkeypatch)
+    grant = copy.deepcopy(GRANTS[audience])
+    preset = variables["chaldea_client_session_presets"][PRESET]
+    preset["services"] = [grant]
+    # project remains local authorization/accounting, independent of grant contents.
+    variables["chaldea_client_session_ceilings"][0]["services"] = [copy.deepcopy(grant)]
+    value = variables["chaldea_client_session_enrollments"][PRESET]
+    value.pop("project")
+    value.update(grant)
+    value.update(issuer="https://auth.example.test/application/o/chaldea-" + audience + "/",
+                 jwksUrl="https://auth.example.test/application/o/chaldea-" + audience + "/jwks/",
+                 clientId="chaldea-" + audience + "-machine",
+                 resource="https://" + audience + ".mcp.ryzhkov.dev/mcp")
+    return variables
+
+
+@pytest.fixture
+def validator():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "session_enrollment", ROOT / "roles/chaldea_client/filter_plugins/session_enrollment.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def validate(module, variables):
+    return module.chaldea_session_enrollments(
+        variables["chaldea_client_session_enrollments"],
+        variables["chaldea_client_session_presets"],
+        variables["chaldea_client_session_ceilings"], variables["fleet_home"])
+
+
+@pytest.mark.parametrize("audience", GRANTS)
+def test_new_profiles_render_exactly_idempotently_without_secret_opens(tmp_path, monkeypatch, audience):
+    variables = service_variables(tmp_path, monkeypatch, audience)
+    provision()
+    provision_app_password()
+    # Every Python process, including remote Ansible modules, refuses an attempt
+    # to open an app-password. stat/lstat are allowed. No secret bytes are read.
+    audit = tmp_path / "audit"
+    audit.mkdir()
+    marker = audit / "opened"
+    (audit / "sitecustomize.py").write_text(
+        "import os, sys\n"
+        "def audit(event, args):\n"
+        "    if event == 'open' and isinstance(args[0], (str, bytes)) "
+        "and os.fsdecode(args[0]).endswith('.app-password'):\n"
+        "        with open(" + repr(str(marker)) + ", 'w') as out: out.write('attempt')\n"
+        "        raise PermissionError('fixture forbids secret open')\n"
+        "sys.addaudithook(audit)\n")
+    monkeypatch.setenv("PYTHONPATH", str(audit))
+    extra = protected_tree(tmp_path)
+    ok(run(tmp_path, variables, extra, check=True))
+    path = Path(extra["chaldea_client_session_policy_path"])
+    assert not path.exists()
+    ok(run(tmp_path, variables, extra))
+    rendered = path.read_bytes()
+    assert json.loads(rendered)["enrollments"] == variables["chaldea_client_session_enrollments"]
+    assert json.loads(rendered)["presets"][PRESET]["services"] == [GRANTS[audience]]
+    assert b'"project": "projectA"' in rendered
+    assert SECRET.encode() not in rendered
+    repeated = run(tmp_path, variables, extra)
+    ok(repeated)
+    assert "changed=0" in repeated.stdout
+    assert not marker.exists(), "the real role attempted to open an app-password"
+
+
+# Mirrored closed-contract refusals. Mutate the enrollment and matching grant
+# together where appropriate, so a schema failure cannot hide behind equality.
+INVALID_GRANTS = [
+    ("ov", {"scope": "ov.write"}),
+    *[("ov", {"ov_namespaces": roots}) for roots in (
+        None, [], ["viking://resources/a"] * 2,
+        ["viking://resources/a", "viking://resources/a/b"],
+        ["viking://resources/."], ["viking://resources/a/../b"],
+        ["viking://resources/a//b"], ["viking://resources/a/"],
+        ["viking://resources/%61"], ["viking://resources/*"],
+        ["viking://resources/é"], ["viking://resources/" + "a" * 1006],
+        ["viking://resources/n" + str(i) for i in range(17)], "viking://resources/a")],
+    ("homelab", {"scope": "homelab.read homelab.write"}),
+    *[("homelab", {field: values}) for field in ("homelab_services", "homelab_hosts")
+      for values in (None, ["a"] * 2, ["*"], ["bad.name"], ["_bad"], ["a" * 65],
+                     ["a" + str(i) for i in range(129)], "a")],
+    *[("ha", {"scope": scope}) for scope in
+      ("ha.write", "ha.read ha.read", " ha.read", "ha.read  ha.control", "ha.read\tha.control")],
+    *[("ha", {"ha_entities": entities}) for entities in
+      (None, [], ["sensor.a"] * 2, ["climate.a"], ["sensor.A"], ["sensor.*"],
+       ["sensor.a.b"], ["sensor." + "a" * 97], ["sensor.a" + str(i) for i in range(65)])],
+    *[("ha", {"ha_actions": actions}) for actions in
+      (None, [], ["state.read"] * 2, ["*"], ["light.control"], ["switch.control"], ["service.call"])],
+    ("ov", {"project": "projectA"}), ("ha", {"homelab_hosts": []}),
+    ("homelab", {"grants": []}), ("ha", {"claims": {}}),
+]
+
+
+@pytest.mark.parametrize("audience,patch", INVALID_GRANTS)
+def test_invalid_closed_grants(validator, tmp_path, monkeypatch, audience, patch):
+    variables = service_variables(tmp_path, monkeypatch, audience)
+    variables["chaldea_client_session_enrollments"][PRESET].update(patch)
+    variables["chaldea_client_session_presets"][PRESET]["services"][0].update(patch)
+    with pytest.raises(validator.AnsibleFilterError):
+        validate(validator, variables)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("audience", "jocasta"), ("audience", None), ("audience", ["ov"]),
+    ("scope", None), ("issuer", "https://auth.example.test/application/o/p"),
+    ("issuer", "https://auth.example.test/application/o/../p/"),
+    ("issuer", "https://auth.example.test/application//p/"),
+    ("issuer", "https://auth.example.test:0444/application/o/p/"),
+    ("jwksUrl", "https://auth.example.test/other/jwks/"),
+    ("tokenUrl", "https://auth.example.test/application/o/p/token/"),
+    ("resource", "https://ov.mcp.ryzhkov.dev/mcp/"),
+    ("resource", "https://ha.mcp.ryzhkov.dev/mcp"),
+    ("resource", None), ("maxTokenSeconds", True),
+    ("secretFile", "/etc/shadow"), ("project", "projectA"), ("claims", {}),
+])
+def test_new_enrollment_closed_fields_and_urls(validator, tmp_path, monkeypatch, field, value):
+    variables = service_variables(tmp_path, monkeypatch, "ov")
+    variables["chaldea_client_session_enrollments"][PRESET][field] = value
+    with pytest.raises(validator.AnsibleFilterError):
+        validate(validator, variables)
+
+
+@pytest.mark.parametrize("audience", GRANTS)
+def test_exact_payload_and_one_service(validator, tmp_path, monkeypatch, audience):
+    variables = service_variables(tmp_path, monkeypatch, audience)
+    original = copy.deepcopy(variables)
+    assert validate(validator, variables) is True
+    assert variables == original
+    p = variables["chaldea_client_session_presets"][PRESET]
+    p["services"].append(copy.deepcopy(SERVICES[0]))
+    with pytest.raises(validator.AnsibleFilterError, match="one service"):
+        validate(validator, variables)
+    p["services"] = [copy.deepcopy(GRANTS[audience])]
+    variables["chaldea_client_session_enrollments"] = {}
+    with pytest.raises(validator.AnsibleFilterError, match="needs enrollment"):
+        validate(validator, variables)
+
+
+@pytest.mark.parametrize("audience,field,values", [
+    ("ov", "ov_namespaces", ["viking://resources/namespaceB", "viking://resources/namespaceA/child"]),
+    ("homelab", "homelab_services", []),
+    ("ha", "ha_entities", ["sensor.other"]),
+    ("ha", "scope", "ha.control"),
+])
+def test_changed_or_reordered_payload_refuses(validator, tmp_path, monkeypatch, audience, field, values):
+    variables = service_variables(tmp_path, monkeypatch, audience)
+    variables["chaldea_client_session_enrollments"][PRESET][field] = values
+    with pytest.raises(validator.AnsibleFilterError):
+        validate(validator, variables)
+
+
+@pytest.mark.parametrize("audience", GRANTS)
+def test_static_ceiling_containment_and_legacy_parse_only(validator, tmp_path, monkeypatch, audience):
+    variables = service_variables(tmp_path, monkeypatch, audience)
+    c = variables["chaldea_client_session_ceilings"][0]
+    grant = c["services"][0]
+    if audience == "ov":
+        grant["ov_namespaces"] = ["viking://resources/namespaceA", "viking://resources/namespaceB"]
+    elif audience == "homelab":
+        grant["homelab_services"].append("other")
+        grant["homelab_hosts"].append("host-b")
+    else:
+        grant["scope"] = "ha.control ha.read"
+        grant["ha_entities"].append("light.a")
+        grant["ha_actions"].append("light.control")
+    c["services"].append({"audience": "unrelated", "grants": [{"resource": "legacy", "actions": ["get"]}]})
+    assert validate(validator, variables)
+    if audience == "ov":
+        grant["ov_namespaces"] = ["viking://resources/namespace", "viking://resources/namespaceB"]
+    elif audience == "homelab":
+        grant["homelab_hosts"] = []
+    else:
+        grant["ha_actions"] = ["light.control"]
+    with pytest.raises(validator.AnsibleFilterError, match="one admitting ceiling"):
+        validate(validator, variables)
+
+
+def test_no_merged_ceilings_or_legacy_grant_reinterpretation(validator, tmp_path, monkeypatch):
+    variables = service_variables(tmp_path, monkeypatch, "ov")
+    ceilings = variables["chaldea_client_session_ceilings"]
+    ceilings.append(copy.deepcopy(ceilings[0]))
+    ceilings[0]["services"][0]["ov_namespaces"] = ["viking://resources/namespaceA"]
+    ceilings[1]["services"][0]["ov_namespaces"] = ["viking://resources/namespaceB"]
+    with pytest.raises(validator.AnsibleFilterError, match="one admitting ceiling"):
+        validate(validator, variables)
+    ceilings[0]["services"] = [{"audience": "ov", "grants": [{"resource": "namespaceA", "actions": ["get"]}]}]
+    with pytest.raises(validator.AnsibleFilterError):
+        validate(validator, variables)
+
+
+@pytest.mark.parametrize("failure", ["account", "secret", "provider", "client"])
+def test_new_presets_isolate_accounts_secrets_and_service_providers(validator, tmp_path, monkeypatch, failure):
+    variables = service_variables(tmp_path, monkeypatch, "ov")
+    # Build the second service without re-running the disk fixture factory.
+    key = "ha-reader"
+    p = copy.deepcopy(variables["chaldea_client_session_presets"][PRESET])
+    p["services"] = [copy.deepcopy(GRANTS["ha"])]
+    variables["chaldea_client_session_presets"][key] = p
+    variables["chaldea_client_session_ceilings"][0]["services"].append(copy.deepcopy(GRANTS["ha"]))
+    first = variables["chaldea_client_session_enrollments"][PRESET]
+    e = copy.deepcopy(first)
+    for field in ("audience", "scope", "ov_namespaces"):
+        e.pop(field)
+    e.update(GRANTS["ha"])
+    e.update(issuer="https://auth.example.test/application/o/ha/",
+             jwksUrl="https://auth.example.test/application/o/ha/jwks/",
+             clientId="ha-machine", username="ha-reader",
+             resource="https://ha.mcp.ryzhkov.dev/mcp",
+             secretFile=str(Path.home() / ".config/chaldea/authentik" / (key + ".app-password")))
+    variables["chaldea_client_session_enrollments"][key] = e
+    assert validate(validator, variables)
+    if failure == "account":
+        e["username"] = first["username"]
+    elif failure == "secret":
+        e["secretFile"] = first["secretFile"]
+    elif failure == "provider":
+        e["issuer"], e["jwksUrl"] = first["issuer"], first["jwksUrl"]
+    else:
+        e["clientId"] = first["clientId"]
+    with pytest.raises(validator.AnsibleFilterError):
+        validate(validator, variables)
+
+
+def test_explicit_empty_homelab_and_ha_scope_forms(validator, tmp_path, monkeypatch):
+    variables = service_variables(tmp_path, monkeypatch, "homelab")
+    for obj in (variables["chaldea_client_session_presets"][PRESET]["services"][0],
+                variables["chaldea_client_session_enrollments"][PRESET]):
+        obj.update(homelab_services=[], homelab_hosts=[])
+    assert validate(validator, variables)
+    for scope in ("ha.read", "ha.control", "ha.read ha.control", "ha.control ha.read"):
+        grant = copy.deepcopy(GRANTS["ha"])
+        grant["scope"] = scope
+        grant["ha_actions"] = ["state.read"] if scope == "ha.read" else ["light.control"]
+        assert validator.service(grant) == grant
+
+
+def test_policy_size_counts_utf8_bytes_at_exact_limit(validator):
+    assert validator.chaldea_session_policy_size("a" * 65536)
+    assert validator.chaldea_session_policy_size("é" * 32768)
+    for text in ("a" * 65537, "é" * 32769):
+        with pytest.raises(validator.AnsibleFilterError, match="64 KiB"):
+            validator.chaldea_session_policy_size(text)
+
+
+@pytest.mark.parametrize("failure", ["grant", "url", "missing", "size"])
+def test_new_refusals_precede_secret_stat_and_all_writes(tmp_path, monkeypatch, failure):
+    variables = service_variables(tmp_path, monkeypatch, "ov")
+    e = variables["chaldea_client_session_enrollments"][PRESET]
+    if failure == "grant":
+        e["ov_namespaces"] = None
+    elif failure == "url":
+        e["jwksUrl"] = "https://auth.example.test/wrong/"
+    elif failure == "missing":
+        variables["chaldea_client_session_enrollments"] = {}
+    else:
+        variables["chaldea_client_session_presets"][PRESET]["prompt"] = "é" * 65536
+    provision()
+    extra = protected_tree(tmp_path)
+    result = run(tmp_path, variables, extra)
+    assert result.returncode != 0
+    assert "Inspect operator-provisioned" not in result.stdout
+    assert not (tmp_path / "protected/etc/chaldea").exists()
+    assert not (Path.home() / ".config/chaldea/waits.json").exists()
+
+
+@pytest.mark.parametrize("audience", GRANTS)
+def test_missing_arrays_and_invalid_typed_ceilings_refuse(validator, tmp_path, monkeypatch, audience):
+    variables = service_variables(tmp_path, monkeypatch, audience)
+    fields = validator.FIELDS[audience]
+    for field in fields:
+        broken = copy.deepcopy(variables)
+        del broken["chaldea_client_session_enrollments"][PRESET][field]
+        del broken["chaldea_client_session_presets"][PRESET]["services"][0][field]
+        with pytest.raises(validator.AnsibleFilterError):
+            validate(validator, broken)
+        broken = copy.deepcopy(variables)
+        broken["chaldea_client_session_ceilings"][0]["services"][0][field] = None
+        with pytest.raises(validator.AnsibleFilterError):
+            validate(validator, broken)
+    hybrid = copy.deepcopy(variables)
+    hybrid["chaldea_client_session_ceilings"][0]["services"][0]["grants"] = []
+    with pytest.raises(validator.AnsibleFilterError, match="legacy service fields"):
+        validate(validator, hybrid)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("project", "other"), ("maxSeconds", 1799), ("maxSeconds", True),
+    ("destinations", []),
+])
+def test_ceiling_must_admit_the_whole_preset(validator, tmp_path, monkeypatch, field, value):
+    variables = service_variables(tmp_path, monkeypatch, "ha")
+    variables["chaldea_client_session_ceilings"][0][field] = value
+    with pytest.raises(validator.AnsibleFilterError, match="one admitting ceiling"):
+        validate(validator, variables)
+
+
+def test_grant_boundaries_accept_without_normalization(validator):
+    prefix = "viking://resources/"
+    roots = [prefix + "x" * (1024 - len(prefix))] + [prefix + "n" + str(i) for i in range(15)]
+    grants = [
+        {"audience": "ov", "scope": "ov.read", "ov_namespaces": roots},
+        {"audience": "homelab", "scope": "homelab.read",
+         "homelab_services": ["s" + str(i) for i in range(128)],
+         "homelab_hosts": ["h" + str(i) for i in range(128)]},
+        {"audience": "ha", "scope": "ha.control ha.read",
+         "ha_entities": ["binary_sensor." + "x" * 96] + ["sensor.n" + str(i) for i in range(63)],
+         "ha_actions": ["switch.control", "state.read", "light.control"]},
+    ]
+    for grant in grants:
+        before = copy.deepcopy(grant)
+        assert validator.service(grant) == before
+        assert grant == before
+
+
+def test_legacy_enrollment_stays_unmodified(validator, tmp_path, monkeypatch):
+    variables = policy_variables(tmp_path, monkeypatch)
+    before = copy.deepcopy(variables)
+    # Preserve unrelated parse-only ceiling entries.
+    variables["chaldea_client_session_ceilings"][0]["services"] = copy.deepcopy(SERVICES) + [
+        {"audience": "ov", "grants": [{"resource": "old", "actions": ["get"]}]}]
+    assert validate(validator, variables)
+    assert variables["chaldea_client_session_enrollments"] == before["chaldea_client_session_enrollments"]
+    assert variables["chaldea_client_session_presets"] == before["chaldea_client_session_presets"]
+
+
+def test_secret_path_cannot_follow_noncanonical_home(validator, tmp_path, monkeypatch):
+    variables = policy_variables(tmp_path, monkeypatch)
+    variables["fleet_home"] += "/../other"
+    variables["chaldea_client_session_enrollments"][PRESET]["secretFile"] = (
+        variables["fleet_home"] + "/.config/chaldea/authentik/" + PRESET + ".app-password")
+    with pytest.raises(validator.AnsibleFilterError, match="secretFile"):
+        validate(validator, variables)
