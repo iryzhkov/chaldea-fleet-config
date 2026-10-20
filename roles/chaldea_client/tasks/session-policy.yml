@@ -45,44 +45,22 @@
     chaldea_client_session_preset_keys: [instanceId, model, runtimeMode, interactionMode, projectId, title, prompt,
                                          project, services, maxSeconds, delegate, destinations]
 
-# One fixed form: an ordinary account's app password for one Jocasta project,
-# at most 300-second tokens, from canonical HTTPS endpoints of one issuer.
+# Public validation precedes private-file stat and every policy write.
 - name: Require each enrollment to match its preset and the supported form
   ansible.builtin.assert:
     that:
-      - item.value is mapping
-      - item.value.keys() | sort == ['clientId', 'form', 'issuer', 'jwksUrl', 'maxTokenSeconds', 'project', 'resource', 'scope', 'secretFile', 'tokenUrl', 'username']
-      - item.value.form == 'app_password'
-      - item.value.scope == 'jocasta.read'
-      - item.value.maxTokenSeconds is integer and item.value.maxTokenSeconds is not boolean
-      - item.value.maxTokenSeconds == 300
-      - item.value.clientId is regex('^[\x21-\x7e]{1,255}$', match_type='fullmatch')
-      - item.value.username is regex('^[A-Za-z0-9][A-Za-z0-9._@-]{0,149}$', match_type='fullmatch')
-      - item.value.project == preset.project
-      - jocasta | length == 1
-      - jocasta[0].grants | map(attribute='resource') | unique | list == ['project:' ~ item.value.project]
-      - urls | select('regex', canonical, match_type='fullmatch') | list | length == 4
-      - (urls | map('urlsplit', 'netloc') | map('lower') | list) == (urls | map('urlsplit', 'netloc') | list)
-      - item.value.tokenUrl | urlsplit('netloc') == item.value.issuer | urlsplit('netloc')
-      - item.value.jwksUrl | urlsplit('netloc') == item.value.issuer | urlsplit('netloc')
-      - item.value.secretFile == fleet_home ~ '/.config/chaldea/authentik/' ~ item.key ~ '.app-password'
-      - item.value.secretFile | normpath == item.value.secretFile
-    fail_msg: >-
-      Enrollment {{ item.key }} must be form app_password, scope jocasta.read, maxTokenSeconds 300,
-      the preset's project with a Jocasta grant on exactly project:{{ item.value.project | default('') }},
-      canonical https URLs with token and JWKS URLs on the issuer's origin, and secretFile
-      {{ fleet_home }}/.config/chaldea/authentik/{{ item.key }}.app-password.
+      - >-
+        chaldea_client_session_enrollments | chaldea_session_enrollments(
+          chaldea_client_session_presets, chaldea_client_session_ceilings, fleet_home)
+    fail_msg: Enrollment must match the closed service contract.
     quiet: true
-  loop: "{{ chaldea_client_session_enrollments | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
-  vars:
-    preset: "{{ chaldea_client_session_presets[item.key] }}"
-    jocasta: "{{ preset.services | default([]) | selectattr('audience', 'equalto', 'jocasta') | list }}"
-    urls: "{{ [item.value.issuer, item.value.tokenUrl, item.value.jwksUrl, item.value.resource] }}"
-    # Lower-case host, no default port, no userinfo, query or fragment, a path.
-    canonical: >-
-      ^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?([.][a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:(?!443/)[0-9]{1,5})?/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$
+
+- name: Refuse a rendered policy larger than the client can load
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.template', 'policy.json.j2') | chaldea_session_policy_size
+    fail_msg: The rendered session policy must fit the client policy-load limit of 64 KiB.
+    quiet: true
 
 - name: Inspect operator-provisioned app passwords without reading them
   ansible.builtin.stat:
@@ -102,9 +80,9 @@
       - item.stat.uid | default(-1) == ansible_facts.user_uid | int
       - item.stat.mode | default('7777') is regex('^0[0-7]00$')
       - (item.stat.isdir | default(false)) if item.item.endswith('/authentik') else
-        (item.stat.isreg | default(false) and item.stat.mode == '0600' and item.stat.size > 0)
+        (item.stat.isreg | default(false) and (item.stat.nlink | default(0)) == 1 and item.stat.mode == '0600' and item.stat.size > 0)
     fail_msg: >-
-      Refusing the session policy: {{ item.item }} must be a nonempty regular 0600 file (or a
+      Refusing the session policy: {{ item.item }} must be a nonempty single-link regular 0600 file (or a
       private directory) owned by uid {{ ansible_facts.user_uid }}, not a link. This role never
       creates, reads or repairs app passwords.
     quiet: true
