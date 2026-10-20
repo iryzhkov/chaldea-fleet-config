@@ -323,6 +323,27 @@ if name:
 p.write_text(json.dumps(state))
 print('CHANGED' if changed else 'UNCHANGED')
 """)
+    # Keep the manager's loaded command separate from the running process.
+    original = helper.read_text()
+    original = original.replace("args = json.loads(sys.argv[2])", """if sys.argv[2] == '--show':
+    print('MainPID=' + ('42' if state.get('_running') else '0'))
+    unit = p.parent / 'units/mission-control-capture.service'
+    disk = next((x.removeprefix('ExecStart=') for x in unit.read_text().splitlines() if x.startswith('ExecStart=')), '')
+    print('NeedDaemonReload=' + ('yes' if state.get('_loaded') != disk else 'no'))
+    sys.exit(0)
+args = json.loads(sys.argv[2])""")
+    original = original.replace("p.write_text(json.dumps(state))", """if name == 'mission-control-capture.service':
+    unit = p.parent / 'units/mission-control-capture.service'
+    disk = next(x.removeprefix('ExecStart=') for x in unit.read_text().splitlines() if x.startswith('ExecStart='))
+    if args.get('daemon_reload') or '_loaded' not in state:
+        state['_loaded'] = disk
+    if args.get('state') == 'restarted' or not state.get('_running'):
+        state['_running'] = state['_loaded']
+    proc = p.parent / 'proc/42/cmdline'
+    proc.parent.mkdir(parents=True, exist_ok=True)
+    proc.write_bytes(('\\0'.join(state['_running'].split()) + '\\0').encode())
+p.write_text(json.dumps(state))""")
+    helper.write_text(original)
     for source in Path(role).joinpath("tasks").glob("*.yml"):
         def rewrite(rows):
             result = []
@@ -333,6 +354,14 @@ print('CHANGED' if changed else 'UNCHANGED')
                     row.pop("ansible.builtin.service_facts")
                     row["ansible.builtin.set_fact"] = dict(ansible_facts=dict(
                         services="{{ fixture_services | default({}) }}"))
+                if row.get("ansible.builtin.command", {}).get("argv", [None])[0] == "systemctl":
+                    assert row["ansible.builtin.command"]["argv"] == [
+                        "systemctl", "show", "mission-control-capture.service", "--property=MainPID,NeedDaemonReload"]
+                    row["ansible.builtin.command"]["argv"] = [
+                        sys.executable, str(helper), str(tmp_path / "manager.json"), "--show"]
+                if "ansible.builtin.slurp" in row:
+                    row["ansible.builtin.slurp"]["src"] = row["ansible.builtin.slurp"]["src"].replace(
+                        "/proc/", str(tmp_path / "proc") + "/")
                 if "ansible.builtin.systemd_service" in row:
                     args = row.pop("ansible.builtin.systemd_service")
                     row["ansible.builtin.command"] = dict(argv=[

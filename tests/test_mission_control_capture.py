@@ -8,6 +8,114 @@ import pytest
 from test_mission_control import fixture_role, play, ok
 
 
+@pytest.mark.parametrize("interruption", ["download", "manager", "process"])
+def test_capture_interrupted_update_recovery_at_real_callsite(tmp_path, monkeypatch, interruption):
+    """Run the shipped composition with disposable files and manager boundaries."""
+    import http.server
+    import os
+    import subprocess
+    import threading
+    from client_artifact_fixture import stage
+    from test_mission_control import ROOT, instrument_activation
+
+    capture = fixture_role(tmp_path, "mission_control_capture")
+    runtime = fixture_role(tmp_path, "mission_control_runtime")
+    instrument_activation(capture, tmp_path)
+    artifact = stage(tmp_path / "artifact")
+    token = Path.home() / ".config/chaldea/t3-token"
+    token.parent.mkdir(parents=True)
+    token.write_text("public-fixture-token")
+    token.chmod(0o600)
+    values = dict(mission_control_capture_enabled=True, mission_control_runtime_enabled=True,
+        mission_control_activate=True, mission_control_capture_laptop_qualified=True,
+        mission_control_runtime_node=str(tmp_path / "node/bin/node"),
+        mission_control_runtime_release_root=str(tmp_path / "runtime"),
+        mission_control_runtime_version=artifact["chaldea_client_version"],
+        mission_control_runtime_sha256=artifact["chaldea_client_sha256"],
+        mission_control_runtime_archive_source=artifact["chaldea_client_archive_source"],
+        mission_control_runtime_manifest_source=artifact["chaldea_client_manifest_source"])
+
+    binary = tmp_path / "bin/systemd-analyze"
+    binary.parent.mkdir()
+    binary.write_text("#!/bin/sh\nexit 0\n")
+    binary.chmod(0o755)
+    monkeypatch.setenv("PATH", str(binary.parent) + ":" + os.environ["PATH"])
+
+    # Establish the old disk unit and active process through the real capture role.
+    tasks = [{"ansible.builtin.include_role": dict(name=capture)},
+             {"ansible.builtin.include_role": dict(name=capture, tasks_from="activate")}]
+    ok(play(tmp_path, "laptop", tasks=tasks,
+            values=values | dict(mission_control_runtime_version="client-v0.4.9")))
+    unit = tmp_path / "units/mission-control-capture.service"
+    old = unit.read_bytes()
+    manager = tmp_path / "manager.json"
+    prior = manager.read_bytes()
+    if interruption != "download":
+        # A prior invocation wrote the new unit but never activated it.
+        ok(play(tmp_path, "laptop", roles=[capture], values=values))
+        if interruption == "process":
+            # An unrelated daemon-reload loaded the new unit without restarting.
+            state = json.loads(manager.read_text())
+            state["_loaded"] = next(x.removeprefix("ExecStart=") for x in unit.read_text().splitlines()
+                                    if x.startswith("ExecStart="))
+            manager.write_text(json.dumps(state))
+
+    # Relocate role names only in the shipped playbook, keeping role order and gates.
+    composition = yaml.safe_load((ROOT / "playbooks/mission-control.yml").read_text())
+    row = composition[0]
+    row["become"] = False
+    row["vars"] = values
+    mapping = dict(mission_control_capture=capture, mission_control_runtime=runtime)
+    row["roles"] = [mapping[name] for name in row["roles"]]
+    for task in row["tasks"]:
+        task["ansible.builtin.include_role"]["name"] = capture
+
+    class FailedManifest(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_error(503, "injected manifest download failure")
+        def log_message(self, format, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FailedManifest)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        if interruption == "download":
+            # Archive is supplied; the real get_url fails on the missing manifest.
+            row["vars"] = values | dict(mission_control_runtime_manifest_source="")
+            source = Path(runtime) / "tasks/main.yml"
+            source.write_text(source.read_text().replace(
+                "https://github.com/iryzhkov/chaldea/releases/download/",
+                f"http://127.0.0.1:{server.server_port}/"))
+        source = tmp_path / "composition.yml"
+        source.write_text(yaml.safe_dump(composition))
+        def run():
+            return subprocess.run(["ansible-playbook", "-i", "laptop,", "--limit", "laptop", str(source)],
+                env=dict(os.environ, ANSIBLE_LOCAL_TEMP=str(tmp_path / "ansible-local"),
+                         ANSIBLE_REMOTE_TEMP=str(tmp_path / "ansible-remote"),
+                         ANSIBLE_LIBRARY=str(ROOT / "library")),
+                text=True, capture_output=True)
+        if interruption == "download":
+            failed = run()
+            assert failed.returncode != 0 and "503" in failed.stdout, failed.stdout + failed.stderr
+            assert manager.read_bytes() == prior
+            assert unit.read_bytes() == old, "failed runtime download mutated the capture unit"
+            row["vars"] = values
+            source.write_text(yaml.safe_dump(composition))
+        result = run()
+        ok(result)
+        state = json.loads(manager.read_text())
+        assert f"/{values['mission_control_runtime_version']}/bin/chaldea" in state["_running"], (
+            "retry kept the old running capture", state, result.stdout)
+        assert state["_running"] == state["_loaded"]
+        assert (tmp_path / "runtime/releases" / values["mission_control_runtime_version"] / "bin/chaldea").is_file()
+        again = run()
+        ok(again)
+        assert "changed=0" in again.stdout, again.stdout
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 @pytest.mark.parametrize("host", ["agent-a", "omarchy-pc", "agent-b", "laptop"])
 def test_capture_real_configuration_cold_check_idempotence_and_token_denial(tmp_path, host):
     role = fixture_role(tmp_path, "mission_control_capture")
