@@ -3,8 +3,21 @@
 - name: Validate system waits identity and paths
   ansible.builtin.import_tasks: waits-system-validate.yml
 
+- name: Validate the absolute bounded deadline before any writes
+  ansible.builtin.include_tasks: waits-deadline.yml
+  when: chaldea_client_waits_deadline | length > 0
+
 - name: Guard single waits ownership before mutation
   ansible.builtin.import_tasks: waits-owner.yml
+
+- name: Refuse implicit bounded relaunch or changes to an active bounded owner
+  ansible.builtin.assert:
+    that:
+      - not chaldea_client_waits_status_read_restart or ('ActiveState=inactive' in chaldea_client_waits_owners.results[1].stdout_lines and chaldea_client_waits_bounded_state.starts == 1)
+      - chaldea_client_waits_bounded_state.starts == 0 or 'ActiveState=active' in chaldea_client_waits_owners.results[1].stdout_lines or chaldea_client_waits_status_read_restart
+    fail_msg: A bounded launch is consumed. Only one explicit terminal status-read restart within the original deadline is allowed.
+    quiet: true
+  when: chaldea_client_waits_deadline | length > 0
 
 - name: Create only private waits directories
   ansible.builtin.file:
@@ -24,6 +37,7 @@
   check_mode: true
   diff: false
   loop:
+    - {src: waits-deadline.mjs.j2, dest: "{{ fleet_home }}/.config/chaldea/waits-deadline.mjs", mode: "0600", enabled: "{{ chaldea_client_waits_deadline | length > 0 }}"}
     - {src: waits.json.j2, dest: "{{ fleet_home }}/.config/chaldea/waits.json", mode: "0600", enabled: true}
     - {src: waits-namespace-check.mjs.j2, dest: "{{ fleet_home }}/.config/chaldea/waits-namespace-check.mjs", mode: "0600", enabled: true}
     - {src: waits-policy-check.mjs.j2, dest: "{{ fleet_home }}/.config/chaldea/waits-policy-check.mjs", mode: "0600", enabled: "{{ chaldea_client_session_policy_enabled }}"}
@@ -32,6 +46,15 @@
     - {src: policy.json.j2, dest: "{{ chaldea_client_session_policy_path }}", mode: "0644", enabled: "{{ chaldea_client_session_policy_enabled }}", system: true}
   when: item.enabled | bool
   register: chaldea_client_waits_predicted
+
+- name: Refuse configuration changes that would restart a live bounded owner
+  ansible.builtin.assert:
+    that:
+      - not chaldea_client_waits_predicted.changed
+    quiet: true
+  when:
+    - chaldea_client_waits_deadline | length > 0
+    - "'ActiveState=active' in chaldea_client_waits_owners.results[1].stdout_lines"
 
 - name: Persist waits restart intent before changing files  # noqa: no-handler -- intent must precede writes, not run at handler flush
   ansible.builtin.copy:
@@ -137,6 +160,29 @@
   when: chaldea_client_session_policy_enabled | bool
   register: chaldea_client_waits_system_check
 
+- name: Install the fixed deadline launcher before the bounded definition
+  ansible.builtin.template:
+    src: waits-deadline.mjs.j2
+    dest: "{{ fleet_home }}/.config/chaldea/waits-deadline.mjs"
+    mode: "0600"
+  when: chaldea_client_waits_deadline | length > 0
+
+- name: Recheck the same deadline immediately before installing the final unit
+  ansible.builtin.include_tasks: waits-deadline.yml
+  when: chaldea_client_waits_deadline | length > 0
+
+- name: Authorize the one explicitly requested durable-status restart
+  ansible.builtin.command:
+    argv:
+      - "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
+      - "{{ fleet_home }}/.config/chaldea/waits-deadline.mjs"
+      - --authorize-status-read
+  changed_when: true
+  when:
+    - chaldea_client_waits_deadline | length > 0
+    - chaldea_client_waits_status_read_restart
+    - not ansible_check_mode
+
 - name: Install the system waits definition
   become: true
   ansible.builtin.template:
@@ -153,9 +199,9 @@
   ansible.builtin.systemd_service:
     name: chaldea-waits.service
     scope: system
-    enabled: true
+    enabled: "{{ chaldea_client_waits_deadline | length == 0 }}"
     daemon_reload: true
-    state: "{{ 'restarted' if chaldea_client_waits_restart.stat.exists else 'started' }}"
+    state: "{{ 'restarted' if (chaldea_client_waits_status_read_restart or (chaldea_client_waits_restart.stat.exists and chaldea_client_waits_deadline | length == 0)) else 'started' }}"
   register: chaldea_client_waits_system_started
   when: not ansible_check_mode
 
@@ -203,8 +249,11 @@
       - chaldea_client_waits_system_started.status.FragmentPath == '/etc/systemd/system/chaldea-waits.service'
       - >-
         (fleet_home ~ '/.local/share/mise/installs/node/' ~ chaldea_node_version ~ '/bin/node ' ~
-         chaldea_client_waits_resolved_runtime ~ '/bin/chaldea waits serve --config ' ~
-         fleet_home ~ '/.config/chaldea/waits.json') in chaldea_client_waits_system_started.status.ExecStart
+         ((fleet_home ~ '/.config/chaldea/waits-deadline.mjs --start') if chaldea_client_waits_deadline | length > 0 else
+          (chaldea_client_waits_resolved_runtime ~ '/bin/chaldea waits serve --config ' ~ fleet_home ~ '/.config/chaldea/waits.json')))
+        in chaldea_client_waits_system_started.status.ExecStart
+      - chaldea_client_waits_deadline | length == 0 or chaldea_client_waits_system_started.status.Restart == 'no'
+      - chaldea_client_waits_deadline | length == 0 or chaldea_client_waits_system_started.status.UnitFileState in ['static', 'disabled']
       - chaldea_client_waits_system_started.status.DropInPaths | default('') == ''
       - chaldea_client_waits_system_started.status.PrivateUsers in ['yes', 'self', 'true']
       - chaldea_client_waits_system_started.status.NoNewPrivileges == 'yes'

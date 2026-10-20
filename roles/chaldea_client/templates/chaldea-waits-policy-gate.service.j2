@@ -1,0 +1,15 @@
+# Managed by chaldea-fleet-config. Credential-free maintained policy loader.
+[Unit]
+Description=Chaldea public policy loader gate
+
+[Service]
+Type=oneshot
+TimeoutStartSec=90s
+TimeoutStopSec=5s
+Restart=no
+{% include 'chaldea-waits-system-sandbox.j2' %}
+
+ExecStartPre={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ fleet_home }}/.config/chaldea/waits-namespace-check.mjs
+ExecStart={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ fleet_home }}/.config/chaldea/waits-policy-check.mjs
+StandardOutput=null
+StandardError=null

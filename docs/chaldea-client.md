@@ -157,7 +157,7 @@ a client release whose parser accepts `enrollments`; selecting that release is a
 separate pin change. Disabling the policy later leaves an existing policy file
 in place, inert because `waits.json` no longer names it.
 
-Only the enrollment assertion in `tasks/session-policy.yml` is Jocasta-specific
+Only the enrollment assertion in `tasks/session-policy-public-validate.yml` is Jocasta-specific
 (form, scope, 300 seconds, the `project:<project>` grant). The policy file,
 its protected layout, the stat-only secret checks and the per-preset secret
 path are service-independent. A second Authentik-protected service needs
@@ -165,6 +165,57 @@ Chaldea's parser to accept it first; then that one assertion gains the
 service's scope, audience and grant rule, in the same change set as
 homelab-infra's second service profile (its
 `docs/authentik-machine-identities.md`, "A second service").
+
+## Bounded canary entrypoints
+
+The role-only `session-policy-gate.yml` entrypoint validates and renders the public
+policy, runs the namespace preflight, then calls the staged runtime's actual
+`loadSessionPolicy` through `waits-policy-check.mjs` in the same system sandbox.
+It imports the shared public validator and writer, never the credential task.
+It refuses fixture owner/location overrides. A future enrollment pointer may
+name a password that does not exist yet. No password/control-token metadata is
+inspected, SOPS loaded, network called, waits daemon started or provider launched
+by this entrypoint. The normal `session-policy.yml` still checks real ordinary
+credentials before rendering or full activation.
+
+After successful execution, `chaldea_client_policy_gate_evidence` contains the
+environment, resolved runtime, sandbox SHA256, exact public policy/loader/CLI/
+Node/checker/unit SHA256s and systemd invocation ID. Check mode produces no
+receipt. The packet controller must validate those exact bindings against its
+source-pinned staged runtime manifest and approved environment before enrollment,
+and refuse stale or mismatched evidence. This is evidence to validate, not an
+enrollment bypass flag. Synthetic tests do not qualify the maintained loader on
+a host; the separately approved host run remains required.
+
+For one bounded system owner, call only `waits-system.yml` with the existing
+system-mode inputs and `chaldea_client_waits_deadline: "YYYY-MM-DDTHH:MM:SSZ"`.
+The target clock must report 16..2700 seconds remaining. Invalid, expired or
+out-of-range deadlines fail before writes. The final unit is installed before
+start, disabled at boot, has `Restart=no`, no Install section and a finite
+2700-second safety limit. The small Node launcher rechecks the original absolute
+deadline at every actual start and execs GNU `/usr/bin/timeout` around the exact
+staged Node/Chaldea command. Both startup checks use the same bound. It reserves ten seconds before that deadline for
+execution/shutdown, with TERM then KILL after five seconds. No timer or extra
+Node supervisor is installed. This assumes a trustworthy host clock and standard
+kernel scheduling; the parent packet must retain clock-health evidence.
+
+A private `~/.local/state/chaldea/waits-bounded-starts.json` record consumes the
+first start before executing it. Do not delete or rewrite it to retry a failed
+launch. Corrupt, foreign or unsafe records fail closed. After terminal reporter
+completion, the packet may stop the system owner and request one restart with
+`chaldea_client_waits_status_read_restart: true` while enough original time
+remains. The owner must already be inactive. The helper durably authorizes and
+consumes this second start; further starts fail. The packet must prohibit new
+reporter sessions during this status-read phase. The role starts no reporter
+and does not change Chaldea's session authorization API. Capture this record,
+the helper, new gate unit and existing restart-intent/backups in the parent's
+write-ahead cleanup ledger. This role does not implement composed cleanup.
+
+An active bounded owner refuses configuration changes instead of restarting.
+Repeated validation does not renew the deadline or consume a start. Namespace
+and loader probes intentionally execute when requested; their service tasks
+report a change even when all managed file bytes are converged. Empty deadline
+preserves the persistent unit bytes and ordinary restart-intent recovery.
 
 ## Tests
 

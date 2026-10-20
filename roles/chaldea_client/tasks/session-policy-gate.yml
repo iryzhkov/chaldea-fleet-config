@@ -1,0 +1,123 @@
+---
+# Public-only role entrypoint. No activation, SOPS, credential task or provider call.
+- name: Require the production protected policy layout without fixture overrides
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_session_policy_enabled | bool
+      - chaldea_client_session_policy_path == '/etc/chaldea/sessions/policy.json'
+      - chaldea_client_session_policy_root == '/'
+      - chaldea_client_session_policy_owner == 'root'
+      - chaldea_client_session_policy_owner_uid | int == 0
+      - chaldea_client_session_policy_become is sameas true
+    quiet: true
+
+- name: Validate public policy before any writes
+  ansible.builtin.import_tasks: session-policy-public-validate.yml
+
+- name: Qualify the same system namespace without credentials
+  ansible.builtin.import_tasks: waits-preflight.yml
+
+- name: Inspect the loader gate manager before changing its definition
+  become: true
+  ansible.builtin.command:
+    argv: [systemctl, --system, show, chaldea-waits-policy-gate.service, "--property=DropInPaths,ActiveState,LoadState,FragmentPath"]
+  changed_when: false
+  check_mode: false
+  register: chaldea_client_policy_gate_manager
+  failed_when: chaldea_client_policy_gate_manager.rc != 0 and 'LoadState=not-found' not in chaldea_client_policy_gate_manager.stdout_lines
+
+- name: Inspect the reserved loader gate definition
+  ansible.builtin.stat:
+    path: /etc/systemd/system/chaldea-waits-policy-gate.service
+    follow: false
+    checksum_algorithm: sha256
+  register: chaldea_client_policy_gate_unit
+
+- name: Refuse foreign loader gate definitions or manager overrides
+  ansible.builtin.assert:
+    that:
+      - "'DropInPaths=' in chaldea_client_policy_gate_manager.stdout_lines"
+      - "'ActiveState=inactive' in chaldea_client_policy_gate_manager.stdout_lines"
+      - >-
+        (not chaldea_client_policy_gate_unit.stat.exists and 'LoadState=not-found' in chaldea_client_policy_gate_manager.stdout_lines) or
+        (chaldea_client_policy_gate_unit.stat.isreg | default(false) and
+         chaldea_client_policy_gate_unit.stat.uid == 0 and chaldea_client_policy_gate_unit.stat.nlink == 1 and
+         chaldea_client_policy_gate_unit.stat.mode == '0644' and
+         chaldea_client_policy_gate_unit.stat.checksum == lookup('ansible.builtin.template', 'chaldea-waits-policy-gate.service.j2') | hash('sha256') and
+         'LoadState=loaded' in chaldea_client_policy_gate_manager.stdout_lines and
+         'FragmentPath=/etc/systemd/system/chaldea-waits-policy-gate.service' in chaldea_client_policy_gate_manager.stdout_lines)
+    quiet: true
+
+- name: Render only the validated public policy
+  ansible.builtin.import_tasks: session-policy-public-render.yml
+
+- name: Render the maintained public loader
+  ansible.builtin.template:
+    src: waits-policy-check.mjs.j2
+    dest: "{{ fleet_home }}/.config/chaldea/waits-policy-check.mjs"
+    mode: "0600"
+
+- name: Install the final credential-free loader gate
+  become: true
+  ansible.builtin.template:
+    src: chaldea-waits-policy-gate.service.j2
+    dest: /etc/systemd/system/chaldea-waits-policy-gate.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Run the maintained loader in the same system sandbox
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits-policy-gate.service
+    scope: system
+    daemon_reload: true
+    state: restarted
+  when: not ansible_check_mode
+
+- name: Read the completed maintained loader result
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits-policy-gate.service
+    scope: system
+  register: chaldea_client_policy_gate_result
+  when: not ansible_check_mode
+
+- name: Require actual maintained loader success before producing evidence
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_policy_gate_result.status.Result == 'success'
+      - chaldea_client_policy_gate_result.status.ExecMainStatus == '0'
+      - chaldea_client_policy_gate_result.status.InvocationID is match('^[0-9a-f]{32}$')
+      - chaldea_client_policy_gate_result.status.DropInPaths | default('') == ''
+      - chaldea_client_policy_gate_result.status.FragmentPath == '/etc/systemd/system/chaldea-waits-policy-gate.service'
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Hash only public gate bindings
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    checksum_algorithm: sha256
+  loop:
+    - "{{ chaldea_client_session_policy_path }}"
+    - "{{ chaldea_client_waits_resolved_runtime }}/src/session/policy.ts"
+    - "{{ chaldea_client_waits_resolved_runtime }}/bin/chaldea"
+    - "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
+    - "{{ fleet_home }}/.config/chaldea/waits-policy-check.mjs"
+    - /etc/systemd/system/chaldea-waits-policy-gate.service
+  register: chaldea_client_policy_gate_bindings
+  when: not ansible_check_mode
+
+- name: Expose sanitized exact bindings for the packet controller to validate
+  ansible.builtin.set_fact:
+    chaldea_client_policy_gate_evidence:
+      version: 1
+      environment: "{{ chaldea_client_waits_environment }}"
+      runtime: "{{ chaldea_client_waits_resolved_runtime }}"
+      t3_base_dir: "{{ chaldea_client_t3_home }}"
+      sandbox_sha256: "{{ lookup('ansible.builtin.template', 'chaldea-waits-system-sandbox.j2') | hash('sha256') }}"
+      public_files: "{{ dict(chaldea_client_policy_gate_bindings.results | map(attribute='item') | zip(chaldea_client_policy_gate_bindings.results | map(attribute='stat.checksum'))) }}"
+      invocation_id: "{{ chaldea_client_policy_gate_result.status.InvocationID }}"
+      exec_main_status: "{{ chaldea_client_policy_gate_result.status.ExecMainStatus }}"
+  when: not ansible_check_mode

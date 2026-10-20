@@ -8,15 +8,33 @@ StartLimitIntervalSec=0
 Type=simple
 {% include 'chaldea-waits-system-sandbox.j2' %}
 
+{% if chaldea_client_waits_deadline | default('') | length > 0 %}
+ExecStartPre={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ fleet_home }}/.config/chaldea/waits-deadline.mjs --namespace-check
+{% if chaldea_client_session_policy_enabled | bool %}
+ExecStartPre={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ fleet_home }}/.config/chaldea/waits-deadline.mjs --policy-check
+{% endif %}
+{% else %}
 ExecStartPre={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ fleet_home }}/.config/chaldea/waits-namespace-check.mjs
 {% if chaldea_client_session_policy_enabled | bool %}
 ExecStartPre={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ fleet_home }}/.config/chaldea/waits-policy-check.mjs
 {% endif %}
+{% endif %}
+{% if chaldea_client_waits_deadline | default('') | length > 0 %}
+ExecStart={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ fleet_home }}/.config/chaldea/waits-deadline.mjs --start
+Restart=no
+RuntimeMaxSec=2700s
+TimeoutStartSec=90s
+TimeoutStopSec=5s
+KillMode=control-group
+{% else %}
 ExecStart={{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node {{ chaldea_client_waits_resolved_runtime }}/bin/chaldea waits serve --config {{ fleet_home }}/.config/chaldea/waits.json
 Restart=on-failure
 RestartSec=5
+{% endif %}
 StandardOutput=null
 StandardError=journal
 
+{% if chaldea_client_waits_deadline | default('') | length == 0 %}
 [Install]
 WantedBy=multi-user.target
+{% endif %}

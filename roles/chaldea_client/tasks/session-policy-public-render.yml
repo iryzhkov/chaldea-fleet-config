@@ -1,0 +1,80 @@
+---
+- name: Name every directory from the protected root down to the policy
+  ansible.builtin.set_fact:
+    chaldea_client_session_policy_dirs: >-
+      {%- set root = chaldea_client_session_policy_root -%}
+      {%- set parts = (chaldea_client_session_policy_path | dirname | relpath(root)).split('/') -%}
+      {%- set out = [root] -%}
+      {%- for i in range(parts | length) -%}
+      {%-   set _ = out.append((root | regex_replace('/$', '')) ~ '/' ~ (parts[:i + 1] | join('/'))) -%}
+      {%- endfor -%}
+      {{ out }}
+
+- name: Inspect the policy's directories without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ chaldea_client_session_policy_dirs + [chaldea_client_session_policy_path] }}"
+  register: chaldea_client_policy_before
+
+- name: Refuse linked, foreign or shared-writable policy paths
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists or item.item not in chaldea_client_session_policy_dirs[:-2]
+      - not item.stat.exists or not item.stat.islnk
+      - not item.stat.exists or item.stat.uid == chaldea_client_session_policy_owner_uid | int
+      - not item.stat.exists or item.stat.mode[-2] not in ['2', '3', '6', '7']
+      - not item.stat.exists or item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - not item.stat.exists or item.stat.isdir or (item.item == chaldea_client_session_policy_path and item.stat.isreg and item.stat.nlink == 1)
+    fail_msg: >-
+      {{ item.item }} must be owned by uid {{ chaldea_client_session_policy_owner_uid }}, writable
+      by no one else and not a link; the policy itself a single-link regular file.
+    quiet: true
+  loop: "{{ chaldea_client_policy_before.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Write the protected policy as its owner
+  become: "{{ chaldea_client_session_policy_become }}"
+  block:
+    - name: Create the policy's own directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ chaldea_client_session_policy_owner }}"
+        mode: "0755"
+      loop: "{{ chaldea_client_session_policy_dirs[-2:] }}"
+
+    - name: Render the session policy
+      ansible.builtin.template:
+        src: policy.json.j2
+        dest: "{{ chaldea_client_session_policy_path }}"
+        owner: "{{ chaldea_client_session_policy_owner }}"
+        mode: "0644"
+        follow: false
+
+- name: Inspect the written policy and its directories
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ chaldea_client_session_policy_dirs + [chaldea_client_session_policy_path] }}"
+  register: chaldea_client_policy_after
+  when: not ansible_check_mode
+
+- name: Require the protected layout the client checks
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and not item.stat.islnk
+      - item.stat.uid == chaldea_client_session_policy_owner_uid | int
+      - item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - item.stat.isdir or (item.stat.isreg and item.stat.nlink == 1 and item.stat.mode == '0644')
+    fail_msg: "{{ item.item }} is not in the protected layout the client requires."
+    quiet: true
+  loop: "{{ chaldea_client_policy_after.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not ansible_check_mode
