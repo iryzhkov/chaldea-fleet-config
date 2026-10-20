@@ -81,6 +81,9 @@ def test_system_template_bytes_match_ansible(tmp_path, template_name):
     module = module_path.read_text()
     lookup = lookup_path.read_text()
     assert module == lookup, "module versus lookup:\n" + repr(module) + "\n" + repr(lookup)
+    if template_name == "chaldea-waits-preflight.service.j2":
+        assert "TimeoutStartSec=90s" in module.splitlines()
+        assert "TimeoutStopSec=5s" in module.splitlines()
     assert "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6" in module.splitlines()
     assert ("\nExecStartPre=" if "system.service" in template_name else "\nExecStart=") in module
 
