@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import shutil
 from datetime import datetime, timedelta, timezone
 
@@ -46,7 +47,7 @@ def node(script, action):
 def test_deadline_refuses_before_state_write(tmp_path, value):
     value = deadline(-1) if value == "expired" else deadline(2800) if value == "far" else value
     script, record, _ = helper(tmp_path, chaldea_client_waits_deadline=value)
-    for action in ["--check", "--start", "--authorize-status-read"]:
+    for action in ["--check", "--reserve", "--start", "--authorize-status-read"]:
         result = node(script, action)
         assert result.returncode != 0, result.stdout + result.stderr
         assert not record.exists()
@@ -58,6 +59,8 @@ def test_actual_clock_convergence_and_consumed_restart(tmp_path):
     second = node(script, "--check")
     assert first.returncode == second.returncode == 0, first.stderr + second.stderr
     assert not record.exists()
+    assert node(script, "--reserve").returncode == 0
+    assert json.loads(record.read_text())["starts"] == 0
     assert 0 < json.loads(second.stdout)["remainingSeconds"] <= json.loads(first.stdout)["remainingSeconds"]
     # Capture only execve, preserving deadline/state code and its real filesystem operations.
     original = script.read_text()
@@ -109,14 +112,15 @@ def test_finite_unit_and_persistent_bytes():
     gate = render("chaldea-waits-policy-gate.service.j2", variables)
     assert sandbox in gate and "waits serve" not in gate and "[Install]" not in gate
     assert "waits-policy-check.mjs" in gate
+    assert "RemainAfterExit=yes" in gate
 
 
+@pytest.mark.skipif(os.getuid() != 0, reason="requires real UID 0 ownership; retained agent-a root-case evidence is required")
 @pytest.mark.parametrize("unsafe", [False, True])
 def test_public_render_without_secret_and_without_credential_tasks(tmp_path, monkeypatch, unsafe):
     variables = policy_variables(tmp_path, monkeypatch)
     extra = protected_tree(tmp_path)
-    # Root in the job namespace. Public loader tests never relax owner acceptance.
-    assert os.getuid() == 0
+    # Run with actual UID 0 in agent-a; ordinary CI explicitly skips these two cases.
     extra["chaldea_client_session_policy_owner"] = "0"
     extra["chaldea_client_session_policy_owner_uid"] = 0
     path = Path(extra["chaldea_client_session_policy_path"])
@@ -208,7 +212,190 @@ def test_launcher_executes_timeout_with_exact_staged_argv(tmp_path):
     cli = runtime / "bin/chaldea"
     cli.parent.mkdir(parents=True)
     cli.write_text("console.log(JSON.stringify(process.argv.slice(2)));\n")
+    assert node(script, "--reserve").returncode == 0
     result = node(script, "--start")
     assert result.returncode == 0, result.stdout + result.stderr
     assert json.loads(result.stdout) == ["waits", "serve", "--config", str(Path.home() / ".config/chaldea/waits.json")]
     assert json.loads(record.read_text())["starts"] == 1
+
+
+def test_prelaunch_interruption_keeps_original_window(tmp_path):
+    script, record, variables = helper(tmp_path)
+    variables |= {"chaldea_client_waits_status_read_restart": False}
+    installed = Path.home() / ".config/chaldea/waits-deadline.mjs"
+    unit = tmp_path / "bounded.service"
+    node_path = Path.home() / ".local/share/mise/installs/node" / variables["chaldea_node_version"] / "bin/node"
+    node_path.parent.mkdir(parents=True)
+    executable = shutil.which("node")
+    assert executable
+    node_path.symlink_to(executable)
+    canonical = yaml.safe_load((ROLE / "tasks/waits-system.yml").read_text())
+    names = ["Create only private waits directories",
+             "Reserve the original bounded window before installing executable files",
+             "Install the fixed deadline launcher before the bounded definition",
+             "Install the system waits definition"]
+    chosen = [next(t for t in canonical if t["name"] == name) for name in names]
+    assert [canonical.index(t) for t in chosen] == sorted(canonical.index(t) for t in chosen)
+    assert canonical.index(chosen[1]) < canonical.index(next(t for t in canonical
+        if t["name"] == "Prove the proposed namespace before any credential inspection"))
+    checks = yaml.safe_load((ROLE / "tasks/waits-deadline.yml").read_text())
+
+    def execute(values, interrupt=False):
+        # Relocate only destinations and template lookup roots into scratch.
+        import copy
+        tasks = copy.deepcopy(checks + chosen)
+        for task in tasks:
+            task.pop("become", None)
+            if "ansible.builtin.command" in task:
+                args = task["ansible.builtin.command"]["argv"]
+                args[3] = args[3].replace("'waits-deadline.mjs.j2'", repr(str(TEMPLATES / "waits-deadline.mjs.j2")))
+            if "ansible.builtin.template" in task:
+                args = task["ansible.builtin.template"]
+                args["src"] = str(TEMPLATES / args["src"])
+                args.pop("owner", None)
+                args.pop("group", None)
+                if args["dest"].startswith("/etc/"):
+                    args["dest"] = str(unit)
+        if interrupt:
+            tasks.append({"name": "Interrupt before first launch",
+                          "ansible.builtin.fail": {"msg": "prelaunch interruption"}})
+        return play(tmp_path, values, tasks)
+
+    failed = execute(variables, interrupt=True)
+    assert failed.returncode != 0 and "prelaunch interruption" in failed.stdout, failed.stdout + failed.stderr
+    assert json.loads(record.read_text())["starts"] == 0
+    before = (record.read_bytes(), installed.read_bytes(), unit.read_bytes())
+    refused = execute(variables | {"chaldea_client_waits_deadline": deadline(600)})
+    assert refused.returncode != 0 and "foreign bounded waits start record" in refused.stdout, refused.stdout
+    assert before == (record.read_bytes(), installed.read_bytes(), unit.read_bytes())
+    recovered = execute(variables)
+    assert recovered.returncode == 0 and "changed=0" in recovered.stdout, recovered.stdout + recovered.stderr
+    assert before == (record.read_bytes(), installed.read_bytes(), unit.read_bytes())
+    assert not json.loads(node(script, "--reserve").stdout)["reserved"]
+
+
+def test_gate_captures_invocation_before_inactive_gc(tmp_path, monkeypatch):
+    safe(tmp_path)
+    manager = tmp_path / "manager.json"
+    manager.write_text(json.dumps({"active": False, "runs": 0, "calls": []}))
+    fake = tmp_path / "fake-bin/systemctl"
+    fake.parent.mkdir()
+    fake.write_text("""#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+path = Path(os.environ['GATE_TEST_MANAGER'])
+state = json.loads(path.read_text())
+words = [w for w in sys.argv[1:] if not w.startswith('-')]
+verb = words[0] if words else ''
+if '--version' in sys.argv:
+    print('systemd 257')
+elif verb == 'show':
+    active = state['active']
+    print('Id=chaldea-waits-policy-gate.service\\nLoadState=loaded\\nUnitFileState=static')
+    print('ActiveState=' + ('active' if active else 'inactive'))
+    print('SubState=' + ('exited' if active else 'dead'))
+    print('Result=success\\nExecMainStatus=0\\nDropInPaths=')
+    print('FragmentPath=/etc/systemd/system/chaldea-waits-policy-gate.service')
+    print('InvocationID=' + ('a' * 32 if active else ''))
+elif verb in ['start', 'restart']:
+    state['active'] = True
+    state['runs'] += 1
+elif verb == 'stop':
+    state['active'] = False
+elif verb == 'is-active':
+    print('active' if state['active'] else 'inactive')
+elif verb == 'is-enabled':
+    print('static')
+state['calls'].append(verb)
+path.write_text(json.dumps(state))
+""")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", str(fake.parent) + ":" + os.environ["PATH"])
+    monkeypatch.setenv("GATE_TEST_MANAGER", str(manager))
+    gate = yaml.safe_load((ROLE / "tasks/session-policy-gate.yml").read_text())
+    start = next(i for i, t in enumerate(gate) if t["name"] == "Run the maintained loader in the same system sandbox")
+    tasks = []
+    public = Path.home() / "public-policy.json"
+    public.write_text("{}")
+    for original in gate[start:]:
+        import copy
+        task = copy.deepcopy(original)
+        task.pop("become", None)
+        if task["name"] == "Hash only public gate bindings":
+            task["loop"] = [str(public)]
+        if task["name"].startswith("Capture sanitized exact bindings"):
+            fact = task["ansible.builtin.set_fact"]["chaldea_client_policy_gate_captured_evidence"]
+            fact["sandbox_sha256"] = "{{ lookup('ansible.builtin.template', " + repr(str(TEMPLATES / "chaldea-waits-system-sandbox.j2")) + ") | hash('sha256') }}"
+        tasks.append(task)
+    receipt = tmp_path / "receipt.json"
+    tasks.append({"name": "Record original evidence after GC",
+                  "ansible.builtin.copy": {"content": "{{ chaldea_client_policy_gate_evidence | to_json }}",
+                                          "dest": str(receipt), "mode": "0600"}})
+    result = play(tmp_path, context() | {"chaldea_client_t3_home": str(Path.home() / ".t3")}, tasks)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(receipt.read_text())["invocation_id"] == "a" * 32
+    state = json.loads(manager.read_text())
+    assert state["runs"] == 1 and state["active"] is False
+    assert state["calls"].count("stop") == 1
+    # An interrupted retained gate must be refused before writes or another run.
+    assertion = next(t for t in gate if t["name"].startswith("Refuse foreign loader gate definitions"))
+    result = play(tmp_path, {"chaldea_client_policy_gate_manager": {
+        "stdout_lines": ["DropInPaths=", "ActiveState=active"]}}, [assertion, tasks[0]])
+    assert result.returncode != 0 and "retained loader gate" in result.stdout, result.stdout
+    assert json.loads(manager.read_text())["runs"] == 1
+
+
+def test_nonroot_ci_collection_and_explicit_skip(tmp_path):
+    safe(tmp_path)
+    # Exercise the non-root selection branch in a fresh interpreter. Agent-a maps
+    # only UID 0 and denies nested user namespaces, so this is an identity simulation.
+    source = Path(__file__).resolve()
+    prefix = "import os; os.getuid = lambda: 1000; import pytest; "
+    for arguments in [
+        ["--collect-only", "-q", "-p", "no:cacheprovider", str(source), "-k", "public_render_without_secret"],
+        ["-q", "-rs", "-p", "no:cacheprovider", str(source), "-k", "public_render_without_secret"],
+    ]:
+        command = prefix + "raise SystemExit(pytest.main(" + repr(arguments) + "))"
+        result = subprocess.run([sys.executable, "-c", command], cwd=ROLE.parents[1],
+                                capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        if "--collect-only" in arguments:
+            assert "2/" in result.stdout or "2 tests collected" in result.stdout, result.stdout
+        else:
+            assert "2 skipped" in result.stdout
+            assert "requires real UID 0 ownership" in result.stdout
+
+
+@pytest.mark.parametrize("bounded", [False, True])
+def test_only_persistent_mode_creates_timestamped_backups(tmp_path, bounded):
+    safe(tmp_path)
+    variables = yaml.safe_load((ROLE / "defaults/main.yml").read_text()) | context() | {
+        "fleet_home": str(Path.home()),
+        "chaldea_client_waits_deadline": deadline() if bounded else "",
+    }
+    config = Path.home() / ".config/chaldea/waits.json"
+    config.parent.mkdir(parents=True)
+    config.write_text("original public config\n")
+    unit = tmp_path / "waits.service"
+    unit.write_text("original public unit\n")
+    canonical = yaml.safe_load((ROLE / "tasks/waits-system.yml").read_text())
+    selected = []
+    for name in ["Render waits configuration retaining the existing database and auth pointers",
+                 "Install the system waits definition"]:
+        import copy
+        task = copy.deepcopy(next(t for t in canonical if t["name"] == name))
+        task.pop("become", None)
+        args = task["ansible.builtin.template"]
+        args["src"] = str(TEMPLATES / args["src"])
+        args.pop("owner", None)
+        args.pop("group", None)
+        if name == "Install the system waits definition":
+            args["dest"] = str(unit)
+        selected.append(task)
+    result = play(tmp_path, variables, selected)
+    assert result.returncode == 0, result.stdout + result.stderr
+    for path in [config, unit]:
+        backups = list(path.parent.glob(path.name + ".*"))
+        assert len(backups) == (0 if bounded else 1), backups
+        if backups:
+            assert backups[0].read_text().startswith("original public ")

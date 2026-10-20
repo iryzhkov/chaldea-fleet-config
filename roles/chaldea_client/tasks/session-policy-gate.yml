@@ -46,6 +46,7 @@
          chaldea_client_policy_gate_unit.stat.checksum == lookup('ansible.builtin.template', 'chaldea-waits-policy-gate.service.j2') | hash('sha256') and
          'LoadState=loaded' in chaldea_client_policy_gate_manager.stdout_lines and
          'FragmentPath=/etc/systemd/system/chaldea-waits-policy-gate.service' in chaldea_client_policy_gate_manager.stdout_lines)
+    fail_msg: Refusing an unknown or retained loader gate. Preserve its invocation and use reviewed capture/stop cleanup before another execution.
     quiet: true
 
 - name: Render only the validated public policy
@@ -86,6 +87,8 @@
 - name: Require actual maintained loader success before producing evidence
   ansible.builtin.assert:
     that:
+      - chaldea_client_policy_gate_result.status.ActiveState == 'active'
+      - chaldea_client_policy_gate_result.status.SubState == 'exited'
       - chaldea_client_policy_gate_result.status.Result == 'success'
       - chaldea_client_policy_gate_result.status.ExecMainStatus == '0'
       - chaldea_client_policy_gate_result.status.InvocationID is match('^[0-9a-f]{32}$')
@@ -109,9 +112,9 @@
   register: chaldea_client_policy_gate_bindings
   when: not ansible_check_mode
 
-- name: Expose sanitized exact bindings for the packet controller to validate
+- name: Capture sanitized exact bindings while the original invocation is retained
   ansible.builtin.set_fact:
-    chaldea_client_policy_gate_evidence:
+    chaldea_client_policy_gate_captured_evidence:
       version: 1
       environment: "{{ chaldea_client_waits_environment }}"
       runtime: "{{ chaldea_client_waits_resolved_runtime }}"
@@ -120,4 +123,53 @@
       public_files: "{{ dict(chaldea_client_policy_gate_bindings.results | map(attribute='item') | zip(chaldea_client_policy_gate_bindings.results | map(attribute='stat.checksum'))) }}"
       invocation_id: "{{ chaldea_client_policy_gate_result.status.InvocationID }}"
       exec_main_status: "{{ chaldea_client_policy_gate_result.status.ExecMainStatus }}"
+  when: not ansible_check_mode
+
+- name: Recheck the original invocation before stopping the retained gate
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits-policy-gate.service
+    scope: system
+  register: chaldea_client_policy_gate_before_stop
+  when: not ansible_check_mode
+
+- name: Refuse to stop a different or overridden gate invocation
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_policy_gate_before_stop.status.InvocationID == chaldea_client_policy_gate_captured_evidence.invocation_id
+      - chaldea_client_policy_gate_before_stop.status.ActiveState == 'active'
+      - chaldea_client_policy_gate_before_stop.status.SubState == 'exited'
+      - chaldea_client_policy_gate_before_stop.status.DropInPaths | default('') == ''
+      - chaldea_client_policy_gate_before_stop.status.FragmentPath == '/etc/systemd/system/chaldea-waits-policy-gate.service'
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Stop the exact verified loader gate after capturing its invocation
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits-policy-gate.service
+    scope: system
+    state: stopped
+  when: not ansible_check_mode
+
+- name: Read gate state after releasing invocation metadata
+  become: true
+  ansible.builtin.systemd_service:
+    name: chaldea-waits-policy-gate.service
+    scope: system
+  register: chaldea_client_policy_gate_stopped
+  when: not ansible_check_mode
+
+- name: Require the gate to be inactive before handing back evidence
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_policy_gate_stopped.status.ActiveState == 'inactive'
+      - chaldea_client_policy_gate_stopped.status.DropInPaths | default('') == ''
+      - chaldea_client_policy_gate_stopped.status.FragmentPath == '/etc/systemd/system/chaldea-waits-policy-gate.service'
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Expose the captured evidence without rerunning the loader
+  ansible.builtin.set_fact:
+    chaldea_client_policy_gate_evidence: "{{ chaldea_client_policy_gate_captured_evidence }}"
   when: not ansible_check_mode

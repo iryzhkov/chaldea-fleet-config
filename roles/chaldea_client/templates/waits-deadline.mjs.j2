@@ -23,7 +23,7 @@ function readState() {
   const fd = openSync(statePath, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
     const state = JSON.parse(readFileSync(fd, 'utf8'));
-    if (state.binding !== binding || ![1, 2].includes(state.starts) || typeof state.statusRead !== 'boolean')
+    if (state.binding !== binding || ![0, 1, 2].includes(state.starts) || typeof state.statusRead !== 'boolean')
       throw Error('foreign bounded waits start record');
     return state;
   } finally { closeSync(fd); }
@@ -55,12 +55,16 @@ const state = readState();
 const action = process.argv.at(-1);
 if (action === '--check') {
   console.log(JSON.stringify({remainingSeconds: seconds, starts: state?.starts ?? 0}));
+} else if (action === '--reserve') {
+  if (!state) persist({binding, starts: 0, statusRead: false}, true);
+  console.log(JSON.stringify({remainingSeconds: seconds, starts: state?.starts ?? 0, reserved: !state}));
 } else if (action === '--authorize-status-read') {
   if (!state || state.starts !== 1) throw Error('only one status-read restart is allowed');
   persist({...state, statusRead: true}, false);
 } else if (action === '--start') {
-  if (state && (state.starts !== 1 || !state.statusRead)) throw Error('bounded waits launch already consumed');
-  persist({binding, starts: state ? 2 : 1, statusRead: false}, !state);
+  if (!state) throw Error('bounded waits window must be reserved before installation');
+  if (state.starts !== 0 && (state.starts !== 1 || !state.statusRead)) throw Error('bounded waits launch already consumed');
+  persist({binding, starts: state.starts + 1, statusRead: false}, false);
   execute(argv);
 } else if (action === '--namespace-check' || action === '--policy-check') {
   const checker = action === '--namespace-check' ? 'waits-namespace-check.mjs' : 'waits-policy-check.mjs';

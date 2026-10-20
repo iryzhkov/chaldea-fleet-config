@@ -180,8 +180,15 @@ credentials before rendering or full activation.
 
 After successful execution, `chaldea_client_policy_gate_evidence` contains the
 environment, resolved runtime, sandbox SHA256, exact public policy/loader/CLI/
-Node/checker/unit SHA256s and systemd invocation ID. Check mode produces no
-receipt. The packet controller must validate those exact bindings against its
+Node/checker/unit SHA256s and systemd invocation ID. The oneshot uses
+`RemainAfterExit=yes` so evidence is captured while the completed invocation is
+still active/exited. The role rechecks that exact invocation before stopping the
+gate and hands back the captured evidence after confirming inactivity. It never
+depends on InvocationID surviving inactive-unit garbage collection and does not
+rerun the loader to recover metadata. If interrupted before stop, the retained
+gate stays active/exited and admission refuses another execution; preserve its
+metadata and use the parent's reviewed capture/stop cleanup. Check mode produces
+no receipt. The packet controller must validate those exact bindings against its
 source-pinned staged runtime manifest and approved environment before enrollment,
 and refuse stale or mismatched evidence. This is evidence to validate, not an
 enrollment bypass flag. Synthetic tests do not qualify the maintained loader on
@@ -199,8 +206,12 @@ execution/shutdown, with TERM then KILL after five seconds. No timer or extra
 Node supervisor is installed. This assumes a trustworthy host clock and standard
 kernel scheduling; the parent packet must retain clock-health evidence.
 
-A private `~/.local/state/chaldea/waits-bounded-starts.json` record consumes the
-first start before executing it. Do not delete or rewrite it to retry a failed
+A private `~/.local/state/chaldea/waits-bounded-starts.json` record reserves
+the original deadline/runtime/environment with `starts: 0` after ownership
+admission and before any bounded executable files are installed. An interruption
+before first launch cannot authorize a later deadline; same-deadline recovery
+reuses the reservation without renewing it. Each actual start then consumes an
+attempt before execution. Do not delete or rewrite the record to retry a failed
 launch. Corrupt, foreign or unsafe records fail closed. After terminal reporter
 completion, the packet may stop the system owner and request one restart with
 `chaldea_client_waits_status_read_restart: true` while enough original time
@@ -209,7 +220,9 @@ consumes this second start; further starts fail. The packet must prohibit new
 reporter sessions during this status-read phase. The role starts no reporter
 and does not change Chaldea's session authorization API. Capture this record,
 the helper, new gate unit and existing restart-intent/backups in the parent's
-write-ahead cleanup ledger. This role does not implement composed cleanup.
+write-ahead cleanup ledger. Bounded mode suppresses timestamped config/unit
+backups because the parent's fixed capture retains the original bytes; persistent
+mode retains its backups. This role does not implement composed cleanup.
 
 An active bounded owner refuses configuration changes instead of restarting.
 Repeated validation does not renew the deadline or consume a start. Namespace
@@ -218,6 +231,16 @@ report a change even when all managed file bytes are converged. Empty deadline
 preserves the persistent unit bytes and ordinary restart-intent recovery.
 
 ## Tests
+
+The two canary public-render fixture cases require actual UID 0 ownership. They
+run on agent-a and explicitly skip on ordinary CI users, with the root-case job
+evidence retained separately. This is the smallest change that keeps production
+root-owner acceptance intact without making CI privileged. A fresh-interpreter
+test checks non-root collection and skip behavior by simulating UID selection;
+agent-a maps only UID 0 and cannot establish a nested user namespace for an
+actual unprivileged subprocess. This simulation is not ordinary-user runtime
+qualification. Other canary tests still execute on ordinary CI.
+
 
 `tests/test_chaldea_session_policy.py` applies the real role with the protected
 root, owner and become replaced by extra vars, so the policy renders into a

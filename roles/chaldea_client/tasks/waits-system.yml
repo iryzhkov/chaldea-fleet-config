@@ -28,6 +28,21 @@
     - "{{ fleet_home }}/.config/chaldea"
     - "{{ fleet_home }}/.local/state/chaldea"
 
+- name: Reserve the original bounded window before installing executable files
+  ansible.builtin.command:
+    argv:
+      - "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
+      - --input-type=module
+      - --eval
+      - "{{ lookup('ansible.builtin.template', 'waits-deadline.mjs.j2') }}"
+      - --
+      - --reserve
+  register: chaldea_client_waits_reservation
+  changed_when: (chaldea_client_waits_reservation.stdout | from_json).reserved
+  when:
+    - chaldea_client_waits_deadline | length > 0
+    - not ansible_check_mode
+
 - name: Predict waits changes before writing definitions or configuration
   become: "{{ item.system | default(false) }}"
   ansible.builtin.template:
@@ -149,7 +164,7 @@
     src: waits.json.j2
     dest: "{{ fleet_home }}/.config/chaldea/waits.json"
     mode: "0600"
-    backup: true
+    backup: "{{ chaldea_client_waits_deadline | length == 0 }}"
   register: chaldea_client_waits_system_config
 
 - name: Render the maintained policy loader startup check
@@ -191,7 +206,7 @@
     owner: root
     group: root
     mode: "0644"
-    backup: true
+    backup: "{{ chaldea_client_waits_deadline | length == 0 }}"
   register: chaldea_client_waits_system_unit
 
 - name: Start the sole system waits owner
