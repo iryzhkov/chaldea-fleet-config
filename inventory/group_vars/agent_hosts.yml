@@ -7,8 +7,8 @@ pull_timer_enabled: true
 retention_timer_enabled: true
 
 # The collector was qualified and staged independently of the host installer pin.
-# Candidate028 requires ROOT's published-download receipt before use.
+# Published029 verified in cd2e425300544d65e90ba99c4d4bbc2e@1; stage before selection.
 # Keep this selection shared without upgrading other host consumers.
-akasha_collector_version: host-v0.2.8
+akasha_collector_version: host-v0.2.9
 akasha_collector_script: "/opt/chaldea-host/releases/{{ akasha_collector_version }}/host/akasha-collector.mjs"
 # The separate enrollment inventory has no agent_hosts group and keeps its defaults.

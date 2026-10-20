@@ -5,6 +5,10 @@ mission_control_reader_enabled: false
 # Production UID is deliberately unselected. Never use igor's broad sudo identity.
 mission_control_reader_uid: null
 mission_control_reader_allowed_source_ids: []
+# Fixed Events/Ops reads (fleet job_finished, daily-health report). Off keeps the
+# installed reader config byte-identical for older parsers. On requires a
+# compatible client >= 0.4.9, all four status sources and the two extra grants.
+mission_control_reader_operations_enabled: false
 # Separate future permission packet, never selected by ordinary inventory.
 mission_control_pc_permission: false  # noqa var-naming[no-role-prefix]
 mission_control_agent_b_permission: false  # noqa var-naming[no-role-prefix]

@@ -1,10 +1,10 @@
 ---
 # Explicit extra-vars only. This file is not imported by site or either MC play.
-# Qualified d024 CI candidate 048; publication/download receipt remains required.
-# Preserve actual 044/046/047 payloads and caches; fresh age/mtime inventory is an
+# Published C63 client049; actual downloads verified in cd2e425300544d65e90ba99c4d4bbc2e@1.
+# Preserve actual 044/046/047/048 payloads and caches; fresh age/mtime inventory is an
 # operator gate because the unchanged runtime role prunes inactive bytes after 14d.
-mission_control_runtime_version: client-v0.4.8
-mission_control_runtime_sha256: 3361f7fe8fef92e77b0e9b56ac58de7c43389ccb81a658887e7df29a99c04586
+mission_control_runtime_version: client-v0.4.9
+mission_control_runtime_sha256: 4029833d7b013571ff375a8bb58d355fcab3ab54e682038a2a65a598751a1535
 mission_control_activate: false
 mission_control_runtime_enabled: false
 mission_control_capture_enabled: false
@@ -15,6 +15,8 @@ mission_control_route_enabled: false
 # Reader940 requires fresh NSS/name collision and exact sudo/DAC qualification.
 mission_control_reader_uid: 940
 mission_control_reader_allowed_source_ids: [agent-a--mission-control]
+# Events/Ops reads stay off; enabling also needs the two extra helper grant rows.
+mission_control_reader_operations_enabled: false
 # Exact reader-role assertion input; complete existing helper grants come from
 # the canonical native render, never this one-row assertion list.
 mission_control_reader_grants:

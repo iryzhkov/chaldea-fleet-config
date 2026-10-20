@@ -32,7 +32,9 @@ def hosted(client, tmp_path_factory):
             assert not relative.is_absolute() and ".." not in relative.parts
             path = destination / "src" / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(archive.extractfile(member).read())
+            content = archive.extractfile(member)
+            assert content is not None
+            path.write_bytes(content.read())
     return destination
 
 
@@ -143,7 +145,8 @@ def test_pc_existing_collector_prospective_native_contract(hosted, client, tmp_p
         assert denied.returncode != 0, invalid
     assert active.read_bytes() == before
 
-def test_remaining_collectors_native_uid_scope_and_preservation(hosted, tmp_path):
+@pytest.fixture(scope="module")
+def canonical(hosted, tmp_path_factory):
     import hashlib
     import os
     # Exact source fixture, never a production release pin. ROOT publishes C first.
@@ -151,9 +154,14 @@ def test_remaining_collectors_native_uid_scope_and_preservation(hosted, tmp_path
     local = os.environ.get("MC_CANONICAL_AUTH_FIXTURE")
     auth = Path(local).read_bytes() if local else urllib.request.urlopen(auth_url, timeout=90).read()
     assert hashlib.sha256(auth).hexdigest() == "f4c25bc180f5d4cf90efe651bf7b077f20e16c7054733e37df22bfe709241513"
-    canonical = tmp_path / "canonical-client"
-    shutil.copytree(hosted, canonical)
-    (canonical / "src/akasha/auth.ts").write_bytes(auth)
+    destination = tmp_path_factory.mktemp("canonical-source-fixture") / "canonical-client"
+    shutil.copytree(hosted, destination)
+    (destination / "src/akasha/auth.ts").write_bytes(auth)
+    return destination
+
+
+def test_remaining_collectors_native_uid_scope_and_preservation(canonical, tmp_path):
+    import os
     from test_akasha_enrollment import ROOT
     active = ROOT / "access-trust/issuer-grants.json"
     source = json.loads(active.read_text())
@@ -220,3 +228,117 @@ def test_remaining_collectors_native_uid_scope_and_preservation(hosted, tmp_path
                         dict(read_sources=list(reversed(selected["read_sources"]))),
                         dict(unknown_host="other")]:
             assert compose(canonical, data | dict(mission_control=selected | invalid), existing=fixture_file).returncode != 0
+
+
+FOUR = ["agent-a--mission-control", "omarchy-pc--mission-control", "agent-b--mission-control",
+        "omarchy-macbook-air-igor--mission-control"]
+FOUR_PACKET = dict(publisher_uid=1000, pc_publisher_uid=1000, agent_b_publisher_uid=1000,
+                   laptop_publisher_uid=1001, reader_uid=940, read_sources=FOUR)
+FULL_INPUTS = dict(pc_reader=True, pc_quota=True, laptop_quota=False, pc_quota_reader=False)
+
+
+def reader_grant(kind):
+    return dict(uid=940, audience="akasha", action="read", source="mission-control-reader",
+                host="omarchy-normandy", kind=kind, profile="mission-control-reader", project="chaldea")
+
+
+def test_operations_read_off_preserves_current_native_composition(canonical):
+    from test_akasha_enrollment import ROOT
+    active = ROOT / "access-trust/issuer-grants.json"
+    before = active.read_bytes()
+    data = public_inputs() | FULL_INPUTS
+    current = compose(canonical, data | dict(mission_control=FOUR_PACKET))
+    assert current.returncode == 0, current.stderr
+    explicit = compose(canonical, data | dict(mission_control=FOUR_PACKET | dict(operations_read=False)))
+    assert explicit.returncode == 0, explicit.stderr
+    assert explicit.stdout == current.stdout
+    rendered = json.loads(current.stdout)
+    reader = next(r for r in rendered["registry"] if r["profile"] == "mission-control-reader")
+    assert reader["kinds"] == ["agent_status"] and "mission_control_operations_read" not in reader
+    assert [g for g in rendered["grants"]["omarchy-normandy"] if g["source"] == "mission-control-reader"] == [
+        reader_grant("agent_status")]
+    assert active.read_bytes() == before
+
+
+@pytest.mark.parametrize("packet", [
+    FOUR_PACKET | dict(operations_read="true"), FOUR_PACKET | dict(operations_read=1),
+    FOUR_PACKET | dict(operations_read=None),
+    dict(publisher_uid=1000, reader_uid=940, read_sources=["agent-a--mission-control"], operations_read=True),
+    dict(publisher_uid=1000, pc_publisher_uid=1000, reader_uid=940,
+         read_sources=FOUR[:2], operations_read=True),
+    dict(publisher_uid=1000, reader_uid=None, read_sources=[], operations_read=True),
+])
+def test_operations_read_refuses_malformed_or_partial_reader_selection(canonical, packet):
+    result = compose(canonical, public_inputs() | FULL_INPUTS | dict(mission_control=packet))
+    assert result.returncode != 0
+    assert "operations_read" in result.stderr or "operations read requires" in result.stderr
+
+
+def test_operations_read_is_refused_by_a_legacy_registry_decoder(canonical):
+    # The current (pre-0.4.9) decoder rejects the unknown registration field.
+    packet = FOUR_PACKET | dict(operations_read=True)
+    result = compose(canonical, public_inputs() | FULL_INPUTS | dict(mission_control=packet))
+    assert result.returncode != 0 and "operations read requires" not in result.stderr
+
+
+@pytest.fixture(scope="module")
+def operations_client(hosted, tmp_path_factory):
+    # SOURCE FIXTURE ONLY, not a production release or artifact pin. PR63 publishes
+    # this exact checked source so CI always exercises the opt-in without a skip.
+    source = "0654ffae3d15dea488ff9fe11879103fb90fc140"
+    destination = tmp_path_factory.mktemp("operations-source-fixture") / "client"
+    shutil.copytree(hosted, destination)
+    shutil.rmtree(destination / "src")
+    raw = urllib.request.urlopen(
+        "https://codeload.github.com/iryzhkov/chaldea/tar.gz/" + source, timeout=90).read()
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as archive:
+        prefix = "chaldea-" + source + "/src/"
+        files = [m for m in archive.getmembers() if m.isfile() and m.name.startswith(prefix)]
+        assert files
+        for member in files:
+            relative = Path(member.name.removeprefix(prefix))
+            assert not relative.is_absolute() and ".." not in relative.parts
+            path = destination / "src" / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            content = archive.extractfile(member)
+            assert content is not None
+            path.write_bytes(content.read())
+    return destination
+
+
+def test_operations_read_adds_only_reader_kinds_and_helper_rows(operations_client):
+    from test_akasha_enrollment import ROOT
+    from test_token_helper import render
+    active = ROOT / "access-trust/issuer-grants.json"
+    before = active.read_bytes()
+    data = public_inputs() | FULL_INPUTS
+    baseline = compose(operations_client, data | dict(mission_control=FOUR_PACKET))
+    assert baseline.returncode == 0, baseline.stderr
+    result = compose(operations_client, data | dict(mission_control=FOUR_PACKET | dict(operations_read=True)))
+    assert result.returncode == 0, result.stderr
+    old, new = json.loads(baseline.stdout), json.loads(result.stdout)
+    # No issuer, key, ceiling or sequence input changes; the active file stays byte-identical.
+    assert new["issuers"] == old["issuers"] == json.loads(before)
+    assert active.read_bytes() == before
+    assert len(new["registry"]) == len(old["registry"])
+    # Output stays the additive subset: infra base rows only enter validation.
+    base = {"agent-a-daily-health", "agent-a-fleet", "agent-a-toolfeedback"}
+    assert not base & {r["source_id"] for r in new["registry"]}
+    for previous, row in zip(old["registry"], new["registry"]):
+        if previous["profile"] != "mission-control-reader":
+            assert row == previous
+            continue
+        assert row == previous | dict(kinds=["agent_status", "job_finished", "report"],
+                                      mission_control_operations_read=True)
+        assert row["mission_control_read_sources"] == FOUR
+    for host, grants in old["grants"].items():
+        extra = [reader_grant("job_finished"), reader_grant("report")] if host == "omarchy-normandy" else []
+        assert new["grants"][host] == grants + extra
+    assert [g["kind"] for g in new["grants"]["omarchy-normandy"] if g["source"] == "mission-control-reader"] == [
+        "agent_status", "job_finished", "report"]
+    sudoers = render("sudoers.j2", dict(chaldea_token_helper_grants=new["grants"]["omarchy-normandy"][-3:]))
+    for kind in ("agent_status", "job_finished", "report"):
+        assert ("#940 ALL=(chaldea-issuer) NOPASSWD: NOSETENV: /usr/local/libexec/chaldea-token-helper-issuer"
+                " --audience akasha --action read --source mission-control-reader --host omarchy-normandy"
+                " --kind " + kind) in sudoers
+    assert "*" not in sudoers and "/bin/sh" not in sudoers

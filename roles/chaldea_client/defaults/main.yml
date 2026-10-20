@@ -2,7 +2,7 @@
 chaldea_client_enabled: false
 chaldea_client_version: ""
 chaldea_client_sha256: ""
-# Preserve at most four explicit rollback versions in addition to current/previous.
+# Preserve at most five explicit rollback versions in addition to current/previous.
 # Retention never installs missing versions or selects the active client.
 chaldea_client_retained_versions: []
 chaldea_client_release_url: "https://github.com/iryzhkov/chaldea/releases/download/{{ chaldea_client_version }}"
