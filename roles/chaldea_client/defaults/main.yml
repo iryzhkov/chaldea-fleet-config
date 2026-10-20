@@ -15,6 +15,12 @@ chaldea_client_quota_enabled: false
 chaldea_client_waits_enabled: false
 # System mode converges waits only, using the existing client and fleet account.
 chaldea_client_waits_service_mode: user
+# Optional one-canary window: strict UTC YYYY-MM-DDTHH:MM:SSZ, 16..2700 seconds
+# remaining at execution. Empty preserves the persistent service byte for byte.
+chaldea_client_waits_deadline: ""
+# One explicit restart after terminal completion, to read durable status only.
+# Never launches a reporter; the packet controller must prohibit new sessions.
+chaldea_client_waits_status_read_restart: false
 # Already-installed waits runtime only; never changes global current/previous.
 chaldea_client_waits_runtime_root: "{{ chaldea_client_root }}/current"
 chaldea_client_t3_home: "{{ fleet_home }}/.t3"

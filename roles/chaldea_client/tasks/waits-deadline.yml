@@ -1,0 +1,18 @@
+---
+# Always run before writes, including check mode. Use target execution time, never gathered facts.
+- name: Inspect the fixed deadline and durable bounded launch count
+  ansible.builtin.command:
+    argv:
+      - "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
+      - --input-type=module
+      - --eval
+      - "{{ lookup('ansible.builtin.template', 'waits-deadline.mjs.j2') }}"
+      - --
+      - --check
+  changed_when: false
+  check_mode: false
+  register: chaldea_client_waits_deadline_check
+
+- name: Retain the measured bounded launch state
+  ansible.builtin.set_fact:
+    chaldea_client_waits_bounded_state: "{{ chaldea_client_waits_deadline_check.stdout | from_json }}"

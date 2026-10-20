@@ -1,0 +1,63 @@
+---
+# The protected session policy Chaldea's wait service reads: public
+# configuration, never a credential. Every check runs before the first write.
+# The client parses the file again at every start; these checks only refuse
+# what it would refuse, earlier and with the inventory field named.
+
+- name: Refuse incompatible policy mode even through the role-only policy entrypoint
+  ansible.builtin.import_tasks: waits-validate.yml
+
+- name: Validate the session policy shape
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_waits_enabled | bool
+      - chaldea_client_waits_environment | length > 0
+      - chaldea_client_session_policy_path is regex('^/([A-Za-z0-9._-]+/)*policy[.]json$', match_type='fullmatch')
+      - chaldea_client_session_policy_path | normpath == chaldea_client_session_policy_path
+      - chaldea_client_session_policy_root == '/' or chaldea_client_session_policy_path.startswith(chaldea_client_session_policy_root ~ '/')
+      - chaldea_client_session_ceilings | type_debug == 'list'
+      - chaldea_client_session_ceilings | length >= 1
+      - chaldea_client_session_ceilings | length <= 8
+      - chaldea_client_session_presets is mapping
+      - chaldea_client_session_presets | length >= 1
+      - chaldea_client_session_presets | length <= 16
+      - chaldea_client_session_enrollments is mapping
+      - chaldea_client_session_enrollments.keys() | difference(chaldea_client_session_presets.keys()) | length == 0
+    fail_msg: >-
+      A session policy needs waits enabled with its environment, 1..8 ceilings, 1..16 presets,
+      and enrollments only for declared presets.
+    quiet: true
+
+- name: Require fixed presets that never delegate
+  ansible.builtin.assert:
+    that:
+      - item.key is regex('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$', match_type='fullmatch')
+      - item.value is mapping
+      - item.value.keys() | difference(chaldea_client_session_preset_keys + ['options', 'inputs']) | length == 0
+      - chaldea_client_session_preset_keys | difference(item.value.keys()) | length == 0
+      - item.value.delegate is sameas false
+    fail_msg: "Preset {{ item.key }} needs exactly the policy's preset fields and delegate: false."
+    quiet: true
+  loop: "{{ chaldea_client_session_presets | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  vars:
+    chaldea_client_session_preset_keys: [instanceId, model, runtimeMode, interactionMode, projectId, title, prompt,
+                                         project, services, maxSeconds, delegate, destinations]
+
+# Public validation precedes private-file stat and every policy write.
+- name: Require each enrollment to match its preset and the supported form
+  ansible.builtin.assert:
+    that:
+      - >-
+        chaldea_client_session_enrollments | chaldea_session_enrollments(
+          chaldea_client_session_presets, chaldea_client_session_ceilings, fleet_home)
+    fail_msg: Enrollment must match the closed service contract.
+    quiet: true
+
+- name: Refuse a rendered policy larger than the client can load
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.template', 'policy.json.j2') | chaldea_session_policy_size
+    fail_msg: The rendered session policy must fit the client policy-load limit of 64 KiB.
+    quiet: true

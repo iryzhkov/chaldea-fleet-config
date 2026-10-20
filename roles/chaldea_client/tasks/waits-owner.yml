@@ -57,6 +57,7 @@
       - >-
         'UnitFileState=enabled' in item.item.stdout_lines or 'UnitFileState=disabled' in item.item.stdout_lines or
         'UnitFileState=masked' in item.item.stdout_lines or
+        (item.item.item.scope == '--system' and chaldea_client_waits_deadline | default('') | length > 0 and 'UnitFileState=static' in item.item.stdout_lines) or
         ('LoadState=not-found' in item.item.stdout_lines and 'UnitFileState=' in item.item.stdout_lines)
       - >-
         (not item.stat.exists and 'LoadState=not-found' in item.item.stdout_lines) or

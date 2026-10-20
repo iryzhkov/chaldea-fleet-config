@@ -3,6 +3,9 @@
   ansible.builtin.assert:
     that:
       - chaldea_client_waits_service_mode in ['user', 'system']
+      - chaldea_client_waits_deadline | default('') is string
+      - chaldea_client_waits_deadline | default('') | length == 0 or chaldea_client_waits_service_mode == 'system'
+      - not chaldea_client_waits_status_read_restart | default(false) or chaldea_client_waits_deadline | default('') | length > 0
       - not chaldea_client_session_policy_enabled | bool or chaldea_client_waits_service_mode == 'system'
       - chaldea_client_waits_service_mode != 'system' or chaldea_client_waits_enabled | bool
     fail_msg: Protected sessions require explicit system waits mode with waits enabled; user mode cannot map root.

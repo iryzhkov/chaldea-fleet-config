@@ -1,0 +1,74 @@
+// Fixed public deadline. --check never writes; starts consume durable attempts.
+import { constants, openSync, closeSync, readFileSync, writeFileSync, ftruncateSync, fsyncSync, lstatSync } from 'node:fs';
+const deadlineText = {{ chaldea_client_waits_deadline | to_json }};
+const binding = {{ (chaldea_client_waits_deadline ~ '\n' ~ chaldea_client_waits_resolved_runtime ~ '\n' ~ chaldea_client_waits_environment) | to_json }};
+const statePath = {{ (fleet_home ~ '/.local/state/chaldea/waits-bounded-starts.json') | to_json }};
+const node = {{ (fleet_home ~ '/.local/share/mise/installs/node/' ~ chaldea_node_version ~ '/bin/node') | to_json }};
+const argv = [node, {{ (chaldea_client_waits_resolved_runtime ~ '/bin/chaldea') | to_json }},
+  'waits', 'serve', '--config', {{ (fleet_home ~ '/.config/chaldea/waits.json') | to_json }}];
+function remaining() {
+  const deadline = Date.parse(deadlineText);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(deadlineText) ||
+      !Number.isFinite(deadline) || new Date(deadline).toISOString() !== deadlineText.replace('Z', '.000Z'))
+    throw Error('invalid bounded waits UTC deadline');
+  const seconds = Math.floor((deadline - Date.now()) / 1000);
+  if (seconds <= 15 || deadline - Date.now() > 2700000) throw Error('bounded waits deadline outside 16..2700 remaining seconds');
+  return seconds;
+}
+function readState() {
+  let stat;
+  try { stat = lstatSync(statePath); } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
+  if (!stat.isFile() || stat.nlink !== 1 || stat.uid !== process.getuid() || (stat.mode & 0o777) !== 0o600)
+    throw Error('unsafe bounded waits start record');
+  const fd = openSync(statePath, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const state = JSON.parse(readFileSync(fd, 'utf8'));
+    if (state.binding !== binding || ![0, 1, 2].includes(state.starts) || typeof state.statusRead !== 'boolean')
+      throw Error('foreign bounded waits start record');
+    return state;
+  } finally { closeSync(fd); }
+}
+function persist(state, first) {
+  const flags = constants.O_WRONLY | constants.O_NOFOLLOW | (first ? constants.O_CREAT | constants.O_EXCL : 0);
+  const fd = openSync(statePath, flags, 0o600);
+  try {
+    // An interrupted write consumes the attempt or leaves an invalid record: fail closed.
+    const bytes = JSON.stringify(state) + '\n';
+    writeFileSync(fd, bytes);
+    ftruncateSync(fd, Buffer.byteLength(bytes));
+    fsyncSync(fd);
+  } finally { closeSync(fd); }
+  if (first) {
+    const directory = openSync(statePath.slice(0, statePath.lastIndexOf('/')), constants.O_RDONLY | constants.O_DIRECTORY);
+    try { fsyncSync(directory); } finally { closeSync(directory); }
+  }
+}
+function execute(command) {
+  const lifetime = remaining() - 10; // Five seconds to kill, plus execution/shutdown reserve.
+  // Replace this process. No new Node supervisor and no credential access.
+  process.execve('/usr/bin/timeout', ['/usr/bin/timeout', '--signal=TERM', '--kill-after=5s',
+    lifetime + 's', ...command], process.env);
+  throw Error('execve unavailable');
+}
+const seconds = remaining();
+const state = readState();
+const action = process.argv.at(-1);
+if (action === '--check') {
+  console.log(JSON.stringify({remainingSeconds: seconds, starts: state?.starts ?? 0}));
+} else if (action === '--reserve') {
+  if (!state) persist({binding, starts: 0, statusRead: false}, true);
+  console.log(JSON.stringify({remainingSeconds: seconds, starts: state?.starts ?? 0, reserved: !state}));
+} else if (action === '--authorize-status-read') {
+  if (!state || state.starts !== 1) throw Error('only one status-read restart is allowed');
+  persist({...state, statusRead: true}, false);
+} else if (action === '--start') {
+  if (!state) throw Error('bounded waits window must be reserved before installation');
+  if (state.starts !== 0 && (state.starts !== 1 || !state.statusRead)) throw Error('bounded waits launch already consumed');
+  persist({binding, starts: state.starts + 1, statusRead: false}, false);
+  execute(argv);
+} else if (action === '--namespace-check' || action === '--policy-check') {
+  const checker = action === '--namespace-check' ? 'waits-namespace-check.mjs' : 'waits-policy-check.mjs';
+  execute([node, {{ (fleet_home ~ '/.config/chaldea/') | to_json }} + checker]);
+} else {
+  throw Error('unknown bounded waits action');
+}
