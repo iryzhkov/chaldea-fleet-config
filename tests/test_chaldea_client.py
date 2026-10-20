@@ -395,21 +395,26 @@ def test_unexpected_current_refuses_before_replacing_units(tmp_path, monkeypatch
 
 
 
-def test_explicit_rollback_history_preserves_payloads_and_cache(tmp_path, monkeypatch):
-    for version in ("client-v0.2.0", "client-v0.3.0"):
+@pytest.mark.parametrize("all_present", [False, True])
+def test_explicit_rollback_history_preserves_payloads_and_cache(tmp_path, monkeypatch, all_present):
+    history = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())[
+        "chaldea_client_retained_versions"]
+    assert history == ["client-v0.2.0", "client-v0.3.0", "client-v0.4.0",
+                       "client-v0.4.2", "client-v0.4.7", "client-v0.4.8"]
+    installed = (history if all_present else ["client-v0.2.0", "client-v0.3.0", "client-v0.4.8"]) + [
+        "client-v0.4.9"]
+    for version in installed:
         variables = fixture(tmp_path, monkeypatch, version)
+        variables["chaldea_client_retained_versions"] = history
         result = run(tmp_path, variables)
         print(result.stdout, result.stderr)
         success(result)
     root = Path.home() / ".local/share/chaldea"
     cache = Path.home() / ".cache/chaldea-client"
-    history = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())[
-        "chaldea_client_retained_versions"]
-    assert history == ["client-v0.2.0", "client-v0.3.0", "client-v0.4.0", "client-v0.4.2", "client-v0.4.7"]
 
     def snapshot():
         paths = []
-        for version in ("client-v0.2.0", "client-v0.3.0"):
+        for version in installed:
             release = root / "releases" / version
             paths.extend([release, *release.rglob("*"), cache / (version + ".json"),
                           cache / (version + ".tar.gz")])
@@ -430,7 +435,7 @@ def test_explicit_rollback_history_preserves_payloads_and_cache(tmp_path, monkey
         (cache / ("client-v0.1.0" + suffix)).write_bytes(b"unlisted fixture")
     # Nonmanaged names remain outside GC's existing path boundary.
     (cache / "operator-note").write_bytes(b"preserve unmanaged")
-    variables = fixture(tmp_path, monkeypatch, "client-v0.4.7")
+    variables = fixture(tmp_path, monkeypatch, "client-v0.4.11")
     variables["chaldea_client_retained_versions"] = history
     for attempt in range(2):
         result = run(tmp_path, variables)
@@ -439,20 +444,20 @@ def test_explicit_rollback_history_preserves_payloads_and_cache(tmp_path, monkey
         if attempt:
             assert "changed=0" in result.stdout, result.stdout
         assert snapshot() == before
-        assert sorted(p.name for p in (root / "releases").iterdir()) == [
-            "client-v0.2.0", "client-v0.3.0", "client-v0.4.7"]
-        assert sorted(p.name for p in cache.iterdir()) == [
-            "client-v0.2.0.json", "client-v0.2.0.tar.gz",
-            "client-v0.3.0.json", "client-v0.3.0.tar.gz",
-            "client-v0.4.7.json", "client-v0.4.7.tar.gz", "operator-note"]
-        assert (root / "current").resolve() == root / "releases/client-v0.4.7"
-        assert (root / "previous").resolve() == root / "releases/client-v0.3.0"
+        keep = installed + ["client-v0.4.11"]
+        assert sorted(p.name for p in (root / "releases").iterdir()) == sorted(keep)
+        assert sorted(p.name for p in cache.iterdir()) == sorted([
+            version + suffix for version in keep for suffix in (".json", ".tar.gz")
+        ] + ["operator-note"])
+        # The partial-history case must not install listed but absent versions.
+        assert (root / "current").resolve() == root / "releases/client-v0.4.11"
+        assert (root / "previous").resolve() == root / "releases/client-v0.4.9"
 
 
 @pytest.mark.parametrize("retained", [
     "client-v0.2.0", {"client-v0.2.0": True}, None, 1,
     ["client-v0.2.0"] * 2,
-    ["client-v0.1." + str(n) for n in range(6)],
+    ["client-v0.1." + str(n) for n in range(7)],
     [1], ["../client-v0.2.0"], ["/client-v0.2.0"],
     ["client-v0.2.0/../escape"], ["client-v00.2.0"],
     ["client-v0.2.0\n"], ["client-v0.2.0-rc1"],
