@@ -44,6 +44,27 @@ def play(tmp_path, variables, tasks):
 
 
 
+def test_preflight_facts_exclude_environment(tmp_path):
+    safe(tmp_path)
+    source = yaml.safe_load((ROOT / "playbooks/chaldea-waits-preflight.yml").read_text())[0]
+    path = tmp_path / "facts.yml"
+    path.write_text(yaml.safe_dump([{
+        "name": "Qualify only public identity facts in scratch",
+        "hosts": "localhost", "connection": "local", "gather_facts": True,
+        "gather_subset": source["gather_subset"],
+        "tasks": [{"name": "Require identity without environment collection",
+                   "ansible.builtin.assert": {"that": [
+                       "ansible_facts.env is not defined",
+                       "ansible_facts.hostname is defined",
+                       "ansible_facts.user_uid is defined",
+                       "ansible_facts.user_gid is defined",
+                   ], "quiet": True}}],
+    }]))
+    result = subprocess.run(["ansible-playbook", "-i", "localhost,", str(path)],
+                            cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 @pytest.mark.parametrize("template_name", ["chaldea-waits-system.service.j2", "chaldea-waits-preflight.service.j2"])
 def test_system_template_bytes_match_ansible(tmp_path, template_name):
     module_path = tmp_path / "module.service"

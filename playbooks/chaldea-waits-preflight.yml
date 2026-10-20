@@ -3,7 +3,7 @@
 - name: Qualify the proposed waits namespace before enrollment
   hosts: agent_hosts
   gather_facts: true
-  gather_subset: [min]
+  gather_subset: ['!all', '!min', user, platform]
   pre_tasks:
     - name: Require a single explicitly selected matching host
       ansible.builtin.assert:
