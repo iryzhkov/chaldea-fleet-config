@@ -55,7 +55,7 @@ def test_default_two_or_explicit_third_release_and_cache(tmp_path, preserve):
 
 @pytest.mark.parametrize("invalid", ["host-v0.2.2", {}, ["/opt/host-v0.2.2"], ["../host-v0.2.2"],
     ["unknown"], [2], ["host-v0.2.2\n"], ["host-v0.2.2"] * 2,
-    [f"host-v0.2.{i}" for i in range(6)]])
+    [f"host-v0.2.{i}" for i in range(7)]])
 def test_malformed_preservation_stops_before_any_install_or_delete(tmp_path, invalid):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]))
     pins = stage(tmp_path)

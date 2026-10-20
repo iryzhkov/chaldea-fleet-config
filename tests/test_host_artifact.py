@@ -258,6 +258,8 @@ def test_actual_program_copy_tasks_install_and_dry_diff_in_scratch(tmp_path):
         }, indent=2))
 
 def test_retention_keeps_configured_and_one_prior_release_and_cache(tmp_path):
+    defaults = yaml.safe_load((ROOT / "roles/chaldea_host_artifact/defaults/main.yml").read_text())
+    assert defaults["chaldea_host_artifact_preserve_versions"] == []
     pins = stage(tmp_path)
     root = Path(pins["chaldea_host_artifact_release_root"])
     cache = Path(pins["chaldea_host_artifact_cache"])
@@ -278,3 +280,47 @@ def test_retention_keeps_configured_and_one_prior_release_and_cache(tmp_path):
         pins["chaldea_host_version"] + ".tar.gz", pins["chaldea_host_version"] + ".json",
         "host-v9.0.2.tar.gz", "host-v9.0.2.json", "operator-note",
     ])
+
+
+def test_retention_keeps_all_eight_through_runtime_then_shared_calls(tmp_path):
+    pins = stage(tmp_path)
+    root = Path(pins["chaldea_host_artifact_release_root"])
+    cache = Path(pins["chaldea_host_artifact_cache"])
+    root.mkdir()
+    cache.mkdir()
+    older = [f"host-v0.2.{i}" for i in (2, 3, 4, 6, 7, 8, 9)]
+    archive = Path(pins["chaldea_host_artifact_archive_source"]).read_bytes()
+    original_cache = {}
+    for index, version in enumerate(older):
+        release = root / version
+        release.mkdir()
+        (release / "consumer").write_text(version)
+        os.utime(release, (index + 1, index + 1))
+        for suffix, content in (
+            (".tar.gz", archive),
+            (".json", json.dumps({"version": version, "sha256": pins["chaldea_host_sha256"]}).encode()),
+        ):
+            name = version + suffix
+            (cache / name).write_bytes(content)
+            original_cache[name] = content
+    calls = (
+        ("host-v0.2.10", older[:-1]),  # newest prior029 plus six explicit old releases
+        ("host-v0.2.2", older[1:]),   # newest prior0210 plus six other old releases
+    )
+    for selected, preserved in calls:
+        pins["chaldea_host_version"] = selected
+        pins["chaldea_host_artifact_preserve_versions"] = preserved
+        Path(pins["chaldea_host_artifact_manifest_source"]).write_text(
+            json.dumps({"version": selected, "sha256": pins["chaldea_host_sha256"]}))
+        result = run_role(tmp_path, pins)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert {p.name for p in root.iterdir()} == set(older) | {"host-v0.2.10"}
+        assert {p.name for p in cache.iterdir()} == {
+            version + suffix for version in [*older, "host-v0.2.10"] for suffix in (".tar.gz", ".json")
+        }
+        for version in older:
+            assert (root / version / "consumer").read_text() == version
+        for name, content in original_cache.items():
+            assert (cache / name).read_bytes() == content
+        # Fixture ordering only. Real target mtimes remain an operator gate.
+        os.utime(root / "host-v0.2.10", (100, 100))
