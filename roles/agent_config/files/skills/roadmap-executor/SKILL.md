@@ -67,6 +67,23 @@ fixes and deployment waits. Address routine measured friction within authorizati
 without waiting for an audit. Diagnose repeated failures rather than retrying the
 same repair or weakening verification.
 
+## Decide without stalling the roadmap
+
+Adopt reasonable, evidence-backed audit recommendations and routine plan adjustments
+within the agreed outcome, scope, authority and cost. Record the decision and reason
+in the plan/checkpoint and continue; do not request approval for each adoption.
+
+For a significant change of direction or a choice needing Igor, identify the latest
+safe decision point: what depends on the answer, what remains useful either way,
+and where further work would commit to an unapproved outcome or exceed authority.
+Ask once with a concrete recommendation and tradeoff, then continue independent
+lanes and bounded investigation or reversible preparation within existing scope.
+Do not expand the assignment just to stay busy. Stop only affected work at its safe
+boundary; end the execution turn when no useful authorized independent work remains,
+with the exact decision, evidence and resumable state checkpointed. Silence, a deadline
+or an audit recommendation never grants permission. Existing safety blockers and
+source/review/deployment gates remain binding.
+
 ## Delegate and follow work
 
 - Route each delegation under the shared "Interactive work and delegation"
@@ -110,9 +127,9 @@ same repair or weakening verification.
 - Keep a short friction log in the checkpoint or its linked Jocasta document:
   action attempted, observed failure/delay, impact and evidence. Record actual
   tool use, missing consumers, test flakes and review rounds, not speculation.
-- Run the plan's audit nodes, and track comprehensive-audit due status as
-  chaldea-audit defines it. Pause dependent roadmap work for Igor's adoption
-  decisions and record them before continuing.
+- Run the plan's audit nodes and track due status under chaldea-audit. Record
+  routine adoptions directly. For choices needing Igor, follow the safe decision
+  boundary above and preserve progress on independent authorized work.
 - End the execution session with a Jocasta handoff for the next orchestrator
   whose literal first line is "Load the roadmap-executor skill first." Include
   exact plan/checkpoint/audit references, active task/thread/run/wait IDs,
