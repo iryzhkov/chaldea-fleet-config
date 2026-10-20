@@ -266,6 +266,34 @@ def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
         assert not (tmp_path / "runtime/releases/client-v9.8.7").exists()
     finally:
         protected_opt.chmod(0o755)
+    cache = tmp_path / "runtime/cache"
+    cache.mkdir(parents=True)
+    inputs = [(cache / "client-v9.8.7.tar.gz", Path(str(values["mission_control_runtime_archive_source"]))),
+              (cache / "client-v9.8.7.json", Path(str(values["mission_control_runtime_manifest_source"])))]
+    snapshot = lambda: sorted((str(p), p.lstat().st_mode, p.lstat().st_mtime_ns,
+        p.read_bytes() if p.is_file() else None) for p in (tmp_path / "runtime").rglob("*"))
+    for present in ([0], [], [1], [0, 1], "corrupt", "linked"):
+        for target, source in inputs:
+            target.unlink(missing_ok=True)
+        for index in (present if isinstance(present, list) else [0, 1]):
+            shutil.copyfile(inputs[index][1], inputs[index][0])
+        if present == "corrupt":
+            inputs[0][0].write_bytes(b"corrupt archive")
+        if present == "linked":
+            inputs[1][0].unlink()
+            inputs[1][0].symlink_to(inputs[1][1])
+        before = snapshot()
+        checked = play(tmp_path, "fixture", roles=[role], values=values, check=True)
+        if isinstance(present, list):
+            ok(checked)
+            if len(present) < 2:
+                assert "canonical validation deferred" in checked.stdout
+        else:
+            assert checked.returncode != 0, checked.stdout
+        assert snapshot() == before
+        assert not (tmp_path / "runtime/releases/client-v9.8.7").exists()
+    for target, source in inputs:
+        target.unlink()
     ok(play(tmp_path, "fixture", roles=[role], values=values, check=True))
     ok(play(tmp_path, "fixture", roles=[role], values=values))
     again = play(tmp_path, "fixture", roles=[role], values=values)
@@ -275,6 +303,13 @@ def test_canonical_installer_side_by_side_and_real_role_idempotence(tmp_path):
     assert not (tmp_path / "runtime/releases/client-v0.0.1").exists()
     assert (tmp_path / "runtime/releases/client-v0.0.2/sentinel").exists()
     assert (tmp_path / "runtime/releases/client-v9.8.7/bin/chaldea").exists()
+    manifest_source = inputs[1][1]
+    original = manifest_source.read_bytes()
+    for bad in (b"{}", None):
+        manifest_source.unlink() if bad is None else manifest_source.write_bytes(bad)
+        rejected = play(tmp_path, "fixture", roles=[role], values=values)
+        assert rejected.returncode != 0, rejected.stdout
+        manifest_source.write_bytes(original)
     drift = tmp_path / "runtime/releases/client-v9.8.7/src/cli.ts"
     drift.write_text("drift")
     refused = play(tmp_path, "fixture", roles=[role], values=values)
@@ -323,6 +358,27 @@ if name:
 p.write_text(json.dumps(state))
 print('CHANGED' if changed else 'UNCHANGED')
 """)
+    # Keep the manager's loaded command separate from the running process.
+    original = helper.read_text()
+    original = original.replace("args = json.loads(sys.argv[2])", """if sys.argv[2] == '--show':
+    print('MainPID=' + ('42' if state.get('_running') else '0'))
+    unit = p.parent / 'units/mission-control-capture.service'
+    disk = next((x.removeprefix('ExecStart=') for x in unit.read_text().splitlines() if x.startswith('ExecStart=')), '')
+    print('NeedDaemonReload=' + ('yes' if state.get('_loaded') != disk else 'no'))
+    sys.exit(0)
+args = json.loads(sys.argv[2])""")
+    original = original.replace("p.write_text(json.dumps(state))", """if name == 'mission-control-capture.service':
+    unit = p.parent / 'units/mission-control-capture.service'
+    disk = next(x.removeprefix('ExecStart=') for x in unit.read_text().splitlines() if x.startswith('ExecStart='))
+    if args.get('daemon_reload') or '_loaded' not in state:
+        state['_loaded'] = disk
+    if args.get('state') == 'restarted' or not state.get('_running'):
+        state['_running'] = state['_loaded']
+    proc = p.parent / 'proc/42/cmdline'
+    proc.parent.mkdir(parents=True, exist_ok=True)
+    proc.write_bytes(('\\0'.join(state['_running'].split()) + '\\0').encode())
+p.write_text(json.dumps(state))""")
+    helper.write_text(original)
     for source in Path(role).joinpath("tasks").glob("*.yml"):
         def rewrite(rows):
             result = []
@@ -333,6 +389,14 @@ print('CHANGED' if changed else 'UNCHANGED')
                     row.pop("ansible.builtin.service_facts")
                     row["ansible.builtin.set_fact"] = dict(ansible_facts=dict(
                         services="{{ fixture_services | default({}) }}"))
+                if row.get("ansible.builtin.command", {}).get("argv", [None])[0] == "systemctl":
+                    assert row["ansible.builtin.command"]["argv"] == [
+                        "systemctl", "show", "mission-control-capture.service", "--property=MainPID,NeedDaemonReload"]
+                    row["ansible.builtin.command"]["argv"] = [
+                        sys.executable, str(helper), str(tmp_path / "manager.json"), "--show"]
+                if "ansible.builtin.slurp" in row:
+                    row["ansible.builtin.slurp"]["src"] = row["ansible.builtin.slurp"]["src"].replace(
+                        "/proc/", str(tmp_path / "proc") + "/")
                 if "ansible.builtin.systemd_service" in row:
                     args = row.pop("ansible.builtin.systemd_service")
                     row["ansible.builtin.command"] = dict(argv=[

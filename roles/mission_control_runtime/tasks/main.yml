@@ -71,6 +71,14 @@
       ansible.builtin.stat:
         path: "{{ mission_control_runtime_release_root }}/cache/{{ mission_control_runtime_version }}.tar.gz"
       register: mission_control_runtime_archive
+    - name: Inspect the staged manifest
+      ansible.builtin.stat:
+        path: "{{ mission_control_runtime_release_root }}/cache/{{ mission_control_runtime_version }}.json"
+      register: mission_control_runtime_manifest
+    - name: Explain deferred runtime validation in CHECK
+      ansible.builtin.debug:
+        msg: CHECK predicts missing runtime downloads or fixture staging; canonical validation deferred until both staged artifacts exist.
+      when: ansible_check_mode and (not mission_control_runtime_archive.stat.exists or not mission_control_runtime_manifest.stat.exists)
     - name: Validate and install using the canonical client release module
       chaldea_client_release:
         root: "{{ mission_control_runtime_release_root }}/releases"
@@ -79,7 +87,7 @@
         version: "{{ mission_control_runtime_version }}"
         sha256: "{{ mission_control_runtime_sha256 }}"
         check_permissions: true
-      when: mission_control_runtime_archive.stat.exists
+      when: not ansible_check_mode or (mission_control_runtime_archive.stat.exists and mission_control_runtime_manifest.stat.exists)
     # The canonical installer stages mode0700. Permit locked consumers to traverse it.
     - name: Permit read-only traversal of the verified release
       ansible.builtin.file:

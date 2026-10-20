@@ -1,15 +1,39 @@
 ---
 - name: Activate the staged capture
   when: mission_control_activate | bool and mission_control_capture_enabled | bool and not ansible_check_mode
+  vars:
+    mission_control_capture_main_pid: "{{ mission_control_capture_manager.stdout_lines | select('match', '^MainPID=') | first | split('=') | last | int }}"
+    mission_control_capture_reload_needed: "{{ mission_control_capture_unit is changed or 'NeedDaemonReload=yes' in mission_control_capture_manager.stdout_lines }}"
+    mission_control_capture_expected_argv:
+      - "{{ mission_control_runtime_node }}"
+      - "{{ mission_control_runtime_release_root }}/releases/{{ mission_control_runtime_version }}/bin/chaldea"
+      - mission-control
+      - capture
+      - --config
+      - "{{ mission_control_capture_home }}/.config/chaldea/mission-control-capture.json"
+    mission_control_capture_process_drift: >-
+      {{ mission_control_capture_main_pid | int > 0 and
+         (mission_control_capture_process.content | b64decode).split('AA==' | b64decode) != mission_control_capture_expected_argv + [''] }}
   block:
     - name: Verify the exact installed capture unit in target SYSTEM mode
       ansible.builtin.command:
         argv: [systemd-analyze, verify, --man=no, /etc/systemd/system/mission-control-capture.service]
       changed_when: false
+    - name: Inspect the actual capture manager before activation
+      ansible.builtin.command:
+        argv: [systemctl, show, mission-control-capture.service, "--property=MainPID,NeedDaemonReload"]
+      register: mission_control_capture_manager
+      changed_when: false
+    # Loaded ExecStart can already be current after an unrelated daemon-reload.
+    - name: Inspect the running capture command without reading its environment
+      ansible.builtin.slurp:
+        src: "/proc/{{ mission_control_capture_main_pid }}/cmdline"
+      register: mission_control_capture_process
+      when: mission_control_capture_main_pid | int > 0
     - name: Converge only the capture service
       ansible.builtin.systemd_service:
         name: mission-control-capture.service
         enabled: true
-        daemon_reload: "{{ mission_control_capture_unit is changed }}"
-        state: "{{ 'restarted' if mission_control_capture_unit is changed or mission_control_capture_config is changed else 'started' }}"
+        daemon_reload: "{{ mission_control_capture_reload_needed }}"
+        state: "{{ 'restarted' if mission_control_capture_reload_needed or mission_control_capture_config is changed or mission_control_capture_process_drift else 'started' }}"
       when: not ansible_check_mode
