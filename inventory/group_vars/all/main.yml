@@ -37,21 +37,22 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Published from C63 merge c26c938; actual archive, manifest and 3186 members verified.
-# Receipt: jocasta:cd2e425300544d65e90ba99c4d4bbc2e@1 (049/029).
+# Published client-v0.4.11 from Chaldea main 1c806a18fbff6717981df40f108ef1c73927acff.
+# Receipt: jocasta:bc2a27385f384e3a463dea3767f6c438@1; archive and manifest verified.
 # Shared client release pin; native quota is enrolled per host below.
 chaldea_client_enabled: true
-chaldea_client_version: client-v0.4.9
-chaldea_client_sha256: "4029833d7b013571ff375a8bb58d355fcab3ab54e682038a2a65a598751a1535"
+chaldea_client_version: client-v0.4.11
+chaldea_client_sha256: "e9ae469524ecd4498801a3386c1aeb0d3d317b821fe98fbdf510c532c4a3c006"
 # Observed ordinary-client rollback history, not active per-host version pins.
 # Keep existing payloads/caches only; absent versions are never installed.
-# client-v0.4.7 stays protected once a later release moves previous past 0.4.8.
+# Keep client-v0.4.8 when the 0.4.11 upgrade moves previous to 0.4.9.
 chaldea_client_retained_versions:
   - client-v0.2.0
   - client-v0.3.0
   - client-v0.4.0
   - client-v0.4.2
   - client-v0.4.7
+  - client-v0.4.8
 # Opt-in requires Igor's approval and verified local account binding on each host.
 chaldea_client_claude_usage_enabled: false
 
