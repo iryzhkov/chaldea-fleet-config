@@ -1,6 +1,28 @@
 # Hosted Mission Control qualified packet
 
-## Rich resources and thread details, C58
+## C67 v5 rollout
+
+Merge the preservation-only prerequisite before staging0210. Keep collector029
+selected until every agent host has the new artifact. The normal-pull restore
+path must use preservation-safe source or fail before old-release GC.
+
+Staging0210 uses these explicit sets only while029 is the actual newest prior:
+
+| Host | Explicit preserved host releases |
+| --- | --- |
+| H | 022/023/024/026/027/028 |
+| PC | 021/022/024/026/027/028 |
+| A | 022/024/026/027/028 |
+| B | 021/022/026/027/028 |
+| L | 011/022/026/027/028 |
+
+Do not use the shared022 inventory sets for staging: they omit022. Recheck actual
+releases, cache pairs and mtime order before each call; never install missing023.
+H runtime/trust lists stay separate. H/N consumers and all four collector0210
+units must qualify before capture0413. Keep the existing14-day MC age gate.
+Current pins are in the deployment vars; historical packets below are evidence.
+
+## Historical rich resources and thread details, C58
 
 Client-v0.4.7 and host-v0.2.7 are immutable releases from merged
 445e730124f3e99c78cba663300e72635f2740ca. ROOT downloaded all four assets
