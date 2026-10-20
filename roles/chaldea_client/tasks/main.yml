@@ -94,7 +94,6 @@
   loop:
     - "{{ chaldea_client_root }}"
     - "{{ fleet_home }}/.config/systemd/user"
-    - "{{ fleet_home }}/.local/state/chaldea"
     - "{{ fleet_home }}/.local/bin"
 
 - name: Create private client-owned directories
@@ -106,6 +105,7 @@
     - "{{ chaldea_client_root }}/releases"
     - "{{ chaldea_client_cache }}"
     - "{{ fleet_home }}/.config/chaldea"
+    - "{{ fleet_home }}/.local/state/chaldea"
 
 - name: Fetch pinned client archive
   ansible.builtin.get_url:

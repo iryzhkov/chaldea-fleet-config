@@ -87,6 +87,73 @@ def success(result):
     assert "FIXTURE-SECRET-NEVER-PRINT" not in result.stdout + result.stderr
 
 
+def test_directory_provisioning_repairs_private_quota_state():
+    home = Path.home()
+    safe(home)
+    assert home == Path(os.environ["HOME"]).resolve()
+    base = home / "directory-fixture"
+    base.mkdir()
+    defaults = yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text())
+    canonical = yaml.safe_load((ROOT / "roles/chaldea_client/tasks/main.yml").read_text())
+    names = {"Create client directories without touching other config or state",
+             "Create private client-owned directories"}
+    tasks = [task for task in canonical if task.get("name") in names]
+    assert len(tasks) == 2
+    assert all(task["ansible.builtin.file"]["state"] == "directory" for task in tasks)
+    state = home / ".local/state/chaldea"
+    generic = {home / ".local/share/chaldea": 0o755,
+               home / ".config/systemd/user": 0o775,
+               home / ".local/bin": 0o751}
+    for path, mode in {
+        **generic, state: 0o755,
+        home / ".local/share/chaldea/releases": 0o700,
+        home / ".cache/chaldea-client": 0o700,
+        home / ".config/chaldea": 0o700,
+    }.items():
+        assert path.resolve().is_relative_to(home)
+        path.mkdir(parents=True, exist_ok=True)
+        path.chmod(mode)
+    observer = state / "quota-observer.json"
+    observer.write_bytes(b"quota fixture\n" + b"x" * (45878 - 14))
+    observer.chmod(0o600)
+    os.utime(observer, ns=(1700000000000000000, 1700000000000000000))
+
+    def snapshot():
+        st = observer.lstat()
+        assert observer.is_file() and not observer.is_symlink()
+        return (observer.read_bytes(), st.st_mode, st.st_uid, st.st_gid,
+                st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+
+    before = snapshot()
+    state_before = state.stat()
+    assert state_before.st_mode & 0o777 == 0o755
+    assert state_before.st_uid == before[2] == os.getuid()
+    play = base / "directories.yml"
+    play.write_text(yaml.safe_dump([{
+        "name": "Canonical directory tasks in scratch", "hosts": "localhost",
+        "connection": "local", "gather_facts": False,
+        "vars": defaults | {"fleet_home": str(home),
+                            "ansible_python_interpreter": sys.executable},
+        "tasks": tasks,
+    }]))
+    for attempt in range(2):
+        result = subprocess.run(
+            ["ansible-playbook", "-i", "localhost,", str(play)], cwd=ROOT,
+            env=dict(os.environ, ANSIBLE_LOCAL_TEMP=str(base / "ansible-local"),
+                     ANSIBLE_REMOTE_TEMP=str(base / "ansible-remote")),
+            capture_output=True, text=True)
+        print(result.stdout, result.stderr)
+        success(result)
+        assert ("changed=1" if attempt == 0 else "changed=0") in result.stdout
+        st = state.stat()
+        assert st.st_mode & 0o777 == 0o700
+        assert (st.st_uid, st.st_gid, st.st_ino) == (
+            state_before.st_uid, state_before.st_gid, state_before.st_ino)
+        assert snapshot() == before
+        for path, mode in generic.items():
+            assert path.stat().st_mode & 0o777 == mode
+
+
 def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
     variables = fixture(tmp_path, monkeypatch)
     variables |= {"chaldea_client_quota_enabled": True, "chaldea_client_waits_enabled": True}
