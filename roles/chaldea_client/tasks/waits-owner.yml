@@ -46,8 +46,24 @@
          chaldea_client_waits_user_backup.stat.mode == '0644' and chaldea_client_waits_user_backup.stat.nlink == 1 and
          chaldea_client_waits_user_backup.stat.uid == ansible_facts.user_uid | int and
          chaldea_client_waits_user_backup.stat.checksum ==
-           lookup('ansible.builtin.template', 'chaldea-waits.service.j2') | hash('sha256'))
+           lookup('ansible.builtin.template', 'chaldea-waits.service.j2',
+                  template_vars={'chaldea_node_version': chaldea_client_waits_legacy_user_node_version | default('') or chaldea_node_version}) | hash('sha256'))
     quiet: true
+
+- name: Require an inactive disabled legacy user owner or its guarded masked backup
+  ansible.builtin.assert:
+    that:
+      - "'ActiveState=inactive' in chaldea_client_waits_owners.results[0].stdout_lines"
+      - >-
+        (chaldea_client_waits_owner_files.results[0].stat.isreg | default(false) and
+         'UnitFileState=disabled' in chaldea_client_waits_owners.results[0].stdout_lines) or
+        (chaldea_client_waits_owner_files.results[0].stat.islnk | default(false) and
+         chaldea_client_waits_owner_files.results[0].stat.lnk_target == '/dev/null' and
+         'UnitFileState=masked' in chaldea_client_waits_owners.results[0].stdout_lines and
+         chaldea_client_waits_user_backup.stat.exists)
+    fail_msg: Legacy Node admission requires an inactive disabled managed user unit or its exact guarded masked backup.
+    quiet: true
+  when: chaldea_client_waits_legacy_user_node_version | default('') | length > 0
 
 - name: Refuse foreign definitions drop-ins aliases collisions and unknown manager state
   ansible.builtin.assert:
@@ -62,7 +78,9 @@
       - >-
         (not item.stat.exists and 'LoadState=not-found' in item.item.stdout_lines) or
         (item.stat.isreg | default(false) and item.stat.mode == '0644' and item.stat.nlink == 1 and
-         item.stat.checksum == lookup('ansible.builtin.template', item.item.item.template) | hash('sha256') and
+         item.stat.checksum == lookup('ansible.builtin.template', item.item.item.template,
+           template_vars=({'chaldea_node_version': chaldea_client_waits_legacy_user_node_version | default('') or chaldea_node_version}
+                          if item.item.item.scope == '--user' else {})) | hash('sha256') and
          ('FragmentPath=' ~ item.item.item.path) in item.item.stdout_lines and
          'LoadState=loaded' in item.item.stdout_lines and
          (item.stat.uid == (0 if item.item.item.scope == '--system' else ansible_facts.user_uid | int))) or

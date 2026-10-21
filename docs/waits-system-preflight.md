@@ -85,6 +85,20 @@ ExecStart uses the measured runtime and expected config path. Exact definition a
 can refuse later configuration changes; review the old definition explicitly
 instead of bypassing the refusal.
 
+When the existing managed user unit names an older Node version, a reviewed
+system-migration packet may set the protected
+`chaldea_client_waits_legacy_user_node_version` to that exact numeric version,
+for example `26.10.0` while `chaldea_node_version` remains `26.12.0`.
+Empty preserves existing admission. The override requires system mode with waits
+enabled and an existing inactive, disabled regular user unit. Exact rendered
+bytes, owner, 0644 mode, single link, fragment path and absence of drop-ins remain
+mandatory. An interrupted masked migration requires the exact same guarded
+`chaldea-waits.service.pre-system` backup. Missing units, active/enabled legacy
+owners and foreign backups are refused. The override only affects the two legacy
+checksum comparisons. It never installs or executes the old Node version or
+changes system units, runtime, deadline or policy. Retain it while that legacy
+backup remains reserved. Retiring the backup needs a separately reviewed packet.
+
 Rollback needs a new concrete packet. Stop and disable the role-owned system
 unit first, verify it is inactive, preserve its definition and waits.json
 backup, then remove the system definition, restore the saved user definition
