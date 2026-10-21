@@ -14,12 +14,23 @@ CURRENT = "26.12.0"
 OVERRIDE = "chaldea_client_waits_legacy_user_node_version"
 
 
+def system_owner_metadata(uid):
+    # Like owners(), model system-manager ownership without privileged writes.
+    return {"name": "Model system owner metadata", "ansible.builtin.set_fact": {
+        "chaldea_client_waits_owner_files": "{{ {'results': ["
+        "chaldea_client_waits_owner_files.results[0], "
+        "chaldea_client_waits_owner_files.results[1] | combine({'stat': "
+        "chaldea_client_waits_owner_files.results[1].stat | combine({'uid': "
+        + str(uid) + "})})]} }}"}}
+
+
 def task_sources():
     tasks = yaml.safe_load((ROLE / "tasks/waits-owner.yml").read_text())
     # Reuse the canonical stat/assert tasks; manager views use the existing
     # ownership fixture. No real system manager or system destination is used.
     validation = yaml.safe_load((ROLE / "tasks/waits-validate.yml").read_text())
-    return validation + tasks[1:]
+    # Keep real user/backup stat results and the rendered system checksum.
+    return validation + [tasks[1], system_owner_metadata(0)] + tasks[2:]
 
 
 def legacy_fixture(tmp_path, case):
@@ -119,7 +130,7 @@ def legacy_fixture(tmp_path, case):
 
 def admission(tmp_path, variables, system, tasks=None, after=()):
     # Render both current system module and lookup bytes independently of the
-    # legacy lookup's template_vars. Real stat supplies the checksums/metadata.
+    # legacy lookup's template_vars. Only system ownership metadata is modeled.
     safe(tmp_path)
     role = tmp_path / "legacy-role"
     (role / "tasks").mkdir(parents=True, exist_ok=True)
@@ -176,6 +187,25 @@ def test_override_requires_exact_version(tmp_path, value):
     variables[OVERRIDE] = value
     result = admission(tmp_path, variables, system)
     assert result.returncode != 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("model_owner", [False, True])
+def test_nonroot_system_stat_fixture(tmp_path, model_owner):
+    variables, _, _, system, _ = legacy_fixture(tmp_path, "owned")
+    tasks = task_sources()
+    index = next(i for i, task in enumerate(tasks)
+                 if task["name"] == "Model system owner metadata")
+    tasks[index:index + 1] = [
+        system_owner_metadata(1001),
+        {"name": "Require nonzero observed system UID", "ansible.builtin.assert": {
+            "that": ["chaldea_client_waits_owner_files.results[1].stat.uid == 1001"]}},
+        *([system_owner_metadata(0)] if model_owner else []),
+    ]
+    result = admission(tmp_path, variables, system, tasks=tasks)
+    assert (result.returncode == 0) == model_owner, result.stdout + result.stderr
+    if not model_owner:
+        assert '"evaluated_to": false' in result.stdout
+        assert "Refuse foreign definitions" in result.stdout
 
 
 def test_default_override_is_empty():
