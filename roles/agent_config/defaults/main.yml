@@ -48,6 +48,7 @@ agent_config_skills:
   - roadmap-executor
   - roadmap-planner
   - safety-critical-code
+  - sub-roadmap-executor
   - tdd
   - unslop
 agent_config_skill_dirs:

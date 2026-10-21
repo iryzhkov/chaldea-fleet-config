@@ -89,13 +89,21 @@ knowledge is a decision, not a sync.
 # Interactive work and delegation
 
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
-making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta and carry it
-out in the session; do not ask again for routine work inside that agreement.
-Adopt reasonable audit improvements within that outcome, scope and authority, recording
-why. Ask only for significant direction changes or genuinely missing authority; keep
-independent authorized work moving until the dependent work reaches its safe boundary.
-When you own orchestration of an agreed roadmap, load the roadmap-executor skill first;
-a delegated worker follows its brief instead.
+making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta and execute
+assigned milestones through observable completion, explicit stop, an agreed budget limit,
+or a blocker with no useful authorized ready work left. Milestone or review completion,
+context compaction and monitor registration do not end the assignment.
+Retain existing authority across turns and handoffs. Adopt reasonable audit improvements
+within that outcome, scope and authority, recording why. Ask only when a concrete next
+action needs new authority or a material direction choice remains unresolved. Continue
+independent authorized work until the dependent work reaches its safe boundary.
+When you own root orchestration, load roadmap-executor first. An explicitly assigned
+bounded milestone group uses sub-roadmap-executor and its local checkpoint; ordinary
+workers follow their narrow briefs. The root owns global authority and integration.
+Yield only after useful independent ready work is exhausted. Retain dependency owner,
+task/PR/wait ID, source revision, expected wake, next action, recovery deadline and action.
+Use native child/PR wakes and Chaldea waits without duplicate watchers or polling loops.
+Explicit stop or cancellation overrides late wakes; reconcile outcomes before continuing.
 
 Before each T3 `delegate_task`, call FATE through `chaldea_route` or
 `chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,
@@ -150,8 +158,8 @@ its version and applicability remain valid. Project tool output to needed fields
 and read one channel when text and structured responses duplicate each other.
 Reduce context by selecting relevant material, not by packing words together.
 
-Ask first when the estimated cost is large, the work needs operator-level access, or it
-changes more than one host.
+Ask before a concrete action adds large cost, operator-level access or multiple hosts
+outside existing authority. Do not request authorization again for that approved scope.
 
 # Chaldea and scratch
 
@@ -163,6 +171,8 @@ Use `chaldea_decision_track` for a known native request and `chaldea_decision_st
 to read its state. Providers without native input use `chaldea_decision_ask` and
 `chaldea_decision_answer` with the answering thread's `answeringThreadId`.
 Defaults only skip or defer the dependent action; they never grant approval.
+Native question deadlines guarantee neither an answer nor a continuation wake. Optional
+preference questions must not block authorized work; use an in-scope assumption when safe.
 
 Use `chaldea exec` for builds and test suites instead of running them on omarchy-pc,
 Igor's gaming PC. `--host` is optional: without it, `~/.config/chaldea/exec-hosts`

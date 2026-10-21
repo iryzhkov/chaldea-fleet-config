@@ -63,9 +63,19 @@ small interface, UI on qualified fixtures beside the backend, CI and independent
 review on a frozen head where the repository allows, and disjoint host rollouts
 only when shared security and state ownership permit. Serialize dependent
 schema/producer/consumer activation, conflicting files or branches, shared operator
-access, exact-head qualification and irreversible effects. Keep one integration
-owner and batch ready related changes before expensive CI. Do not parallelize
+access, exact-head qualification and irreversible effects. Keep one root owner for
+global priorities, shared interfaces, authority, the global checkpoint and cross-group
+integration. Batch ready related changes before expensive CI. Do not parallelize
 speculative work or fan out by default.
+
+For a related milestone group that benefits from local orchestration, explicitly
+assign sub-roadmap-executor. Define outcomes, prerequisites, owned files/interfaces,
+separate branch/worktree, local checkpoint, acceptance checks, budget, stop conditions,
+report destination and integration/merge/deploy rights. Give only the relevant plan
+excerpt and evidence links. It advances routine milestones without parent approval;
+direction and authority escalations go through the root. Plan cancellation propagation
+and a fallback if nested builder/reviewer delegation is unsupported, with no further
+sub-executor layer by default. Ordinary workers keep narrow briefs.
 
 ## Decide test and deployment strategy up front
 
@@ -113,7 +123,12 @@ cheapest evidence path. Concrete waste or a missed requirement blocks under the
 normal citation rule; this adds no review gate.
 
 Record the plan in Jocasta compactly: outcome, decisions, milestones, strategy,
-lanes and audit nodes, linking evidence instead of copying it. There is no fixed
+lanes and audit nodes, linking evidence instead of copying it. Retain existing
+authority, including approved operator and multi-host scope. Define observable
+completion and any budget/stop boundary; milestone transitions are not approval gates.
+For external dependencies, name owner, ID/source, expected wake, next action and recovery
+deadline/action. Native question deadlines do not guarantee a wake or permission.
+There is no fixed
 research, spike, review, CI and all-host sequence. For a significant direction
 choice, name the latest safe decision point and useful independent work so execution
 can continue while Igor is unavailable. Roadmap-executor carries out the adopted

@@ -10,7 +10,8 @@ description: >-
 
 Chaldea adds fleet compute, durable waits and a decision inbox to T3. Keep using
 T3's native delegation completion and `watch_pull_request` for child tasks and CI;
-use the `review-delegation` skill for reviews.
+use the `review-delegation` skill for reviews. Registration does not finish an
+executor assignment; continue useful authorized ready work before yielding.
 
 Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
 
@@ -152,9 +153,11 @@ passing `--request-id` explicitly makes retries safe.
 Use `chaldea_wait` with your `threadId`, `requestId`, and either
 `condition: {kind: "time", at: "<RFC3339 with offset>"}` or
 `condition: {kind: "thread", threadId: "<target>", runId: "<run>"}`.
-An optional `deadline` bounds the wait. Omitting `runId` pins the latest accepted
-run at registration; it does not wait for a future run. Quota pauses remain
-pending through recovery.
+An optional `deadline` bounds the wait. For executor dependencies, retain a
+recovery deadline and action with the continuation owner even when the runtime
+does not support that deadline. Omitting `runId` pins the latest accepted run at
+registration; it does not wait for a future run. Quota pauses remain pending
+through recovery; preserve the assignment and its IDs.
 
 On a client release that supports wait descriptions, pass optional `description`
 to record the purpose, for example "Recheck review availability after quota reset".
@@ -165,10 +168,31 @@ with the retry key. Registration/status and single/combined wakes carry it;
 unlabeled waits use the target time or thread/run. Already-attempted wakes retain
 their original immutable delivery text, including older opaque messages.
 
-Registration returns immediately; up to eight active waits per thread are allowed, and pending wakes combine into one queued message listing every wait ID and outcome while each wait retains its own delivery record. For waits, `requestId` is optional (the server generates `<epoch milliseconds>:<random>`); save an explicit key for idempotent retries, then end the turn when ready. Do not sleep,
-poll status or add another watcher. Read an outcome with `chaldea_wait_status`
-(`id`); cancel an unwanted wait with `chaldea_wait_cancel` (`id`). Cancellation
-before resolution sends no wake; it cannot retract an already accepted message.
+Registration returns immediately; up to eight active waits per thread are allowed.
+Pending wakes combine into one queued message listing wait IDs and outcomes; each
+wait retains its own delivery record. For waits, `requestId` is optional, with a
+server-generated `<epoch milliseconds>:<random>`; save an explicit key for retries.
+Continue useful authorized independent work after registration. Yield only when no
+such work is ready. Do not sleep, poll status or add another watcher. Read an
+outcome with `chaldea_wait_status` (`id`); cancel an unwanted wait with
+`chaldea_wait_cancel` (`id`). Cancellation before resolution sends no wake;
+it cannot retract an already accepted message.
+
+Before yielding, retain the dependency, continuation owner, task/PR/wait ID, retry
+key, exact source revision, expected wake, next action and recovery deadline/action.
+On a wake, reconcile authoritative status once and continue; ignore an already
+handled duplicate. A failed child or CI result needs diagnosis against that source,
+not a blind retry. Explicit stop overrides late wakes and propagates to children
+and outstanding waits/watchers, with in-flight effects reconciled safely.
+
+A recovery deadline is a diagnostic boundary, not evidence of success, an answer
+or permission. If a wake is missing or failed, the retained owner inspects the
+native task/PR/wait status and delivery evidence once on the next available
+continuation, records what failed and recovers or escalates that dependency.
+Continue other ready lanes. If no continuation occurs, leave the recovery obligation
+visible for the root or next operator session; a recorded deadline cannot wake it.
+Do not add a polling loop or duplicate watcher, or replay an uncertain mutation.
+These instructions do not qualify runtime wake reliability or claim a delivery fix.
 
 CLI equivalents (set these variables to the actual IDs and desired times):
 
@@ -187,13 +211,22 @@ Use a separate saved request key for each registration.
 
 ## Ask Igor, then keep working
 
+Existing authority persists, including approved operator and multi-host scope.
+Ask only about concrete new authority or a material unresolved direction. Avoid
+optional preference questions that stall authorized work; use a safe in-scope
+assumption and continue. A true authority question leaves only its dependent action
+pending, while useful independent work proceeds.
+
 Before asking Igor through native T3 user input, call
 `chaldea_decision_prepare({threadId, requestId, dependentAction, defaultAction, deadline})`
 with your own thread ID and saved retry key. Then ask in T3; the preparation binds
 the next native user-input request within ten minutes. For a known native request,
 use `chaldea_decision_track` with the same policy fields and `runtimeRequestId`.
 Read policy, binding and outcome through `chaldea_decision_status` with `id`.
-Native answers stay in T3 and add no Chaldea wake. Never track or answer permission
+Native answers stay in T3 and add no Chaldea wake. A native question's deadline
+guarantees neither an answer nor a continuation wake. Retain the native request ID,
+owner and recovery action for the next continuation; a deadline only skips or
+defers dependent work. It never authorizes it. Never track or answer permission
 or approval requests through these tools.
 
 For providers without native input, use the fallback `chaldea_decision_ask` with
