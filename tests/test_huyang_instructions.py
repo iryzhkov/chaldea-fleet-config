@@ -27,7 +27,16 @@ def test_removed_tools_and_execution_handoff():
     for path in ("agents/AGENTS.md", "codex/AGENTS.md", "agents/huyang.md",
                  "claude/omarchy-setup/CLAUDE.md", "skills/huyang/SKILL.md"):
         text = (FILES / path).read_text()
-        assert "verify_run" not in text, path
+        # Naming an explicit prohibition must not look like an execution handoff.
+        execution_guidance = " ".join(text.split())
+        for prohibition in (
+            "Do not run `prepare` or `verify_run` when its configured pipeline "
+            "would execute prohibited local project commands.",
+            "Do not run prepare or `verify_run` when that pipeline would execute "
+            "prohibited local project commands.",
+        ):
+            execution_guidance = execution_guidance.replace(prohibition, "")
+        assert "verify_run" not in execution_guidance, path
         assert "debug_" not in text, path
         assert "chaldea exec --host agent-a" in text, path
         assert "HUYANG_FRICTION=0" in text, path
@@ -38,9 +47,11 @@ def test_removed_tools_and_execution_handoff():
         assert "trust" in text and "prepared" in text, path
     skill = (FILES / "skills/huyang/SKILL.md").read_text()
     assert "format_gate" in skill and ".huyang.toml" in skill
-    assert "huyang trust <root>" in skill
-    assert "untrusted root skips" in skill
-    assert "does not grant trust or replace prepared-revision evidence" in skill
+    policy = " ".join(skill.split())
+    assert "trusted by user policy in `~/.config/huyang/config.toml`" in policy
+    assert "An untrusted root's skipped commands are missing evidence, never passes." in policy
+    assert "Do not auto-trust a root or relax required gates." in policy
+    assert "Chaldea results neither grant trust nor supply Huyang prepared-revision evidence." in policy
 
 
 def test_local_selection_precedes_remote_execution():
