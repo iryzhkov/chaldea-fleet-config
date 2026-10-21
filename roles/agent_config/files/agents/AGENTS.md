@@ -92,8 +92,27 @@ bounded milestone group uses sub-roadmap-executor and its local checkpoint; ordi
 workers follow their narrow briefs. The root owns global authority and integration.
 Yield only after useful independent ready work is exhausted. Retain dependency owner,
 task/PR/wait ID, source revision, expected wake, next action, recovery deadline and action.
-Use native child/PR wakes and Chaldea waits without duplicate watchers or polling loops.
-Explicit stop or cancellation overrides late wakes; reconcile outcomes before continuing.
+At authorized executor kickoff on an already active, unsnoozed thread, inspect prior
+pin/lifecycle state through available native state or public projection. If verified
+unpinned, use `t3_thread_organize` action `pin`; record prior pin, resulting `pinnedAt`,
+ownership and cleanup owner in the existing checkpoint. Do not invent metadata absent
+from `t3_thread_read`. Pin excludes automatic settlement; it is neither a keepalive
+nor permission.
+At completion/explicit stop remove only a still-matching executor-owned pin; preserve
+user pins/changes and carry ownership on handoff. If state is unverifiable, retain the
+gap/cleanup obligation rather than blind unpin. Never pin, unsettle or resume stopped,
+settled, archived or snoozed work from a late wake.
+Use Stop/cancel to cancel the assignment and children. Manual Settle only organizes
+thread state; native child completion may reopen it. Stop/user cancellation still wins.
+Use native `delegate_task` completion and `watch_pull_request` for actual dependencies.
+PR checks/comments/conflicts can wake; merge ends the watch silently. After CI, handle
+your own authorized merge and continue, or retain owner/recovery for an external merge.
+On official T3 0.1.0, do not replace Stop-preserving executor dependencies with external
+Chaldea time/thread wakes. Keep historical guarded payloads fail-closed, never strip or
+replay them. Record any missing native wake, owner and next authorized recovery; do not
+promise guaranteed continuation or add a fork, wrapper, store or daemon. No dummy child,
+fake recurring schedule, duplicate monitor or polling loop. Explicit stop/cancellation
+overrides late wakes; reconcile outcomes before continuing.
 
 Before each T3 `delegate_task`, call FATE through `chaldea_route` or
 `chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,
@@ -157,8 +176,9 @@ outside existing authority. Do not request authorization again for that approved
 
 ## Chaldea and scratch
 
-Use the `chaldea` skill for builds and heavy runs on job hosts, durable waits and the
-decision inbox. Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
+Use the `chaldea` skill for builds and heavy runs on job hosts, explicitly requested
+non-executor waits and the decision inbox, with its availability/cancellation limits.
+Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
 Before asking Igor through native T3 user input, call
 `chaldea_decision_prepare({threadId, requestId, dependentAction, defaultAction, deadline})`.
 Use `chaldea_decision_track` for a known native request and `chaldea_decision_status`

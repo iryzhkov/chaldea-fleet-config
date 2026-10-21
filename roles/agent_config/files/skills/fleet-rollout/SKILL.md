@@ -22,9 +22,12 @@ Apply only to authorized hosts and report activation and installed verification 
 - Use one batched SSH call per host: ufw rate-limits repeated SSH connections.
   Run the complete snapshot/check/real/second-real/verification sequence on
   that host itself. Do not run the play against a live host from a test fixture.
-- Run long converges asynchronously in a T3 delegated thread and rely on its
-  single completion notification. For an existing non-child thread, register
-  one Chaldea thread wait instead. Never add polling or a second watcher.
+- Run long converges through native T3 `delegate_task` and use its completion
+  wake; registration is not completion. Executor skills own temporary pin cleanup.
+  On official T3 0.1.0, an existing non-child thread has no equivalent native
+  completion dependency. Retain its owner, exact gap and next authorized recovery
+  instead of substituting an external Chaldea wake requiring Stop preservation.
+  Never add polling, a duplicate monitor or a fake recurring schedule.
 
 Set `fleet_host`, `fleet_revision` (the approved commit) and `rollout_scratch`
 to verified values in the host-side script. The pinned invocation is:

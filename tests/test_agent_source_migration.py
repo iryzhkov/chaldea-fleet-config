@@ -713,7 +713,16 @@ HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetc
 GUIDANCE_CONSISTENCY_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_guidance_consistency.json").read_text())
 
+# Native ownership/dependency guidance adopted for official T3, 2026-10-21.
+# Reverse this latest layer; preserve all historical byte fixtures and gates.
+NATIVE_EXECUTOR_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_native_executor.json").read_text())
+
 def old_bytes(relative, data):
+    for before, after in reversed(NATIVE_EXECUTOR_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(GUIDANCE_CONSISTENCY_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
