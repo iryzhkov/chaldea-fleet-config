@@ -1,17 +1,36 @@
 ---
 name: chaldea
 description: >-
-  Use Chaldea for builds, tests and heavy runs on fleet job hosts, durable time
-  or thread waits, and questions in Igor's decision inbox. Reviews and worker
-  briefs belong to review-delegation.
+  Use Chaldea for builds, tests and heavy runs on fleet job hosts, explicitly
+  requested non-executor time/thread waits, and questions in Igor's decision inbox.
+  Reviews and worker briefs belong to review-delegation.
 ---
 
 # Chaldea in T3 sessions
 
 Chaldea adds fleet compute, durable waits and a decision inbox to T3. Keep using
-T3's native delegation completion and `watch_pull_request` for child tasks and CI;
-use the `review-delegation` skill for reviews. Registration does not finish an
-executor assignment; continue useful authorized ready work before yielding.
+T3's native `delegate_task` completion and `watch_pull_request` for actual child
+and PR dependencies. PR checks/comments/conflicts can wake; merge ends the watch
+silently. Handle your own authorized merge after CI and continue, or retain an
+owner/recovery action for an external merge. Use `review-delegation` for reviews.
+Registration does not finish an executor assignment; continue ready work before
+yielding. Executor skills own temporary pin/checkpoint cleanup. A native pin
+excludes automatic settlement; it is neither a keepalive nor permission.
+Use Stop/cancel to cancel an assignment and its children. Manual Settle only
+organizes thread state; native child completion may reopen it. Stop/user
+cancellation still wins; do not promise native preservation of manual Settle.
+
+On official T3 0.1.0, do not substitute external Chaldea time/thread wakes for
+executor dependencies requiring Stop preservation. Client 0.4.11 can deliver a
+stale external wake after offline Stop/resume. New guarded clients require server
+capability absent from stock T3. Public replay cannot observe every idle Stop;
+ordinary `message.dispatch` has no admission-version guard. Client preflight,
+pinning and scheduler `runNow` do not establish atomic Stop safety. Preserve
+historical guarded payloads fail-closed; never strip their guard or replay them
+on stock T3. If a required native wake is unavailable, retain the exact gap, owner
+and next authorized recovery in the existing checkpoint. No fork, new client
+release, wrapper, store, daemon, fake recurring schedule or dummy child is needed
+for the native executor path.
 
 Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
 
@@ -153,12 +172,18 @@ For each registration, save a stable `requestId` of the form
 retry with exactly the same key and arguments. The CLI can generate a key, but
 passing `--request-id` explicitly makes retries safe.
 
-## Wait without sleeping or polling
+## Explicit non-executor waits
+
+For an explicitly requested non-executor time/thread wait, verify installed client
+and server compatibility plus service availability before registration. External
+cancellation cannot retract an accepted message or guarantee Stop preservation on
+stock T3; retain recovery ownership and report unsupported delivery instead of
+promising a wake. The native executor dependency rule above still applies.
 
 Use `chaldea_wait` with your `threadId`, `requestId`, and either
 `condition: {kind: "time", at: "<RFC3339 with offset>"}` or
 `condition: {kind: "thread", threadId: "<target>", runId: "<run>"}`.
-An optional `deadline` bounds the wait. For executor dependencies, retain a
+An optional `deadline` bounds the wait. Retain a
 recovery deadline and action with the continuation owner even when the runtime
 does not support that deadline. Omitting `runId` pins the latest accepted run at
 registration; it does not wait for a future run. Quota pauses remain pending
@@ -197,11 +222,12 @@ continuation, records what failed and recovers or escalates that dependency.
 Continue other ready lanes. If no continuation occurs, leave the recovery obligation
 visible for the root or next operator session; a recorded deadline cannot wake it.
 Do not add a polling loop or duplicate watcher, or replay an uncertain mutation.
-Qualified on T3 v0.1.0: automatic thread settlement can orphan external Chaldea
-waits. Native child completion is a separate mechanism; neither wait registration
-nor a deadline guarantees a continuation wake. This is a known limitation, not a
-workaround: never ignore settled flags, auto-unsettle threads or revive explicitly
-stopped work. Retain recovery ownership for the next authorized continuation.
+On T3 v0.1.0, automatic settlement can orphan external Chaldea waits, while an
+external stale wake can survive offline Stop/resume. Native ownership/dependencies
+are separate controls, not a repair for external admission. Neither wait registration
+nor a deadline guarantees continuation. Never ignore settled flags, auto-unsettle
+threads or revive explicitly stopped work. Retain recovery ownership for the next
+authorized continuation.
 
 CLI equivalents (set these variables to the actual IDs and desired times):
 

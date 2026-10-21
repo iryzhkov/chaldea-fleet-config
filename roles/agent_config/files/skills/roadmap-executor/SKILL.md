@@ -26,6 +26,26 @@ it through resumes and handoffs without reauthorization, including approved oper
 or multi-host scope. Ask only about concrete new authority or material unresolved
 direction. A plan does not grant rights missing from the conversation or assignment.
 
+## Retain native executor ownership
+
+At authorized kickoff on an already active, unsnoozed thread, inspect lifecycle and
+prior pin through available native state or public projection. If verified unpinned,
+use `t3_thread_organize` with `action: "pin"`. Record the prior pin, resulting
+`pinnedAt`, executor ownership and cleanup owner in the existing checkpoint.
+`t3_thread_read` may omit pin metadata; never invent fields or ownership. If prior
+or owned state cannot be verified, record the gap and retain cleanup responsibility
+rather than blindly pinning or unpinning.
+
+Pinning excludes automatic idle and merged-PR settlement; it is neither a keepalive
+nor permission. At final completion or explicit stop, remove only an executor-owned
+pin whose current value still matches the recorded `pinnedAt`. Preserve preexisting
+user pins and later user changes. Carry ownership through handoff. Never pin,
+unsettle or resume stopped, settled, archived or snoozed work from a late wake.
+Use Stop/cancel to cancel the assignment and children. Manual Settle only organizes
+thread state; native child completion may reopen it. Do not treat manual Settle as
+cancellation or promise that native callbacks preserve it. An original Stop or user
+cancellation still wins.
+
 ## Keep a small working set
 
 - Start with the current checkpoint's outcome, execution status, authority,
@@ -115,10 +135,19 @@ source/review/deployment gates remain binding.
   Name its integration, merge and deployment rights or reserve them to the root.
   It advances routine milestones without parent approval; you retain the global
   checkpoint, interfaces, authority and cross-group integration.
-- Children use native completion wakes. Use `watch_pull_request` for CI/review
-  events and Chaldea waits for external time/thread dependencies. After registering,
-  continue useful authorized ready work. Yield only when that work is exhausted.
-  Never poll, sleep-loop or create duplicate watchers.
+- Use native `delegate_task` completion and `watch_pull_request` for their actual
+  child and PR dependencies. PR checks, comments and conflicts can wake; merge
+  ends the watch silently. After a CI wake, perform your own authorized merge
+  and continue, or retain an owner and recovery action for an external merge.
+  Registration is not completion. Continue independent ready work before yielding.
+  Never poll, add duplicate monitors, dummy children or fake recurring schedules.
+- On official T3 0.1.0, do not substitute external Chaldea time/thread wakes for
+  executor dependencies requiring Stop preservation. Pinning does not guard
+  external message admission. Follow Chaldea's documented client/cancellation
+  limits; preserve historical guarded payloads fail-closed, never strip or replay
+  them. If no required native wake exists, record the exact gap, owner and next
+  authorized recovery rather than promise guaranteed continuation or add a fork,
+  client release, wrapper, store or daemon.
 - Before yielding, checkpoint each dependency's owner, task/PR/wait ID and retry
   key, exact source revision, expected wake, next action, recovery deadline and
   recovery action. A deadline prompts diagnosis of that dependency and continued
@@ -145,9 +174,11 @@ source/review/deployment gates remain binding.
   Source implementation is not deployment authority. Never expose secrets.
 - Load fleet-rollout for authorized deployments; it owns the converge procedure.
   Report verification evidence per host.
-- Background long converges in delegated threads, using their completion wake
-  or one Chaldea thread wait for a non-child thread. Preserve command, target,
-  log and outcome; reconcile a disconnect or reboot before any retry.
+- Run long converges in native delegated tasks and use their completion wake.
+  An existing non-child thread has no equivalent native completion dependency;
+  retain its owner, exact gap and next authorized recovery instead of substituting
+  an external wake requiring Stop preservation. Preserve command, target, log
+  and outcome; reconcile a disconnect or reboot before any retry.
 - Any host may reboot without breaking the rest. Do not reboot as a routine
   recovery action. `chaldea t3 restart` exists; inspect installed help and host
   capability when needed. Command presence grants no restart authority. Use it
@@ -205,6 +236,7 @@ In flight: <task/thread/run/wait IDs, PRs and CI>; blockers/risks: <facts>.
 Next action: <one concrete action>; budget/boundary: <agreed limit if any>.
 Authority: <scope, targets, costs, integration/merge/deploy rights and exclusions>.
 Dependencies: <owner, ID, expected wake, source, next action, recovery deadline/action>.
+Pin: <prior state, executor-owned pinnedAt or gap, cleanup owner; carry on handoff>.
 Continue across milestones until acceptance, explicit stop, agreed budget or no ready work.
 Checkpoint at milestones or a genuine stop; late wakes never override cancellation.
 Report implemented/reviewed/merged/deployed/verified states separately.

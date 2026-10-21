@@ -21,6 +21,26 @@ are intermediate states. Preserve assigned authority across turns; integration,
 merge, publication and deployment rights must be explicit or remain with the root.
 Do not infer global authority from this role.
 
+## Retain native executor ownership
+
+At authorized kickoff on an already active, unsnoozed thread, inspect lifecycle and
+prior pin through available native state or public projection. If verified unpinned,
+use `t3_thread_organize` with `action: "pin"`. Record the prior pin, resulting
+`pinnedAt`, executor ownership and cleanup owner in the existing local checkpoint.
+`t3_thread_read` may omit pin metadata; never invent fields or ownership. If prior
+or owned state cannot be verified, record the gap and retain cleanup responsibility
+rather than blindly pinning or unpinning.
+
+Pinning excludes automatic idle and merged-PR settlement; it is neither a keepalive
+nor permission. At final completion or explicit stop, remove only an executor-owned
+pin whose current value still matches the recorded `pinnedAt`. Preserve preexisting
+user pins and later user changes. Carry ownership through handoff. Never pin,
+unsettle or resume stopped, settled, archived or snoozed work from a late wake.
+Use Stop/cancel to cancel the assignment and children. Manual Settle only organizes
+thread state; native child completion may reopen it. Do not treat manual Settle as
+cancellation or promise that native callbacks preserve it. An original Stop or user
+cancellation still wins.
+
 ## Execute and retain local state
 
 - Make reversible implementation choices and routine fixes within the brief.
@@ -39,8 +59,19 @@ Do not infer global authority from this role.
   task/review/CI evidence, blockers and next action. Do not concurrently edit the
   root's global checkpoint. Send milestone results and interface changes to the
   root's assigned report destination.
-- Use native child/PR wakes and Chaldea waits, without duplicate watchers or polling.
-  Yield only when useful independent ready work is exhausted. Retain each dependency's
+- Use native `delegate_task` completion and `watch_pull_request` for actual child
+  and PR dependencies. Checks/comments/conflicts can wake; PR merge ends the watch
+  silently. Perform your own authorized merge after the CI wake and continue, or
+  retain an owner and recovery action for an external merge. Registration is not
+  completion. No polling, duplicate monitors, dummy children or fake schedules.
+- On official T3 0.1.0, do not substitute external Chaldea time/thread wakes for
+  executor dependencies requiring Stop preservation. Pinning is no message
+  admission guard. Preserve historical guarded payloads fail-closed, never strip
+  or replay them. Follow Chaldea's client/cancellation limits; if a required native
+  wake is unavailable, report the exact gap, owner and next authorized recovery
+  to the root. Do not promise guaranteed continuation or add a fork, client release,
+  wrapper, store or daemon.
+- Yield only when useful independent ready work is exhausted. Retain each dependency's
   owner, task/PR/wait ID and retry key, source revision, expected wake, next action,
   recovery deadline and action. Reconcile authoritative status once on a wake and
   ignore already handled duplicates. Diagnose child/CI failures before retrying.
@@ -70,5 +101,6 @@ Checks/reviews: <acceptance commands and gates>; budget/stop conditions: <limits
 Nested delegation: <supported runtime evidence or root-dispatch fallback>; no further layer.
 Escalate to root: <direction/authority boundary>; cancellation: <root stop source and cleanup>.
 In flight/recovery: <dependency owner, ID, source, expected wake, next action, deadline/action>.
+Pin: <prior state, executor-owned pinnedAt or gap, cleanup owner; carry on handoff>.
 Advance routine milestones without parent approval; report at milestones or a genuine stop.
 ```
