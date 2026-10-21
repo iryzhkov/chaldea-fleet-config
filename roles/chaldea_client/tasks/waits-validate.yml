@@ -3,6 +3,11 @@
   ansible.builtin.assert:
     that:
       - chaldea_client_waits_service_mode in ['user', 'system']
+      - chaldea_client_waits_legacy_user_node_version | default('') is string
+      - >-
+        chaldea_client_waits_legacy_user_node_version | default('') == '' or
+        (chaldea_client_waits_legacy_user_node_version is regex('[0-9]+[.][0-9]+[.][0-9]+', match_type='fullmatch') and
+         chaldea_client_waits_service_mode == 'system' and chaldea_client_waits_enabled | bool)
       - chaldea_client_waits_deadline | default('') is string
       - chaldea_client_waits_deadline | default('') | length == 0 or chaldea_client_waits_service_mode == 'system'
       - not chaldea_client_waits_status_read_restart | default(false) or chaldea_client_waits_deadline | default('') | length > 0
