@@ -92,16 +92,25 @@ Huyang can keep several explicit workspaces open. Always route by workspace ID; 
 assume the current directory identifies the intended workspace. A result is valid only
 for the revision it names.
 
-Use semantic handles or exact revision-bound locators when available. For a multi-file
-change, prepare a change plan, inspect its evidence, and apply only the returned
-`prepared_revision`. If Huyang reports a conflict, stale revision, incomplete evidence, or
-recovery requirement, do not bypass it with an unguarded overwrite.
+Use semantic handles or exact revision-bound locators when available. Ordinary guarded
+`edit_apply` edits may cover several files when atomicity is unnecessary. Genuinely atomic
+changes require `change_plan`: inspect its evidence and apply only its returned
+`prepared_revision`. Never split an atomic change to evade checks. If Huyang reports a
+conflict, stale revision, incomplete evidence or recovery requirement, resolve it rather
+than bypassing it with an unguarded overwrite.
 
 `change_plan` prepare retains its sandbox pipeline: `format_gate`, parser, check and tests.
+Built-in source/parse guards are distinct from executable project build/test/lint/codegen
+commands. At qualified Huyang revision b6ba774, prepare invokes its pipeline locally.
 Project commands declared by `.huyang.toml` or detected from the repository run only when
-trusted by the user policy in `~/.config/huyang/config.toml`. An untrusted root skips
-project commands; report that missing evidence. `huyang trust <root>` grants trust when
-authorized. Chaldea verification does not grant trust or replace prepared-revision evidence.
+trusted by user policy in `~/.config/huyang/config.toml`. Do not run prepare or `verify_run`
+when that pipeline would execute prohibited local project commands. Ordinary guarded edits
+use Chaldea checks tied to exact source instead. An untrusted root's skipped commands are
+missing evidence, never passes. Do not auto-trust a root or relax required gates.
+Chaldea results neither grant trust nor supply Huyang prepared-revision evidence.
+A trusted atomic command-gated change currently has no demonstrated remote-compatible
+interface. Retain the affected dependency and continue independent authorized work.
+See docs/agent-instruction-ownership.md for qualification source references.
 
 Diagnostics and test claims are evidence-bound. Distinguish affected-test coverage from a
 full test run, and treat provisional or partial evidence as such. Report the tested source

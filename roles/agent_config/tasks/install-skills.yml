@@ -11,7 +11,10 @@
 
 # Validate every permitted migration before unlinking any path.
 - name: Validate the approved laptop skill links
-  ansible.builtin.include_tasks: validate-skill-link.yml
+  ansible.builtin.include_tasks:
+    file: validate-skill-link.yml
+    apply:
+      tags: [agent_guidance]
   loop: "{{ agent_config_skill_paths.results }}"
   loop_control:
     loop_var: agent_config_skill_link

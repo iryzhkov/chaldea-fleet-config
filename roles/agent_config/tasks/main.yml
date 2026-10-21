@@ -12,6 +12,7 @@
     state: directory
     mode: u+rwx
   loop: "{{ (agent_config_files | map(attribute='dest') | map('dirname') | list + agent_config_skill_dirs) | unique }}"
+  tags: [agent_guidance]
 
 - name: Install shared instruction files and provider wrappers
   ansible.builtin.copy:
@@ -21,6 +22,8 @@
   loop: "{{ agent_config_files }}"
   loop_control:
     label: "~/{{ item.dest }}"
+  tags: [agent_guidance]
 
 - name: Install shared skills with guarded link migration
   ansible.builtin.import_tasks: install-skills.yml
+  tags: [agent_guidance]

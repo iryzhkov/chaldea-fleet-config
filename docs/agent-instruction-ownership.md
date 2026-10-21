@@ -57,15 +57,33 @@ reviews, the strict quota exception, native T3 completion, worktree isolation
 and existing budgets. Render tests exercise the real role and inventory for
 all four hosts and check the installed delegation contract in both skill trees.
 
-Merging guidance to main distributes it through active fleet pull timers.
-Keep source preparation draft with auto-merge off until the parent approves
-that activation. Report reviewed, merged, distributed and verified separately,
+Merging guidance to main can activate it through active fleet pull timers.
+Source-only authority does not authorize activation. Keep source preparation draft
+with auto-merge off until activation is authorized. Retain prior approved deployment
+scope without another routine approval; check current timer/service state. Report reviewed, merged, distributed and verified separately,
 with distribution evidence for each host. This source change does not deploy
 a client, restart T3 or activate AA, shared quota or automatic switching.
 
-All other deployed bytes, destinations and the plugin bytes must match.
+The adopted consistency layer, jocasta:b491ec8b880f1ef2d597a3a016e59ce3@2,
+is recorded as exact before/after blocks in agent_config_guidance_consistency.json.
+Render tests reverse this layer before all earlier layers, preserving the original
+byte baseline. The historical laptop TDD input and canonical hashes stay pinned;
+restoration verifies that input before copying today's accepted skill source.
+Use fleet-rollout's canonical agent_guidance tag and selected file/skill variables
+for scoped guidance convergence. All other deployed bytes, destinations and the
+plugin bytes must match.
 The Huyang role is disabled on every host and adds no deployed runtime changes.
 
 Huyang still supplies source reads and guarded edits. Builds and tests run
-through Chaldea; every Go test sets HUYANG_FRICTION=0. A separate verification
-does not relax change_plan trust or prepared-revision evidence rules.
+through Chaldea; every Go test sets HUYANG_FRICTION=0. Ordinary guarded edit_apply changes may span files when atomicity is unnecessary.
+Genuinely atomic changes still require change_plan and its trust/gate/prepared-revision
+evidence. Do not run prepare or verify_run if its configured pipeline would execute
+prohibited local project commands. External Chaldea checks cannot attest Huyang's
+prepared revision, skipped checks are not passes and roots must not be auto-trusted.
+The trusted atomic command-gated case remains an explicit dependency, with no
+demonstrated remote-compatible interface.
+
+This execution boundary was qualified against Huyang b6ba774. Prepare invokes local
+pipeline stages in internal/providerpool/stagers.go lines 296-304; command execution
+is local in internal/workspace/pipeline.go lines 729-732, with the trust skip at line
+672. This guidance corrects the instruction conflict without claiming runtime support.

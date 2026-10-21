@@ -15,6 +15,7 @@
           {{ inventory_hostname }} is for {{ expected_hostname }}; limit the run
           to this machine's entry.
         quiet: true
+      tags: [always]
   # Each role is tagged with its name, so a run can skip one with --skip-tags.
   roles:
     - role: agent_tools

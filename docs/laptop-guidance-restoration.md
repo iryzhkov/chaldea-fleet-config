@@ -17,15 +17,17 @@ Run the explicit tools/restore-laptop-tdd.yml play from the parent-verified merg
 checkout, with the laptop inventory and pinned Ansible 2.19.14. It first verifies
 the recorded .claude/skills/tdd -> ../../.agents/skills/tdd link and all owned
 target ancestors/tree. It verifies the original hash, exact footer and pinned
-source hash before creating any backup. No link is removed by this play.
+historical canonical hash before creating any backup. The input hash is independent
+of today's managed source. No link is removed by this play.
 
 Backup is ~/.cache/chaldea-scratch/rollout-guidance-20261018/tdd-before-canonical/.
 The destination must be absent. SKILL.md preserves original content, owner, group,
 mode and timestamps through cp --archive. metadata.json records the original
 Ansible stat metadata including checksum. The play requires backup hash, owner,
-group, mode and mtime equality before normal Ansible copy restores canonical
-source. A full recursive source/target comparison then verifies the restored
-tree. The backup remains. An existing backup or an already-restored input
+group, mode and mtime equality before normal Ansible copy installs the currently
+accepted TDD source. The historical canonical hash above qualifies the input,
+not the new output; verify the output against the accepted source revision.
+A full recursive source/target comparison then verifies the restored tree. The backup remains. An existing backup or an already-restored input
 requires inspection, not an automatic overwrite/retry.
 
 Follow fleet-rollout's single batched host-side sequence with real operator HOME,

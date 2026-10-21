@@ -19,10 +19,11 @@ a long-lived local service.
 
 When working on agent tooling (Huyang, shared AGENTS.md/CLAUDE.md files, skills or MCP
 configuration), finish a validated change by running its checks, pushing the source and
-confirming its GitHub CI. Fleet distribution is manual until the replacement configuration
-management exists: report which hosts were updated and verified and which were not, rather
-than declaring a change distributed. An explicit user instruction to keep work local takes
-precedence.
+confirming its GitHub CI within the assignment's authority. Merging fleet guidance to main
+can activate it through active pull timers. Source-only authority does not authorize that
+activation. Retain approved deployment scope without asking again for routine convergence.
+Check live timer/service state and report source, merge/activation, installed and verified
+states separately for each host. An explicit instruction to keep work local takes precedence.
 
 ## The rule
 
@@ -59,9 +60,19 @@ than the shell version and it returns diagnostics the shell never will.
 | Go to a definition, references, implementation, or type | `navigate` |
 | Read a file or semantic region | `read` |
 | Inspect diagnostics and their provenance | `diagnostics`, `evidence_get` |
-| Apply one direct revision-guarded edit | `edit_apply` |
-| Stage several related edits atomically | `change_plan`, then prepare/commit |
+| Apply ordinary guarded edits, across files when atomicity is unnecessary | `edit_apply` |
+| Stage genuinely atomic edits | `change_plan`, then prepare/apply |
 | Review a revision delta | `revision_diff` |
+
+Use guarded `edit_apply` for ordinary edits, including several files when atomicity is
+unnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.
+Built-in source/parse guards differ from executable project build/test/lint/codegen commands.
+Do not run `prepare` or `verify_run` when its configured pipeline would execute prohibited
+local project commands. Use Chaldea checks tied to exact source for ordinary edits.
+Preserve trust, all required gates and the returned prepared revision for atomic changes.
+External checks cannot supply Huyang prepared-revision evidence or grant trust; skipped
+checks are not passes. A trusted atomic command-gated change has no demonstrated remote
+interface today. Retain that dependency and continue independent work.
 
 Run builds, tests, linters and code generators through `chaldea exec --host agent-a -- ...`
 using a Git-independent make target or selected command. Set `HUYANG_FRICTION=0` inside
@@ -187,16 +198,25 @@ Huyang can keep several explicit workspaces open. Always route by workspace ID; 
 assume the current directory identifies the intended workspace. A result is valid only
 for the revision it names.
 
-Use semantic handles or exact revision-bound locators when available. For a multi-file
-change, prepare a change plan, inspect its evidence, and apply only the returned
-`prepared_revision`. If Huyang reports a conflict, stale revision, incomplete evidence, or
-recovery requirement, do not bypass it with an unguarded overwrite.
+Use semantic handles or exact revision-bound locators when available. Ordinary guarded
+`edit_apply` edits may cover several files when atomicity is unnecessary. Genuinely atomic
+changes require `change_plan`: inspect its evidence and apply only its returned
+`prepared_revision`. Never split an atomic change to evade checks. If Huyang reports a
+conflict, stale revision, incomplete evidence or recovery requirement, resolve it rather
+than bypassing it with an unguarded overwrite.
 
 `change_plan` prepare retains its sandbox pipeline: `format_gate`, parser, check and tests.
+Built-in source/parse guards are distinct from executable project build/test/lint/codegen
+commands. At qualified Huyang revision b6ba774, prepare invokes its pipeline locally.
 Project commands declared by `.huyang.toml` or detected from the repository run only when
-trusted by the user policy in `~/.config/huyang/config.toml`. An untrusted root skips
-project commands; report that missing evidence. `huyang trust <root>` grants trust when
-authorized. Chaldea verification does not grant trust or replace prepared-revision evidence.
+trusted by user policy in `~/.config/huyang/config.toml`. Do not run prepare or `verify_run`
+when that pipeline would execute prohibited local project commands. Ordinary guarded edits
+use Chaldea checks tied to exact source instead. An untrusted root's skipped commands are
+missing evidence, never passes. Do not auto-trust a root or relax required gates.
+Chaldea results neither grant trust nor supply Huyang prepared-revision evidence.
+A trusted atomic command-gated change currently has no demonstrated remote-compatible
+interface. Retain the affected dependency and continue independent authorized work.
+See docs/agent-instruction-ownership.md for qualification source references.
 
 Diagnostics and test claims are evidence-bound. Distinguish affected-test coverage from a
 full test run, and treat provisional or partial evidence as such. Report the tested source

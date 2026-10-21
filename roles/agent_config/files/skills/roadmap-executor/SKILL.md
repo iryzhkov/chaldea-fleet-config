@@ -149,9 +149,10 @@ source/review/deployment gates remain binding.
   or one Chaldea thread wait for a non-child thread. Preserve command, target,
   log and outcome; reconcile a disconnect or reboot before any retry.
 - Any host may reboot without breaking the rest. Do not reboot as a routine
-  recovery action. Restart T3 only with `chaldea t3 restart` once that command
-  exists, within explicit authorization; until then defer and ask Igor.
-  Do not substitute a raw service restart.
+  recovery action. `chaldea t3 restart` exists; inspect installed help and host
+  capability when needed. Command presence grants no restart authority. Use it
+  only within explicit authorization; otherwise defer the restart to the root
+  or Igor. Do not substitute a raw service restart.
 
 ## Keep the next milestone resumable
 

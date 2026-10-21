@@ -43,7 +43,8 @@
       - canonical.count(footer) == 0
     quiet: true
   vars:
-    canonical: "{{ lookup('ansible.builtin.file', role_path ~ '/files/skills/tdd/SKILL.md', rstrip=false) }}"
+    # Historical canonical input is pinned independently of today's managed skill.
+    canonical: "{{ (agent_config_tdd_content.content | b64decode)[:-147] }}"
     # Two additional UTF-8 bytes encode the arrow; the complete footer is 149 bytes.
     footer: "- **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.\n"
 

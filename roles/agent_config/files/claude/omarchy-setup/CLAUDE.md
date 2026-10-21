@@ -134,15 +134,19 @@ Delegate through T3's own tools rather than a separate scheduler:
 - Native same-provider subagents are for quick bounded reading and searching.
 
 Builders may launch their own reviews, using fresh T3 `delegate_task` contexts only.
-Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,
+Review meaningful integration/release acceptance batches, preserving the plan's required
+boundaries. Progress checkpoints and internal group milestones do not each require a PR or
+review pair. Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,
 with the main reviewer on the other provider whenever quota allows. When quota is tight,
 two different models on the same provider are allowed with fresh quota evidence and an
 honestly labeled exception. One independent review is acceptable when quota or availability
 prevents the pair. Follow `review-delegation` for routing and evidence. Optional Luna/Haiku
 lenses need a concrete risk and a bounded target; no default swarm. Allow at most two fix
 rounds. Report every reviewer's thread ID, model and verdict in the reply and a PR comment.
-After an accepted review, the orchestrator verifies a change of under about 50 lines
-without another review.
+After an accepted review, the orchestrator may verify a small follow-up without another
+review only when it is low risk and preserves reviewed behavior, acceptance and authority.
+Under about 50 lines alone grants no waiver for security, authority, acceptance or behavior
+changes. Required tests and CI still apply.
 
 T3 tools act only on the host's own T3 server. There is no agent-driven launch on another
 host yet; ask Igor to start work there from the T3 app.
@@ -227,10 +231,11 @@ a long-lived local service.
 
 When working on agent tooling (Huyang, shared AGENTS.md/CLAUDE.md files, skills or MCP
 configuration), finish a validated change by running its checks, pushing the source and
-confirming its GitHub CI. Fleet distribution is manual until the replacement configuration
-management exists: report which hosts were updated and verified and which were not, rather
-than declaring a change distributed. An explicit user instruction to keep work local takes
-precedence.
+confirming its GitHub CI within the assignment's authority. Merging fleet guidance to main
+can activate it through active pull timers. Source-only authority does not authorize that
+activation. Retain approved deployment scope without asking again for routine convergence.
+Check live timer/service state and report source, merge/activation, installed and verified
+states separately for each host. An explicit instruction to keep work local takes precedence.
 
 ## The rule
 
@@ -267,9 +272,19 @@ than the shell version and it returns diagnostics the shell never will.
 | Go to a definition, references, implementation, or type | `navigate` |
 | Read a file or semantic region | `read` |
 | Inspect diagnostics and their provenance | `diagnostics`, `evidence_get` |
-| Apply one direct revision-guarded edit | `edit_apply` |
-| Stage several related edits atomically | `change_plan`, then prepare/commit |
+| Apply ordinary guarded edits, across files when atomicity is unnecessary | `edit_apply` |
+| Stage genuinely atomic edits | `change_plan`, then prepare/apply |
 | Review a revision delta | `revision_diff` |
+
+Use guarded `edit_apply` for ordinary edits, including several files when atomicity is
+unnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.
+Built-in source/parse guards differ from executable project build/test/lint/codegen commands.
+Do not run `prepare` or `verify_run` when its configured pipeline would execute prohibited
+local project commands. Use Chaldea checks tied to exact source for ordinary edits.
+Preserve trust, all required gates and the returned prepared revision for atomic changes.
+External checks cannot supply Huyang prepared-revision evidence or grant trust; skipped
+checks are not passes. A trusted atomic command-gated change has no demonstrated remote
+interface today. Retain that dependency and continue independent work.
 
 Run builds, tests, linters and code generators through `chaldea exec --host agent-a -- ...`
 using a Git-independent make target or selected command. Set `HUYANG_FRICTION=0` inside
