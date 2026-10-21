@@ -20,10 +20,11 @@ records. Code fixes happen separately under adopted scope.
   inline or with one bounded lens. It does not satisfy a due comprehensive audit
   or reset its counter, and its report says so.
 - A comprehensive audit covers the lenses below. It is due after five merged
-  milestones since the last one, before a new roadmap step, or when the largest
-  repository's source lines grow about 50% since its baseline, whichever comes
-  first. An adopted plan may set a proportionate cadence instead, keeping a
-  fallback for unplanned drift. One audit covers coincident triggers.
+  milestones since the last one, when the largest repository's source lines grow
+  about 50% since its baseline, or before a material unplanned change of direction
+  or trust boundary. Routine roadmap steps do not each require a comprehensive
+  audit. Follow adopted audit nodes and any proportionate cadence in the plan,
+  retaining these fallbacks for unplanned drift. One audit covers coincident triggers.
 - The checkpoint keeps merged milestones since the last comprehensive audit, its
   baseline and counting method, and due status. Never silently drop an
   unaddressed due audit. Counts use `chaldea exec`; they are triggers, never
@@ -35,10 +36,13 @@ records. Code fixes happen separately under adopted scope.
 
 ## Frame the audit
 
-- Read the operative sections of the current plan of record
-  `tooling/plans/chaldea-rebuild-plan-2026-10-16.md`, the execution checkpoint
-  `tooling/handoffs/chaldea-execution-checkpoint.md`, the previous audit and
-  relevant implementation briefs from Jocasta. Honor a supplied scope.
+- Resolve the active plan, checkpoint and previous audit from the assignment and
+  its exact references. Read their operative sections and relevant implementation
+  briefs from Jocasta. Honor supplied scope; do not substitute a historical or
+  stopped project's plan. Report missing references and continue evidence work
+  that does not depend on them.
+- Keep a routine consistency check inline using available source and evidence.
+  It does not create a compulsory delegation or comprehensive audit.
 - Pin exact Jocasta revisions and repository commits/PR heads in the briefs.
   Use the previous audit's numbers and counting method as the baseline; report
   missing or incomparable measurements explicitly, never invent a delta.
@@ -87,11 +91,13 @@ never poll. Recorded decisions are checked for drift, not re-argued.
 
 ## Synthesize and decide
 
-- After the lenses finish, delegate one synthesis to a critical reviewer on
-  the other provider from most lenses: Fable 5.1 for a Codex majority, Astra
-  for a Claude majority, at medium effort. This consequential audit synthesis
-  uses the critical-review role, subject to `review-delegation`'s provider rule
-  and "Quota exception".
+- For a comprehensive audit, after the lenses finish, delegate one synthesis
+  using `review-delegation`'s consequential-review selection and provider rules.
+  Call FATE with `critical-review` before delegation, compare underlying drivers
+  in the live catalog and prefer the other provider from most lenses. Apply its
+  documented fallback and "Quota exception" with evidence when needed; no fixed
+  Fable requirement overrides those rules. An inline decision check may synthesize
+  its own bounded evidence without another agent.
 - Give it all lens evidence and pinned context. It checks disputed evidence,
   merges duplicates and writes a ranked report to
   `tooling/handoffs/chaldea-audit-<date>.md` in Jocasta. Include scope/commits,

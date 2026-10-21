@@ -17,9 +17,7 @@ If the redacted output is not enough to diagnose the bug, say so and ask the use
 
 ## Phase 1: Build a feedback loop
 
-**This is the skill.** Everything else is mechanical. If you have a **tight** pass/fail signal for the bug (one that goes red on _this_ bug), you will find the cause; bisection, hypothesis-testing, and instrumentation all just consume it. If you don't have one, no amount of staring at code will save you.
-
-Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give up.**
+Prefer a tight pass/fail signal that goes red on this bug. It makes bisection, hypothesis testing and validation useful. Source inspection and retained evidence can also narrow a failure when safe reproduction is unavailable. Keep the limit of that evidence explicit; a plausible theory is not a confirmed cause.
 
 ### Ways to construct one, in roughly this order
 
@@ -34,7 +32,7 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 9. **Differential loop.** Run the same input through old-version vs new-version (or two configs) and diff outputs.
 10. **HITL bash script.** Last resort. If a human must click, drive _them_ with `scripts/hitl-loop.template.sh` so the loop is still structured. Captured output feeds back to you.
 
-Build the right feedback loop, and the bug is 90% fixed.
+Keep replay, stress and instrumentation within existing authority and isolated environments. Do not replay unsafe production actions to obtain a signal.
 
 ### Tighten the loop
 
@@ -52,7 +50,9 @@ The goal is not a clean repro but a **higher reproduction rate**. Loop the trigg
 
 ### When you genuinely cannot build a loop
 
-Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a redacted captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** proceed to hypothesise without a loop.
+State why safe reproduction is unavailable and what you tried. Continue a bounded read-only investigation using already authorized source, logs, crash traces and retained artifacts. Set a finite boundary before starting, such as one incident timeline and two discriminating evidence checks, or a time budget from the assignment. Stop when that boundary is reached or evidence no longer distinguishes hypotheses.
+
+Separate observed facts, ranked hypotheses, ruled-out explanations and unknowns. Name what evidence would confirm or refute each hypothesis. Ask only for genuinely missing evidence/access or new instrumentation authority, through the root when delegated. Do not add production instrumentation or replay unsafe actions beyond existing authority. Report an unresolved diagnosis honestly when proof is unavailable.
 
 ### Completion criterion: a tight loop that goes red
 
@@ -63,7 +63,7 @@ Phase 1 is done when the loop is **tight** and **red-capable**: you can name **o
 - [ ] **Fast**: seconds, not minutes.
 - [ ] **Agent-runnable**: you can run it unattended; a human in the loop only via `scripts/hitl-loop.template.sh`.
 
-If you catch yourself reading code to build a theory before this command exists, **stop: jumping straight to a hypothesis is the exact failure this skill prevents.** No red-capable command, no Phase 2.
+If a safe red-capable command is unavailable, use the bounded read-only path above. Record that reproduction and fix validation remain incomplete; source inspection may support a hypothesis without proving the cause.
 
 ## Phase 2: Reproduce + minimise
 
@@ -83,7 +83,7 @@ Why bother: a minimal repro shrinks the hypothesis space in Phase 3 (fewer movin
 
 Done when **every remaining element is load-bearing**: removing any one of them makes the loop go green.
 
-Do not proceed until you have reproduced **and** minimised.
+Prefer reproduction and minimisation before changing code. On the read-only path, use the observed incident and retained evidence instead, naming what could not be reproduced or minimised. Do not present that investigation as a validated fix.
 
 ## Phase 3: Hypothesise
 
@@ -99,7 +99,7 @@ If you cannot state the prediction, the hypothesis is a vibe: discard or sharpen
 
 ## Phase 4: Instrument
 
-Each probe must map to a specific prediction from Phase 3. **Change one variable at a time.**
+Each probe must map to a specific prediction from Phase 3. **Change one variable at a time.** On the read-only path, inspect existing evidence only. New instrumentation or mutation needs authority and a safe validation plan.
 
 Tool preference:
 
@@ -131,8 +131,8 @@ If a correct seam exists:
 
 Required before declaring done:
 
-- [ ] Original repro no longer reproduces (re-run the Phase 1 loop)
-- [ ] Regression test passes (or absence of seam is documented)
+- [ ] For a validated fix, original repro no longer reproduces after re-running the Phase 1 loop
+- [ ] Regression test passes at the correct seam, or the missing seam and validation gap are documented
 - [ ] All `[DEBUG-...]` instrumentation removed (`grep` the prefix)
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
-- [ ] The hypothesis that turned out correct is stated in the commit / PR message, so the next debugger learns
+- [ ] State the confirmed cause and evidence in the commit / PR message, or report hypotheses and unknowns with the finite investigation outcome. Never label an unvalidated diagnosis or fix as confirmed.

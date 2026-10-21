@@ -134,10 +134,15 @@ Never re-run an uncertain job; report the uncertainty if recovery cannot confirm
 
 ## Availability and identity
 
-Waits and the decision inbox are deployed on **omarchy-pc only** until rolled
-out elsewhere. A session can tell they are configured when the `chaldea` MCP
-server is registered; do not assume availability on another host or from the
-CLI alone. A service error still needs diagnosis.
+MCP registration alone proves neither local waits nor decision availability.
+The routing MCP process, local waits/decision service and native T3 child/PR
+wakes are separate capabilities. Inspect read-only effective configuration and
+service state on the current host, including `~/.config/chaldea/waits.json` and
+its configured service, before relying on a local wait or decision wake. CLI
+help proves syntax only; a routing response proves routing only. Use native
+child/PR completion where available. Record unavailable or unqualified capability
+and retain recovery ownership; never park work assuming registration proves
+service health or wake delivery. A service error still needs diagnosis.
 
 Call T3's `orchestrator_capabilities` and use its `parentThreadId` as your own
 `threadId`, despite the field's name. Do not use a provider session ID or guess
@@ -192,7 +197,11 @@ continuation, records what failed and recovers or escalates that dependency.
 Continue other ready lanes. If no continuation occurs, leave the recovery obligation
 visible for the root or next operator session; a recorded deadline cannot wake it.
 Do not add a polling loop or duplicate watcher, or replay an uncertain mutation.
-These instructions do not qualify runtime wake reliability or claim a delivery fix.
+Qualified on T3 v0.1.0: automatic thread settlement can orphan external Chaldea
+waits. Native child completion is a separate mechanism; neither wait registration
+nor a deadline guarantees a continuation wake. This is a known limitation, not a
+workaround: never ignore settled flags, auto-unsettle threads or revive explicitly
+stopped work. Retain recovery ownership for the next authorized continuation.
 
 CLI equivalents (set these variables to the actual IDs and desired times):
 

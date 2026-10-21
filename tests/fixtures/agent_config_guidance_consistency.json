@@ -1,0 +1,198 @@
+{
+  "agents/AGENTS.md": [
+    [
+      "confirming its GitHub CI. Fleet distribution is manual until the replacement configuration\nmanagement exists: report which hosts were updated and verified and which were not, rather\nthan declaring a change distributed. An explicit user instruction to keep work local takes\nprecedence.",
+      "confirming its GitHub CI within the assignment's authority. Merging fleet guidance to main\ncan activate it through active pull timers. Source-only authority does not authorize that\nactivation. Retain approved deployment scope without asking again for routine convergence.\nCheck live timer/service state and report source, merge/activation, installed and verified\nstates separately for each host. An explicit instruction to keep work local takes precedence."
+    ],
+    [
+      "Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,",
+      "Review meaningful integration/release acceptance batches, preserving the plan's required\nboundaries. Progress checkpoints and internal group milestones do not each require a PR or\nreview pair. Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,"
+    ],
+    [
+      "After an accepted review, the orchestrator verifies a change of under about 50 lines\nwithout another review.",
+      "After an accepted review, the orchestrator may verify a small follow-up without another\nreview only when it is low risk and preserves reviewed behavior, acceptance and authority.\nUnder about 50 lines alone grants no waiver for security, authority, acceptance or behavior\nchanges. Required tests and CI still apply."
+    ],
+    [
+      "`change_plan` prepare keeps its sandbox format/parser/check/test gates and project-command\ntrust policy. Inspect the evidence and apply only the returned prepared revision; skipped\nchecks in an untrusted root are not passing checks.",
+      "Use guarded `edit_apply` for ordinary edits, including several files when atomicity is\nunnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.\nBuilt-in source/parse guards differ from executable project build/test/lint/codegen commands.\nDo not run `prepare` or `verify_run` when its configured pipeline would execute prohibited\nlocal project commands. Use Chaldea checks tied to exact source for ordinary edits.\nPreserve trust, all required gates and the returned prepared revision for atomic changes.\nExternal checks cannot supply Huyang prepared-revision evidence or grant trust; skipped\nchecks are not passes. A trusted atomic command-gated change has no demonstrated remote\ninterface today. Retain that dependency and continue independent work."
+    ]
+  ],
+  "codex/AGENTS.md": [
+    [
+      "confirming its GitHub CI. Fleet distribution is manual until the replacement configuration\nmanagement exists: report which hosts were updated and verified and which were not, rather\nthan declaring a change distributed. An explicit user instruction to keep work local takes\nprecedence.",
+      "confirming its GitHub CI within the assignment's authority. Merging fleet guidance to main\ncan activate it through active pull timers. Source-only authority does not authorize that\nactivation. Retain approved deployment scope without asking again for routine convergence.\nCheck live timer/service state and report source, merge/activation, installed and verified\nstates separately for each host. An explicit instruction to keep work local takes precedence."
+    ],
+    [
+      "Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,",
+      "Review meaningful integration/release acceptance batches, preserving the plan's required\nboundaries. Progress checkpoints and internal group milestones do not each require a PR or\nreview pair. Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,"
+    ],
+    [
+      "After an accepted review, the orchestrator verifies a change of under about 50 lines\nwithout another review.",
+      "After an accepted review, the orchestrator may verify a small follow-up without another\nreview only when it is low risk and preserves reviewed behavior, acceptance and authority.\nUnder about 50 lines alone grants no waiver for security, authority, acceptance or behavior\nchanges. Required tests and CI still apply."
+    ],
+    [
+      "`change_plan` prepare keeps its sandbox format/parser/check/test gates and project-command\ntrust policy. Inspect the evidence and apply only the returned prepared revision; skipped\nchecks in an untrusted root are not passing checks.",
+      "Use guarded `edit_apply` for ordinary edits, including several files when atomicity is\nunnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.\nBuilt-in source/parse guards differ from executable project build/test/lint/codegen commands.\nDo not run `prepare` or `verify_run` when its configured pipeline would execute prohibited\nlocal project commands. Use Chaldea checks tied to exact source for ordinary edits.\nPreserve trust, all required gates and the returned prepared revision for atomic changes.\nExternal checks cannot supply Huyang prepared-revision evidence or grant trust; skipped\nchecks are not passes. A trusted atomic command-gated change has no demonstrated remote\ninterface today. Retain that dependency and continue independent work."
+    ]
+  ],
+  "claude/omarchy-setup/CLAUDE.md": [
+    [
+      "confirming its GitHub CI. Fleet distribution is manual until the replacement configuration\nmanagement exists: report which hosts were updated and verified and which were not, rather\nthan declaring a change distributed. An explicit user instruction to keep work local takes\nprecedence.",
+      "confirming its GitHub CI within the assignment's authority. Merging fleet guidance to main\ncan activate it through active pull timers. Source-only authority does not authorize that\nactivation. Retain approved deployment scope without asking again for routine convergence.\nCheck live timer/service state and report source, merge/activation, installed and verified\nstates separately for each host. An explicit instruction to keep work local takes precedence."
+    ],
+    [
+      "Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,",
+      "Review meaningful integration/release acceptance batches, preserving the plan's required\nboundaries. Progress checkpoints and internal group milestones do not each require a PR or\nreview pair. Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,"
+    ],
+    [
+      "After an accepted review, the orchestrator verifies a change of under about 50 lines\nwithout another review.",
+      "After an accepted review, the orchestrator may verify a small follow-up without another\nreview only when it is low risk and preserves reviewed behavior, acceptance and authority.\nUnder about 50 lines alone grants no waiver for security, authority, acceptance or behavior\nchanges. Required tests and CI still apply."
+    ],
+    [
+      "| Apply one direct revision-guarded edit | `edit_apply` |",
+      "| Apply ordinary guarded edits, across files when atomicity is unnecessary | `edit_apply` |"
+    ],
+    [
+      "| Stage several related edits atomically | `change_plan`, then prepare/commit |",
+      "| Stage genuinely atomic edits | `change_plan`, then prepare/apply |\n\nUse guarded `edit_apply` for ordinary edits, including several files when atomicity is\nunnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.\nBuilt-in source/parse guards differ from executable project build/test/lint/codegen commands.\nDo not run `prepare` or `verify_run` when its configured pipeline would execute prohibited\nlocal project commands. Use Chaldea checks tied to exact source for ordinary edits.\nPreserve trust, all required gates and the returned prepared revision for atomic changes.\nExternal checks cannot supply Huyang prepared-revision evidence or grant trust; skipped\nchecks are not passes. A trusted atomic command-gated change has no demonstrated remote\ninterface today. Retain that dependency and continue independent work."
+    ],
+    [
+      "Use guarded `edit_apply` for ordinary edits, including several files when atomicity is\nunnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.\nBuilt-in source/parse guards differ from executable project build/test/lint/codegen commands.\nDo not run `prepare` or `verify_run` when its configured pipeline would execute prohibited\nlocal project commands. Use Chaldea checks tied to exact source for ordinary edits.\nPreserve trust, all required gates and the returned prepared revision for atomic changes.\nExternal checks cannot supply Huyang prepared-revision evidence or grant trust; skipped\nchecks are not passes. A trusted atomic command-gated change has no demonstrated remote\ninterface today. Retain that dependency and continue independent work.\n| Review a revision delta | `revision_diff` |",
+      "| Review a revision delta | `revision_diff` |\n\nUse guarded `edit_apply` for ordinary edits, including several files when atomicity is\nunnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.\nBuilt-in source/parse guards differ from executable project build/test/lint/codegen commands.\nDo not run `prepare` or `verify_run` when its configured pipeline would execute prohibited\nlocal project commands. Use Chaldea checks tied to exact source for ordinary edits.\nPreserve trust, all required gates and the returned prepared revision for atomic changes.\nExternal checks cannot supply Huyang prepared-revision evidence or grant trust; skipped\nchecks are not passes. A trusted atomic command-gated change has no demonstrated remote\ninterface today. Retain that dependency and continue independent work."
+    ],
+    [
+      "| Stage genuinely atomic edits | `change_plan`, then prepare/apply |\n\n| Review",
+      "| Stage genuinely atomic edits | `change_plan`, then prepare/apply |\n| Review"
+    ]
+  ],
+  "agents/huyang.md": [
+    [
+      "confirming its GitHub CI. Fleet distribution is manual until the replacement configuration\nmanagement exists: report which hosts were updated and verified and which were not, rather\nthan declaring a change distributed. An explicit user instruction to keep work local takes\nprecedence.",
+      "confirming its GitHub CI within the assignment's authority. Merging fleet guidance to main\ncan activate it through active pull timers. Source-only authority does not authorize that\nactivation. Retain approved deployment scope without asking again for routine convergence.\nCheck live timer/service state and report source, merge/activation, installed and verified\nstates separately for each host. An explicit instruction to keep work local takes precedence."
+    ],
+    [
+      "| Apply one direct revision-guarded edit | `edit_apply` |",
+      "| Apply ordinary guarded edits, across files when atomicity is unnecessary | `edit_apply` |"
+    ],
+    [
+      "| Stage several related edits atomically | `change_plan`, then prepare/commit |",
+      "| Stage genuinely atomic edits | `change_plan`, then prepare/apply |\n\nUse guarded `edit_apply` for ordinary edits, including several files when atomicity is\nunnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.\nBuilt-in source/parse guards differ from executable project build/test/lint/codegen commands.\nDo not run `prepare` or `verify_run` when its configured pipeline would execute prohibited\nlocal project commands. Use Chaldea checks tied to exact source for ordinary edits.\nPreserve trust, all required gates and the returned prepared revision for atomic changes.\nExternal checks cannot supply Huyang prepared-revision evidence or grant trust; skipped\nchecks are not passes. A trusted atomic command-gated change has no demonstrated remote\ninterface today. Retain that dependency and continue independent work."
+    ],
+    [
+      "Use semantic handles or exact revision-bound locators when available. For a multi-file\nchange, prepare a change plan, inspect its evidence, and apply only the returned\n`prepared_revision`. If Huyang reports a conflict, stale revision, incomplete evidence, or\nrecovery requirement, do not bypass it with an unguarded overwrite.",
+      "Use semantic handles or exact revision-bound locators when available. Ordinary guarded\n`edit_apply` edits may cover several files when atomicity is unnecessary. Genuinely atomic\nchanges require `change_plan`: inspect its evidence and apply only its returned\n`prepared_revision`. Never split an atomic change to evade checks. If Huyang reports a\nconflict, stale revision, incomplete evidence or recovery requirement, resolve it rather\nthan bypassing it with an unguarded overwrite."
+    ],
+    [
+      "`change_plan` prepare retains its sandbox pipeline: `format_gate`, parser, check and tests.\nProject commands declared by `.huyang.toml` or detected from the repository run only when\ntrusted by the user policy in `~/.config/huyang/config.toml`. An untrusted root skips\nproject commands; report that missing evidence. `huyang trust <root>` grants trust when\nauthorized. Chaldea verification does not grant trust or replace prepared-revision evidence.",
+      "`change_plan` prepare retains its sandbox pipeline: `format_gate`, parser, check and tests.\nBuilt-in source/parse guards are distinct from executable project build/test/lint/codegen\ncommands. At qualified Huyang revision b6ba774, prepare invokes its pipeline locally.\nProject commands declared by `.huyang.toml` or detected from the repository run only when\ntrusted by user policy in `~/.config/huyang/config.toml`. Do not run prepare or `verify_run`\nwhen that pipeline would execute prohibited local project commands. Ordinary guarded edits\nuse Chaldea checks tied to exact source instead. An untrusted root's skipped commands are\nmissing evidence, never passes. Do not auto-trust a root or relax required gates.\nChaldea results neither grant trust nor supply Huyang prepared-revision evidence.\nA trusted atomic command-gated change currently has no demonstrated remote-compatible\ninterface. Retain the affected dependency and continue independent authorized work.\nSee docs/agent-instruction-ownership.md for qualification source references."
+    ],
+    [
+      "Use guarded `edit_apply` for ordinary edits, including several files when atomicity is\nunnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.\nBuilt-in source/parse guards differ from executable project build/test/lint/codegen commands.\nDo not run `prepare` or `verify_run` when its configured pipeline would execute prohibited\nlocal project commands. Use Chaldea checks tied to exact source for ordinary edits.\nPreserve trust, all required gates and the returned prepared revision for atomic changes.\nExternal checks cannot supply Huyang prepared-revision evidence or grant trust; skipped\nchecks are not passes. A trusted atomic command-gated change has no demonstrated remote\ninterface today. Retain that dependency and continue independent work.\n| Review a revision delta | `revision_diff` |",
+      "| Review a revision delta | `revision_diff` |\n\nUse guarded `edit_apply` for ordinary edits, including several files when atomicity is\nunnecessary. Genuinely atomic changes require `change_plan`; never split them to evade gates.\nBuilt-in source/parse guards differ from executable project build/test/lint/codegen commands.\nDo not run `prepare` or `verify_run` when its configured pipeline would execute prohibited\nlocal project commands. Use Chaldea checks tied to exact source for ordinary edits.\nPreserve trust, all required gates and the returned prepared revision for atomic changes.\nExternal checks cannot supply Huyang prepared-revision evidence or grant trust; skipped\nchecks are not passes. A trusted atomic command-gated change has no demonstrated remote\ninterface today. Retain that dependency and continue independent work."
+    ],
+    [
+      "| Stage genuinely atomic edits | `change_plan`, then prepare/apply |\n\n| Review",
+      "| Stage genuinely atomic edits | `change_plan`, then prepare/apply |\n| Review"
+    ]
+  ],
+  "skills/tdd/SKILL.md": [
+    [
+      "**Test only at pre-agreed seams.** Before writing any test, write down the seams under test and confirm them with the user. No test is written at an unconfirmed seam. You can't test everything, so agreeing the seams up front is how testing effort lands on the critical paths and complex logic instead of every edge case.\n\nAsk: \"What's the public interface, and which seams should we test?\"",
+      "Use the accepted task, test strategy or public interface as seam agreement. For routine work, select an established public test boundary and record why it observes the required behavior. No repeated human confirmation is needed. Focus tests on critical paths and complex logic.\n\nAsk the user only when acceptance criteria or interface authority remain genuinely unresolved. Keep dependent test/interface choices pending while continuing independent authorized work."
+    ]
+  ],
+  "skills/chaldea-audit/SKILL.md": [
+    [
+      "  milestones since the last one, before a new roadmap step, or when the largest\n  repository's source lines grow about 50% since its baseline, whichever comes\n  first. An adopted plan may set a proportionate cadence instead, keeping a\n  fallback for unplanned drift. One audit covers coincident triggers.",
+      "  milestones since the last one, when the largest repository's source lines grow\n  about 50% since its baseline, or before a material unplanned change of direction\n  or trust boundary. Routine roadmap steps do not each require a comprehensive\n  audit. Follow adopted audit nodes and any proportionate cadence in the plan,\n  retaining these fallbacks for unplanned drift. One audit covers coincident triggers."
+    ],
+    [
+      "- Read the operative sections of the current plan of record\n  `tooling/plans/chaldea-rebuild-plan-2026-10-16.md`, the execution checkpoint\n  `tooling/handoffs/chaldea-execution-checkpoint.md`, the previous audit and\n  relevant implementation briefs from Jocasta. Honor a supplied scope.",
+      "- Resolve the active plan, checkpoint and previous audit from the assignment and\n  its exact references. Read their operative sections and relevant implementation\n  briefs from Jocasta. Honor supplied scope; do not substitute a historical or\n  stopped project's plan. Report missing references and continue evidence work\n  that does not depend on them.\n- Keep a routine consistency check inline using available source and evidence.\n  It does not create a compulsory delegation or comprehensive audit."
+    ],
+    [
+      "- After the lenses finish, delegate one synthesis to a critical reviewer on\n  the other provider from most lenses: Fable 5.1 for a Codex majority, Astra\n  for a Claude majority, at medium effort. This consequential audit synthesis\n  uses the critical-review role, subject to `review-delegation`'s provider rule\n  and \"Quota exception\".",
+      "- For a comprehensive audit, after the lenses finish, delegate one synthesis\n  using `review-delegation`'s consequential-review selection and provider rules.\n  Call FATE with `critical-review` before delegation, compare underlying drivers\n  in the live catalog and prefer the other provider from most lenses. Apply its\n  documented fallback and \"Quota exception\" with evidence when needed; no fixed\n  Fable requirement overrides those rules. An inline decision check may synthesize\n  its own bounded evidence without another agent."
+    ]
+  ],
+  "skills/chaldea/SKILL.md": [
+    [
+      "Waits and the decision inbox are deployed on **omarchy-pc only** until rolled\nout elsewhere. A session can tell they are configured when the `chaldea` MCP\nserver is registered; do not assume availability on another host or from the\nCLI alone. A service error still needs diagnosis.",
+      "MCP registration alone proves neither local waits nor decision availability.\nThe routing MCP process, local waits/decision service and native T3 child/PR\nwakes are separate capabilities. Inspect read-only effective configuration and\nservice state on the current host, including `~/.config/chaldea/waits.json` and\nits configured service, before relying on a local wait or decision wake. CLI\nhelp proves syntax only; a routing response proves routing only. Use native\nchild/PR completion where available. Record unavailable or unqualified capability\nand retain recovery ownership; never park work assuming registration proves\nservice health or wake delivery. A service error still needs diagnosis."
+    ],
+    [
+      "These instructions do not qualify runtime wake reliability or claim a delivery fix.",
+      "Qualified on T3 v0.1.0: automatic thread settlement can orphan external Chaldea\nwaits. Native child completion is a separate mechanism; registering a wait or\ndeadline guarantees no continuation wake. This is a known limitation, not a\nworkaround: never ignore settled flags, auto-unsettle threads or revive explicitly\nstopped work. Retain recovery ownership for the next authorized continuation."
+    ],
+    [
+      "waits. Native child completion is a separate mechanism; registering a wait or\ndeadline guarantees no continuation wake.",
+      "waits. Native child completion is a separate mechanism; neither wait registration\nnor a deadline guarantees a continuation wake."
+    ]
+  ],
+  "skills/roadmap-executor/SKILL.md": [
+    [
+      "  recovery action. Restart T3 only with `chaldea t3 restart` once that command\n  exists, within explicit authorization; until then defer and ask Igor.\n  Do not substitute a raw service restart.",
+      "  recovery action. `chaldea t3 restart` exists; inspect installed help and host\n  capability when needed. Command presence grants no restart authority. Use it\n  only within explicit authorization; otherwise defer the restart to the root\n  or Igor. Do not substitute a raw service restart."
+    ]
+  ],
+  "skills/review-delegation/SKILL.md": [
+    [
+      "Review the final commit of each milestone of an agreed plan:",
+      "Review the final commit at each meaningful integration or release acceptance\nbatch required by the agreed plan. Preserve explicit acceptance boundaries.\nProgress checkpoints and internal milestones within a related group do not each\ncreate a PR or review pair. Group related work before review and CI as below:"
+    ],
+    [
+      "- ACCEPT names the exact commit, reviewed on a clean tree. After an accepted\n  review, the orchestrator verifies a change of under about 50 lines without\n  another review. For larger changes, review the final commit again.",
+      "- ACCEPT names the exact commit, reviewed on a clean tree. After an accepted\n  review, the orchestrator may verify a small follow-up without another review\n  only when it is low risk and preserves reviewed behavior, acceptance and\n  authority. Under about 50 lines is a sizing guide, not a waiver for security,\n  authority, acceptance or behavior changes. Such changes and larger follow-ups\n  need review of the final commit. Required tests and CI still apply."
+    ]
+  ],
+  "skills/diagnosing-bugs/SKILL.md": [
+    [
+      "**This is the skill.** Everything else is mechanical. If you have a **tight** pass/fail signal for the bug (one that goes red on _this_ bug), you will find the cause; bisection, hypothesis-testing, and instrumentation all just consume it. If you don't have one, no amount of staring at code will save you.\n\nSpend disproportionate effort here. **Be aggressive. Be creative. Refuse to give up.**",
+      "Prefer a tight pass/fail signal that goes red on this bug. It makes bisection, hypothesis testing and validation useful. Source inspection and retained evidence can also narrow a failure when safe reproduction is unavailable. Keep the limit of that evidence explicit; a plausible theory is not a confirmed cause."
+    ],
+    [
+      "Build the right feedback loop, and the bug is 90% fixed.",
+      "Keep replay, stress and instrumentation within existing authority and isolated environments. Do not replay unsafe production actions to obtain a signal."
+    ],
+    [
+      "Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a redacted captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** proceed to hypothesise without a loop.",
+      "State why safe reproduction is unavailable and what you tried. Continue a bounded read-only investigation using already authorized source, logs, crash traces and retained artifacts. Set a finite boundary before starting, such as one incident timeline and two discriminating evidence checks, or a time budget from the assignment. Stop when that boundary is reached or evidence no longer distinguishes hypotheses.\n\nSeparate observed facts, ranked hypotheses, ruled-out explanations and unknowns. Name what evidence would confirm or refute each hypothesis. Ask only for genuinely missing evidence/access or new instrumentation authority, through the root when delegated. Do not add production instrumentation or replay unsafe actions beyond existing authority. Report an unresolved diagnosis honestly when proof is unavailable."
+    ],
+    [
+      "If you catch yourself reading code to build a theory before this command exists, **stop: jumping straight to a hypothesis is the exact failure this skill prevents.** No red-capable command, no Phase 2.",
+      "If a safe red-capable command is unavailable, use the bounded read-only path above. Record that reproduction and fix validation remain incomplete; source inspection may support a hypothesis without proving the cause."
+    ],
+    [
+      "Do not proceed until you have reproduced **and** minimised.",
+      "Prefer reproduction and minimisation before changing code. On the read-only path, use the observed incident and retained evidence instead, naming what could not be reproduced or minimised. Do not present that investigation as a validated fix."
+    ],
+    [
+      "Each probe must map to a specific prediction from Phase 3. **Change one variable at a time.**",
+      "Each probe must map to a specific prediction from Phase 3. **Change one variable at a time.** On the read-only path, inspect existing evidence only. New instrumentation or mutation needs authority and a safe validation plan."
+    ],
+    [
+      "- [ ] Original repro no longer reproduces (re-run the Phase 1 loop)\n- [ ] Regression test passes (or absence of seam is documented)",
+      "- [ ] For a validated fix, original repro no longer reproduces after re-running the Phase 1 loop\n- [ ] Regression test passes at the correct seam, or the missing seam and validation gap are documented"
+    ],
+    [
+      "- [ ] The hypothesis that turned out correct is stated in the commit / PR message, so the next debugger learns",
+      "- [ ] State the confirmed cause and evidence in the commit / PR message, or report hypotheses and unknowns with the finite investigation outcome. Never label an unvalidated diagnosis or fix as confirmed."
+    ]
+  ],
+  "skills/huyang/SKILL.md": [
+    [
+      "Use semantic handles or exact revision-bound locators when available. For a multi-file\nchange, prepare a change plan, inspect its evidence, and apply only the returned\n`prepared_revision`. If Huyang reports a conflict, stale revision, incomplete evidence, or\nrecovery requirement, do not bypass it with an unguarded overwrite.",
+      "Use semantic handles or exact revision-bound locators when available. Ordinary guarded\n`edit_apply` edits may cover several files when atomicity is unnecessary. Genuinely atomic\nchanges require `change_plan`: inspect its evidence and apply only its returned\n`prepared_revision`. Never split an atomic change to evade checks. If Huyang reports a\nconflict, stale revision, incomplete evidence or recovery requirement, resolve it rather\nthan bypassing it with an unguarded overwrite."
+    ],
+    [
+      "`change_plan` prepare retains its sandbox pipeline: `format_gate`, parser, check and tests.\nProject commands declared by `.huyang.toml` or detected from the repository run only when\ntrusted by the user policy in `~/.config/huyang/config.toml`. An untrusted root skips\nproject commands; report that missing evidence. `huyang trust <root>` grants trust when\nauthorized. Chaldea verification does not grant trust or replace prepared-revision evidence.",
+      "`change_plan` prepare retains its sandbox pipeline: `format_gate`, parser, check and tests.\nBuilt-in source/parse guards are distinct from executable project build/test/lint/codegen\ncommands. At qualified Huyang revision b6ba774, prepare invokes its pipeline locally.\nProject commands declared by `.huyang.toml` or detected from the repository run only when\ntrusted by user policy in `~/.config/huyang/config.toml`. Do not run prepare or `verify_run`\nwhen that pipeline would execute prohibited local project commands. Ordinary guarded edits\nuse Chaldea checks tied to exact source instead. An untrusted root's skipped commands are\nmissing evidence, never passes. Do not auto-trust a root or relax required gates.\nChaldea results neither grant trust nor supply Huyang prepared-revision evidence.\nA trusted atomic command-gated change currently has no demonstrated remote-compatible\ninterface. Retain the affected dependency and continue independent authorized work.\nSee docs/agent-instruction-ownership.md for qualification source references."
+    ]
+  ],
+  "skills/fleet-rollout/SKILL.md": [
+    [
+      "---\nname: fleet-rollout\ndescription: >-\n  Converge an authorized Chaldea fleet-config revision on agent hosts; use for\n  ansible-pull rollouts, convergence verification and before/after service checks.\n---\n\n# Fleet rollout\n\nSource/review/merge work does not authorize a deployment. Ask Igor first for\nmulti-host changes, credentials, homelab or Normandy deployments, UDM or NAS,\nunless the exact scope is already authorized. Apply only to the named hosts.\n\n## Pin and run on the host itself\n\n- Record the approved repository revision, target hosts and expected changes.\n  Use the pinned ansible-pull, not a system Ansible or a moving checkout.\n- Keep scratch/logs under `~/.cache/chaldea-scratch/rollout-<date>/` on each\n  target; set TMPDIR there, never `/tmp`. Keep credentials out of logs.\n- Use one batched SSH call per host: ufw rate-limits repeated SSH connections.\n  Run the complete snapshot/check/real/second-real/verification sequence on\n  that host itself. Do not run the play against a live host from a test fixture.\n- Run long converges asynchronously in a T3 delegated thread and rely on its\n  single completion notification. For an existing non-child thread, register\n  one Chaldea thread wait instead. Never add polling or a second watcher.\n\nSet `fleet_host`, `fleet_revision` (the approved commit) and `rollout_scratch`\nto verified values in the host-side script. The pinned invocation is:\n\n```sh\nexport TMPDIR=\"$rollout_scratch\"\nmkdir -p \"$TMPDIR\"\npull() {\n  \"$HOME/.local/share/chaldea/ansible-core-2.19.14/bin/ansible-pull\" \\\n    --url git@github-chaldea-fleet-config:iryzhkov/chaldea-fleet-config.git \\\n    --checkout \"$fleet_revision\" --directory \"$HOME/.local/share/chaldea/fleet-config\" \\\n    --limit \"$fleet_host\" \"$@\" site.yml\n}\nsnapshot() {\n  for manager in system user; do\n    systemctl \"--$manager\" list-units 'chaldea*' --all --no-pager\n    systemctl \"--$manager\" list-unit-files 'chaldea*' --no-pager\n    systemctl \"--$manager\" list-timers 'chaldea*' --all --no-pager\n  done\n}\nsnapshot >\"$TMPDIR/before.txt\"\npull --check --diff >\"$TMPDIR/check.log\" 2>&1\n```\n\nReview the check diff against approved scope before the real run. Stop on an\nunexpected change or failure. Then run `pull` twice with separate logs; require\nboth exit statuses to pass and the second recap to report `changed=0`,\n`failed=0` and `unreachable=0`. Do not hide failures behind a pipe to tee.\nCapture `snapshot >\"$TMPDIR/after.txt\"` and\n`diff -u \"$TMPDIR/before.txt\" \"$TMPDIR/after.txt\"`; explain the differences.\nVerify expected installed versions, unit states and timer schedules.\n\n## Process and outcome safety\n\nPrefer waiting on a saved PID or a delegated thread. Never use `pgrep -f` or\n`pkill -f` with a pattern that also matches the calling shell's command line.\nIf matching is necessary, anchor on the executable's absolute path; inspect\nthe match before signalling. Never kill a broad \"ansible\", \"ssh\" or \"chaldea\" match.\n\nReport the exact revision, host, check/real/second-real results, snapshot diff\nand verification evidence. Preserve logs and reconcile a disconnect or reboot\nbefore retrying. Report each host separately; unattempted hosts stay unverified.\n",
+      "---\nname: fleet-rollout\ndescription: >-\n  Converge an authorized Chaldea fleet-config revision on agent hosts; use for\n  ansible-pull rollouts, convergence verification and before/after service checks.\n---\n\n# Fleet rollout\n\nSource-only work does not authorize fleet activation. A main-branch merge can\nactivate guidance through active pull timers; inspect live timer/service state.\nRetain existing deployment authority without asking again for routine convergence.\nAsk only when concrete new multi-host, credential or deployment scope is needed.\nApply only to authorized hosts and report activation and installed verification separately.\n\n## Pin and run on the host itself\n\n- Record the approved repository revision, target hosts and expected changes.\n  Use the pinned ansible-pull, not a system Ansible or a moving checkout.\n- Keep scratch/logs under `~/.cache/chaldea-scratch/rollout-<date>/` on each\n  target; set TMPDIR there, never `/tmp`. Keep credentials out of logs.\n- Use one batched SSH call per host: ufw rate-limits repeated SSH connections.\n  Run the complete snapshot/check/real/second-real/verification sequence on\n  that host itself. Do not run the play against a live host from a test fixture.\n- Run long converges asynchronously in a T3 delegated thread and rely on its\n  single completion notification. For an existing non-child thread, register\n  one Chaldea thread wait instead. Never add polling or a second watcher.\n\nSet `fleet_host`, `fleet_revision` (the approved commit) and `rollout_scratch`\nto verified values in the host-side script. The pinned invocation is:\n\n```sh\nexport TMPDIR=\"$rollout_scratch\"\nmkdir -p \"$TMPDIR\"\npull() {\n  \"$HOME/.local/share/chaldea/ansible-core-2.19.14/bin/ansible-pull\" \\\n    --url git@github-chaldea-fleet-config:iryzhkov/chaldea-fleet-config.git \\\n    --checkout \"$fleet_revision\" --directory \"$HOME/.local/share/chaldea/fleet-config\" \\\n    --limit \"$fleet_host\" \"$@\" site.yml\n}\nsnapshot() {\n  for manager in system user; do\n    systemctl \"--$manager\" list-units 'chaldea*' --all --no-pager\n    systemctl \"--$manager\" list-unit-files 'chaldea*' --no-pager\n    systemctl \"--$manager\" list-timers 'chaldea*' --all --no-pager\n  done\n}\nsnapshot >\"$TMPDIR/before.txt\"\npull --check --diff >\"$TMPDIR/check.log\" 2>&1\n```\n\nReview the check diff against approved scope before the real run. Stop on an\nunexpected change or failure. Then run `pull` twice with separate logs; require\nboth exit statuses to pass and the second recap to report `changed=0`,\n`failed=0` and `unreachable=0`. Do not hide failures behind a pipe to tee.\nCapture `snapshot >\"$TMPDIR/after.txt\"` and\n`diff -u \"$TMPDIR/before.txt\" \"$TMPDIR/after.txt\"`; explain the differences.\nVerify expected installed versions, unit states and timer schedules.\n\n## Guidance-only convergence\n\nFor an authorized guidance-only change, use canonical `site.yml --tags agent_guidance`\nwith an explicit JSON extra-vars file selecting `agent_config_files`,\n`agent_config_skills` and `agent_config_skill_dirs`. Select only approved MD\ndestinations and complete changed skill trees. Empty lists mean no selected files\nor skills. Review the selection against role defaults at the pinned revision.\n\nThis tag runs parent-directory creation, selected file copies and canonical\nguarded skill installation. It skips retirement, the OpenCode plugin, generated\nfleet-tools and other roles. Fact gathering and the actual-host identity\nassertion still run. Do not use `--skip-tags always` or override\n`expected_hostname` to defeat that assertion. Without tag selection, ordinary\nfull-role behavior is unchanged.\n\nUse the pinned pull function above with the selected vars:\n\n```sh\npull --tags agent_guidance --extra-vars \"@$rollout_scratch/selected-guidance.json\" \\\n  --check --diff >\"$TMPDIR/guidance-check.log\" 2>&1\n# After scope review, repeat without --check twice, keeping separate logs.\n```\n\nPinned ansible-pull 2.19.14 rejects `--start-at-task`; do not use it.\nIts retrieval play must match the actual local hostname separately from the\ncanonical inventory alias. On laptop, use `-i inventory -i localhost,` for\nretrieval and keep `--limit laptop` for the site play. The site still checks\nthe actual hostname against inventory's `expected_hostname`. A retrieval\nrejection is not a successful check and must be resolved before applying.\n\nBack up the selected installed files and complete skill trees, preserving\nmetadata, before REAL. Inspect CHECK's task list and diff against the selected\nscope. On a fresh home, check mode can defer a copy when its parent does not\nyet exist; document that gap rather than calling it verified. After REAL and\nsecond REAL, verify complete installed tree membership, bytes, file modes and\ndirectory modes against the exact approved source. Require second REAL\n`changed=0 failed=0 unreachable=0`, and compare service/timer snapshots as above.\nDo not broaden convergence to resolve a narrow-path failure without authority.\n\nThe prior four-host narrow composition is retained at\n`/home/igor/.cache/executor-autonomy-review-20261020/rollout/guidance-v2-evidence.json`,\nincluding CHECK/REAL/second-REAL and installed-tree receipts. It used an absolute\nscratch playbook with the same canonical guarded install import. Those receipts\nprove that prior composition, not a later revision or host state. The canonical\ntag path has separate synthetic scope, refusal and idempotence checks.\n\n## Process and outcome safety\n\nPrefer waiting on a saved PID or a delegated thread. Never use `pgrep -f` or\n`pkill -f` with a pattern that also matches the calling shell's command line.\nIf matching is necessary, anchor on the executable's absolute path; inspect\nthe match before signalling. Never kill a broad \"ansible\", \"ssh\" or \"chaldea\" match.\n\nReport the exact revision, host, check/real/second-real results, snapshot diff\nand verification evidence. Preserve logs and reconcile a disconnect or reboot\nbefore retrying. Report each host separately; unattempted hosts stay unverified.\n"
+    ]
+  ]
+}

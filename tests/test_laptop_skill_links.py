@@ -23,8 +23,9 @@ def layout(legacy=False):
         shutil.copytree(SKILLS / name, agents / name)
         (claude / name).symlink_to("../../.agents/skills/" + name, target_is_directory=True)
     if legacy:
-        with (agents / "tdd/SKILL.md").open("a") as stream:
-            stream.write(FOOTER)
+        historical = (Path(__file__).parent / "fixtures/tdd-canonical-20261018.md").read_bytes()
+        assert hashlib.sha256(historical).hexdigest() == CANONICAL
+        (agents / "tdd/SKILL.md").write_bytes(historical + FOOTER.encode())
     return home, claude, agents, store
 
 
@@ -57,7 +58,7 @@ def test_exact_restoration_then_five_link_migration():
     assert hashlib.sha256(saved.read_bytes()).hexdigest() == OLD
     assert (saved.stat().st_mode, saved.stat().st_mtime_ns) == (before.st_mode, before.st_mtime_ns)
     assert json.loads((backup / "metadata.json").read_text())["checksum"] == OLD
-    assert hashlib.sha256(target.read_bytes()).hexdigest() == CANONICAL
+    assert target.read_bytes() == (SKILLS / "tdd/SKILL.md").read_bytes()
     assert (claude / "tdd").is_symlink()
     preserved = tree(agents)
     names = ["safety-critical-code", "unslop"] + NAMES

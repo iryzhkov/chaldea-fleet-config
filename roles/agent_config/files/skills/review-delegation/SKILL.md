@@ -11,7 +11,10 @@ reviews, but every review must use T3 `delegate_task`.
 
 ## When to review
 
-Review the final commit of each milestone of an agreed plan:
+Review the final commit at each meaningful integration or release acceptance
+batch required by the agreed plan. Preserve explicit acceptance boundaries.
+Progress checkpoints and internal milestones within a related group do not each
+create a PR or review pair. Group related work before review and CI as below:
 
 - Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 medium,
   using both providers whenever quota allows. The main reviewer uses the provider
@@ -133,8 +136,11 @@ linked PRs across repositories. Batching never waives exact-head review or requi
   note.
 - Findings outside the plan's scope become follow-up notes, not blocking work.
 - ACCEPT names the exact commit, reviewed on a clean tree. After an accepted
-  review, the orchestrator verifies a change of under about 50 lines without
-  another review. For larger changes, review the final commit again.
+  review, the orchestrator may verify a small follow-up without another review
+  only when it is low risk and preserves reviewed behavior, acceptance and
+  authority. Under about 50 lines is a sizing guide, not a waiver for security,
+  authority, acceptance or behavior changes. Such changes and larger follow-ups
+  need review of the final commit. Required tests and CI still apply.
 - At most two fix rounds per milestone. After that the lead decides or asks
   Igor.
 - The author may dispute a finding with a reason. Disputes go to a

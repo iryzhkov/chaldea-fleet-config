@@ -7,9 +7,11 @@ description: >-
 
 # Fleet rollout
 
-Source/review/merge work does not authorize a deployment. Ask Igor first for
-multi-host changes, credentials, homelab or Normandy deployments, UDM or NAS,
-unless the exact scope is already authorized. Apply only to the named hosts.
+Source-only work does not authorize fleet activation. A main-branch merge can
+activate guidance through active pull timers; inspect live timer/service state.
+Retain existing deployment authority without asking again for routine convergence.
+Ask only when concrete new multi-host, credential or deployment scope is needed.
+Apply only to authorized hosts and report activation and installed verification separately.
 
 ## Pin and run on the host itself
 
@@ -54,6 +56,52 @@ both exit statuses to pass and the second recap to report `changed=0`,
 Capture `snapshot >"$TMPDIR/after.txt"` and
 `diff -u "$TMPDIR/before.txt" "$TMPDIR/after.txt"`; explain the differences.
 Verify expected installed versions, unit states and timer schedules.
+
+## Guidance-only convergence
+
+For an authorized guidance-only change, use canonical `site.yml --tags agent_guidance`
+with an explicit JSON extra-vars file selecting `agent_config_files`,
+`agent_config_skills` and `agent_config_skill_dirs`. Select only approved MD
+destinations and complete changed skill trees. Empty lists mean no selected files
+or skills. Review the selection against role defaults at the pinned revision.
+
+This tag runs parent-directory creation, selected file copies and canonical
+guarded skill installation. It skips retirement, the OpenCode plugin, generated
+fleet-tools and other roles. Fact gathering and the actual-host identity
+assertion still run. Do not use `--skip-tags always` or override
+`expected_hostname` to defeat that assertion. Without tag selection, ordinary
+full-role behavior is unchanged.
+
+Use the pinned pull function above with the selected vars:
+
+```sh
+pull --tags agent_guidance --extra-vars "@$rollout_scratch/selected-guidance.json" \
+  --check --diff >"$TMPDIR/guidance-check.log" 2>&1
+# After scope review, repeat without --check twice, keeping separate logs.
+```
+
+Pinned ansible-pull 2.19.14 rejects `--start-at-task`; do not use it.
+Its retrieval play must match the actual local hostname separately from the
+canonical inventory alias. On laptop, use `-i inventory -i localhost,` for
+retrieval and keep `--limit laptop` for the site play. The site still checks
+the actual hostname against inventory's `expected_hostname`. A retrieval
+rejection is not a successful check and must be resolved before applying.
+
+Back up the selected installed files and complete skill trees, preserving
+metadata, before REAL. Inspect CHECK's task list and diff against the selected
+scope. On a fresh home, check mode can defer a copy when its parent does not
+yet exist; document that gap rather than calling it verified. After REAL and
+second REAL, verify complete installed tree membership, bytes, file modes and
+directory modes against the exact approved source. Require second REAL
+`changed=0 failed=0 unreachable=0`, and compare service/timer snapshots as above.
+Do not broaden convergence to resolve a narrow-path failure without authority.
+
+The prior four-host narrow composition is retained at
+`/home/igor/.cache/executor-autonomy-review-20261020/rollout/guidance-v2-evidence.json`,
+including CHECK/REAL/second-REAL and installed-tree receipts. It used an absolute
+scratch playbook with the same canonical guarded install import. Those receipts
+prove that prior composition, not a later revision or host state. The canonical
+tag path has separate synthetic scope, refusal and idempotence checks.
 
 ## Process and outcome safety
 
