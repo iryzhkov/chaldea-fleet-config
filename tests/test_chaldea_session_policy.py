@@ -462,7 +462,7 @@ def test_static_ceiling_containment_and_legacy_parse_only(validator, tmp_path, m
     elif audience == "homelab":
         grant["homelab_services"].append("other")
         grant["homelab_hosts"].append("host-b")
-    else:
+    elif audience == "ha":
         grant["scope"] = "ha.control ha.read"
         grant["ha_entities"].append("light.a")
         grant["ha_actions"].append("light.control")
@@ -472,6 +472,8 @@ def test_static_ceiling_containment_and_legacy_parse_only(validator, tmp_path, m
         grant["ov_namespaces"] = ["viking://resources/namespace", "viking://resources/namespaceB"]
     elif audience == "homelab":
         grant["homelab_hosts"] = []
+    elif audience == "holonet":
+        grant["holonet_namespace"] = "other"
     else:
         grant["ha_actions"] = ["light.control"]
     with pytest.raises(validator.AnsibleFilterError, match="one admitting ceiling"):
