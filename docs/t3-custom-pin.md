@@ -29,18 +29,25 @@ The optional `t3_required_binary_sha256` guard defaults to empty. Official
 hosts retain their existing behavior. When set, the client role imports the
 read-only T3 admission tasks before any client write, including configuration,
 download, release installation or link changes. This also covers a targeted
-`--tags chaldea_client` pull. The later T3 role repeats the same admission.
-No site-wide deployment order changes are needed.
+`--tags chaldea_client` pull in both user and system waits modes. Read-only
+waits-mode validation runs first; custom admission then precedes service-mode
+dispatch. System identity, ownership and authorization gates still apply.
+The later T3 role repeats the same admission. No site-wide deployment order
+changes are needed.
 
 Admission requires valid custom source/archive provenance, upgrades disabled,
 the exact selected version and binary SHA-256, an active/running loaded service
-whose ExecStart selects that version's launcher, matching managed server
-metadata, and matching SHA-256 of both live process executables under /proc.
+whose ExecStart selects that version's launcher, known `NeedDaemonReload=no`,
+matching managed server metadata, and matching SHA-256 of both live process
+executables under /proc. Missing or unknown reload state fails admission.
 A different official binary with the same 0.0.45 version fails admission.
 Missing files, stale service selection, inactive services and mismatched live
 processes fail before client changes. The provenance fields document identity;
 the trusted executable checksum enforces it. This guard does not attest every
 package resource or perform authenticated runtime capability/UI acceptance.
+The /proc hashes describe the executables at observation time. They do not
+prove process ancestry or lock service/runtime identity across convergence.
+Coordinated activation and acceptance below remain required.
 
 On an already activated pair, run the normal host-limited pull in CHECK, REAL
 and SECOND modes, preserving the existing host identity and checksum checks.

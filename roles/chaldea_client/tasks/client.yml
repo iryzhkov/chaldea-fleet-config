@@ -1,12 +1,4 @@
 ---
-# Keep this before every client write, including config, downloads and links.
-# Also covers targeted chaldea_client pulls that skip the later T3 role.
-- name: Admit the custom T3 pair before converging its client
-  ansible.builtin.import_role:
-    name: t3
-    tasks_from: verify-custom
-  when: t3_required_binary_sha256 | default('') | length > 0
-
 - name: Validate client pins and host configuration before changing files
   ansible.builtin.assert:
     that:

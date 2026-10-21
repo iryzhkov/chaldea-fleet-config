@@ -54,7 +54,7 @@ def pair(tmp_path, monkeypatch):
             child.wait(timeout=5)
 
 
-def pull(base, variables, check=False):
+def pull(base, variables, check=False, tags="chaldea_client,t3"):
     """Use the canonical site and inventory, limiting convergence to these roles."""
     safe(base)
     inventory = base / "pin-inventory.yml"
@@ -63,7 +63,7 @@ def pull(base, variables, check=False):
     }}}}}))
     return subprocess.run(
         ["ansible-playbook", "-i", str(ROOT / "inventory"), "-i", str(inventory),
-         "--limit", "runtime-pin", str(ROOT / "site.yml"), "--tags", "chaldea_client,t3",
+         "--limit", "runtime-pin", str(ROOT / "site.yml"), "--tags", tags,
          *(["--check", "--diff"] if check else [])],
         cwd=ROOT, capture_output=True, text=True,
     )
@@ -92,6 +92,7 @@ def test_matching_pair_check_real_second_preserves_identity(tmp_path, pair):
     "wrong-binary", "absent-binary", "wrong-version", "wrong-selection",
     "absent-selection", "inactive", "wrong-exec-start", "wrong-live-launcher",
     "wrong-live-server", "wrong-server-version", "absent-runtime", "allow-upgrade",
+    "stale-unit", "missing-reload-state", "unknown-reload-state",
 ])
 @pytest.mark.parametrize("check", [False, True])
 def test_bad_pair_refuses_before_client_mutation(tmp_path, pair, case, check):
@@ -126,6 +127,14 @@ def test_bad_pair_refuses_before_client_mutation(tmp_path, pair, case, check):
         runtime.unlink()
     elif case == "allow-upgrade":
         variables["t3_allow_upgrade"] = True
+    elif case in ("stale-unit", "missing-reload-state", "unknown-reload-state"):
+        service["properties"]["NeedDaemonReload"] = {
+            "stale-unit": "yes", "missing-reload-state": None, "unknown-reload-state": "unknown",
+        }[case]
+        if case == "stale-unit":
+            definition = Path.home() / ".config/systemd/user/t3code.service"
+            definition.parent.mkdir(parents=True)
+            definition.write_text("[Service]\nExecStart=/other/runtime/t3 __service-launcher\n")
     manager.write_text(json.dumps(state))
     root = Path.home() / ".local/share/chaldea"
     previous = root / "releases/client-v0.4.11"
@@ -141,7 +150,42 @@ def test_bad_pair_refuses_before_client_mutation(tmp_path, pair, case, check):
     assert list((root / "releases").iterdir()) == [previous]
     assert not (Path.home() / ".cache/chaldea-client").exists()
     assert not (Path.home() / ".config/chaldea").exists()
+    if case in ("stale-unit", "missing-reload-state", "unknown-reload-state"):
+        assert "NeedDaemonReload=no" in result.stdout
     assert all(call == ["show", "t3code.service"] for call in json.loads(manager.read_text())["calls"])
+
+
+@pytest.mark.parametrize("mode", ["user", "system"])
+@pytest.mark.parametrize("check", [False, True])
+def test_targeted_client_dispatch_rejects_bad_pair_before_writes(tmp_path, pair, mode, check):
+    variables, _, selection, _, manager, _ = pair
+    variables |= {"chaldea_client_waits_service_mode": mode, "chaldea_client_waits_enabled": True}
+    selection.write_text('{"activeVersion":"0.1.0"}')
+    result = pull(tmp_path, variables, check=check, tags="chaldea_client")
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "The custom T3 selection or binary differs from its pin" in result.stdout
+    assert "changed=0" in result.stdout, result.stdout
+    for relative in (".config/chaldea", ".local/state/chaldea", ".config/systemd",
+                     ".local/share/chaldea", ".cache/chaldea-client"):
+        assert not (Path.home() / relative).exists(), relative
+    assert all(call == ["show", "t3code.service"]
+               for call in json.loads(manager.read_text())["calls"])
+
+
+@pytest.mark.parametrize("check", [False, True])
+def test_matching_pair_still_requires_system_identity_and_paths(tmp_path, pair, check):
+    variables, _, _, _, manager, _ = pair
+    # The fixture socket deliberately fails the canonical system socket requirement.
+    variables |= {"chaldea_client_waits_service_mode": "system", "chaldea_client_waits_enabled": True}
+    result = pull(tmp_path, variables, check=check, tags="chaldea_client")
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "Refuse different running T3 bytes" in result.stdout
+    assert "System waits requires the existing non-root fleet account" in result.stdout
+    assert "changed=0" in result.stdout, result.stdout
+    assert not (Path.home() / ".config").exists()
+    assert not (Path.home() / ".local").exists()
+    assert all(call == ["show", "t3code.service"]
+               for call in json.loads(manager.read_text())["calls"])
 
 
 def test_only_omarchy_inventory_selects_custom_pair():

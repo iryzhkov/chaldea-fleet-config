@@ -50,6 +50,7 @@
     that:
       - t3_guard_service.status.ActiveState == 'active'
       - t3_guard_service.status.SubState == 'running'
+      - t3_guard_service.status.NeedDaemonReload | default('unknown') == 'no'
       - t3_guard_service.status.MainPID | int > 1
       - >-
         ('{ path=' ~ t3_home ~ '/runtime/versions/' ~ t3_version ~ '/t3 ; argv[]=' ~
@@ -58,7 +59,7 @@
       - (t3_guard_runtime.content | b64decode | from_json).serviceManaged | bool
       - (t3_guard_runtime.content | b64decode | from_json).serverVersion == t3_version
       - (t3_guard_runtime.content | b64decode | from_json).pid | int > 1
-    fail_msg: The loaded service and running server must select the exact custom T3 pin. No client files have been changed.
+    fail_msg: The loaded service and running server must select the exact custom T3 pin with known NeedDaemonReload=no. No client files have been changed.
     quiet: true
 
 # Hash the live executables as well as the selected file: replacing a unit or
