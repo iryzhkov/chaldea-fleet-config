@@ -10,8 +10,11 @@ from ansible.errors import AnsibleFilterError
 COMMON = {"form", "issuer", "tokenUrl", "jwksUrl", "clientId", "username",
           "resource", "scope", "maxTokenSeconds", "secretFile"}
 FIELDS = {"ov": {"ov_namespaces"}, "homelab": {"homelab_services", "homelab_hosts"},
-          "ha": {"ha_entities", "ha_actions"}}
+          "ha": {"ha_entities", "ha_actions"},
+          "holonet": {"holonet_server", "holonet_libraries", "holonet_catalog_users",
+                      "holonet_history_users", "holonet_target_users", "holonet_actions", "holonet_namespace"}}
 RESOURCES = {a: "https://" + a + ".mcp.ryzhkov.dev/mcp" for a in FIELDS}
+RESOURCES["holonet"] = "https://media.mcp.ryzhkov.dev/mcp"
 HA_SCOPES = {"ha.read", "ha.control", "ha.read ha.control", "ha.control ha.read"}
 ACTIONS = {"state.read": "ha.read", "light.control": "ha.control", "switch.control": "ha.control"}
 CANONICAL = (r"https://[a-z0-9]([a-z0-9-]*[a-z0-9])?"
@@ -75,6 +78,15 @@ def service(value):
         require(scope == "homelab.read", "homelab scope")
         for key in FIELDS[audience]:
             explicit_list(value[key], 0, 128, r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", key)
+    elif audience == "holonet":
+        require(scope == "holonet.read", "HoloNet scope")
+        require(matches(value["holonet_server"], r"[0-9a-f]{32}") and
+                matches(value["holonet_namespace"], r"[a-z][a-z0-9-]{0,31}"), "HoloNet binding")
+        libraries = explicit_list(value["holonet_libraries"], 1, 1, r"[1-9][0-9]{0,18}", "HoloNet library")
+        require(int(libraries[0]) <= 9223372036854775807, "HoloNet int64 library")
+        explicit_list(value["holonet_catalog_users"], 1, 1, r"[0-9a-f]{32}", "HoloNet catalog user")
+        require(value["holonet_history_users"] == [] and value["holonet_target_users"] == []
+                and value["holonet_actions"] == ["catalog.read"], "HoloNet catalog-only")
     else:
         require(isinstance(scope, str) and scope in HA_SCOPES, "HA scope")
         entities = explicit_list(value["ha_entities"], 1, 64,
@@ -90,6 +102,8 @@ def subset(request, ceiling):
     if request["audience"] != ceiling["audience"]:
         return False
     audience = request["audience"]
+    if audience == "holonet":
+        return request == ceiling
     if audience == "ov":
         return all(any(r == c or r.startswith(c + "/") for c in ceiling["ov_namespaces"])
                    for r in request["ov_namespaces"])

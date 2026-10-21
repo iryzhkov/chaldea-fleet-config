@@ -282,6 +282,7 @@ def test_unprotected_policy_path_is_refused(tmp_path, monkeypatch, failure):
 
 # New service profiles use the same flat public grant in all three locations.
 GRANTS = {
+    "holonet": json.loads((Path(__file__).parent / "fixtures/holonet-catalog.json").read_text()),
     "ov": {"audience": "ov", "scope": "ov.read",
            "ov_namespaces": ["viking://resources/namespaceA/child", "viking://resources/namespaceB"]},
     "homelab": {"audience": "homelab", "scope": "homelab.read",
@@ -304,7 +305,7 @@ def service_variables(tmp_path, monkeypatch, audience):
     value.update(issuer="https://auth.example.test/application/o/chaldea-" + audience + "/",
                  jwksUrl="https://auth.example.test/application/o/chaldea-" + audience + "/jwks/",
                  clientId="chaldea-" + audience + "-machine",
-                 resource="https://" + audience + ".mcp.ryzhkov.dev/mcp")
+                 resource="https://" + ("media" if audience == "holonet" else audience) + ".mcp.ryzhkov.dev/mcp")
     return variables
 
 
@@ -324,6 +325,23 @@ def validate(module, variables):
         variables["chaldea_client_session_enrollments"],
         variables["chaldea_client_session_presets"],
         variables["chaldea_client_session_ceilings"], variables["fleet_home"])
+
+
+@pytest.mark.parametrize("patch", [
+    {"scope": "holonet.curate"}, {"holonet_history_users": ["b" * 32]},
+    {"holonet_target_users": ["b" * 32]}, {"holonet_actions": ["catalog.read", "userdata.read"]},
+    {"holonet_libraries": ["01"]}, {"holonet_libraries": [str(2**63)]},
+    {"holonet_libraries": ["123", "456"]}, {"holonet_catalog_users": []},
+    {"holonet_namespace": "Upper"}, {"holonet_server": "A" * 32}, {"holonet_extra": []},
+])
+def test_holonet_public_validation_refuses_broader_grants(validator, patch):
+    valid = copy.deepcopy(GRANTS["holonet"])
+    assert validator.service(valid) == valid
+    with pytest.raises(validator.AnsibleFilterError):
+        validator.service(valid | patch)
+    changed = valid | {"holonet_namespace": "other"}
+    assert not validator.subset(changed, valid)
+    assert not validator.subset(valid, changed)
 
 
 @pytest.mark.parametrize("audience", GRANTS)
