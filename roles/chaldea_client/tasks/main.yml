@@ -2,14 +2,6 @@
 - name: Validate waits service mode before any mutation
   ansible.builtin.import_tasks: waits-validate.yml
 
-# Keep this before every client write, including config, downloads and links.
-# Both service modes and targeted chaldea_client pulls require the same admission.
-- name: Admit the custom T3 pair before converging its client
-  ansible.builtin.import_role:
-    name: t3
-    tasks_from: verify-custom
-  when: t3_required_binary_sha256 | default('') | length > 0
-
 - name: Inspect the reserved system waits owner before user convergence
   ansible.builtin.stat:
     path: /etc/systemd/system/chaldea-waits.service
