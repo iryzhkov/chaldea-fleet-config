@@ -696,14 +696,23 @@ AUDIT_AUTONOMY_CHANGES = json.loads(
 # Orchestrator-only trigger and compact-context guidance requested by Igor, 2026-10-19.
 CONTEXT_TRIGGER_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_context_triggers.json").read_text())
+# Executor autonomy adopted in jocasta:448a3bdb56ecb3fe3c2a74f6944db300@1.
+# Reverse only this exact layer; retain all prior compatibility fixtures.
+EXECUTOR_AUTONOMY_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_executor_autonomy.json").read_text())
+
 # Files added after the move have no pre-move bytes; they install unchanged.
-ADDED_FILES = {"skills/roadmap-planner/SKILL.md"}
+ADDED_FILES = {"skills/roadmap-planner/SKILL.md", "skills/sub-roadmap-executor/SKILL.md"}
 
 
 HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetch the full current Jocasta guide\n`tooling/guides/web-mcp-authentik-authoring-2026-10-19.md`\n(initial validated revision `jocasta:38a63cf8918eebae2dd7c8911eacd89c@1`).\nIt covers Authentik token verification, resource ACLs, protected credential helpers,\nTraefik HTTPS and native-client acceptance checks. Preserve its tested/unqualified\nboundaries; the guide does not grant enrollment or deployment authority.\n\n"
 
 
 def old_bytes(relative, data):
+    for before, after in reversed(EXECUTOR_AUTONOMY_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(CONTEXT_EFFICIENCY_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
@@ -809,13 +818,18 @@ def test_before_after_render_for_every_host(tmp_path, host):
             compare(relative, (home / target / relative).read_bytes())
     for relative in ADDED_FILES:
         for target in (".agents", ".claude"):
-            assert (home / target / relative).read_bytes() == (FILES / relative).read_bytes()
+            installed = home / target / relative
+            assert installed.is_file() and not installed.parent.is_symlink()
+            assert installed.read_bytes() == (FILES / relative).read_bytes()
 
 
 def assert_delegation_contract(read):
     """The three instruction entry points and installed skills must agree."""
     instructions = [read(path) for path in (
         "agents/AGENTS.md", "codex/AGENTS.md", "claude/omarchy-setup/CLAUDE.md")]
+    execution = [text.split("Work happens in interactive T3 sessions.", 1)[1]
+                 .split("Before each T3 `delegate_task`", 1)[0] for text in instructions]
+    assert execution[0] == execution[1] == execution[2]
     routing = [text.split("Before each T3 `delegate_task`", 1)[1]
                .split("Delegate through T3", 1)[0] for text in instructions]
     assert routing[0] == routing[1] == routing[2]

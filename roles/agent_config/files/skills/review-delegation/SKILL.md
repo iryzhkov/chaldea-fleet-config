@@ -156,9 +156,10 @@ as `review_note`. This guidance does not implement a collection pipeline.
   objective, repository path, branch and base, allowed files, the agreed interface,
   accepted decisions and exact evidence references the task needs, constraints,
   acceptance checks and what to report. Leave out the transcript and the global
-  roadmap; do not prepend roadmap-executor or require a full plan or checkpoint
-  fetch. The worker loads only its task's skills and relevant references; the
-  parent stays the integration and checkpoint owner.
+  roadmap; do not prepend executor skills or require a full plan or checkpoint
+  fetch for ordinary workers. The worker loads only its task's skills and relevant
+  references. The parent owns integration and checkpoint unless the brief explicitly
+  assigns a bounded sub-executor role as described below.
   Include only facts that can change this worker's action or verdict. Link exact
   evidence and relevant sections instead of copying terminal lanes, full skill
   bodies, tool catalogs or prior failure diaries. Keep authority, interfaces,
@@ -177,6 +178,24 @@ as `review_note`. This guidance does not implement a collection pipeline.
 - Report implemented, reviewed, merged, deployed and verified as separate
   states. A passing task is not an accepted review, and a merge is not a
   deployment.
+
+## Bounded sub-executor briefs
+
+A related milestone group may explicitly own local orchestration under
+sub-roadmap-executor. Use that skill's brief, with the minimal relevant plan excerpt,
+exact evidence links, separate branch/worktree, local checkpoint, acceptance, budget
+and stop conditions. Assign integration, merge and deployment rights explicitly or
+reserve them to the root. The sub-executor advances routine milestones without parent
+approval. The root retains global authority, interfaces, checkpoint and cross-group
+integration; escalations to Igor go through the root. Ordinary worker briefs remain
+narrow and do not inherit this role.
+
+Allow nested builders/reviewers only when the live runtime supports them. Otherwise
+the sub-executor does permitted implementation itself and sends exact review or
+worker briefs to the root for dispatch, continuing independent ready work meanwhile.
+Do not create further sub-executor layers by default. Propagate root cancellation
+through all descendants, reconcile in-flight operations and report pending cleanup.
+Review routing and exact-source gates apply at every supported delegation level.
 
 ## Review brief template
 
