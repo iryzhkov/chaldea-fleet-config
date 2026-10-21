@@ -170,6 +170,15 @@ authorization/accounting domain. New enrollments contain no Jocasta project.
 | `ov` | `https://ov.mcp.ryzhkov.dev/mcp` | `scope: ov.read`, `ov_namespaces` |
 | `homelab` | `https://homelab.mcp.ryzhkov.dev/mcp` | `scope: homelab.read`, `homelab_services`, `homelab_hosts` |
 | `ha` | `https://ha.mcp.ryzhkov.dev/mcp` | `scope`, `ha_entities`, `ha_actions` |
+| `holonet` | `https://media.mcp.ryzhkov.dev/mcp` | holonet.read, one server/catalog user/library, empty history/target arrays, catalog.read, namespace |
+
+HoloNet follows the shared catalog-only fixture and exact immutable ceiling.
+No history/UserData/write grants are accepted. Changing server, user, library or
+namespace is not narrowing. Operator inventory must identify TV and Movies;
+no names or runtime credential reach are inferred. Existing protected-policy
+metadata checks, public validation before secret stat, no-secret-open rendering
+and actual-UID loading gates remain in force. This source adds no enrollment,
+account, credential, deployment or live access authority.
 
 OV needs 1..16 unique nonoverlapping canonical roots of at most 1024 ASCII
 characters. Roots use `viking://resources/(segment/)*segment`; segments contain
