@@ -44,6 +44,13 @@ for name in names:
             active = "active" if unit["active"] else "inactive"
             enabled = "enabled" if unit["enabled"] else "disabled"
             print(f"Id={name}\nLoadState=loaded\nActiveState={active}\nSubState={'waiting' if unit['active'] else 'dead'}\nUnitFileState={enabled}")
+            properties = unit.get("properties", {})
+            assert isinstance(properties, dict)
+            properties = {"NeedDaemonReload": "no", **properties}
+            for key, value in properties.items():
+                # None models an unavailable property for fail-closed admission tests.
+                if value is not None:
+                    print(f"{key}={value}")
     elif verb == "is-active":
         print("active" if unit and unit["active"] else "inactive")
         rc = 0 if unit and unit["active"] else 3

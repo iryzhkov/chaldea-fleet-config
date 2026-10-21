@@ -1,4 +1,8 @@
 ---
+- name: Verify the manually activated custom T3 pin
+  ansible.builtin.import_tasks: verify-custom.yml
+  when: t3_required_binary_sha256 | length > 0
+
 - name: Read the active T3 version
   ansible.builtin.slurp:
     src: "{{ t3_home }}/runtime/service-state.json"

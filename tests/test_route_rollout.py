@@ -10,6 +10,16 @@ from test_mcp_registration import call, Failed
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# The approved coordinated runtime exception is exact and limited to omarchy-pc.
+OMARCHY_RUNTIME_PINS = {
+    "t3_version": "0.0.45",
+    "t3_required_binary_sha256": "18c808e79a4c84ba64e0ef1e064de94838f22789f0dc650e8b5cddff33dae495",
+    "t3_custom_source": "161de7bb3e948490fd8af5b0da16c034067a5685",
+    "t3_custom_archive_sha256": "ad50546a2bce82ae04b8fd57cc75e9df97bdd3965dc5c7a08320904ba4bee403",
+    "chaldea_client_version": "client-v0.4.17",
+    "chaldea_client_sha256": "81a1c1860ff3194a288fa4518bfca3e46dbc732ee23c872aebb6382afbd50839",
+}
+
 
 def test_agent_clients_use_native_t3_quota():
     defaults = yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text())
@@ -20,12 +30,17 @@ def test_agent_clients_use_native_t3_quota():
     assert common["chaldea_client_sha256"] == "e9ae469524ecd4498801a3386c1aeb0d3d317b821fe98fbdf510c532c4a3c006"
     # All agent hosts now use native T3 quota after approved local login checks.
     for name, values in hosts.items():
-        assert "chaldea_client_version" not in values
-        assert "chaldea_client_sha256" not in values
+        if name == "omarchy-pc":
+            assert {key: values[key] for key in OMARCHY_RUNTIME_PINS} == OMARCHY_RUNTIME_PINS
+        else:
+            assert "chaldea_client_version" not in values
+            assert "chaldea_client_sha256" not in values
         effective = defaults | common | values
         assert effective["chaldea_client_enabled"] is True
         assert effective["chaldea_client_claude_usage_enabled"] is False
-        assert effective["chaldea_client_version"] == "client-v0.4.11"
+        expected = OMARCHY_RUNTIME_PINS if name == "omarchy-pc" else common
+        assert effective["chaldea_client_version"] == expected["chaldea_client_version"]
+        assert effective["chaldea_client_sha256"] == expected["chaldea_client_sha256"]
         assert effective["chaldea_client_quota_enabled"] is True
         assert effective["chaldea_client_codex_assert_runtime_home"] is True
 
@@ -34,6 +49,9 @@ def test_host_settings_do_not_override_shared_software_releases():
     def check(values, location):
         if isinstance(values, dict):
             for key, value in values.items():
+                if location == "omarchy-pc" and key in OMARCHY_RUNTIME_PINS:
+                    assert value == OMARCHY_RUNTIME_PINS[key], (location, key)
+                    continue
                 # Retention records keep rollback artifacts, not desired releases.
                 if key == "chaldea_host_artifact_preserve_versions":
                     continue
