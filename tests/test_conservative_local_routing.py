@@ -12,8 +12,8 @@ def test_omarchy_native_quota_reader_uses_unpinned_role_policy(tmp_path, monkeyp
     inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     host = common | inventory["all"]["children"]["agent_hosts"]["hosts"]["omarchy-pc"]
-    assert host["chaldea_client_version"] == "client-v0.4.11"
-    assert host["chaldea_client_sha256"] == "e9ae469524ecd4498801a3386c1aeb0d3d317b821fe98fbdf510c532c4a3c006"
+    assert host["chaldea_client_version"] == "client-v0.4.17"
+    assert host["chaldea_client_sha256"] == "81a1c1860ff3194a288fa4518bfca3e46dbc732ee23c872aebb6382afbd50839"
     for key in ("chaldea_client_claude_usage_enabled", "chaldea_client_claude_usage_source",
                 "chaldea_client_claude_contexts", "chaldea_client_route_targets",
                 "chaldea_client_analytics_max_age_ms"):
