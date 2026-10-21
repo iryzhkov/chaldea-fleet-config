@@ -3,25 +3,36 @@ name: roadmap-executor
 description: >-
   Execute an adopted roadmap or plan of record as its current primary
   orchestrator, including resuming or taking over an explicit orchestration
-  handoff. Not for delegated implementer, reviewer, reader, operator or spike
-  tasks unless their brief assigns orchestration ownership; planning or
-  reshaping an uncertain roadmap uses roadmap-planner.
+  handoff. Explicitly delegated bounded milestone groups use sub-roadmap-executor;
+  ordinary implementer, reviewer, reader, operator and spike tasks follow their
+  briefs. Planning or reshaping an uncertain roadmap uses roadmap-planner.
 ---
 
 # Execute the adopted roadmap
 
-Use this only while you own orchestration: you choose milestones, integrate work
-and keep the checkpoint. A delegated worker follows its brief and loads the skills
-its own task needs, even when the parent uses this skill. Continue routine work
-inside Igor's agreement without asking again.
+Use this while you own root orchestration: global priorities, shared interfaces,
+cross-group integration, authority and the global checkpoint. Explicitly assigned
+bounded milestone groups use sub-roadmap-executor; ordinary workers follow their
+briefs and task skills.
+
+Pursue the assigned outcome across milestones until observable acceptance, explicit
+stop or cancellation, an agreed budget limit, or a true blocker with no useful
+authorized ready work left. A milestone, review, merge, context compaction or
+monitor registration is an intermediate state, not permission to end execution.
+
+Record existing authority once: scope, accepted outcomes, repositories, integration,
+merge/publication and deployment rights, targets, cost limits and exclusions. Carry
+it through resumes and handoffs without reauthorization, including approved operator
+or multi-host scope. Ask only about concrete new authority or material unresolved
+direction. A plan does not grant rights missing from the conversation or assignment.
 
 ## Keep a small working set
 
 - Start with the current checkpoint's outcome, execution status, authority,
   active ownership, blockers and next action. A stopped roadmap stays stopped;
-  delayed notifications do not authorize continuation. For Chaldea use
-  `tooling/handoffs/chaldea-execution-checkpoint.md` and plan
-  `tooling/plans/chaldea-rebuild-plan-2026-10-16.md` in Jocasta.
+  delayed notifications do not authorize continuation. Use the exact plan and
+  checkpoint references from the launch assignment or current handoff. If missing,
+  resolve that dependency without guessing a project's roadmap.
 - Read only the plan sections and evidence needed for the next decision.
   Reuse skills and references already read while their version and applicability
   remain valid; reload when they change or missing context requires it.
@@ -41,9 +52,11 @@ inside Igor's agreement without asking again.
 
 ## Select work
 
-At kickoff, resume, audit nodes and before choosing the next milestone, triage a
-bounded set of untriaged review notes: authorized Akasha reads when available,
-otherwise linked PR/Jocasta records, reporting the collection gap. Deduplicate
+Continue the next ready adopted milestone. Triage a bounded review backlog only
+for material new findings that could change the current decision or at adopted
+audit nodes, not for every notification, resume or milestone transition. Use
+authorized Akasha reads when available, otherwise linked PR/Jocasta records and
+report the collection gap. Deduplicate
 underlying issues, keep exact reviewed heads, task/thread IDs, models,
 citations/locations and links, revalidate against current code, and rank by roadmap
 fit, concrete benefit/risk, effort and dependencies. Record each disposition and the
@@ -59,8 +72,10 @@ Carry out the plan's milestones, lanes, test and deployment strategy and audit
 nodes; do not rediscover the method at each step. Revise the strategy only when
 evidence changes it; reshaping milestones or settling new unknowns uses
 roadmap-planner. Source, review and merge are intermediate states of an observable
-outcome. Keep one integration owner and batch related ready changes for final
-review and CI. Apply review-delegation's necessity check in the existing review.
+outcome. Keep one root owner for cross-group integration; explicitly bounded
+sub-executors own integration within their assigned groups. Batch related ready
+changes for final review and CI. Apply review-delegation's necessity check in the
+existing review.
 
 Reuse exact accepted reviews and passing checks rather than repeating them; add
 tests only for changed behavior. Measure source-to-useful-result time from retained
@@ -92,13 +107,33 @@ source/review/deployment gates remain binding.
   instructions, calling FATE before every `delegate_task`. review-delegation owns
   review pairs, fallbacks, the quota exception and brief templates; builders'
   compliant final-commit reviews count and are not repeated.
-- Write worker briefs under review-delegation's "Delegating work". Do not tell a
-  worker to load this skill or fetch the full plan or checkpoint, and omit lanes
-  that are already terminal. You stay the sole integration and checkpoint owner.
-- Children wake the parent on completion. Use `watch_pull_request` for CI and
-  review events and Chaldea waits for external time/thread dependencies; save
-  their IDs and retry keys. Register then yield; never poll, sleep-loop or create
-  duplicate watchers.
+- Write ordinary worker briefs under review-delegation's "Delegating work". Do
+  not tell ordinary workers to load executor skills or fetch the full plan or
+  checkpoint; omit terminal lanes. For a related milestone group, explicitly
+  assign the sub-executor role and use sub-roadmap-executor's brief. Give it a
+  separate branch/worktree, local checkpoint and only the relevant plan excerpt.
+  Name its integration, merge and deployment rights or reserve them to the root.
+  It advances routine milestones without parent approval; you retain the global
+  checkpoint, interfaces, authority and cross-group integration.
+- Children use native completion wakes. Use `watch_pull_request` for CI/review
+  events and Chaldea waits for external time/thread dependencies. After registering,
+  continue useful authorized ready work. Yield only when that work is exhausted.
+  Never poll, sleep-loop or create duplicate watchers.
+- Before yielding, checkpoint each dependency's owner, task/PR/wait ID and retry
+  key, exact source revision, expected wake, next action, recovery deadline and
+  recovery action. A deadline prompts diagnosis of that dependency and continued
+  independent work; it proves neither success nor delivery. Reconcile child failure
+  or CI failure against its exact source, then fix or reassign within authority.
+  On a wake, reconcile the authoritative outcome once; ignore duplicate wakes
+  already handled. Recover uncertain operations before retrying mutations.
+- Follow Chaldea's recovery guidance for missing or failed wakes. Runtime delivery
+  reliability remains unqualified; a retained deadline does not itself create a
+  continuation wake. Preserve recovery ownership rather than adding another watcher.
+  Quota pauses retain the assignment and IDs; resume from their authoritative state.
+- Propagate root stop/cancellation to every active child, including sub-executors
+  and their workers. Cancel unresolved waits/watchers where supported, reconcile
+  in-flight effects and record any cancellation still pending. Explicit stop wins
+  over late notifications; none may silently resume stopped work.
 
 ## Merge and converge within authorization
 
@@ -167,6 +202,9 @@ Checks: <exact commands and expected behavior>; evidence: <durable locations>.
 Reviews: <accepted commit, reviewer threads/models/verdicts, open findings>.
 In flight: <task/thread/run/wait IDs, PRs and CI>; blockers/risks: <facts>.
 Next action: <one concrete action>; budget/boundary: <agreed limit if any>.
-Continue inside authorization; checkpoint at milestones or a genuine stop.
+Authority: <scope, targets, costs, integration/merge/deploy rights and exclusions>.
+Dependencies: <owner, ID, expected wake, source, next action, recovery deadline/action>.
+Continue across milestones until acceptance, explicit stop, agreed budget or no ready work.
+Checkpoint at milestones or a genuine stop; late wakes never override cancellation.
 Report implemented/reviewed/merged/deployed/verified states separately.
 ```

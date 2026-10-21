@@ -15,6 +15,9 @@ chaldea_client_quota_enabled: false
 chaldea_client_waits_enabled: false
 # System mode converges waits only, using the existing client and fleet account.
 chaldea_client_waits_service_mode: user
+# Protected admission of an older managed user unit during explicit system migration.
+# This only renders legacy checksum expectations; it never selects a runtime.
+chaldea_client_waits_legacy_user_node_version: ""
 # Optional one-canary window: strict UTC YYYY-MM-DDTHH:MM:SSZ, 16..2700 seconds
 # remaining at execution. Empty preserves the persistent service byte for byte.
 chaldea_client_waits_deadline: ""
