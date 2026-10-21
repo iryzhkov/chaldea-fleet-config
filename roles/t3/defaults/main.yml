@@ -3,3 +3,7 @@ t3_version: ""
 t3_allow_upgrade: false
 t3_home: "{{ fleet_home }}/.t3"
 t3_service: t3code.service
+# Optional custom pair admission; empty preserves official-release behavior.
+t3_required_binary_sha256: ""
+t3_custom_source: ""
+t3_custom_archive_sha256: ""
