@@ -1,0 +1,270 @@
+{% set p = chaldea_client_profile.value %}
+#!/usr/bin/python3 -I
+"""Fixed Codex provider profile launcher rendered by the chaldea_client role.
+
+Every constant is literal data from the operator's protected profile configuration
+or a hash of the exact public bytes the role rendered beside it. Nothing here is
+read from a checked file to decide what that file should contain.
+"""
+import hashlib
+import json
+import os
+import stat
+import sys
+import tomllib
+
+NATIVE_PATH = {{ (chaldea_client_profile_dir ~ '/codex') | to_json }}
+NATIVE_SHA256 = {{ p.native.sha256 | to_json }}
+NATIVE_SIZE = {{ p.native.size | int }}
+HOST_PATH = {{ (chaldea_client_profile_dir ~ '/codex-code-mode-host') | to_json }}
+HOST_SHA256 = {{ p.host.sha256 | to_json }}
+HOST_SIZE = {{ p.host.size | int }}
+ELF_MACHINE = {{ p.elf_machine | int }}
+UID = {{ ansible_facts.user_uid | int }}
+GID = {{ ansible_facts.user_gid | int }}
+OWNER_UID = {{ chaldea_client_session_policy_owner_uid | int }}
+OWNER_GID = {{ chaldea_client_session_profile_owner_gid | int }}
+CWD = {{ p.cwd | to_json }}
+HOME = {{ p.home | to_json }}
+ENV = {
+    "HOME": {{ p.home | to_json }},
+    "CODEX_HOME": {{ (p.home ~ '/.codex') | to_json }},
+    "TMPDIR": {{ p.tmpdir | to_json }},
+    "PATH": "/usr/bin:/bin",
+}
+MCP_PATH = {{ (chaldea_client_profile_dir ~ '/mcp.json') | to_json }}
+MCP_SHA256 = {{ chaldea_client_profile_mcp | hash('sha256') | to_json }}
+HEADERS_HELPER = {{ chaldea_client_profile_helper | to_json }}
+SERVER = {{ p.server | to_json }}
+SERVER_URL = {{ p.url | to_json }}
+TOOLS = {{ p.tools | to_json }}
+CATALOG_PATH = {{ (chaldea_client_profile_dir ~ '/models.json') | to_json }}
+CATALOG_SHA256 = {{ p.catalog.sha256 | to_json }}
+MODEL = {{ p.model | to_json }}
+FILE_SHA256 = {{ chaldea_client_profile_config | hash('sha256') | to_json }}
+DISABLED = {{ p.disabled_servers | to_json }}
+{% raw %}
+CONFIG = (
+    'cli_auth_credentials_store="file"',
+    "features.plugins=false",
+    "features.apps=false",
+    "features.multi_agent=false",
+    "features.multi_agent_v2={enabled=false,disable_native_tools=true}",
+    "features.goals=false",
+    "features.view_image=false",
+    "features.shell_tool=false",
+    'web_search="disabled"',
+)
+# Public source contract only: bound literal data, never populated from the
+# file being checked or from ambient inputs.
+FILE_BASE = {}
+FILE_DISABLED = {name: {"enabled": False, "command": "/usr/bin/false"} for name in DISABLED}
+
+
+def require(ok):
+    if not ok:
+        raise ValueError("refused")
+
+
+def pinned_file(name, digest, limit):
+    """Walk fixed absolute paths by directory FD, rejecting symlinks at every component."""
+    require(name.startswith("/") and all(p not in {"", ".", ".."} for p in name.split("/")[1:]))
+    directory = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        parts = name.split("/")[1:]
+        for part in parts[:-1]:
+            nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                          dir_fd=directory)
+            os.close(directory)
+            directory = nxt
+            mode = os.fstat(directory)
+            require(not mode.st_mode & 0o022 and mode.st_uid in {0, os.geteuid()})
+        fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory)
+    finally:
+        os.close(directory)
+    try:
+        mode = os.fstat(fd)
+        require(stat.S_ISREG(mode.st_mode) and stat.S_IMODE(mode.st_mode) == 0o644)
+        require(mode.st_uid == OWNER_UID and mode.st_gid == OWNER_GID and mode.st_nlink == 1
+                and 0 < mode.st_size <= limit)
+        data, hashed, size = bytearray(), hashlib.sha256(), 0
+        retained = limit if limit <= 65536 else 20
+        while size <= limit:
+            chunk = os.read(fd, min(1048576, limit + 1 - size))
+            if not chunk:
+                break
+            hashed.update(chunk)
+            size += len(chunk)
+            data.extend(chunk[:max(0, retained - len(data))])
+        require(size == mode.st_size and size <= limit and hashed.hexdigest() == digest)
+        after = os.fstat(fd)
+        require(all(getattr(mode, key) == getattr(after, key) for key in
+                    ("st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink",
+                     "st_size", "st_mtime_ns", "st_ctime_ns")))
+        os.lseek(fd, 0, os.SEEK_SET)
+        return fd, bytes(data)
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def fixed_mcp_config():
+    """Read only protected public files; never acquire or read credentials."""
+    require(len(MCP_SHA256) == 64 and all(c in "0123456789abcdef" for c in MCP_SHA256))
+    require(HEADERS_HELPER.startswith("/") and "UNBOUND" not in HEADERS_HELPER)
+    fd, data = pinned_file(MCP_PATH, MCP_SHA256, 65536)
+    os.close(fd)
+    value = json.loads(data)
+    expected = {"mcpServers": {SERVER: {
+        "type": "http", "url": SERVER_URL, "headersHelper": HEADERS_HELPER}}}
+    # Byte hash pins duplicate keys/format as well; schema refuses any extra server.
+    require(value == expected)
+    require(len(FILE_SHA256) == 64 and all(c in "0123456789abcdef" for c in FILE_SHA256))
+    require(isinstance(FILE_BASE, dict) and "mcp_servers" not in FILE_BASE)
+    require(isinstance(DISABLED, list) and len(set(DISABLED)) == len(DISABLED)
+            and set(FILE_DISABLED) == set(DISABLED) and SERVER not in FILE_DISABLED)
+    require(all(isinstance(v, dict) and set(v) == {"enabled", "command"}
+                and v["enabled"] is False and v["command"] == "/usr/bin/false"
+                for v in FILE_DISABLED.values()))
+    expected_native = {**FILE_BASE, "mcp_servers": {
+        **FILE_DISABLED, SERVER: {
+            "url": SERVER_URL, "http_headers_helper": HEADERS_HELPER, "enabled_tools": TOOLS}}}
+    # Fixed native file path, same bounded owner/0644/single-link/no-follow
+    # reader and stable-metadata/hash checks as other protected public inputs.
+    fd, native_data = pinned_file(ENV["CODEX_HOME"] + "/config.toml", FILE_SHA256, 65536)
+    os.close(fd)
+    native = tomllib.loads(native_data.decode("utf-8"))
+    # Complete equality, including unrelated explicitly bound public fields.
+    # JSON comparison also distinguishes TOML booleans from integers.
+    require(json.dumps(native, sort_keys=True) == json.dumps(expected_native, sort_keys=True))
+    # T3 request mcp_servers replaces CLI MCP values. The HOME file merges
+    # separately, so no ineffective MCP CLI override is emitted.
+
+
+def pinned_elf(path, digest, expected_size):
+    """Pin a stock ELF by FD, custody, streamed hash and stable metadata."""
+    require(path.startswith("/"))
+    parts = path.split("/")[1:]
+    require(all(p not in {"", ".", ".."} for p in parts))
+    directory = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        for part in parts[:-1]:
+            nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                          dir_fd=directory)
+            os.close(directory)
+            directory = nxt
+            meta = os.fstat(directory)
+            require(meta.st_uid in {0, UID} and not meta.st_mode & 0o022)
+        fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC,
+                     dir_fd=directory)
+    finally:
+        os.close(directory)
+    try:
+        before = os.fstat(fd)
+        require(stat.S_ISREG(before.st_mode) and before.st_uid == OWNER_UID and before.st_gid == OWNER_GID)
+        require(stat.S_IMODE(before.st_mode) == 0o755 and before.st_nlink == 1)
+        require(before.st_size == expected_size)
+        hashed, size, header = hashlib.sha256(), 0, bytearray()
+        while size <= expected_size:
+            chunk = os.read(fd, min(1048576, expected_size + 1 - size))
+            if not chunk:
+                break
+            hashed.update(chunk)
+            size += len(chunk)
+            header.extend(chunk[:max(0, 20 - len(header))])
+        require(size == expected_size and hashed.hexdigest() == digest)
+        after = os.fstat(fd)
+        require(all(getattr(before, key) == getattr(after, key) for key in
+                    ("st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink",
+                     "st_size", "st_mtime_ns", "st_ctime_ns")))
+        require(len(header) == 20 and header[:7] == b"\x7fELF\x02\x01\x01")
+        require(int.from_bytes(header[18:20], "little") == ELF_MACHINE)
+        os.lseek(fd, 0, os.SEEK_SET)
+        return fd
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def pinned_native():
+    return pinned_elf(NATIVE_PATH, NATIVE_SHA256, NATIVE_SIZE)
+
+
+def pinned_host():
+    # Stock InstallContext resolves the companion beside the main executable.
+    # Root custody protects the later stock pathname reopen; no custom host.
+    require(HOST_PATH == os.path.dirname(NATIVE_PATH) + "/codex-code-mode-host")
+    return pinned_elf(HOST_PATH, HOST_SHA256, HOST_SIZE)
+
+
+def home_directory():
+    """Open fixed HOME by directory FDs; inspect custody only, never contents."""
+    path = ENV["HOME"]
+    require(path == HOME)
+    directory = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        for part in path.split("/")[1:]:
+            nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                          dir_fd=directory)
+            os.close(directory)
+            directory = nxt
+            meta = os.fstat(directory)
+            require(meta.st_uid in {0, UID} and not meta.st_mode & 0o022)
+        meta = os.fstat(directory)
+        require(meta.st_uid == UID and meta.st_gid == GID and
+                stat.S_IMODE(meta.st_mode) == 0o700)
+        return directory
+    except Exception:
+        os.close(directory)
+        raise
+
+
+def fixed_catalog_config():
+    """Native catalog seam: exactly the selected model, with apply_patch disabled."""
+    require(len(CATALOG_SHA256) == 64 and
+            all(c in "0123456789abcdef" for c in CATALOG_SHA256))
+    require(MODEL and "UNBOUND" not in MODEL)
+    fd, data = pinned_file(CATALOG_PATH, CATALOG_SHA256, 65536)
+    os.close(fd)
+    value = json.loads(data)
+    require(isinstance(value, dict) and set(value) == {"models"})
+    models = value["models"]
+    require(isinstance(models, list) and len(models) == 1)
+    model = models[0]
+    require(isinstance(model, dict) and model.get("slug") == MODEL and
+            "apply_patch_tool_type" in model and model["apply_patch_tool_type"] is None)
+    return "model_catalog_json=" + json.dumps(CATALOG_PATH)
+
+
+def main():
+    require(os.geteuid() == UID and os.getcwd() == CWD)
+    require(sys.argv[1:] == ["app-server"])
+    fixed_mcp_config()
+    public_config = (fixed_catalog_config(),)
+    home_fd = home_directory()
+    fd = host_fd = None
+    try:
+        host_fd = pinned_host()
+        fd = pinned_native()
+        args = [NATIVE_PATH]
+        for value in (*CONFIG, *public_config):
+            args.extend(["-c", value])
+        args.extend(["app-server", "--strict-config"])
+        os.fchdir(home_fd)
+        # ELF FD execution preserves process identity and inherited stdio.
+        os.execve(fd, args, ENV.copy())
+    finally:
+        if fd is not None:
+            os.close(fd)
+        if host_fd is not None:
+            os.close(host_fd)
+        os.close(home_fd)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        os.write(2, b"CODEX_PROFILE_REFUSED\n")
+        sys.exit(78)
+{% endraw %}

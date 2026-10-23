@@ -80,3 +80,10 @@ chaldea_client_session_presets: {}
 # operator-provisioned file the role only inspects with stat. Needs a client
 # whose policy parser accepts `enrollments`; empty renders no such key.
 chaldea_client_session_enrollments: {}
+# Fixed provider profiles keyed by name (docs/chaldea-client.md, "Fixed provider
+# profiles"). Empty delivers nothing. Each needs the session policy in system
+# waits mode, a declared preset and that preset's enrollment.
+chaldea_client_session_profiles: {}
+# Guarded inverse: [{name, home}] of retired profiles whose role-owned files are
+# removed. Never touches anything else in the profile home.
+chaldea_client_session_profiles_absent: []

@@ -9,3 +9,6 @@ chaldea_client_session_policy_root: /
 chaldea_client_session_policy_owner: root
 chaldea_client_session_policy_owner_uid: 0
 chaldea_client_session_policy_become: true
+# Group of the protected fixed provider profile files, checked by their launcher.
+chaldea_client_session_profile_group: root
+chaldea_client_session_profile_owner_gid: 0

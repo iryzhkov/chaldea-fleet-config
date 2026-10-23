@@ -1,0 +1,57 @@
+---
+- name: Name the retired profile's protected directory
+  ansible.builtin.set_fact:
+    chaldea_client_retired_dir: "{{ (chaldea_client_session_policy_path | dirname) ~ '/' ~ chaldea_client_retired.name }}"
+
+- name: Name the retired profile's role-owned files
+  ansible.builtin.set_fact:
+    chaldea_client_retired_files:
+      - "{{ chaldea_client_retired_dir }}/exec"
+      - "{{ chaldea_client_retired_dir }}/mcp.json"
+      - "{{ chaldea_client_retired_dir }}/models.json"
+      - "{{ chaldea_client_retired_dir }}/codex-code-mode-host"
+      - "{{ chaldea_client_retired_dir }}/codex"
+      - "{{ chaldea_client_retired.home }}/.codex/config.toml"
+    chaldea_client_retired_parents:
+      - "{{ chaldea_client_retired.home }}"
+      - "{{ chaldea_client_retired.home }}/.codex"
+
+- name: Inspect the retired profile without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ chaldea_client_retired_parents + [chaldea_client_retired_dir] + chaldea_client_retired_files }}"
+  register: chaldea_client_retired_before
+
+- name: Refuse to remove anything the role did not own
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or not item.stat.islnk
+      - >-
+        not item.stat.exists or
+        ((item.stat.isdir and item.stat.uid in [0, ansible_facts.user_uid | int]
+          and item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7'])
+         if item.item in chaldea_client_retired_parents else
+         (item.stat.uid == chaldea_client_session_policy_owner_uid | int and
+          (item.stat.isdir if item.item == chaldea_client_retired_dir else (item.stat.isreg and item.stat.nlink == 1))))
+    fail_msg: "{{ item.item }} is not a role-owned profile path; inspect it instead of removing it."
+    quiet: true
+  loop: "{{ chaldea_client_retired_before.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Remove the retired profile as its owner
+  become: "{{ chaldea_client_session_policy_become }}"
+  block:
+    - name: Remove the launcher first, then the remaining role-owned files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ chaldea_client_retired_files }}"
+
+    - name: Remove the profile directory only when nothing else remains in it
+      ansible.builtin.command:
+        argv: [rmdir, --, "{{ chaldea_client_retired_dir }}"]
+        removes: "{{ chaldea_client_retired_dir }}"

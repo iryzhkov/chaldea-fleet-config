@@ -1,0 +1,18 @@
+---
+# Public-only checks of fixed provider profiles, before any stat or write.
+- name: Require fixed provider profiles to match their protected presets
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_session_profiles | default({}) is mapping
+      - chaldea_client_session_profiles_absent | default([]) | type_debug == 'list'
+      - >-
+        chaldea_client_session_profiles | default({}) | length == 0 or
+        (chaldea_client_session_policy_enabled | bool and chaldea_client_waits_service_mode == 'system')
+      - >-
+        chaldea_client_session_profiles | default({}) | chaldea_session_profiles(
+          chaldea_client_session_presets | default({}), chaldea_client_session_enrollments | default({}),
+          fleet_home | default(''), chaldea_client_session_profiles_absent | default([]))
+    fail_msg: >-
+      Fixed provider profiles need the protected session policy in system waits mode, and each
+      must name a declared preset, its enrollment and exactly the supported profile fields.
+    quiet: true
