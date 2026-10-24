@@ -16,7 +16,7 @@ The app manifest names the version, tarball SHA-256 and SHA-256 of every payload
 
 ## Host settings and secrets
 
-Inventory enables quota and waits on omarchy-pc. The laptop gets the client with both units disabled. Other agent hosts default to both units disabled. Disabled units are installed, stopped and disabled; they require no credentials.
+Inventory enables quota and waits on omarchy-pc. The laptop runs system waits with protected Jocasta tooling sessions; see [Laptop persistent activation](#laptop-persistent-activation). Other agent hosts default to both units disabled. Disabled units are installed, stopped and disabled; they require no credentials.
 
 The enabled units require these operator-provisioned files:
 
@@ -116,9 +116,9 @@ refuses this combination before writes because its namespace omits root. See
 pre-enrollment qualification and rollback packet. This source does not activate
 or migrate any host.
 
-Off on every host. `chaldea_client_session_policy_enabled: false` renders no
+Off by default. `chaldea_client_session_policy_enabled: false` renders no
 policy and leaves `waits.json` without a `sessionPolicy` key, byte for byte as
-before. Inventory enables nothing here.
+before. Only the laptop enables it, in its dedicated host_vars file.
 
 When enabled on a host with waits enabled, the role renders the protected
 Chaldea session policy at the fixed path `/etc/chaldea/sessions/policy.json`
@@ -230,7 +230,7 @@ launcher. The profile adds no runner, service, lifecycle or provider fork: the
 stock T3 server starts the stock Codex or Claude binary through one rendered
 launcher.
 
-Off on every host. `chaldea_client_session_profiles: {}` renders nothing. The
+Off by default; only the laptop delivers profiles. `chaldea_client_session_profiles: {}` renders nothing. The
 role delivers profiles from `waits-system.yml`, right after the protected policy,
 so they require `chaldea_client_session_policy_enabled: true` in system waits
 mode. Public validation runs with the other waits checks before any mutation.
@@ -260,7 +260,7 @@ chaldea_client_session_profiles:
     model: gpt-6.1-sol                    # must equal the preset model
     home: /home/igor/.local/state/chaldea/profiles/codex-tooling-reporter/home
     tmpdir: /home/igor/.local/state/chaldea/profiles/codex-tooling-reporter/tmp
-    cwd: /home/igor                       # the T3 server's working directory
+    cwd: /home/igor                       # the T3 server's working directory: fleet home or inside it
     preset: tooling-reporter              # a declared preset with an enrollment
     audience: jocasta
     server: jocasta_tooling
@@ -492,6 +492,56 @@ Repeated validation does not renew the deadline or consume a start. Namespace
 and loader probes intentionally execute when requested; their service tasks
 report a change even when all managed file bytes are converged. Empty deadline
 preserves the persistent unit bytes and ordinary restart-intent recovery.
+
+## Laptop persistent activation
+
+`inventory/host_vars/laptop/chaldea-jocasta-tooling.yml` is the laptop's desired
+state for its first persistent read-only Jocasta tooling sessions, so the normal
+pull converges the qualified state the reviewed maintenance left. It sets system
+waits with the separately installed `client-v0.4.18` runtime, an empty deadline,
+the protected policy, the `jocasta-tooling-claude` preset (`claude-opus-5`, the
+model the pinned Claude 2.1.276 accepts) with its Authentik enrollment, and its
+fixed Claude profile. The grant is `get`, `history`, `list` and `search` on
+`project:tooling`, 1800 seconds, `delegate: false`, destination the root caller's
+T3 project. The profile native comes from the operator-staged
+`~/.local/share/chaldea/provider-assets/` copy. No other host and no interactive
+provider, model or Chaldea MCP registration is configured by it.
+
+Codex is retained inactive. Its first actual T3 launch exited 78; the operator
+traced it to the launcher's fixed `cwd` naming the session workspace, while it
+must equal the T3 server's own working directory, the fleet home. That fix is
+unqualified until a real launch passes. Its staged assets, protected
+profile files, Codex HOME and Authentik account stay in place, unmanaged: there
+is no declared inactive state, and listing it in
+`chaldea_client_session_profiles_absent` would delete the role-owned files. Add
+its preset, enrollment and profile (with `cwd: /home/igor`) only after it
+qualifies natively in a fresh coordinated interval; delivering the profile
+rewrites its launcher.
+
+Consequences of the normal pull on the laptop:
+
+- `chaldea_client` converges waits only: the shared client pin, quota unit,
+  route/capacity files and `mcp.json` stay as last converged and no longer follow
+  later shared client pin changes while the laptop is in system mode.
+- `chaldea_node_version: 26.12.0` is host-wide, so the laptop's Chaldea MCP
+  registration command, job-client launcher, collector and retention unit also
+  use Node 26.12.0. The already rendered user quota and quota-sharing units and
+  the reserved pre-system user unit keep 26.10.0. Retention protects only
+  `chaldea_node_version`, so the file sets `retention_mise_prune: false`: the
+  retention timer still cleans worktrees, temporary files and the Go cache but
+  never runs `mise prune`. Keep it off while any 26.10.0 consumer remains.
+- The credential-free namespace probe restarts on every real converge, so the
+  laptop's pull never reports `changed=0` for this role. The waits service
+  restarts only for pending restart intent.
+- The waits tokens, answer token and the Claude app-password file must exist
+  with owner-only modes; a missing one stops the laptop's pull at this role.
+
+Rollback is not a revert of this file alone. Default user mode refuses while the
+system unit exists, so a revert merged first makes the laptop's pulls stop at
+this role (fail closed, later roles in that run skipped) until the
+target-specific packet in [system waits preflight](waits-system-preflight.md)
+and the profile inverse above run. Running the inverse while this file is still
+on main lets the next pull reinstall it. Coordinate both, inverse after merge.
 
 ## Tests
 
