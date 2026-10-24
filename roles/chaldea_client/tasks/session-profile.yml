@@ -1,0 +1,221 @@
+---
+# One fixed Codex provider profile. Expected bytes come only from the operator's
+# profile configuration and this role's templates, never from a target file.
+- name: Name this profile's protected directory and headers helper
+  ansible.builtin.set_fact:
+    chaldea_client_profile_dir: "{{ (chaldea_client_session_policy_path | dirname) ~ '/' ~ chaldea_client_profile.key }}"
+    chaldea_client_profile_helper: >-
+      {{ [fleet_home ~ '/.local/share/mise/installs/node/' ~ chaldea_node_version ~ '/bin/node',
+          chaldea_client_waits_resolved_runtime ~ '/bin/chaldea', 'session', 'headers',
+          '--preset', chaldea_client_profile.value.preset, '--audience', chaldea_client_profile.value.audience,
+          '--config', fleet_home ~ '/.config/chaldea/waits.json'] | join(' ') }}
+
+- name: Render this profile's public MCP description and native config
+  ansible.builtin.set_fact:
+    chaldea_client_profile_mcp: "{{ lookup('ansible.builtin.template', 'profile-mcp.json.j2') }}"
+    chaldea_client_profile_config: "{{ lookup('ansible.builtin.template', 'codex-profile-config.toml.j2') }}"
+
+- name: Render the launcher bound to those exact public bytes
+  ansible.builtin.set_fact:
+    chaldea_client_profile_exec: "{{ lookup('ansible.builtin.template', 'codex-profile-exec.py.j2') }}"
+
+- name: Name every protected file with its expected mode and SHA-256
+  ansible.builtin.set_fact:
+    chaldea_client_profile_expected:
+      native: {path: "{{ chaldea_client_profile_dir }}/codex", mode: "0755", sha256: "{{ chaldea_client_profile.value.native.sha256 }}"}
+      host: {path: "{{ chaldea_client_profile_dir }}/codex-code-mode-host", mode: "0755", sha256: "{{ chaldea_client_profile.value.host.sha256 }}"}
+      catalog: {path: "{{ chaldea_client_profile_dir }}/models.json", mode: "0644", sha256: "{{ chaldea_client_profile.value.catalog.sha256 }}"}
+      mcp: {path: "{{ chaldea_client_profile_dir }}/mcp.json", mode: "0644", sha256: "{{ chaldea_client_profile_mcp | hash('sha256') }}"}
+      config: {path: "{{ chaldea_client_profile.value.home }}/.codex/config.toml", mode: "0644", sha256: "{{ chaldea_client_profile_config | hash('sha256') }}"}
+      exec: {path: "{{ chaldea_client_profile_dir }}/exec", mode: "0755", sha256: "{{ chaldea_client_profile_exec | hash('sha256') }}"}
+    chaldea_client_profile_protected_dirs: >-
+      {%- set root = chaldea_client_session_policy_root -%}
+      {%- set parts = (chaldea_client_profile_dir | relpath(root)).split('/') -%}
+      {%- set out = [root] -%}
+      {%- for i in range(parts | length) -%}
+      {%-   set _ = out.append((root | regex_replace('/$', '')) ~ '/' ~ (parts[:i + 1] | join('/'))) -%}
+      {%- endfor -%}
+      {{ out }}
+    chaldea_client_profile_home_dirs: >-
+      {%- set parts = (chaldea_client_profile.value.home | relpath(fleet_home)).split('/') -%}
+      {%- set out = [fleet_home] -%}
+      {%- for i in range(parts | length) -%}
+      {%-   set _ = out.append(fleet_home ~ '/' ~ (parts[:i + 1] | join('/'))) -%}
+      {%- endfor -%}
+      {{ out + [chaldea_client_profile.value.home ~ '/.codex'] }}
+
+- name: Inspect the pinned installed sources without following links
+  ansible.builtin.stat:
+    path: "{{ item.value.source }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ chaldea_client_profile.value | dict2items | selectattr('key', 'in', ['native', 'host', 'catalog']) | list }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: chaldea_client_profile_sources
+
+- name: Refuse sources that are not the exact pinned installed files
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false) and item.stat.isreg and not item.stat.islnk
+      - item.stat.uid in [0, ansible_facts.user_uid | int]
+      - item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - item.stat.size == item.item.value.size | int
+      - item.stat.checksum | default('') == item.item.value.sha256
+    fail_msg: >-
+      {{ item.item.value.source }} must be the already-installed {{ item.item.key }} with the pinned size
+      and SHA-256, a regular file writable by no one else. This role never downloads or changes versions.
+    quiet: true
+  loop: "{{ chaldea_client_profile_sources.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
+- name: Read the pinned public model catalog
+  ansible.builtin.slurp:
+    src: "{{ chaldea_client_profile.value.catalog.source }}"
+  register: chaldea_client_profile_catalog
+
+- name: Require exactly the selected model with apply_patch disabled
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_profile_catalog_text | hash('sha256') == chaldea_client_profile.value.catalog.sha256
+      - chaldea_client_profile_catalog_value is mapping
+      - chaldea_client_profile_catalog_value.keys() | list == ['models']
+      - chaldea_client_profile_catalog_value.models is sequence and chaldea_client_profile_catalog_value.models is not string
+      - chaldea_client_profile_catalog_value.models is not mapping
+      - chaldea_client_profile_catalog_value.models | length == 1
+      - chaldea_client_profile_catalog_value.models[0] is mapping
+      - chaldea_client_profile_catalog_value.models[0].slug | default('') == chaldea_client_profile.value.model
+      - "'apply_patch_tool_type' in chaldea_client_profile_catalog_value.models[0]"
+      - chaldea_client_profile_catalog_value.models[0].apply_patch_tool_type is none
+    fail_msg: The catalog must hold only the profile model, with apply_patch_tool_type explicitly null.
+    quiet: true
+  vars:
+    chaldea_client_profile_catalog_text: "{{ chaldea_client_profile_catalog.content | b64decode }}"
+    chaldea_client_profile_catalog_value: "{{ chaldea_client_profile_catalog_text | from_json }}"
+
+- name: Inspect the operator-provisioned profile home without reading it
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ chaldea_client_profile_home_dirs }}"
+  register: chaldea_client_profile_home
+
+- name: Refuse a missing, linked, shared or foreign profile home
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false) and item.stat.isdir and not item.stat.islnk
+      - item.stat.uid in [0, ansible_facts.user_uid | int]
+      - item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - >-
+        item.item != chaldea_client_profile.value.home or
+        (item.stat.uid == ansible_facts.user_uid | int and item.stat.gid == ansible_facts.user_gid | int and item.stat.mode == '0700')
+      - item.item != chaldea_client_profile.value.home ~ '/.codex' or item.stat.uid == ansible_facts.user_uid | int
+    fail_msg: >-
+      {{ item.item }} must be an existing directory writable only by its owner; the profile home itself is
+      owned by uid {{ ansible_facts.user_uid }} with mode 0700. The operator provisions the home and its
+      independent login. This role never creates, lists or reads it.
+    quiet: true
+  loop: "{{ chaldea_client_profile_home.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Inspect protected directories and targets without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ chaldea_client_profile_protected_dirs + (chaldea_client_profile_expected.values() | map(attribute='path') | list) }}"
+  register: chaldea_client_profile_before
+
+- name: Refuse linked, foreign or shared-writable profile targets
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists or item.item not in chaldea_client_profile_protected_dirs[:-3]
+      - not item.stat.exists or not item.stat.islnk
+      - not item.stat.exists or item.stat.uid == chaldea_client_session_policy_owner_uid | int
+      - not item.stat.exists or (item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7'])
+      - >-
+        not item.stat.exists or
+        (item.stat.isdir if item.item in chaldea_client_profile_protected_dirs else (item.stat.isreg and item.stat.nlink == 1))
+    fail_msg: >-
+      {{ item.item }} must be absent or owned by uid {{ chaldea_client_session_policy_owner_uid }}, writable by no one
+      else and not a link. Move an unmanaged file aside; the role replaces only its own files.
+    quiet: true
+  loop: "{{ chaldea_client_profile_before.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Write this profile's protected files as their owner
+  become: "{{ chaldea_client_session_policy_become }}"
+  block:
+    - name: Create the protected profile directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ chaldea_client_session_policy_owner }}"
+        group: "{{ chaldea_client_session_profile_group }}"
+        mode: "0755"
+      loop: "{{ chaldea_client_profile_protected_dirs[-3:] }}"
+
+    - name: Copy the pinned binaries and catalog byte for byte
+      ansible.builtin.copy:
+        src: "{{ chaldea_client_profile.value[item].source }}"
+        dest: "{{ chaldea_client_profile_expected[item].path }}"
+        remote_src: true
+        owner: "{{ chaldea_client_session_policy_owner }}"
+        group: "{{ chaldea_client_session_profile_group }}"
+        mode: "{{ chaldea_client_profile_expected[item].mode }}"
+        follow: false
+      loop: [native, host, catalog]
+      # Check mode cannot predict a remote copy into a directory it has not created.
+      when: >-
+        not ansible_check_mode or
+        (chaldea_client_profile_before.results | selectattr('item', 'equalto', chaldea_client_profile_dir)
+         | map(attribute='stat.exists') | first)
+
+    - name: Write the rendered public files, launcher last
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ chaldea_client_profile_expected[item.key].path }}"
+        owner: "{{ chaldea_client_session_policy_owner }}"
+        group: "{{ chaldea_client_session_profile_group }}"
+        mode: "{{ chaldea_client_profile_expected[item.key].mode }}"
+        follow: false
+      loop:
+        - {key: mcp, content: "{{ chaldea_client_profile_mcp }}"}
+        - {key: config, content: "{{ chaldea_client_profile_config }}"}
+        - {key: exec, content: "{{ chaldea_client_profile_exec }}"}
+      loop_control:
+        label: "{{ item.key }}"
+
+- name: Inspect the delivered profile files
+  ansible.builtin.stat:
+    path: "{{ item.value.path }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ chaldea_client_profile_expected | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: chaldea_client_profile_after
+  when: not ansible_check_mode
+
+- name: Require the exact protected bytes and custody the launcher checks
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and item.stat.isreg and not item.stat.islnk and item.stat.nlink == 1
+      - item.stat.uid == chaldea_client_session_policy_owner_uid | int
+      - item.stat.gid == chaldea_client_session_profile_owner_gid | int
+      - item.stat.mode == item.item.value.mode
+      - item.stat.checksum == item.item.value.sha256
+    fail_msg: "{{ item.item.value.path }} does not hold the exact pinned or rendered bytes; the launcher will refuse it."
+    quiet: true
+  loop: "{{ chaldea_client_profile_after.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  when: not ansible_check_mode

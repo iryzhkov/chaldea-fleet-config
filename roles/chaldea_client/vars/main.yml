@@ -9,3 +9,10 @@ chaldea_client_session_policy_root: /
 chaldea_client_session_policy_owner: root
 chaldea_client_session_policy_owner_uid: 0
 chaldea_client_session_policy_become: true
+# Group of the protected fixed provider profile files, checked by their launcher.
+chaldea_client_session_profile_group: root
+chaldea_client_session_profile_owner_gid: 0
+# Fixed deny list of every Claude profile's protected permissions; its launcher
+# requires the settings file to hold exactly these entries.
+chaldea_client_session_claude_deny: ["mcp__t3-code__*", "mcp__t3_code__*", Bash, PowerShell, Read, Write, Edit,
+                                     Glob, Grep, WebFetch, WebSearch, Agent]

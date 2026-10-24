@@ -3,6 +3,9 @@
 - name: Validate system waits identity and paths
   ansible.builtin.import_tasks: waits-system-validate.yml
 
+- name: Validate fixed provider profiles before any mutation
+  ansible.builtin.import_tasks: session-profiles-validate.yml
+
 - name: Validate the absolute bounded deadline before any writes
   ansible.builtin.include_tasks: waits-deadline.yml
   when: chaldea_client_waits_deadline | length > 0
@@ -158,6 +161,10 @@
 - name: Validate and render protected profiles after namespace qualification
   ansible.builtin.include_tasks: session-policy.yml
   when: chaldea_client_session_policy_enabled | bool
+
+- name: Deliver fixed provider profiles after their protected policy
+  ansible.builtin.include_tasks: session-profiles.yml
+  when: chaldea_client_session_profiles | default({}) | length > 0
 
 - name: Render waits configuration retaining the existing database and auth pointers
   ansible.builtin.template:

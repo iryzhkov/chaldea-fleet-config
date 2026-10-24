@@ -1,0 +1,22 @@
+---
+# Deliver protected fixed provider profiles (docs/chaldea-client.md, "Fixed provider
+# profiles"). Each profile is delivered whole before the next one is inspected.
+- name: Validate fixed provider profiles before any inspection
+  ansible.builtin.import_tasks: session-profiles-validate.yml
+
+- name: Require the resolved waits runtime that profile helpers call
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_waits_resolved_runtime is defined
+      - chaldea_client_waits_resolved_runtime is regex('^/([A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+$', match_type='fullmatch')
+      - chaldea_node_version is regex('^[0-9]+[.][0-9]+[.][0-9]+$', match_type='fullmatch')
+    fail_msg: Profiles bind the headers helper to the resolved system waits runtime; converge waits-system first.
+    quiet: true
+
+- name: Deliver each fixed provider profile with its driver's tasks
+  ansible.builtin.include_tasks:
+    file: "{{ 'session-profile-claude.yml' if chaldea_client_profile.value.driver == 'claude' else 'session-profile.yml' }}"
+  loop: "{{ chaldea_client_session_profiles | dict2items }}"
+  loop_control:
+    loop_var: chaldea_client_profile
+    label: "{{ chaldea_client_profile.key }}"

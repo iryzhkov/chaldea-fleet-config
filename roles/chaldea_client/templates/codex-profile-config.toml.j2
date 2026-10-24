@@ -1,0 +1,11 @@
+{% set p = chaldea_client_profile.value %}
+{% for name in p.disabled_servers %}
+[mcp_servers.{{ name }}]
+enabled = false
+command = "/usr/bin/false"
+
+{% endfor %}
+[mcp_servers.{{ p.server }}]
+url = {{ p.url | to_json }}
+http_headers_helper = {{ chaldea_client_profile_helper | to_json }}
+enabled_tools = {{ p.tools | to_json }}

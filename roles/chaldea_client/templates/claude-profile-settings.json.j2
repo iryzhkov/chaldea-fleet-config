@@ -1,0 +1,3 @@
+{% set p = chaldea_client_profile.value %}
+{{ {'permissions': {'allow': p.tools | map('regex_replace', '^', 'mcp__' ~ p.server ~ '__') | list,
+                    'deny': chaldea_client_session_claude_deny}} | to_nice_json(indent=2) }}

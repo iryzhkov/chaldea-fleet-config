@@ -1,0 +1,12 @@
+---
+# Guarded inverse: remove only role-owned files of explicitly retired profiles.
+# Retire the preset and the T3 provider instance that uses the launcher first.
+- name: Validate retired profiles before any inspection
+  ansible.builtin.import_tasks: session-profiles-validate.yml
+
+- name: Remove each retired profile's protected files
+  ansible.builtin.include_tasks: session-profile-absent.yml
+  loop: "{{ chaldea_client_session_profiles_absent }}"
+  loop_control:
+    loop_var: chaldea_client_retired
+    label: "{{ chaldea_client_retired.name }}"

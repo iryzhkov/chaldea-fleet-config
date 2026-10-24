@@ -221,6 +221,214 @@ No service manager, native HTTP MCP binding, provider, account or release pin
 is installed by this validation change. Deployment requires a compatible
 Chaldea release and separate live helper/endpoint qualification.
 
+## Fixed provider profiles
+
+A fixed provider profile is the limited launch context of a Chaldea-launched
+session. Interactive T3 threads keep the operator's ordinary provider settings;
+only the T3 provider instance that a protected preset names points at a profile
+launcher. The profile adds no runner, service, lifecycle or provider fork: the
+stock T3 server starts the stock Codex or Claude binary through one rendered
+launcher.
+
+Off on every host. `chaldea_client_session_profiles: {}` renders nothing. The
+role delivers profiles from `waits-system.yml`, right after the protected policy,
+so they require `chaldea_client_session_policy_enabled: true` in system waits
+mode. Public validation runs with the other waits checks before any mutation.
+The `codex` and `claude` drivers are supported, each with its own exact field
+set; see [Claude profiles](#claude-profiles) for the second.
+
+Each profile is keyed by a name matching `[a-z0-9][a-z0-9-]{0,47}`. A Codex
+profile has exactly these fields; every one is an operator input:
+
+```yaml
+chaldea_client_session_profiles:
+  codex-tooling-reporter:                 # files under /etc/chaldea/sessions/<name>/
+    driver: codex
+    native:                               # already-installed official Codex binary
+      source: /home/igor/.local/share/mise/installs/codex/0.163.0/bin/codex
+      sha256: 8a96f66d059d653e68bfd5f3c79337e6f1d7d170d80bf705eb7d0249b34c0ece
+      size: 257816200
+    host:                                 # its matching official companion
+      source: /home/igor/.local/share/mise/installs/codex/0.163.0/bin/codex-code-mode-host
+      sha256: 255eccc8a5c1d267dc0acbc815cc83aaa1f50955bd99943b29f00cafcdcab771
+      size: 67118080
+    catalog:                              # public one-model catalog, apply_patch null
+      source: "<operator path to the reviewed catalog file>"
+      sha256: ad005892044dec4f817f431ff75302193e27bbfb7533958afe6a91194fd7b784
+      size: 65174
+    elf_machine: 183                      # 183 AArch64, 62 x86-64
+    model: gpt-6.1-sol                    # must equal the preset model
+    home: /home/igor/.local/state/chaldea/profiles/codex-tooling-reporter/home
+    tmpdir: /home/igor/.local/state/chaldea/profiles/codex-tooling-reporter/tmp
+    cwd: /home/igor                       # the T3 server's working directory
+    preset: tooling-reporter              # a declared preset with an enrollment
+    audience: jocasta
+    server: jocasta_tooling
+    url: https://jocasta.mcp.ryzhkov.dev/mcp   # must equal the enrollment resource
+    tools: [get, history, list, search]   # subset of the preset's granted actions
+    disabled_servers: [jocasta, home_only]   # operator MCP servers to neutralize
+```
+
+The values above are illustrations; the preset name, project and paths are
+chosen per deployment. Hashes and sizes are reviewed literal inputs. The role
+never infers them from a target, downloads a binary or changes a version: it
+refuses unless each source is a regular file, not a link, writable by no one
+else, with exactly the pinned size and SHA-256. The catalog must hold exactly
+the profile model with `apply_patch_tool_type` explicitly `null`, at most 64 KiB.
+Derive it from the pinned Codex source `codex-rs/models-manager/models.json`,
+changing only that field.
+
+`home` and `tmpdir` lie inside the fleet home and `home` differs from it, so the
+operator's own `~/.codex` is never touched. The operator provisions both
+directories and the profile's independent Codex login before enabling the
+profile: `home` is owned by the fleet user with mode 0700, `home/.codex` exists
+and is writable only by its owner. The role checks these with `stat` only. It
+never lists, creates, copies, reads or removes anything in the home except the
+one file below.
+
+The role writes, as root and with no group or other write access:
+
+| Path | Content |
+| --- | --- |
+| `/etc/chaldea/sessions/<name>/codex` | native binary, byte for byte, 0755 |
+| `/etc/chaldea/sessions/<name>/codex-code-mode-host` | companion, 0755 |
+| `/etc/chaldea/sessions/<name>/models.json` | catalog, 0644 |
+| `/etc/chaldea/sessions/<name>/mcp.json` | public MCP description, 0644 |
+| `<home>/.codex/config.toml` | native profile config, 0644 |
+| `/etc/chaldea/sessions/<name>/exec` | launcher, 0755, written last |
+
+The headers helper is the resolved system waits runtime's
+`bin/chaldea session headers --preset <preset> --audience <audience>
+--config ~/.config/chaldea/waits.json`, run with the pinned Node. It is bound
+to the runtime the waits service runs, not to the shared client `current`.
+Before writing, every existing target must be a single-link regular file owned
+by root and every existing protected directory root-owned; links and foreign
+files refuse. After writing, each file must hold exactly its pinned or rendered
+SHA-256. A second converge changes nothing.
+
+The launcher embeds every expected path, hash, size, UID and the exact public
+file hashes as literals. At each start it requires the fleet UID, the fixed
+`cwd` and argv `app-server`; reads `mcp.json`, `config.toml` and the catalog
+by directory descriptors without following links, checking root custody, mode,
+size, SHA-256, stable metadata, complete JSON/TOML equality and the one-model
+catalog; pins both ELFs by descriptor, size, hash and ELF machine; then
+executes the held native descriptor with a fixed environment (`HOME`,
+`CODEX_HOME`, `TMPDIR`, `PATH`). The stock config narrows Codex: no plugins,
+apps, multi-agent, goals, image viewer, shell tool or web search, and
+`--strict-config`. Any failure exits 78 with `CODEX_PROFILE_REFUSED`.
+
+Enabling a profile for a session takes three operator steps outside this role:
+provision the home and its login, create the T3 Codex provider instance with
+`binaryPath: /etc/chaldea/sessions/<name>/exec` and `homePath: <home>/.codex`,
+and name that instance in the preset. Order removal the other way round.
+
+### Claude profiles
+
+A Claude profile pins only the native binary. It has no companion, catalog,
+home or temporary directory, and the role writes nothing in any home. It has
+exactly these fields:
+
+```yaml
+chaldea_client_session_profiles:
+  claude-tooling-reporter:
+    driver: claude
+    native:                               # already-installed official Claude binary
+      source: "<operator path to the installed claude 2.1.276 ARM64 binary>"
+      sha256: e9ac3df956083645578a382ad64ec304468666e362c33bfdefd803cd6ff596b0
+      size: 231989488                     # at most 400000000
+    elf_machine: 183
+    cwd: "<the preset's reporter workspace root>"
+    preset: tooling-reporter
+    audience: jocasta
+    server: jocasta_tooling               # not t3-code or t3_code
+    url: https://jocasta.mcp.ryzhkov.dev/mcp
+    tools: [get, history, list, search]
+```
+
+The same preset, enrollment, URL, tool and source pin checks apply as for Codex.
+The role writes, as root and with no group or other write access:
+
+| Path | Content |
+| --- | --- |
+| `/etc/chaldea/sessions/<name>/claude` | native binary, byte for byte, 0755 |
+| `/etc/chaldea/sessions/<name>/claude-settings.json` | protected permissions, 0644 |
+| `/etc/chaldea/sessions/<name>/mcp.json` | public MCP description, 0644 |
+| `/etc/chaldea/sessions/<name>/exec` | launcher, 0755, written last |
+
+The protected settings allow exactly `mcp__<server>__<tool>` for the profile
+tools and deny the fixed role list in `vars/main.yml`: the T3 control tools,
+Bash, PowerShell, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch and Agent.
+`mcp.json` has the same form as the Codex one.
+
+The launcher is the accepted fixed Claude reporter launcher with its literals
+rendered from the profile and its single-run receipt removed. It writes nothing
+and starts no process other than the native binary. At each start it admits only
+the fixed T3 argv shape: `--restricted`, `--strict-mcp-config`, `--mcp-config`
+equal to this profile's `mcp.json`, empty `--setting-sources`, empty tools,
+default permission mode, stream JSON, the T3 control tool denial, `--add-dir` of
+the profile `cwd` (optionally with T3's attachments directory, which it drops),
+and one `--settings` object limited to the known SDK keys. It refuses shell
+expansion syntax and duplicate JSON keys. It then requires the fleet UID and
+the profile `cwd`, reads the protected settings by directory descriptors
+without following links, requiring the exact rendered SHA-256 and exactly the
+protected permissions, and replaces the session permissions with them. Finally
+it pins the native binary by descriptor, SHA-256, ELF machine and execute bit,
+and executes it with the inherited environment. The `--version` probe needs
+only the UID and native checks. Any failure exits 78 with `FIXED_EXEC_REFUSED`.
+The launcher accepts protected files owned by root or the fleet UID that no one
+else can write, as the accepted launcher did; the role still delivers them
+root-owned. It does not hash `mcp.json`; Claude reads that file itself, so its
+integrity rests on root custody of the profile directory and the role's
+delivery hash check.
+
+To enable a Claude profile, create the T3 Claude provider instance with
+`binaryPath: /etc/chaldea/sessions/<name>/exec` and these launch arguments,
+then name that instance in the preset:
+
+```text
+--restricted --strict-mcp-config --mcp-config /etc/chaldea/sessions/<name>/mcp.json
+--setting-sources '' --settings /etc/chaldea/sessions/<name>/claude-settings.json
+--tools '' --disallowed-tools 'mcp__t3-code__*,mcp__t3_code__*'
+```
+
+### Rollback
+
+The guarded inverse removes a retired profile's role-owned files. First remove
+the preset (or disable the session policy) and the T3 provider instance that
+uses the launcher, so no session can start it. Then move the profile from
+`chaldea_client_session_profiles` to:
+
+```yaml
+chaldea_client_session_profiles_absent:
+  - name: codex-tooling-reporter
+    home: /home/igor/.local/state/chaldea/profiles/codex-tooling-reporter/home
+  - name: claude-tooling-reporter
+    driver: claude
+```
+
+A retired Codex profile is exactly `{name, home}`; a retired Claude profile is
+exactly `{name, driver: claude}`. A normal converge, or the role-only
+`session-profiles-absent.yml` entrypoint, removes the launcher first, then the
+other protected files (for Codex also `<home>/.codex/config.toml`), and finally
+the profile directory with `rmdir`. It refuses links, non-root files and foreign
+directories before removing anything, and stops if anything unknown remains in
+the profile directory. The profile home, its login and the source binaries are
+left in place. A name cannot be delivered and retired in the same run.
+
+### Limits
+
+The launcher and file custody prevent accidents and stale or edited inputs;
+they are not containment of a hostile process running as the same UID. The
+profile home and `home/.codex` belong to the fleet user, so that UID can race
+the checks, replace `config.toml` between launches, or swap a directory while
+the role writes or removes the one root-owned file there. Codex, Claude and
+their tools also run as that UID, and a Claude session inherits the T3
+server's environment. T3 injects its own control tools and request-level MCP
+configuration into every session it starts; the profile cannot remove that
+catalog, and limited sessions rely on the protected preset and the service's
+own ACL rather than on tool absence. Renewal, restart recovery and multi-page
+continuation keep their separately stated qualification limits.
+
 ## Bounded canary entrypoints
 
 The role-only `session-policy-gate.yml` entrypoint validates and renders the public

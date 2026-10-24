@@ -2,6 +2,9 @@
 - name: Validate waits service mode before any mutation
   ansible.builtin.import_tasks: waits-validate.yml
 
+- name: Validate fixed provider profiles before any mutation
+  ansible.builtin.import_tasks: session-profiles-validate.yml
+
 - name: Inspect the reserved system waits owner before user convergence
   ansible.builtin.stat:
     path: /etc/systemd/system/chaldea-waits.service
@@ -26,3 +29,7 @@
 - name: Converge only the opted-in system waits service
   ansible.builtin.include_tasks: waits-system.yml
   when: chaldea_client_waits_service_mode == 'system'
+
+- name: Remove only explicitly retired fixed provider profiles
+  ansible.builtin.include_tasks: session-profiles-absent.yml
+  when: chaldea_client_session_profiles_absent | default([]) | length > 0

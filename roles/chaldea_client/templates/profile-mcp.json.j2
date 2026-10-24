@@ -1,0 +1,2 @@
+{% set p = chaldea_client_profile.value %}
+{{ {'mcpServers': {p.server: {'type': 'http', 'url': p.url, 'headersHelper': chaldea_client_profile_helper}}} | to_nice_json(indent=2) }}
