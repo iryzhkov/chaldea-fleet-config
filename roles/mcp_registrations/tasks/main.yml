@@ -35,7 +35,9 @@
       {{ (mcp_registrations_remote_servers | rejectattr('name', 'equalto', 'jocasta') | list)
          + [{'name': 'jocasta', 'url': 'https://jocasta.mcp.ryzhkov.dev/mcp',
              'providers': ['claude', 'codex'], 'auth_mode': 'managed_helper',
-             'helper_host': inventory_hostname}]
+             'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'jocasta')
+                       | map(attribute='state', default='present') | first | default('present'))}]
          if webmcp_interactive_enabled | default(false) | bool else mcp_registrations_remote_servers }}
 
 - name: Check the opt-in remote MCP servers

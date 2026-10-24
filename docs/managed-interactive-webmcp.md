@@ -10,6 +10,15 @@ Only explicit webmcp_interactive_enabled selects the managed registration and
 stages its helper/credential. Other hosts need that same explicit opt-in plus
 webmcp_interactive_laptop_qualified. No inventory opts in in this change.
 A normal pull therefore retains existing behavior after a source merge.
+An explicit Jocasta state=absent is honored even while managed mode is enabled;
+remove the native consumer before deleting its staged credential/helper files.
+
+Before activation, account for Codex's native credential precedence. A stored
+Jocasta OAuth login can override helper Authorization. If actual connection
+behavior selects that credential, use only supported codex mcp logout jocasta,
+then reconnect and verify helper-backed use. Do not inspect or clear unrelated
+native credentials, and do not treat the earlier canceled login as proof of a
+stored Jocasta credential.
 
 ## Closed native helper
 

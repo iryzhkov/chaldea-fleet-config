@@ -92,6 +92,40 @@ def test_activation_is_opt_in_and_profiles_unchanged():
     assert laptop["chaldea_client_session_profiles"]["jocasta-tooling-claude"]["server"] == "jocasta_tooling"
 
 
+def test_actual_ansible_selection_honors_managed_absence_and_keeps_oauth(tmp_path):
+    import subprocess
+    tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
+    select = next(t for t in tasks if t["name"].startswith("Select explicit"))
+    unrelated = {"name": "unrelated", "url": "https://other.example/mcp", "providers": ["codex"]}
+    managed = {"name": "jocasta", "url": URL, "providers": ["claude", "codex"],
+               "auth_mode": "managed_helper", "helper_host": "laptop"}
+    cases = [
+        (True, [unrelated, {"name": "jocasta", "state": "absent"}],
+         [unrelated, {**managed, "state": "absent"}]),
+        (True, [], [{**managed, "state": "present"}]),
+        (False, [unrelated, {"name": "jocasta", "state": "absent"}],
+         [unrelated, {"name": "jocasta", "state": "absent"}]),
+    ]
+    play_tasks = []
+    for index, (enabled, remotes, expected) in enumerate(cases):
+        play_tasks.extend([
+            {"name": "Select case " + str(index),
+             "ansible.builtin.set_fact": select["ansible.builtin.set_fact"],
+             "vars": {"webmcp_interactive_enabled": enabled,
+                      "mcp_registrations_remote_servers": remotes}},
+            {"name": "Verify case " + str(index),
+             "ansible.builtin.assert": {"that": ["mcp_registrations_effective_remote_servers == expected"]},
+             "vars": {"expected": expected}},
+        ])
+    play = tmp_path / "selection.yml"
+    play.write_text(yaml.safe_dump([{"hosts": "laptop", "connection": "local",
+                                   "gather_facts": False, "tasks": play_tasks}]))
+    result = subprocess.run(["ansible-playbook", "-i", "laptop,", str(play)],
+                            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_remote_cli_failures_do_not_quote_output():
     from test_mcp_registration import FakeModule
     module = FakeModule()
