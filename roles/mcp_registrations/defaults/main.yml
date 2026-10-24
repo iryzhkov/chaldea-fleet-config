@@ -26,8 +26,8 @@ mcp_registrations_servers:
     env: {OV_BASE_URL: "https://ov.ryzhkov.dev"}
     agent_env: OV_AGENT
     # Codex starts stdio servers with a cleared environment. The wrapper's
-    # keyring lookup (secret-tool) needs the desktop session bus; headless
-    # hosts lack both variables and fall back to their keyfile.
+    # keyring lookup (secret-tool) needs the desktop session bus. Failed or
+    # empty keyring lookups fall back to the existing keyfile.
     codex: {default_tools_approval_mode: approve, env_vars: [DBUS_SESSION_BUS_ADDRESS, XDG_RUNTIME_DIR]}
 # Registrations removed from both providers wherever they are found.
 mcp_registrations_retired:
