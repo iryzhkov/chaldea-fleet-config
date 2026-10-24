@@ -1,0 +1,22 @@
+{
+  "fleet_tools.py": [
+    [
+      "NAME = re.compile(r\"[a-zA-Z0-9][a-zA-Z0-9_.-]*\")\n",
+      "NAME = re.compile(r\"[a-zA-Z0-9][a-zA-Z0-9_.-]*\")\n# MCP servers a profile may name, with the one line each adds. A host grants\n# one only where it registers that server (jocasta: the laptop's interactive\n# profile only).\nMCP = {\n    \"ov-memory\": (\"Memory\", \"- `ov-memory` MCP: shared long-term memory; use the `ov-memory` skill for its read/write procedures.\"),\n    \"jocasta\": (\"Working documents\", \"- `jocasta` MCP: shared working documents with your own native login; \"\n                \"read `~/.config/agents/jocasta.md` for outline, section and guarded edit use.\"),\n}\n"
+    ],
+    [
+      "    if any(name != \"ov-memory\" for name in profile[\"mcp\"]):\n",
+      "    if any(name not in MCP for name in profile[\"mcp\"]):\n"
+    ],
+    [
+      "    if \"ov-memory\" in profile[\"mcp\"]:\n        lines.extend([\"\", \"## Memory\", \"- `ov-memory` MCP: shared long-term memory; use the `ov-memory` skill for its read/write procedures.\"])\n",
+      "    for name, (heading, entry) in MCP.items():\n        if name in profile[\"mcp\"]:\n            lines.extend([\"\", \"## \" + heading, entry])\n"
+    ]
+  ],
+  "agents/jocasta.md": [
+    [
+      "Credentials are per-host and must not be copied into prompts, logs, source or handoffs.\n",
+      "Credentials are per-host and must not be copied into prompts, logs, source or handoffs.\n\n## Web MCP\n\nWhere the `jocasta` MCP server is registered (the laptop's ordinary interactive Claude\nand Codex sessions), it reads and changes the same documents and revisions as the CLI\nand REST API, through your own native OAuth login. If it reports that\nauthentication is needed, ask Igor to complete that client's MCP login; never copy a\ntoken into a prompt, config or command. Protected Chaldea tooling sessions keep their\nread-only tooling access and do not get this server. The server's tool schemas are\nauthoritative; if a field below differs, follow the schema.\n\n- Read narrowly. `get` with `view: \"outline\"` lists headings with their line ranges and\n  the revision; `get` with `section: {heading, heading_line}` returns one exact section,\n  and `lines` a pinned range. Pass `revision` to keep reading the same snapshot. A\n  heading that occurs more than once is refused as ambiguous; add `heading_line`.\n- `search` with `include_excerpts` returns bounded excerpts of the exact returned\n  revision. An excerpt locates text; read it before choosing an edit target.\n- Change a passage with `edit`: exact path or ID, `if_revision` equal to the revision you\n  read, nonempty `old` text that occurs exactly once (optionally within one `section`),\n  `new`, and a fresh `idempotency_key`. Zero or several matches and stale revisions are\n  refused without a change; re-read, reconcile and retry with a new key. Reuse a key\n  only to retry the identical request.\n- Whole-document writes (`mutate` put) and create, move, archive, unarchive and restore\n  follow the update rules above: fetch the full current document, reconcile and pass\n  `if_revision`. A targeted `edit` is the only partial write.\n- CLI, REST and Web MCP may be mixed; every write needs the latest revision, whichever\n  path made it.\n"
+    ]
+  ]
+}
