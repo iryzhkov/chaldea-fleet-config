@@ -300,6 +300,35 @@ def test_refused_before_any_profile_write(tmp_path, monkeypatch, name):
         assert not case.config.exists()
 
 
+@pytest.mark.parametrize("entry", ["main", "session-profiles", "session-profiles-absent"])
+@pytest.mark.parametrize("check", [False, True])
+def test_renamed_codex_home_collision_refused_before_mutation(tmp_path, monkeypatch, entry, check):
+    case = layout(tmp_path, monkeypatch)
+    old_directory = case.directory.with_name("retired-codex")
+    old_directory.mkdir(parents=True)
+    sentinels = {case.config: b"existing Codex config\n",
+                 old_directory / "exec": b"existing launcher\n",
+                 old_directory / "mcp.json": b"existing MCP config\n"}
+    for path, content in sentinels.items():
+        path.write_bytes(content)
+    before = {path: path.stat() for path in sentinels}
+    case.variables["chaldea_client_session_profiles_absent"] = [
+        {"name": old_directory.name, "home": case.profile["home"]}]
+    result = run(case, entry=entry, check=check)
+    assert result.returncode != 0, result.stdout
+    assert "delivered and retired Codex profile homes must be disjoint" in result.stdout, result.stdout[-12000:]
+    assert "changed=0" in result.stdout, result.stdout
+    assert not case.directory.exists()
+    assert not (case.home / ".config").exists()
+    assert not json.loads((tmp_path / "systemctl.json").read_text())["calls"]
+    for path, content in sentinels.items():
+        current = path.stat()
+        for field in ("st_mode", "st_uid", "st_gid", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"):
+            assert getattr(current, field) == getattr(before[path], field)
+        assert path.read_bytes() == content
+    assert (case.profile_home / ".codex/auth.json").is_fifo()
+
+
 def test_launcher_refuses_drift_before_native_exec(tmp_path, monkeypatch):
     case = layout(tmp_path, monkeypatch)
     ok(run(case))
@@ -381,6 +410,38 @@ def test_guarded_inverse_removes_only_role_owned_files(tmp_path, monkeypatch):
     assert sorted(p.name for p in (case.profile_home / ".codex").iterdir()) == ["auth.json"]
     assert case.native.exists() and case.catalog.exists()
     again = run(case, entry="session-profiles-absent", variables=variables)
+    ok(again)
+    assert "changed=0" in again.stdout, again.stdout
+
+
+def test_disjoint_codex_retirement_preserves_delivered_profile(tmp_path, monkeypatch):
+    old = layout(tmp_path, monkeypatch)
+    ok(run(old))
+    new = SimpleNamespace(**vars(old))
+    new.profile_home = old.profile_home.with_name("replacement-home")
+    new.tmpdir = old.tmpdir.with_name("replacement-tmp")
+    new.profile_home.mkdir(mode=0o700)
+    (new.profile_home / ".codex").mkdir(mode=0o700)
+    os.mkfifo(new.profile_home / ".codex/auth.json", 0o600)
+    new.tmpdir.mkdir(mode=0o700)
+    new.config = new.profile_home / ".codex/config.toml"
+    new.directory = old.directory.with_name("replacement-codex")
+    new.profile = old.profile | {"home": str(new.profile_home), "tmpdir": str(new.tmpdir)}
+    new.variables = old.variables | {
+        "chaldea_client_session_profiles": {new.directory.name: new.profile},
+        "chaldea_client_session_profiles_absent": [{"name": PROFILE, "home": str(old.profile_home)}]}
+    # Exercise the delivery-then-retirement ordering of the ordinary role.
+    ok(run(new))
+    delivered = {path: path.read_bytes() for path in [new.config, *new.directory.iterdir()]}
+    ok(run(new, entry="session-profiles-absent", check=True))
+    assert old.directory.is_dir() and old.config.exists()
+    ok(run(new, entry="session-profiles-absent"))
+    assert not old.directory.exists() and not old.config.exists()
+    assert (old.profile_home / ".codex/auth.json").is_fifo()
+    assert (new.profile_home / ".codex/auth.json").is_fifo()
+    assert {path: path.read_bytes() for path in delivered} == delivered
+    assert launch(new).returncode == 0
+    again = run(new, entry="session-profiles-absent")
     ok(again)
     assert "changed=0" in again.stdout, again.stdout
 

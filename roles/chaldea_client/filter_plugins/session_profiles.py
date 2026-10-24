@@ -165,6 +165,8 @@ def chaldea_session_profiles(profiles, presets, enrollments, fleet_home, absent)
     names = [v["name"] for v in absent]
     require(len(set(names)) == len(names), "retired profile names must be distinct")
     require(not set(names) & set(profiles), "a profile cannot be delivered and retired together")
+    retired_homes = {v["home"] for v in absent if "home" in v}
+    require(not set(homes) & retired_homes, "delivered and retired Codex profile homes must be disjoint")
     return True
 
 
