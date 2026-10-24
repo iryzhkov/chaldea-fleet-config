@@ -78,7 +78,7 @@ command = "/usr/bin/node"
 trust_level = "trusted"
 """
 
-OV_MEMORY = {"name": "ov-memory", "command": "/home/user/.local/bin/ov-memory-mcp", "env": {"OV_AGENT": "codex-host", "OV_BASE_URL": "https://ov.example"}, "extra": {"default_tools_approval_mode": "approve"}}
+OV_MEMORY = {"name": "ov-memory", "command": "/home/user/.local/bin/ov-memory-mcp", "env": {"OV_AGENT": "codex-host", "OV_BASE_URL": "https://ov.example"}, "extra": {"default_tools_approval_mode": "approve", "env_vars": ["DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"]}}
 
 CLAUDE_OV_MEMORY = {**OV_MEMORY, "extra": {}}
 
@@ -96,7 +96,8 @@ def test_codex_rewrites_only_its_own_table(config):
     text = config.read_text()
     document = tomllib.loads(text)
     assert result["changed"]
-    assert document["mcp_servers"]["ov-memory"] == {"command": OV_MEMORY["command"], "args": [], "env": OV_MEMORY["env"], "default_tools_approval_mode": "approve"}
+    assert document["mcp_servers"]["ov-memory"] == {"command": OV_MEMORY["command"], "args": [], "env": OV_MEMORY["env"], "default_tools_approval_mode": "approve", "env_vars": ["DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"]}
+    assert not call("codex", codex_config=str(config), **OV_MEMORY)["changed"]
     assert "hooks = true  # keep this comment\n" in text
     assert "# Personal settings stay as they are.\n" in text
     assert document["mcp_servers"]["other"]["env"]["TOKEN"] == "do-not-print"
