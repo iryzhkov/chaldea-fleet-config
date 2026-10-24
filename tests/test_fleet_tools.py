@@ -78,6 +78,19 @@ def test_discovery_uses_installed_executables_and_stays_compact(tmp_path):
     assert output == fleet.render(tools, profile({"*": ["read", "write"]}, ["ov-memory"]))
 
 
+def test_jocasta_mcp_grant_adds_only_its_guidance_line():
+    plain = fleet.render({}, profile({}, ["ov-memory"]))
+    granted = fleet.render({}, profile({}, ["ov-memory", "jocasta"]))
+    assert "jocasta" not in plain
+    assert granted.startswith(plain)
+    assert granted[len(plain):] == ("\n## Working documents\n- `jocasta` MCP: shared working documents with your own "
+                                    "native login; read `~/.config/agents/jocasta.md` for outline, section and "
+                                    "guarded edit use.\n")
+    for unknown in (["jocasta_tooling"], ["huyang"]):
+        with pytest.raises(ValueError, match="unknown MCP grant"):
+            fleet.render({}, profile({}, unknown))
+
+
 def test_bad_profiles_fail_closed():
     for value in ({}, {"name": "restricted", "tools": {"*": ["execute"]}, "mcp": []}):
         with pytest.raises(ValueError):

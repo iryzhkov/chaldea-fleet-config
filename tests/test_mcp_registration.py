@@ -44,9 +44,13 @@ class FakeModule:
 
 
 def call(provider, check_mode=False, **params):
-    defaults = {"state": "present", "command": None, "args": [], "env": {}, "extra": {}, "claude_command": ["claude"], "codex_config": None}
+    defaults = {"state": "present", "transport": "stdio", "command": None, "args": [], "env": {}, "url": None,
+                "extra": {}, "claude_command": ["claude"], "claude_config": None, "codex_config": None}
+    params = {**defaults, **params}
+    module = FakeModule(check_mode)
     with pytest.raises(Exit) as done:
-        getattr(module_code, provider)(FakeModule(check_mode), {**defaults, **params})
+        module_code.check_transport(module, params)
+        getattr(module_code, provider)(module, params)
     return done.value.args[0]
 
 

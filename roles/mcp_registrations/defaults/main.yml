@@ -35,4 +35,15 @@ mcp_registrations_retired:
 mcp_registrations_agent_host: "{{ inventory_hostname }}"
 mcp_registrations_providers: [claude, codex]
 mcp_registrations_claude: [claude]
+# Read, never written, to compare a remote server's OAuth options; the claude
+# CLI makes every change.
+mcp_registrations_claude_config: "{{ fleet_home }}/.claude.json"
 mcp_registrations_codex_config: "{{ fleet_home }}/.codex/config.toml"
+# Remote (HTTP) servers that use each client's native OAuth login. None by
+# default: a host opts in from its own host_vars file, and each entry names
+# its own providers, so the stdio servers above keep their providers. Fields:
+# name, url, providers (claude, codex, opencode), state (present or absent,
+# default present) and one key per provider holding that client's public
+# options (OAuth client ID, scopes, callback). Never a token, header, header
+# helper or client secret: the module refuses them.
+mcp_registrations_remote_servers: []
