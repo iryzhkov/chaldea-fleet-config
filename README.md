@@ -46,7 +46,10 @@ session; it only keeps the tools and shared files those sessions use in place.
   OAuth options only (client ID, scopes, callback); the user completes the
   native login. To compare Claude's OAuth options, which `claude mcp get` does
   not print, the module reads only that one entry's public fields from
-  `~/.claude.json`, still changing it through the CLI.
+  `~/.claude.json`, still changing it through the CLI. The separate
+  [managed interactive capability](docs/managed-interactive-webmcp.md) adds a
+  fixed native helper mode for explicitly enrolled hosts. It is disabled by
+  default; a source merge does not activate it.
 - `t3`: asserts that T3 runs the pinned version and its user service is active.
   It upgrades only when `t3_allow_upgrade=true` is passed, because `t3 update`
   restarts the service and interrupts running sessions.

@@ -46,4 +46,7 @@ mcp_registrations_codex_config: "{{ fleet_home }}/.codex/config.toml"
 # default present) and one key per provider holding that client's public
 # options (OAuth client ID, scopes, callback). Never a token, header, header
 # helper or client secret: the module refuses them.
+# A separate explicit webmcp_interactive_enabled opt-in selects the fixed
+# Jocasta managed_helper entry after protected staging. Default remains OAuth.
+# See docs/managed-interactive-webmcp.md; no host is enabled by this capability.
 mcp_registrations_remote_servers: []

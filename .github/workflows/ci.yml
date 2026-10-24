@@ -56,14 +56,22 @@ jobs:
       - name: Remove this run's disk-backed scratch
         if: always()
         run: rm -rf -- "$TMPDIR"
+  managed-helper:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Verify and build the closed native headers helper
+        run: bash tools/check-webmcp-helper.sh
   ci:
     # Preserve the required check name; every matrix lane must succeed.
     if: always()
-    needs: checks
+    needs: [checks, managed-helper]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Require all complete verification lanes
         env:
           CHECKS_RESULT: ${{ needs.checks.result }}
-        run: test "$CHECKS_RESULT" = success
+          HELPER_RESULT: ${{ needs.managed-helper.result }}
+        run: test "$CHECKS_RESULT" = success && test "$HELPER_RESULT" = success

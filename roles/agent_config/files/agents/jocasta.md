@@ -35,9 +35,12 @@ Credentials are per-host and must not be copied into prompts, logs, source or ha
 
 Where the `jocasta` MCP server is registered (the laptop's ordinary interactive Claude
 and Codex sessions), it reads and changes the same documents and revisions as the CLI
-and REST API, through your own native OAuth login. If it reports that
-authentication is needed, ask Igor to complete that client's MCP login; never copy a
-token into a prompt, config or command. Protected Chaldea tooling sessions keep their
+and REST API. The current public registration uses native OAuth. An explicitly
+enrolled managed registration instead obtains short-lived headers privately through
+the native client. Ask the operator to reconcile a managed enrollment failure;
+never run its headers helper in a tool whose output reaches the model. For the
+public OAuth mode, ask Igor to complete that client's MCP login when required.
+Never copy a token into a prompt, config or command. Protected Chaldea tooling sessions keep their
 read-only tooling access and do not get this server. The server's tool schemas are
 authoritative; if a field below differs, follow the schema.
 

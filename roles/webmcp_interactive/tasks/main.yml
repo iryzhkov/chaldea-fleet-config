@@ -1,0 +1,151 @@
+---
+# This role is included only by the explicit opt-in in mcp_registrations.
+- name: Require selected host and laptop qualification before staging
+  ansible.builtin.assert:
+    that:
+      - webmcp_interactive_enabled | bool
+      - inventory_hostname in ['laptop', 'agent-a', 'agent-b', 'omarchy-pc']
+      - inventory_hostname == 'laptop' or webmcp_interactive_laptop_qualified | bool
+      - webmcp_interactive_helper_source is match('^/')
+      - webmcp_interactive_helper_sha256 is match('^[0-9a-f]{64}$')
+      - webmcp_interactive_credential_source is match('^/')
+      - fleet_home == ansible_facts.user_dir
+    quiet: true
+
+- name: Inspect the public helper artifact on the controller
+  ansible.builtin.stat:
+    path: "{{ webmcp_interactive_helper_source }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  delegate_to: localhost
+  become: false
+  register: webmcp_interactive_helper_source_stat
+
+- name: Require exact reviewed helper bytes
+  ansible.builtin.assert:
+    that:
+      - webmcp_interactive_helper_source_stat.stat.isreg | default(false)
+      - not (webmcp_interactive_helper_source_stat.stat.islnk | default(true))
+      - webmcp_interactive_helper_source_stat.stat.nlink == 1
+      - webmcp_interactive_helper_source_stat.stat.mode[-2] not in ['2', '3', '6', '7']
+      - webmcp_interactive_helper_source_stat.stat.mode[-1] not in ['2', '3', '6', '7']
+      - webmcp_interactive_helper_source_stat.stat.checksum == webmcp_interactive_helper_sha256
+    quiet: true
+
+- name: Inspect protected helper installation parents
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+  loop: [/usr, /usr/local, /usr/local/libexec]
+  register: webmcp_interactive_helper_parents
+
+- name: Refuse unsafe public helper custody
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (item.stat.isdir and not item.stat.islnk and item.stat.uid == 0)
+      - not item.stat.exists or (item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7'])
+    quiet: true
+  loop: "{{ webmcp_interactive_helper_parents.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Inspect existing helper ownership
+  ansible.builtin.stat:
+    path: /usr/local/libexec/webmcp-interactive-headers
+    follow: false
+    checksum_algorithm: sha256
+  register: webmcp_interactive_helper_target
+
+- name: Refuse a foreign helper or unexplained upgrade
+  ansible.builtin.assert:
+    that:
+      - not webmcp_interactive_helper_target.stat.exists or (webmcp_interactive_helper_target.stat.isreg and not webmcp_interactive_helper_target.stat.islnk and webmcp_interactive_helper_target.stat.uid == 0 and webmcp_interactive_helper_target.stat.nlink == 1 and webmcp_interactive_helper_target.stat.mode == '0755')
+      - not webmcp_interactive_helper_target.stat.exists or webmcp_interactive_helper_target.stat.checksum in [webmcp_interactive_helper_sha256, webmcp_interactive_previous_helper_sha256]
+    quiet: true
+
+- name: Stage only a protected per-host enrollment
+  no_log: true
+  diff: false
+  block:
+    - name: Read the held controller input through no-follow custody checks
+      ansible.builtin.set_fact:
+        webmcp_interactive_enrollment_bytes: "{{ lookup('webmcp_private', webmcp_interactive_credential_source, inventory_hostname) }}"
+
+    - name: Inspect every user destination ancestor and credential
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+        checksum_algorithm: sha256
+        get_mime: false
+      loop:
+        - "{{ fleet_home }}"
+        - "{{ fleet_home }}/.config"
+        - "{{ fleet_home }}/.config/webmcp-interactive"
+        - "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
+      register: webmcp_interactive_private_target
+
+    - name: Refuse foreign directories or credential replacement
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists or (not item.stat.islnk and item.stat.uid == ansible_facts.user_uid | int)
+          - not item.stat.exists or (item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7'])
+          - not item.stat.exists or (item.stat.isdir if index < 3 else (item.stat.isreg and item.stat.nlink == 1 and item.stat.mode == '0600' and item.stat.checksum in [webmcp_interactive_enrollment_bytes | hash('sha256'), webmcp_interactive_previous_credential_sha256]))
+          - index != 0 or item.stat.exists
+        quiet: true
+      loop: "{{ webmcp_interactive_private_target.results }}"
+      loop_control:
+        index_var: index
+
+    - name: Create private enrollment directory
+      ansible.builtin.file:
+        path: "{{ fleet_home }}/.config/webmcp-interactive"
+        state: directory
+        mode: '0700'
+
+    - name: Deliver exact per-host credentials without diff or backup
+      ansible.builtin.copy:
+        content: "{{ webmcp_interactive_enrollment_bytes }}"
+        dest: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
+        mode: '0600'
+        follow: false
+        backup: false
+
+  always:
+    - name: Forget the controller enrollment value
+      ansible.builtin.set_fact:
+        webmcp_interactive_enrollment_bytes: ""
+
+- name: Create root helper directory
+  ansible.builtin.file:
+    path: /usr/local/libexec
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Install exact public native helper
+  ansible.builtin.copy:
+    src: "{{ webmcp_interactive_helper_source }}"
+    dest: /usr/local/libexec/webmcp-interactive-headers
+    owner: root
+    group: root
+    mode: '0755'
+    follow: false
+  become: true
+
+- name: Verify installed public helper bytes
+  ansible.builtin.stat:
+    path: /usr/local/libexec/webmcp-interactive-headers
+    follow: false
+    checksum_algorithm: sha256
+  register: webmcp_interactive_helper_installed
+
+- name: Require exact helper custody after delivery
+  ansible.builtin.assert:
+    that:
+      - ansible_check_mode or webmcp_interactive_helper_installed.stat.checksum == webmcp_interactive_helper_sha256
+      - ansible_check_mode or (webmcp_interactive_helper_installed.stat.uid == 0 and webmcp_interactive_helper_installed.stat.mode == '0755' and webmcp_interactive_helper_installed.stat.nlink == 1)
+    quiet: true
