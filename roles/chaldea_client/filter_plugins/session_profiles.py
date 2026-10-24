@@ -2,9 +2,9 @@
 
 A profile names already-installed official binaries by explicit path, SHA-256 and
 size, and the protected preset whose enrollment authorizes its single HTTP MCP
-server. A Codex profile also names a private profile HOME by path only. The role
-renders the launcher and public files from this data; nothing here is inferred
-from a target file. Each driver has its own exact field set.
+server. A Codex or OpenCode profile also names a private profile HOME by path only.
+The role renders the launcher and public files from this data; nothing here is
+inferred from a target file. Each driver has its own exact field set.
 """
 import re
 from collections.abc import Mapping
@@ -20,6 +20,11 @@ CLAUDE_FIELDS = {"driver", "native", "elf_machine", "cwd", "preset", "audience",
 CLAUDE_NATIVE_LIMIT = 400000000
 # The Claude launcher denies these T3 control server names in its permissions.
 CLAUDE_RESERVED_SERVERS = {"t3-code", "t3_code"}
+OPENCODE_FIELDS = {"driver", "native", "elf_machine", "home", "tmpdir", "cwd", "preset", "audience",
+                   "server", "url", "tools"}
+# OpenCode names MCP tools <server>_<tool>; its policies allow T3's injected
+# t3-code-* servers, so a profile server name may not overlap them.
+OPENCODE_SERVER = r"[a-z][a-z0-9_]{0,47}"
 NAME = r"[a-z0-9][a-z0-9-]{0,47}"
 PATH = r"/([A-Za-z0-9._@+-]+/)*[A-Za-z0-9._@+-]+"
 SERVER = r"[A-Za-z0-9_-]{1,64}"
@@ -107,6 +112,21 @@ def codex_profile(field, value, presets, fleet_home):
     require(value["server"] not in value["disabled_servers"], field + ".server cannot also be disabled")
 
 
+def opencode_profile(field, value, fleet_home):
+    require(set(value) == OPENCODE_FIELDS, field + " needs exactly the opencode profile fields")
+    pin(value["native"], CLAUDE_NATIVE_LIMIT, field + ".native")
+    require(integer(value["elf_machine"]) and value["elf_machine"] in MACHINES, field + ".elf_machine")
+    under(value["home"], fleet_home, field + ".home")
+    require(value["home"] != fleet_home, field + ".home must differ from the fleet home")
+    under(value["tmpdir"], fleet_home, field + ".tmpdir")
+    require(value["tmpdir"] != value["home"], field + ".tmpdir must differ from its home")
+    safe_path(value["cwd"], field + ".cwd")
+    require(value["cwd"] == fleet_home or value["cwd"].startswith(fleet_home + "/"),
+            field + ".cwd must be the fleet home or inside it")
+    require(matches(value["server"], OPENCODE_SERVER) and not value["server"].startswith("t3"),
+            field + ".server must be a lowercase name outside the T3 control namespace")
+
+
 def claude_profile(field, value):
     require(set(value) == CLAUDE_FIELDS, field + " needs exactly the claude profile fields")
     pin(value["native"], CLAUDE_NATIVE_LIMIT, field + ".native")
@@ -117,10 +137,12 @@ def claude_profile(field, value):
 
 def profile(name, value, presets, enrollments, fleet_home):
     field = "profile " + name
-    require(isinstance(value, Mapping) and value.get("driver") in {"codex", "claude"},
-            field + ".driver must be codex or claude")
+    require(isinstance(value, Mapping) and value.get("driver") in {"codex", "claude", "opencode"},
+            field + ".driver must be codex, claude or opencode")
     if value["driver"] == "codex":
         codex_profile(field, value, presets, fleet_home)
+    elif value["driver"] == "opencode":
+        opencode_profile(field, value, fleet_home)
     else:
         claude_profile(field, value)
     preset_id = value["preset"]
@@ -140,12 +162,12 @@ def profile(name, value, presets, enrollments, fleet_home):
 
 
 def retired(value, fleet_home):
-    """A retired Codex profile is exactly {name, home}; a Claude one is exactly {name, driver: claude}."""
+    """A retired Codex profile is exactly {name, home}; others are exactly {name, driver}."""
     require(isinstance(value, Mapping) and set(value) in ({"name", "home"}, {"name", "driver"}),
-            "retired profile needs exactly name and home, or name and driver claude")
+            "retired profile needs exactly name and home, or name and driver claude or opencode")
     require(matches(value["name"], NAME), "retired profile name")
     if "driver" in value:
-        require(value["driver"] == "claude", "retired profile driver must be claude")
+        require(value["driver"] in {"claude", "opencode"}, "retired profile driver must be claude or opencode")
         return
     under(value["home"], fleet_home, "retired profile " + value["name"] + ".home")
     require(value["home"] != fleet_home, "retired profile home must differ from the fleet home")
@@ -162,8 +184,11 @@ def chaldea_session_profiles(profiles, presets, enrollments, fleet_home, absent)
     for name, value in profiles.items():
         require(matches(name, NAME), "profile name")
         profile(name, value, presets, enrollments, fleet_home)
-    homes = [v["home"] for v in profiles.values() if v["driver"] == "codex"]
+    homes = [v["home"] for v in profiles.values() if v["driver"] in {"codex", "opencode"}]
     require(len(set(homes)) == len(homes), "profile homes must be distinct")
+    tmpdirs = [v["tmpdir"] for v in profiles.values() if v["driver"] == "opencode"]
+    require(len(set(tmpdirs)) == len(tmpdirs) and not set(tmpdirs) & set(homes),
+            "OpenCode runtime directories must be distinct from each other and every home")
     for value in absent:
         retired(value, fleet_home)
     names = [v["name"] for v in absent]

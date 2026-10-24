@@ -85,6 +85,6 @@ chaldea_client_session_enrollments: {}
 # waits mode, a declared preset and that preset's enrollment.
 chaldea_client_session_profiles: {}
 # Guarded inverse: retired profiles whose role-owned files are removed, each
-# {name, home} for Codex or {name, driver: claude} for Claude. Never touches
-# anything else in a profile home.
+# {name, home} for Codex or {name, driver: claude|opencode} for the others.
+# Never touches anything else in a profile home.
 chaldea_client_session_profiles_absent: []
