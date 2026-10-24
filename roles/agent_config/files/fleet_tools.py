@@ -14,6 +14,14 @@ AREAS = {
     "Devices": {"phone-notify", "phone-open", "sleep-gaming-pc", "wake-gaming-pc"},
 }
 NAME = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.-]*")
+# MCP servers a profile may name, with the one line each adds. A host grants
+# one only where it registers that server (jocasta: the laptop's interactive
+# profile only).
+MCP = {
+    "ov-memory": ("Memory", "- `ov-memory` MCP: shared long-term memory; use the `ov-memory` skill for its read/write procedures."),
+    "jocasta": ("Working documents", "- `jocasta` MCP: shared working documents with your own native login; "
+                "read `~/.config/agents/jocasta.md` for outline, section and guarded edit use."),
+}
 
 
 def line(value, limit=200):
@@ -38,7 +46,7 @@ def validate_profile(profile):
             raise ValueError("invalid tool grant")
         if not isinstance(access, list) or any(a not in ("read", "write") for a in access):
             raise ValueError("invalid access grant")
-    if any(name != "ov-memory" for name in profile["mcp"]):
+    if any(name not in MCP for name in profile["mcp"]):
         raise ValueError("unknown MCP grant")
 
 
@@ -115,8 +123,9 @@ def render(tools, profile):
     for area in (*AREAS, "Other tools"):
         if area in groups:
             lines.extend(["", "## " + area, *groups[area]])
-    if "ov-memory" in profile["mcp"]:
-        lines.extend(["", "## Memory", "- `ov-memory` MCP: shared long-term memory; use the `ov-memory` skill for its read/write procedures."])
+    for name, (heading, entry) in MCP.items():
+        if name in profile["mcp"]:
+            lines.extend(["", "## " + heading, entry])
     return "\n".join(lines) + "\n"
 
 
