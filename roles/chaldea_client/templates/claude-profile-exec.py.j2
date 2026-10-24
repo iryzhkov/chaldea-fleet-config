@@ -1,0 +1,218 @@
+{% set p = chaldea_client_profile.value %}
+#!/usr/bin/python3 -I
+"""Fixed Claude provider profile launcher rendered by the chaldea_client role.
+
+Every constant is literal data from the operator's protected profile configuration
+or a hash of the exact public bytes the role rendered beside it. The launcher
+admits only the fixed T3 argv shape, replaces the session permissions with the
+protected settings, pins the native binary and executes it by descriptor. It
+writes nothing. Same-UID writers can still race after checks; this prevents
+accidents and stale inputs, not a hostile process.
+"""
+import hashlib
+import json
+import os
+import stat
+import sys
+
+NATIVE_PATH = {{ (chaldea_client_profile_dir ~ '/claude') | to_json }}
+NATIVE_SHA256 = {{ p.native.sha256 | to_json }}
+NATIVE_ELF_MACHINE = {{ p.elf_machine | int }}
+POLICY_PATH = {{ (chaldea_client_profile_dir ~ '/claude-settings.json') | to_json }}
+POLICY_SHA256 = {{ chaldea_client_profile_settings | hash('sha256') | to_json }}
+REPORTER_UID = {{ ansible_facts.user_uid | int }}
+REPORTER_CWD = {{ p.cwd | to_json }}
+T3_ATTACHMENTS_PATH = {{ (chaldea_client_t3_home ~ '/userdata/attachments') | to_json }}
+MCP_PATH = {{ (chaldea_client_profile_dir ~ '/mcp.json') | to_json }}
+POLICY = {{ (chaldea_client_profile_settings | from_json).permissions | to_json }}
+{% raw %}
+BOOLEANS = {"--verbose", "--restricted", "--strict-mcp-config", "--include-partial-messages"}
+VALUES = {"--output-format", "--input-format", "--model", "--tools", "--permission-mode",
+          "--permission-prompt-tool", "--thinking", "--thinking-display", "--add-dir",
+          "--session-id", "--mcp-config", "--setting-sources", "--settings", "--disallowed-tools", "--effort", "--allowedTools"}
+SDK_KEYS = {"permissions", "showThinkingSummaries", "alwaysThinkingEnabled", "fastMode",
+            "effortLevel", "autoCompactWindow", "ultracode"}
+
+
+def require(ok):
+    if not ok:
+        raise ValueError("refused")
+
+
+def no_expansion(value):
+    require(isinstance(value, str) and "\0" not in value)
+    require(not any(part in value for part in ("$" + "{", "$" + "(", chr(96), "~")))
+
+
+def pairs(items):
+    result = {}
+    for key, value in items:
+        require(key not in result and key not in {"__proto__", "prototype", "constructor"})
+        result[key] = value
+    return result
+
+
+def parse_object(text):
+    require(len(text.encode()) <= 65536)
+    value = json.loads(text, object_pairs_hook=pairs,
+                       parse_constant=lambda _: require(False))
+    require(isinstance(value, dict))
+    return value
+
+
+def pinned_file(name, digest, limit):
+    """Walk fixed absolute paths by directory FD, rejecting symlinks at every component."""
+    no_expansion(name)
+    require(name.startswith("/") and all(p not in {"", ".", ".."} for p in name.split("/")[1:]))
+    directory = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        parts = name.split("/")[1:]
+        for part in parts[:-1]:
+            nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                          dir_fd=directory)
+            os.close(directory)
+            directory = nxt
+            mode = os.fstat(directory)
+            require(not mode.st_mode & 0o022 and mode.st_uid in {0, os.geteuid()})
+        fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory)
+    finally:
+        os.close(directory)
+    try:
+        mode = os.fstat(fd)
+        require(stat.S_ISREG(mode.st_mode) and not mode.st_mode & 0o022)
+        require(mode.st_uid in {0, os.geteuid()} and 0 < mode.st_size <= limit)
+        data, hashed, size = bytearray(), hashlib.sha256(), 0
+        retained = limit if limit <= 65536 else 20
+        while size <= limit:
+            chunk = os.read(fd, min(1048576, limit + 1 - size))
+            if not chunk:
+                break
+            hashed.update(chunk)
+            size += len(chunk)
+            data.extend(chunk[:max(0, retained - len(data))])
+        require(size == mode.st_size and size <= limit and hashed.hexdigest() == digest)
+        after = os.fstat(fd)
+        require(all(getattr(mode, key) == getattr(after, key) for key in
+                    ("st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink",
+                     "st_size", "st_mtime_ns", "st_ctime_ns")))
+        os.lseek(fd, 0, os.SEEK_SET)
+        return fd, bytes(data)
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def corrected_args(argv, protected):
+    require(len(argv) <= 100 and sum(len(a.encode()) for a in argv) <= 131072)
+    entries, found = [], {}
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        no_expansion(token)
+        name, sep, inline = token.partition("=")
+        require(name in BOOLEANS | VALUES)
+        if name in BOOLEANS:
+            require(not sep)
+            value = None
+        else:
+            if sep:
+                value = inline
+            else:
+                index += 1
+                require(index < len(argv) and not argv[index].startswith("--"))
+                value = argv[index]
+            no_expansion(value)
+        found.setdefault(name, []).append(value)
+        entries.append((name, value, token, bool(sep)))
+        index += 1
+    for name, values in found.items():
+        if len(values) > 1:
+            require((name == "--tools" and values == ["default", ""]) or
+                    (name == "--thinking-display" and values == ["summarized", "summarized"]) or
+                    (name == "--add-dir" and values == [REPORTER_CWD, T3_ATTACHMENTS_PATH]))
+    require("--effort" not in found or found["--effort"] in [["low"], ["medium"], ["high"]])
+    require("--allowedTools" not in found or found["--allowedTools"] == ["mcp__t3-code__*"])
+    require(found.get("--tools") in [[""], ["default", ""]])
+    for name in ("--restricted", "--strict-mcp-config"):
+        require(found.get(name) == [None])
+    require(found.get("--setting-sources") == [""])
+    require(found.get("--mcp-config") == [MCP_PATH])
+    require(found.get("--permission-mode") == ["default"])
+    require(found.get("--output-format") == ["stream-json"])
+    require(found.get("--input-format") == ["stream-json"])
+    require(found.get("--add-dir") in [[REPORTER_CWD], [REPORTER_CWD, T3_ATTACHMENTS_PATH]])
+    require(found.get("--disallowed-tools") == ["mcp__t3-code__*,mcp__t3_code__*"])
+    require("--permission-prompt-tool" not in found or found["--permission-prompt-tool"] == ["stdio"])
+    require(len(found.get("--settings", [])) == 1)
+    settings = parse_object(found["--settings"][0])
+    require(set(settings) <= SDK_KEYS)
+    for key, value in settings.items():
+        if key == "permissions":
+            require(isinstance(value, dict))
+        elif key == "effortLevel":
+            require(value in {"low", "medium", "high"})
+        elif key == "autoCompactWindow":
+            require(type(value) is int and 100000 <= value <= 1000000)
+        else:
+            require(type(value) is bool)
+    settings["permissions"] = protected
+    merged = json.dumps(settings, separators=(",", ":"), ensure_ascii=True, allow_nan=False)
+    output, seen = [], set()
+    for name, value, token, inline in entries:
+        if name == "--allowedTools" or (name == "--add-dir" and value == T3_ATTACHMENTS_PATH):
+            continue
+        if name in {"--tools", "--thinking-display"} and name in seen:
+            continue
+        seen.add(name)
+        if name == "--tools":
+            output.extend([name, ""])
+        elif name == "--settings":
+            output.extend([name, merged])
+        elif value is None:
+            output.append(token)
+        elif inline:
+            output.append(token)
+        else:
+            output.extend([name, value])
+    return output
+
+
+def verified_native():
+    fd, native = pinned_file(NATIVE_PATH, NATIVE_SHA256, 400000000)
+    try:
+        require(len(native) >= 20 and native[:4] == b"\x7fELF" and native[5] in {1, 2})
+        order = "little" if native[5] == 1 else "big"
+        require(int.from_bytes(native[18:20], order) == NATIVE_ELF_MACHINE)
+        require(os.fstat(fd).st_mode & stat.S_IXUSR)
+        return fd
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def main():
+    argv = sys.argv[1:]
+    if argv == ["--version"]:
+        require(os.geteuid() == REPORTER_UID)
+        fd = verified_native()
+        os.execve(fd, [NATIVE_PATH, "--version"], os.environ)
+        return
+    # Reject all non-admitted argv before reading any protected file.
+    corrected_args(argv, POLICY)
+    require(os.geteuid() == REPORTER_UID and os.getcwd() == REPORTER_CWD)
+    fd, raw = pinned_file(POLICY_PATH, POLICY_SHA256, 65536)
+    os.close(fd)
+    policy = parse_object(raw.decode("utf-8"))
+    require(set(policy) == {"permissions"} and policy["permissions"] == POLICY)
+    args = corrected_args(argv, policy["permissions"])
+    fd = verified_native()
+    os.execve(fd, [NATIVE_PATH, *args], os.environ)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        os.write(2, b"FIXED_EXEC_REFUSED\n")
+        sys.exit(78)
+{% endraw %}

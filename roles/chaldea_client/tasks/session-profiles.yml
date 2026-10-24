@@ -13,8 +13,9 @@
     fail_msg: Profiles bind the headers helper to the resolved system waits runtime; converge waits-system first.
     quiet: true
 
-- name: Deliver each fixed provider profile
-  ansible.builtin.include_tasks: session-profile.yml
+- name: Deliver each fixed provider profile with its driver's tasks
+  ansible.builtin.include_tasks:
+    file: "{{ 'session-profile-claude.yml' if chaldea_client_profile.value.driver == 'claude' else 'session-profile.yml' }}"
   loop: "{{ chaldea_client_session_profiles | dict2items }}"
   loop_control:
     loop_var: chaldea_client_profile

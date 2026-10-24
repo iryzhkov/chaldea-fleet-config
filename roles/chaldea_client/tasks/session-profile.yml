@@ -12,7 +12,7 @@
 
 - name: Render this profile's public MCP description and native config
   ansible.builtin.set_fact:
-    chaldea_client_profile_mcp: "{{ lookup('ansible.builtin.template', 'codex-profile-mcp.json.j2') }}"
+    chaldea_client_profile_mcp: "{{ lookup('ansible.builtin.template', 'profile-mcp.json.j2') }}"
     chaldea_client_profile_config: "{{ lookup('ansible.builtin.template', 'codex-profile-config.toml.j2') }}"
 
 - name: Render the launcher bound to those exact public bytes

@@ -3,7 +3,7 @@
   ansible.builtin.set_fact:
     chaldea_client_retired_dir: "{{ (chaldea_client_session_policy_path | dirname) ~ '/' ~ chaldea_client_retired.name }}"
 
-- name: Name the retired profile's role-owned files
+- name: Name the retired Codex profile's role-owned files
   ansible.builtin.set_fact:
     chaldea_client_retired_files:
       - "{{ chaldea_client_retired_dir }}/exec"
@@ -15,6 +15,17 @@
     chaldea_client_retired_parents:
       - "{{ chaldea_client_retired.home }}"
       - "{{ chaldea_client_retired.home }}/.codex"
+  when: "'home' in chaldea_client_retired"
+
+- name: Name the retired Claude profile's role-owned files
+  ansible.builtin.set_fact:
+    chaldea_client_retired_files:
+      - "{{ chaldea_client_retired_dir }}/exec"
+      - "{{ chaldea_client_retired_dir }}/mcp.json"
+      - "{{ chaldea_client_retired_dir }}/claude-settings.json"
+      - "{{ chaldea_client_retired_dir }}/claude"
+    chaldea_client_retired_parents: []
+  when: chaldea_client_retired.driver | default('') == 'claude'
 
 - name: Inspect the retired profile without following links
   ansible.builtin.stat:
