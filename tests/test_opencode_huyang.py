@@ -113,3 +113,14 @@ def test_claude_and_codex_keep_the_explicit_full_registration():
     huyang = next(item for item in defaults["mcp_registrations_servers"] if item["name"] == "huyang")
     assert huyang["args"] == ["mcp", "--profile", "full"]
     assert defaults["mcp_registrations_providers"] == ["claude", "codex"]
+
+
+def test_codex_ov_memory_forwards_only_the_keyring_session_names():
+    # Codex clears a stdio server's environment; the wrapper's secret-tool lookup
+    # needs the session bus. Only names are forwarded, never a credential value.
+    defaults = yaml.safe_load((ROOT / "roles/mcp_registrations/defaults/main.yml").read_text())
+    ov = next(item for item in defaults["mcp_registrations_servers"] if item["name"] == "ov-memory")
+    assert ov["codex"] == {"default_tools_approval_mode": "approve",
+                           "env_vars": ["DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"]}
+    assert set(ov["env"]) == {"OV_BASE_URL"}
+    assert "claude" not in ov
