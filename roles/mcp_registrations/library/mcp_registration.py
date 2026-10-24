@@ -17,6 +17,9 @@ description:
     scopes, callback). It never writes command, args, env, headers, header
     helpers, bearer tokens or client secrets, and refuses extra keys outside
     that public allowlist. Native login stays with the user.
+  - auth_mode=managed_helper is a separate closed Jocasta capability for Claude
+    and Codex. It emits only the fixed public helper command for helper_host,
+    requires empty extra and never accepts arbitrary helper or secret fields.
   - claude mcp get does not show the OAuth options, so for a remote server the
     module reads the one user registration from claude_config to compare it.
     Only allowlisted public fields keep their values; any other field counts as
@@ -30,6 +33,8 @@ options:
   args: {description: Its arguments, type: list, elements: str}
   env: {description: Environment the server gets, type: dict}
   url: {description: HTTPS URL of a remote server, type: str}
+  auth_mode: {description: oauth or closed managed_helper mode, default: oauth, type: str}
+  helper_host: {description: Explicit approved host in managed_helper mode, type: str}
   extra: {description: Further provider-specific keys, type: dict}
   claude_command: {description: The claude CLI as an argument list, type: list, elements: str}
   claude_config: {description: Claude's user config, read only for a remote server, type: path}
@@ -83,6 +88,13 @@ REMOTE_OAUTH = {
     "opencode": {"clientId", "scope", "callbackPort", "redirectUri"},
 }
 PORTS = {"callbackPort", "callback_port"}
+HELPER_FIELDS = {"claude": "headersHelper", "codex": "http_headers_helper"}
+HELPER = "/usr/local/libexec/webmcp-interactive-headers jocasta "
+MANAGED_HOSTS = {"laptop", "agent-a", "agent-b", "omarchy-pc"}
+
+
+def managed_helper(value):
+    return isinstance(value, str) and value in {HELPER + host for host in MANAGED_HOSTS}
 
 
 class Hidden:
@@ -136,6 +148,8 @@ def public_projection(provider, entry):
         if key == "oauth" and isinstance(value, dict):
             shown[key] = {field: item if field in REMOTE_OAUTH[provider] and public_value(field, item) else HIDDEN
                           for field, item in value.items()}
+        elif key == HELPER_FIELDS.get(provider) and managed_helper(value):
+            shown[key] = value
         elif key in keys and key != "oauth" and public_value(key, value):
             shown[key] = value
         else:
@@ -167,6 +181,15 @@ def remote_view(definition, previous=None):
 def remote_definition(module, provider, params):
     """The provider's native public definition of a remote server, or a refusal."""
     extra = params["extra"]
+    if params.get("auth_mode", "oauth") == "managed_helper":
+        host = params.get("helper_host")
+        if (provider not in HELPER_FIELDS or host not in MANAGED_HOSTS or extra
+                or params["name"] != "jocasta" or params["url"] != "https://jocasta.mcp.ryzhkov.dev/mcp"):
+            module.fail_json(msg="managed_helper requires the fixed Jocasta resource, approved host and native Claude/Codex provider, without extra options")
+        definition = {"url": params["url"], HELPER_FIELDS[provider]: HELPER + host}
+        return {"type": "http", **definition} if provider == "claude" else definition
+    if params.get("helper_host") is not None:
+        module.fail_json(msg="helper_host belongs only to managed_helper auth mode")
     unknown = sorted(set(extra) - REMOTE_EXTRA[provider])
     oauth = extra.get("oauth", {})
     if not isinstance(oauth, dict):
@@ -291,16 +314,22 @@ def claude_remote(module, params, current):
         if stored is None:
             module.exit_json(changed=False)
         if not module.check_mode:
-            run(module, [*cli, "mcp", "remove", name, "-s", "user"])
+            run_remote(module, [*cli, "mcp", "remove", name, "-s", "user"])
         module.exit_json(changed=True, diff=diff(name, stored, None, remote_view))
     desired = remote_definition(module, "claude", params)
     if stored == desired:
         module.exit_json(changed=False)
     if not module.check_mode:
         if stored is not None:
-            run(module, [*cli, "mcp", "remove", name, "-s", "user"])
-        run(module, [*cli, "mcp", "add-json", "-s", "user", name, json.dumps(desired)])
+            run_remote(module, [*cli, "mcp", "remove", name, "-s", "user"])
+        run_remote(module, [*cli, "mcp", "add-json", "-s", "user", name, json.dumps(desired)])
     module.exit_json(changed=True, diff=diff(name, stored, desired, remote_view))
+
+
+def run_remote(module, argv):
+    rc, _out, _err = module.run_command(argv)
+    if rc != 0:
+        module.fail_json(msg=f"remote MCP registration command failed with status {rc}")
 
 
 def run(module, argv):
@@ -481,6 +510,8 @@ def main():
             "args": {"type": "list", "elements": "str", "default": []},
             "env": {"type": "dict", "default": {}, "no_log": True},
             "url": {"type": "str"},
+            "auth_mode": {"type": "str", "default": "oauth", "choices": ["oauth", "managed_helper"]},
+            "helper_host": {"type": "str"},
             "extra": {"type": "dict", "default": {}},
             "claude_command": {"type": "list", "elements": "str", "default": ["claude"]},
             "claude_config": {"type": "path", "default": "~/.claude.json"},
@@ -496,6 +527,8 @@ def main():
 def check_transport(module, params):
     """A stdio server needs a command; a remote one a public HTTPS URL and no stdio fields."""
     if params["transport"] == "stdio":
+        if params.get("auth_mode", "oauth") != "oauth" or params.get("helper_host") is not None:
+            module.fail_json(msg="managed helper authentication requires remote transport")
         if params["url"] is not None:
             module.fail_json(msg="url belongs to a remote server; set transport: remote")
         if params["state"] == "present" and not params["command"]:

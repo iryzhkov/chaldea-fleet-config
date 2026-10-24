@@ -1,0 +1,10 @@
+---
+# Capability only. Root activates each host after protected enrollment.
+webmcp_interactive_enabled: false
+webmcp_interactive_laptop_qualified: false
+webmcp_interactive_helper_source: ""
+webmcp_interactive_helper_sha256: ""
+webmcp_interactive_previous_helper_sha256: ""
+webmcp_interactive_credential_source: ""
+# Previous delivery SHA256 is private input for an owned rotation; never shown.
+webmcp_interactive_previous_credential_sha256: ""
