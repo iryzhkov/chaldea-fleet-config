@@ -253,8 +253,8 @@ chaldea_client_session_profiles:
       sha256: 255eccc8a5c1d267dc0acbc815cc83aaa1f50955bd99943b29f00cafcdcab771
       size: 67118080
     catalog:                              # public one-model catalog, apply_patch null
-      source: /home/igor/.config/chaldea/profile-inputs/codex-tooling-models.json
-      sha256: "<sha256 of the reviewed catalog file>"
+      source: "<operator path to the reviewed catalog file>"
+      sha256: ad005892044dec4f817f431ff75302193e27bbfb7533958afe6a91194fd7b784
       size: 65174
     elf_machine: 183                      # 183 AArch64, 62 x86-64
     model: gpt-6.1-sol                    # must equal the preset model
@@ -333,9 +333,9 @@ chaldea_client_session_profiles:
   claude-tooling-reporter:
     driver: claude
     native:                               # already-installed official Claude binary
-      source: "<operator path to the installed claude 2.1.276 binary>"
+      source: "<operator path to the installed claude 2.1.276 ARM64 binary>"
       sha256: e9ac3df956083645578a382ad64ec304468666e362c33bfdefd803cd6ff596b0
-      size: "<exact size in bytes, at most 400000000>"
+      size: 231989488                     # at most 400000000
     elf_machine: 183
     cwd: "<the preset's reporter workspace root>"
     preset: tooling-reporter

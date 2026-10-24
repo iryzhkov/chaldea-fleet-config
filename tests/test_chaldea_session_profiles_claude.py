@@ -31,7 +31,8 @@ def claude_layout(tmp_path, monkeypatch, keep_codex=False):
     native = case.home / ".local/share/claude/versions/2.1.276"
     native.parent.mkdir(parents=True)
     native.write_bytes(Path("/usr/bin/echo").read_bytes())
-    native.chmod(0o755)
+    # Owner-only read/execute, like the reacquired public artifact.
+    native.chmod(0o500)
     reporter = case.home / "reporter"
     reporter.mkdir()
     profile = {"driver": "claude", "native": pin(native),
