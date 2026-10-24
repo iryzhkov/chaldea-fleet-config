@@ -146,7 +146,7 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
     assert values["chaldea_client_waits_service_mode"] == "system"
     assert values["chaldea_client_waits_deadline"] == ""
     assert values["chaldea_client_waits_environment"] == "943bead7-d804-4e04-984e-63d230303796"
-    assert values["chaldea_client_waits_runtime_root"] == HOME + "/.local/share/chaldea/releases/client-v0.4.18"
+    assert values["chaldea_client_waits_runtime_root"] == HOME + "/.local/share/chaldea/releases/client-v0.4.20"
     assert values["chaldea_node_version"] == "26.12.0"
     assert values["chaldea_client_waits_legacy_user_node_version"] == "26.10.0"
     assert values["retention_mise_prune"] is False
