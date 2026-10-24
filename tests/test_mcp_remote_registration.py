@@ -172,7 +172,7 @@ Authorization = "{SECRET}"
     assert SECRET not in shown
     before = json.loads(result["diff"]["before"])
     assert before["bearer_token"] == "<redacted>" and before["oauth"]["client_secret"] == "<redacted>"
-    assert before["http_headers"] == {"Authorization": "<redacted>"}
+    assert before["http_headers"] == "<redacted>"  # A non-public table hides even its keys.
     document = tomllib.loads(path.read_text())
     assert document["mcp_servers"]["jocasta"] == {"url": URL, **EXTRA["codex"]}
     # The unrelated credential-bearing tables are preserved byte for byte.
