@@ -525,7 +525,11 @@ Consequences of the normal pull on the laptop:
   later shared client pin changes while the laptop is in system mode.
 - `chaldea_node_version: 26.12.0` is host-wide, so the laptop's Chaldea MCP
   registration command, job-client launcher, collector and retention unit also
-  use Node 26.12.0. The already rendered user quota unit keeps 26.10.0.
+  use Node 26.12.0. The already rendered user quota and quota-sharing units and
+  the reserved pre-system user unit keep 26.10.0. Retention protects only
+  `chaldea_node_version`, so the file sets `retention_mise_prune: false`: the
+  retention timer still cleans worktrees, temporary files and the Go cache but
+  never runs `mise prune`. Keep it off while any 26.10.0 consumer remains.
 - The credential-free namespace probe restarts on every real converge, so the
   laptop's pull never reports `changed=0` for this role. The waits service
   restarts only for pending restart intent.

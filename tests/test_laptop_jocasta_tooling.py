@@ -37,7 +37,7 @@ KEYS = {
     "chaldea_client_waits_environment", "chaldea_client_waits_runtime_root", "chaldea_node_version",
     "chaldea_client_waits_legacy_user_node_version", "chaldea_client_session_policy_enabled",
     "chaldea_client_session_ceilings", "chaldea_client_session_presets",
-    "chaldea_client_session_enrollments", "chaldea_client_session_profiles",
+    "chaldea_client_session_enrollments", "chaldea_client_session_profiles", "retention_mise_prune",
 }
 
 
@@ -146,6 +146,7 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
     assert values["chaldea_client_waits_runtime_root"] == HOME + "/.local/share/chaldea/releases/client-v0.4.18"
     assert values["chaldea_node_version"] == "26.12.0"
     assert values["chaldea_client_waits_legacy_user_node_version"] == "26.10.0"
+    assert values["retention_mise_prune"] is False
     assert values["chaldea_client_session_policy_enabled"] is True
     assert values["chaldea_client_session_ceilings"] == [
         {"project": "tooling", "maxSeconds": 1800, "destinations": [CALLER], "services": SERVICES}]
@@ -173,6 +174,38 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
     for value in strings(values):
         assert "/.cache/" not in value and "/mise/" not in value and "/tmp/" not in value, value
         assert "release-assets" not in value and "codex" not in value, value
+
+
+def retention_command(host):
+    """The laptop's real inventory values through the retention unit template."""
+    from test_retention_unit import TEMPLATE, exec_start
+    import jinja2
+    effective = yaml.safe_load((ROOT / "roles/retention/defaults/main.yml").read_text()) | inventory_vars(host)
+    env = jinja2.Environment(trim_blocks=True, keep_trailing_newline=True, undefined=jinja2.StrictUndefined)
+    env.filters["bool"] = bool
+    assert isinstance(effective["retention_mise_prune"], bool)
+    unit = env.from_string(TEMPLATE.read_text()).render(
+        effective | {"retention_script": "/h/.local/bin/chaldea-retention", "retention_worktree_root": "/h/wt",
+                     "retention_tmp_dir": "/h/.cache/tmp"})
+    return exec_start(unit)
+
+
+def test_laptop_retention_never_prunes_the_stopped_quota_node():
+    # Retention protects only CHALDEA_NODE_VERSION from mise prune, and system mode
+    # leaves the laptop's quota and quota-sharing units and the reserved pre-system
+    # user unit on Node 26.10.0. With --no-mise-prune the script skips mise prune
+    # before running mise at all, so no 26.10.0 install can be removed, whether or
+    # not a process holds it. Waits still runs the pinned 26.12.0.
+    argv, lines = retention_command("laptop")
+    assert argv[-1] == "--no-mise-prune"
+    assert "Environment=CHALDEA_NODE_VERSION=26.12.0" in lines
+    assert "--worktree-root" in argv and "--tmp-dir" in argv and "--go-cache-max-gb" in argv
+    assert inventory_vars("laptop")["chaldea_client_waits_legacy_user_node_version"] == "26.10.0"
+    # Every other agent host keeps pruning, protecting its shared 26.10.0 runtime.
+    for host in ("agent-a", "agent-b", "omarchy-pc"):
+        argv, lines = retention_command(host)
+        assert "--no-mise-prune" not in argv, host
+        assert "Environment=CHALDEA_NODE_VERSION=26.10.0" in lines, host
 
 
 def test_role_closed_validators_accept_the_activation():

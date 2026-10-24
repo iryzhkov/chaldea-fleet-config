@@ -37,6 +37,12 @@ chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/clie
 # moves the laptop's other Chaldea Node consumers (MCP registration command,
 # job-client launcher, collector and retention) to 26.12.0.
 chaldea_node_version: "26.12.0"
+# Retention protects only chaldea_node_version from mise prune, but Node 26.10.0
+# is still needed here: system mode no longer re-renders the user quota and
+# quota-sharing units, which keep running it, and the reserved pre-system user
+# unit backup names it. Keep mise prune off on this host while any of those
+# remains; worktree, temporary and Go cache cleanup are unchanged.
+retention_mise_prune: false
 # The disabled pre-system user unit was rendered for Node 26.10.0. Admission
 # of it and of its .pre-system backup only; it never runs that version. Keep
 # it while the backup is reserved.
