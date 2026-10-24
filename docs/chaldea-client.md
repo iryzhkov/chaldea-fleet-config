@@ -518,6 +518,10 @@ its preset, enrollment and profile (with `cwd: /home/igor`) only after it
 qualifies natively in a fresh coordinated interval; delivering the profile
 rewrites its launcher.
 
+This branch is that held Codex candidate: it declares the Codex preset,
+enrollment and profile with `cwd: /home/igor`. Do not merge it or let a pull
+apply it before that native qualification passes.
+
 Consequences of the normal pull on the laptop:
 
 - `chaldea_client` converges waits only: the shared client pin, quota unit,

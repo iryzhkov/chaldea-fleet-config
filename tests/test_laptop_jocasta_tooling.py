@@ -4,8 +4,8 @@ Only the laptop's dedicated host_vars file opts into system waits, the protected
 session policy and its one qualified fixed provider profile, Claude. These tests
 render the actual inventory merge, check the exact bound public configuration
 with the role's own closed validators, and require every other host to keep its
-previous settings. Codex is retained inactive: it is neither declared nor
-retired here, and its future profile must bind cwd to the fleet home.
+previous settings. On this held candidate branch Codex is declared too, with cwd
+bound to the fleet home; it merges only after native qualification.
 """
 import copy
 import importlib.util
@@ -83,8 +83,11 @@ def validate_profiles(values):
 
 
 def with_codex(cwd):
-    """The held Codex candidate on top of the active file, with the given cwd."""
+    """The held Codex candidate with the given cwd."""
     values = copy.deepcopy(activation())
+    for key in ("chaldea_client_session_presets", "chaldea_client_session_enrollments",
+                "chaldea_client_session_profiles"):
+        values[key].pop(CODEX)
     preset = copy.deepcopy(values["chaldea_client_session_presets"][CLAUDE])
     preset.update(instanceId="codex-jocasta-tooling", model="gpt-6.1-sol", title="Jocasta tooling read-only Codex",
                   options=[{"id": "reasoningEffort", "value": "high"}])
@@ -151,7 +154,11 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
     assert values["chaldea_client_session_ceilings"] == [
         {"project": "tooling", "maxSeconds": 1800, "destinations": [CALLER], "services": SERVICES}]
     presets = values["chaldea_client_session_presets"]
-    assert list(presets) == [CLAUDE]
+    # Held candidate: Codex is declared, with cwd bound to the fleet home.
+    assert list(presets) == [CLAUDE, CODEX]
+    assert presets[CODEX] == dict(presets[CLAUDE], instanceId="codex-jocasta-tooling", model="gpt-6.1-sol",
+                                  title="Jocasta tooling read-only Codex",
+                                  options=[{"id": "reasoningEffort", "value": "high"}])
     preset = presets[CLAUDE]
     assert len(preset["prompt"].encode()) == 655
     assert preset == {
@@ -159,21 +166,33 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
         "interactionMode": "default", "projectId": PROJECT, "title": "Jocasta tooling read-only Claude",
         "prompt": preset["prompt"], "inputs": {"project": "tooling"}, "project": "tooling",
         "services": SERVICES, "maxSeconds": 1800, "delegate": False, "destinations": [CALLER]}
-    assert values["chaldea_client_session_enrollments"] == {CLAUDE: {
+    assert values["chaldea_client_session_enrollments"] == {name: {
         "form": "app_password", "issuer": ISSUER, "tokenUrl": "https://auth.ryzhkov.dev/application/o/token/",
         "jwksUrl": ISSUER + "jwks/", "clientId": "chaldea-jocasta-tooling",
-        "username": "chaldea-laptop-" + CLAUDE, "scope": "jocasta.read", "resource": RESOURCE,
+        "username": "chaldea-laptop-" + name, "scope": "jocasta.read", "resource": RESOURCE,
         "project": "tooling", "maxTokenSeconds": 300,
-        "secretFile": HOME + "/.config/chaldea/authentik/" + CLAUDE + ".app-password"}}
+        "secretFile": HOME + "/.config/chaldea/authentik/" + name + ".app-password"} for name in (CLAUDE, CODEX)}
+    codex_home = HOME + "/.cache/acl-codex-startup-f73bc687/home"
     assert values["chaldea_client_session_profiles"] == {CLAUDE: {
         "driver": "claude", "elf_machine": 183, "cwd": WORKSPACE, "preset": CLAUDE, "audience": "jocasta",
         "server": "jocasta_tooling", "url": RESOURCE, "tools": TOOLS,
         "native": {"source": ASSETS + "/claude/2.1.276/claude", "size": 231989488,
-                   "sha256": "e9ac3df956083645578a382ad64ec304468666e362c33bfdefd803cd6ff596b0"}}}
-    # Stable public paths only, and nothing names the inactive Codex profile.
+                   "sha256": "e9ac3df956083645578a382ad64ec304468666e362c33bfdefd803cd6ff596b0"}},
+        CODEX: {
+        "driver": "codex", "elf_machine": 183, "model": "gpt-6.1-sol", "home": codex_home,
+        "tmpdir": HOME + "/.local/state/chaldea/profiles/" + CODEX + "/tmp", "cwd": HOME,
+        "preset": CODEX, "audience": "jocasta", "server": "jocasta_tooling", "url": RESOURCE, "tools": TOOLS,
+        "disabled_servers": ["jocasta"],
+        "native": {"source": ASSETS + "/codex/0.163.0/codex", "size": 257816200,
+                   "sha256": "8a96f66d059d653e68bfd5f3c79337e6f1d7d170d80bf705eb7d0249b34c0ece"},
+        "host": {"source": ASSETS + "/codex/0.163.0/codex-code-mode-host", "size": 67118080,
+                 "sha256": "255eccc8a5c1d267dc0acbc815cc83aaa1f50955bd99943b29f00cafcdcab771"},
+        "catalog": {"source": ASSETS + "/codex/0.163.0/models.json", "size": 65174,
+                    "sha256": "ad005892044dec4f817f431ff75302193e27bbfb7533958afe6a91194fd7b784"}}}
+    # Stable public paths only: the existing Codex auth HOME is the one cache path.
     for value in strings(values):
-        assert "/.cache/" not in value and "/mise/" not in value and "/tmp/" not in value, value
-        assert "release-assets" not in value and "codex" not in value, value
+        assert "/.cache/" not in value or value == codex_home, value
+        assert "/mise/" not in value and "/tmp/" not in value and "release-assets" not in value, value
 
 
 def retention_command(host):
@@ -219,7 +238,7 @@ def test_role_closed_validators_accept_the_activation():
 @pytest.mark.parametrize("field,value", [
     ("tools", ["get", "history", "list", "search", "put"]),
     ("url", "https://jocasta.mcp.ryzhkov.dev/other"),
-    ("preset", CODEX),
+    ("preset", "jocasta-tooling-undeclared"),
 ])
 def test_role_validator_still_refuses_widened_profiles(field, value):
     values = activation()
