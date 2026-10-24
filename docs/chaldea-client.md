@@ -406,14 +406,48 @@ chaldea_client_session_profiles_absent:
     driver: claude
 ```
 
-A retired Codex profile is exactly `{name, home}`; a retired Claude profile is
-exactly `{name, driver: claude}`. A normal converge, or the role-only
+A retired Codex profile is exactly `{name, home}`; a retired Claude or OpenCode
+profile is exactly `{name, driver: claude}` or `{name, driver: opencode}`. A normal converge, or the role-only
 `session-profiles-absent.yml` entrypoint, removes the launcher first, then the
 other protected files (for Codex also `<home>/.codex/config.toml`), and finally
 the profile directory with `rmdir`. It refuses links, non-root files and foreign
 directories before removing anything, and stops if anything unknown remains in
 the profile directory. The profile home, its login and the source binaries are
 left in place. A name cannot be delivered and retired in the same run.
+
+### OpenCode driver
+
+An OpenCode profile names the pinned official `opencode` native (`native`,
+`elf_machine`), an operator-provisioned private `home` and runtime `tmpdir`
+(both owned by the fleet user, mode 0700, never read or written by the role),
+the T3 server `cwd`, and the usual `preset`, `audience`, `server`, `url` and
+`tools`. The role delivers `opencode`, `opencode.json` and `exec` under the
+protected profile directory. `opencode.json` holds the single remote MCP entry,
+whose Authorization header is `{file:jocasta.authorization}`, and instance
+policies: every tool denied except `<server>_*` and T3's own `t3-code-*`, and
+every MCP integration removed except those two. The T3 OpenCode provider
+instance points `binaryPath` at `exec`; ACP is not used.
+
+The launcher admits only `serve --hostname=127.0.0.1 --port=N` and `--version`.
+It stays the foreground parent of one native child in T3's process group, with
+a fixed environment: the private home as HOME and XDG roots, project, Claude
+and plugin config disabled, and only T3's serve password passed through. Each
+launch gets `<tmpdir>/opencode-<random>/` (mode 0700) holding `tmp/` for the
+child's TMPDIR and `config/`, the child's OPENCODE_CONFIG_DIR, with a copy of
+the protected `opencode.json` and the header file (mode 0600), replaced
+atomically; OpenCode watches that directory and reconnects with the new header.
+
+The launcher calls the existing headers helper without a shell, first with
+`--context`, then before each expiry with `--context --expect-session
+--expect-run --expect-deadline` bound to the original admission. It renews 25
+seconds before expiry, inside the helper's 30-second cache threshold, with a
+10-second helper timeout. The first refusal, an unchanged or too-short header,
+a changed session, run or deadline, the original deadline, a missed renewal,
+a changed config copy, a stop signal or the child's exit ends the launch: the
+child gets TERM, then KILL after three seconds, and the launch directory is
+removed. There is no retry, restart or new session. The child dies with the
+launcher through the parent-death signal. After an uncatchable kill the launch
+directory stays behind; its header expires on its own and is not revoked.
 
 ### Limits
 

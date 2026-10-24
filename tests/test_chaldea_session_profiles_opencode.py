@@ -187,10 +187,11 @@ def expected_env(case, launch_dir):
     home = str(case.opencode_home)
     return {"HOME": home, "XDG_CONFIG_HOME": home + "/.config", "XDG_DATA_HOME": home + "/.local/share",
             "XDG_STATE_HOME": home + "/.local/state", "XDG_CACHE_HOME": home + "/.cache",
-            "TMPDIR": str(case.runtime), "PATH": "/usr/bin:/bin", "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+            "TMPDIR": launch_dir + "/tmp", "PATH": "/usr/bin:/bin", "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
             "OPENCODE_CONFIG_PROJECT_DISABLE": "1", "OPENCODE_DISABLE_CLAUDE_CODE": "1",
             "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1", "OPENCODE_DISABLE_AUTOUPDATE": "1",
-            "OPENCODE_DISABLE_MODELS_FETCH": "1", "OPENCODE_CONFIG_DIR": launch_dir, "OPENCODE_PASSWORD": PASSWORD}
+            "OPENCODE_DISABLE_MODELS_FETCH": "1", "OPENCODE_CONFIG_DIR": launch_dir + "/config",
+            "OPENCODE_PASSWORD": PASSWORD}
 
 
 def bound_argv(case, extra):
@@ -224,7 +225,8 @@ def test_opencode_check_real_second_and_public_files(tmp_path, monkeypatch):
     version = subprocess.run([str(case.opencode_dir / "exec"), "--version"], cwd=case.home, env={"PATH": "/usr/bin:/bin"},
                              capture_output=True, text=True, timeout=30)
     assert version.returncode == 0 and "bash" in version.stdout, version
-    assert helper_calls_absent(case)
+    # The probe ran through a private launch directory that is gone again, with no header.
+    assert helper_calls_absent(case) and list(case.runtime.iterdir()) == []
 
 
 def helper_calls_absent(case):
@@ -241,7 +243,7 @@ def test_launch_renews_bound_header_and_ends_on_session_swap(tmp_path, monkeypat
     assert (code, stderr) == (78, "OPENCODE_PROFILE_ENDED session_changed\n"), (stdout, stderr)
     assert stdout == "opencode server listening on http://127.0.0.1:4096\n"
     record = serve_record(case)
-    launch_dir = record["env"]["OPENCODE_CONFIG_DIR"]
+    launch_dir = str(Path(record["env"]["OPENCODE_CONFIG_DIR"]).parent)
     assert Path(launch_dir).parent == case.runtime and Path(launch_dir).name.startswith("opencode-")
     # bash and Python in the fake serve add PWD, SHLVL and LC_CTYPE themselves.
     added = {"PWD", "SHLVL", "LC_CTYPE"}

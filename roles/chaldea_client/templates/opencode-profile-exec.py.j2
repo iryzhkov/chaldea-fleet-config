@@ -58,7 +58,6 @@ ENV = {
     "XDG_DATA_HOME": HOME + "/.local/share",
     "XDG_STATE_HOME": HOME + "/.local/state",
     "XDG_CACHE_HOME": HOME + "/.cache",
-    "TMPDIR": RUNTIME,
     "PATH": "/usr/bin:/bin",
     "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
     "OPENCODE_CONFIG_PROJECT_DISABLE": "1",
@@ -192,8 +191,10 @@ def admitted(argv):
             and int(port) <= 65535)
 
 
-def child_environment(launch_dir):
-    env = dict(ENV, OPENCODE_CONFIG_DIR=launch_dir)
+def child_environment(tmpdir, config_dir):
+    env = dict(ENV, TMPDIR=tmpdir)
+    if config_dir is not None:
+        env["OPENCODE_CONFIG_DIR"] = config_dir
     for name in PASSWORDS:
         value = os.environ.get(name)
         if value is not None:
@@ -287,7 +288,7 @@ class Launch:
         self.clock = clock
         self.child = self.status = self.signal = None
         self.stopping = False
-        self.runtime = self.directory = self.name = self.config = None
+        self.runtime = self.top = self.directory = self.name = self.config = None
         self.identity = None
         self.expires = 0
 
@@ -349,6 +350,7 @@ class Launch:
         return header, identity, expires
 
     def create(self, config):
+        """A fresh private launch directory: tmp for the child's TMPDIR and, for serve, the watched config."""
         self.runtime = private_dir(RUNTIME)
         for _ in range(8):
             name = "opencode-" + os.urandom(16).hex()
@@ -359,12 +361,27 @@ class Launch:
             self.name = name
             break
         require(self.name is not None)
-        self.directory = os.open(self.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
-                                 dir_fd=self.runtime)
-        os.fchmod(self.directory, 0o700)
-        meta = os.fstat(self.directory)
-        require(meta.st_uid == UID and stat.S_IMODE(meta.st_mode) == 0o700)
-        self.config = self.write("opencode.json", config, 0o400)
+        self.top = self.subdirectory(self.runtime, self.name)
+        os.close(self.subdirectory(self.top, "tmp", create=True))
+        if config is not None:
+            self.directory = self.subdirectory(self.top, "config", create=True)
+            self.config = self.write("opencode.json", config, 0o400)
+
+    @staticmethod
+    def subdirectory(parent, name, create=False):
+        if create:
+            os.mkdir(name, 0o700, dir_fd=parent)
+        fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent)
+        os.fchmod(fd, 0o700)
+        meta = os.fstat(fd)
+        if meta.st_uid != UID or stat.S_IMODE(meta.st_mode) != 0o700:
+            os.close(fd)
+            raise Refused("refused")
+        return fd
+
+    def environment(self):
+        path = RUNTIME + "/" + self.name
+        return child_environment(path + "/tmp", path + "/config" if self.directory is not None else None)
 
     def write(self, name, data, mode):
         fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, mode,
@@ -432,30 +449,25 @@ class Launch:
             if self.status is None:
                 os.kill(self.child, signal.SIGKILL)
                 self.status = os.waitpid(self.child, 0)[1]
-        if self.directory is not None:
-            os.close(self.directory)
+        for fd in (self.directory, self.top):
+            if fd is not None:
+                os.close(fd)
+        if self.name is not None:
+            # The child's temporary files and the header go with the launch directory.
             shutil.rmtree(self.name, dir_fd=self.runtime, ignore_errors=True)
         if self.runtime is not None:
             os.close(self.runtime)
 
 
-def version():
-    """T3's binary probe: the pinned native with the isolated environment, no header."""
-    require(os.geteuid() == UID)
-    os.close(private_dir(HOME))
-    fd = pinned_native()
-    os.execve(fd, [NATIVE_PATH, "--version"], ENV.copy())
-
-
 def main():
     argv = sys.argv[1:]
-    if argv == ["--version"]:
-        version()
-        return 78
-    # Reject all non-admitted argv before reading any protected file.
-    admitted(argv)
-    require(os.geteuid() == UID and os.getcwd() == CWD)
-    config = pinned_config()
+    # T3's binary probe runs the pinned native the same supervised way, without config or header.
+    probe = argv == ["--version"]
+    if not probe:
+        # Reject all non-admitted argv before reading any protected file.
+        admitted(argv)
+    require(os.geteuid() == UID and (probe or os.getcwd() == CWD))
+    config = None if probe else pinned_config()
     os.close(private_dir(HOME))
     os.close(private_dir(RUNTIME))
     native = pinned_native()
@@ -464,11 +476,15 @@ def main():
     reason = None
     try:
         launch.create(config)
-        header, launch.identity, launch.expires = launch.helper()
-        launch.publish(header)
-        env = child_environment(RUNTIME + "/" + launch.name)
-        launch.child = spawn(native, [NATIVE_PATH, *argv], env, (None, None, None))
-        launch.supervise()
+        if not probe:
+            header, launch.identity, launch.expires = launch.helper()
+            launch.publish(header)
+        launch.child = spawn(native, [NATIVE_PATH, *argv], launch.environment(), (None, None, None))
+        if probe:
+            while not launch.ended():
+                launch.wait(WAKE_CAP)
+        else:
+            launch.supervise()
     except Refused as error:
         reason = error.args[0]
     finally:
