@@ -93,7 +93,11 @@ def codex_profile(field, value, presets, fleet_home):
     # The interactive operator's own Codex home is never a profile home.
     require(value["home"] != fleet_home, field + ".home must differ from the fleet home")
     under(value["tmpdir"], fleet_home, field + ".tmpdir")
+    # The launcher requires os.getcwd() to equal cwd exactly: the T3 server's
+    # working directory, which is the fleet home itself or a directory in it.
     safe_path(value["cwd"], field + ".cwd")
+    require(value["cwd"] == fleet_home or value["cwd"].startswith(fleet_home + "/"),
+            field + ".cwd must be the fleet home or inside it")
     preset_id = value["preset"]
     require(isinstance(preset_id, str) and preset_id in presets, field + ".preset must be a declared preset")
     preset = presets[preset_id]

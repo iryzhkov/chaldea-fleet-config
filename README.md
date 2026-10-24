@@ -62,7 +62,9 @@ session; it only keeps the tools and shared files those sessions use in place.
   four hours with a pinned ansible-core.
 
 Hosts and their switches are in `inventory/hosts.yml`; pins shared by every host
-are in `inventory/group_vars/all/main.yml`. No secret is stored here: credential files
+are in `inventory/group_vars/all/main.yml`. A large reviewed host activation may
+live in its own `inventory/host_vars/HOST/` file instead of inline, such as the
+laptop's Jocasta tooling sessions (docs/chaldea-client.md). No secret is stored here: credential files
 are listed by path, and the play only checks that each exists and is private.
 
 ## Private repositories

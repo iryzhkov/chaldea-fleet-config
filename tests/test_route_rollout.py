@@ -30,12 +30,23 @@ def test_agent_clients_use_native_t3_quota():
         assert effective["chaldea_client_codex_assert_runtime_home"] is True
 
 
+# Reviewed host-level release selections, by exact file and top-level key. The
+# laptop's persistent system waits run a separately installed runtime with its
+# Node, and its fixed profiles pin staged native assets by hash. Their exact
+# values are asserted in test_laptop_jocasta_tooling.py.
+HOST_RELEASE_SELECTIONS = {
+    "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml": frozenset({
+        "chaldea_node_version", "chaldea_client_waits_legacy_user_node_version",
+        "chaldea_client_waits_runtime_root", "chaldea_client_session_profiles"}),
+}
+
+
 def test_host_settings_do_not_override_shared_software_releases():
-    def check(values, location):
+    def check(values, location, allowed=frozenset()):
         if isinstance(values, dict):
             for key, value in values.items():
                 # Retention records keep rollback artifacts, not desired releases.
-                if key == "chaldea_host_artifact_preserve_versions":
+                if key == "chaldea_host_artifact_preserve_versions" or key in allowed:
                     continue
                 assert not re.search(r"(^|_)(versions?|sha256|checksums?|revision|commit|ref|build|release)(_|$)", key), (location, key)
                 check(value, f"{location}.{key}")
@@ -53,7 +64,13 @@ def test_host_settings_do_not_override_shared_software_releases():
 
     group(yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"])
     for path in (ROOT / "inventory/host_vars").rglob("*.yml"):
-        check(yaml.safe_load(path.read_text()), str(path))
+        relative = path.relative_to(ROOT).as_posix()
+        values = yaml.safe_load(path.read_text())
+        allowed = HOST_RELEASE_SELECTIONS.get(relative, frozenset())
+        assert allowed <= set(values), relative
+        check(values, relative, allowed)
+    for relative in HOST_RELEASE_SELECTIONS:
+        assert (ROOT / relative).is_file(), relative
 
 
 def test_opencode_preserves_settings_check_mode_removal_and_mode(tmp_path):

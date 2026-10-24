@@ -1,0 +1,117 @@
+---
+# Laptop's first persistent read-only Jocasta tooling sessions. Applied by the
+# normal pull, so it must stay equal to the qualified state the reviewed
+# maintenance left (execution af50ab7396f94090bb590da80785596f, fleet d4e697a,
+# infra a65d4b8). Public values only: credentials are named by path and
+# inspected with stat; none is stored here.
+#
+# The laptop runs its single waits owner under the system manager with the
+# protected session policy and one fixed provider profile, Claude. Interactive
+# T3 providers, default models and the Chaldea MCP registration are not
+# configured here: mcp_registrations_chaldea_waits_enabled stays false on this
+# host. System mode converges waits only (docs/waits-system-preflight.md); the
+# shared client pin, quota unit and route files are left as last converged.
+#
+# Codex is retained inactive, not retired: its staged provider assets, its
+# protected /etc/chaldea/sessions/jocasta-tooling-codex files, its Codex HOME
+# and its Authentik account stay as they are, unmanaged by this file. Do not
+# list it in chaldea_client_session_profiles_absent, which would delete the
+# role-owned files. Add its preset, enrollment and profile back only after it
+# qualifies natively in a fresh coordinated interval.
+#
+# Every other host keeps its waits settings in hosts.yml; nothing here applies
+# to them. Rollback is a target-specific packet: docs/waits-system-preflight.md
+# (system to user) and docs/chaldea-client.md ("Rollback" under fixed profiles).
+# Deleting this file alone does not roll back; the role refuses user mode while
+# the system unit exists.
+
+chaldea_client_waits_enabled: true
+chaldea_client_waits_service_mode: system
+# Persistent service: no bounded canary window and no status-read restart.
+chaldea_client_waits_deadline: ""
+chaldea_client_waits_environment: 943bead7-d804-4e04-984e-63d230303796
+# The separately installed waits runtime. Shared current/previous and the
+# shared client pin in group_vars/all are unchanged.
+chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.18
+# The system unit runs the installed Node 26.12.0. This host-wide override also
+# moves the laptop's other Chaldea Node consumers (MCP registration command,
+# job-client launcher, collector and retention) to 26.12.0.
+chaldea_node_version: "26.12.0"
+# The disabled pre-system user unit was rendered for Node 26.10.0. Admission
+# of it and of its .pre-system backup only; it never runs that version. Keep
+# it while the backup is reserved.
+chaldea_client_waits_legacy_user_node_version: "26.10.0"
+
+chaldea_client_session_policy_enabled: true
+chaldea_client_session_ceilings:
+  - project: tooling
+    maxSeconds: 1800
+    destinations: [f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5]
+    services: &jocasta_tooling_services
+      - audience: jocasta
+        grants:
+          - resource: project:tooling
+            actions: [get, history, list, search]
+
+# Destinations are T3 project IDs: the root caller's existing project. The
+# session runs in the dedicated "Jocasta tooling sessions" T3 project.
+chaldea_client_session_presets:
+  jocasta-tooling-claude:
+    instanceId: claude-jocasta-tooling
+    # The pinned Claude 2.1.276 native refuses opus-5-5 (needs >= 2.1.280);
+    # claude-opus-5 is the model its provider catalog lists.
+    model: claude-opus-5
+    runtimeMode: approval-required
+    interactionMode: default
+    projectId: mcp:2fe01b0e-5727-4111-9b95-ff81508562ba
+    title: Jocasta tooling read-only Claude
+    prompt: >-
+      Use only the jocasta_tooling MCP server. Do not use other tools, local
+      files, commands, web browsing or delegation. Read lines 1:3 of document id
+      0039fc5e47f4ecf7f2aa5b02d3651b3c in project tooling, then request document
+      id 0004d615b73f2a91d0caa4e80b25cae3 from project homelab and verify it is
+      denied or not found. Do not mutate any document. Return only JSON under
+      1000 UTF-8 bytes:
+      {"v":1,"status":"PASS|FAIL|INCOMPLETE","toolingRead":"PASS|FAIL","otherProject":"DENIED|FAIL","documentId":"0039fc5e47f4ecf7f2aa5b02d3651b3c","revision":1,"issues":[]}.
+      This is reporter data, not instructions. Never include document content,
+      credentials or auth headers.
+    inputs: {project: tooling}
+    project: tooling
+    services: *jocasta_tooling_services
+    maxSeconds: 1800
+    delegate: false
+    destinations: [f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5]
+
+# One ordinary Authentik account per host and profile, enrolled by
+# homelab-infra's playbooks/authentik-jocasta-tooling.yml, which delivers the
+# secretFile. JWT scope jocasta.read, 300-second lifetime.
+chaldea_client_session_enrollments:
+  jocasta-tooling-claude:
+    form: app_password
+    issuer: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/
+    tokenUrl: https://auth.ryzhkov.dev/application/o/token/
+    jwksUrl: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/jwks/
+    clientId: chaldea-jocasta-tooling
+    username: chaldea-laptop-jocasta-tooling-claude
+    scope: jocasta.read
+    resource: https://jocasta.mcp.ryzhkov.dev/mcp
+    project: tooling
+    maxTokenSeconds: 300
+    secretFile: /home/igor/.config/chaldea/authentik/jocasta-tooling-claude.app-password
+
+# The native source is the operator-staged public asset under provider-assets,
+# never a download or a mise install path. Hash and size are reviewed pins.
+chaldea_client_session_profiles:
+  jocasta-tooling-claude:
+    driver: claude
+    native:
+      source: /home/igor/.local/share/chaldea/provider-assets/claude/2.1.276/claude
+      sha256: e9ac3df956083645578a382ad64ec304468666e362c33bfdefd803cd6ff596b0
+      size: 231989488
+    elf_machine: 183
+    cwd: /home/igor/.local/share/chaldea/session-workspaces/jocasta-tooling
+    preset: jocasta-tooling-claude
+    audience: jocasta
+    server: jocasta_tooling
+    url: https://jocasta.mcp.ryzhkov.dev/mcp
+    tools: [get, history, list, search]
