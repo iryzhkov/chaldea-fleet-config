@@ -241,8 +241,8 @@ def test_prepared_opencode_selection_is_inactive_and_preserves_deployed_profiles
         assert {k: v for k, v in values[key].items() if k != name} == before
     assert values["chaldea_client_session_presets"][name] == dict(
         values["chaldea_client_session_presets"][CLAUDE],
-        instanceId="opencode-jocasta-tooling", model="opencode/beam-free",
-        options=[{"id": "variant", "value": "medium"}], title="Jocasta tooling read-only OpenCode")
+        instanceId="opencode-jocasta-tooling", model="opencode/big-pickle",
+        title="Jocasta tooling read-only OpenCode")
     enrollment = values["chaldea_client_session_enrollments"][name]
     assert enrollment == dict(
         values["chaldea_client_session_enrollments"][CLAUDE],

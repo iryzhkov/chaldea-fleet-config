@@ -6,9 +6,7 @@
 presets:
   jocasta-tooling-opencode:
     instanceId: opencode-jocasta-tooling
-    model: opencode/beam-free
-    options:
-      - {id: variant, value: medium}
+    model: opencode/big-pickle
     runtimeMode: approval-required
     interactionMode: default
     projectId: mcp:2fe01b0e-5727-4111-9b95-ff81508562ba

@@ -13,9 +13,11 @@ This is a future source activation change, not a command to run now. No account,
 secret, private directory, provider instance or native process is created by
 the fragment.
 
-The prospective model is `opencode/beam-free` with `variant: medium`, as listed
-in the live T3 catalog at preparation. That is acceptance input only. Native
-model availability and provider authentication in the private HOME are unqualified.
+The prospective model is `opencode/big-pickle` with no model options. Root's
+pinned 2.1.3 public-source extract contains big-pickle and lacks beam-free;
+the live T3 catalog lists big-pickle with no options. This selection remains
+acceptance input only. Native model availability and provider authentication
+in the private HOME are unqualified.
 The existing session-policy parser accepts a slash in the model string; the
 OpenCode profile has no model field. No validator is loosened for this selection.
 
