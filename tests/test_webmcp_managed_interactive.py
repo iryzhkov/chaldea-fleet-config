@@ -126,19 +126,27 @@ def test_actual_ansible_selection_honors_managed_absence_and_keeps_oauth(tmp_pat
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_inventory_selects_managed_jocasta_only_for_laptop(tmp_path):
+@pytest.mark.parametrize(("architecture", "helper_sha256"), [
+    ("aarch64", "f936deea9705fa4237f5c74760ccd51e1ab473fffa498836002f68b8c05036ba"),
+    ("x86_64", "667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed"),
+])
+def test_inventory_selects_managed_jocasta_only_for_laptop(tmp_path, architecture, helper_sha256):
     import subprocess
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     select = next(t for t in tasks if t["name"].startswith("Select explicit"))
     play = tmp_path / "inventory-selection.yml"
     play.write_text(yaml.safe_dump([{
         "hosts": "agent_hosts", "gather_facts": False,
-        "vars": {"ansible_facts": {"user_dir": str(tmp_path)}},
+        "vars": {"ansible_facts": {"user_dir": str(tmp_path), "architecture": architecture}},
         "tasks": [
             {**select, "vars": {"mcp_registrations_remote_servers":
                 "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
             {"ansible.builtin.assert": {"that": [
                 "mcp_registrations_effective_remote_servers == expected",
+                f"webmcp_interactive_helper_sha256 == '{helper_sha256}'",
+                "(webmcp_interactive_enabled | default(false) | bool) == (inventory_hostname == 'laptop')",
+                "inventory_hostname != 'laptop' or webmcp_interactive_helper_source == "
+                "'/usr/local/libexec/webmcp-interactive-headers'",
                 "inventory_hostname != 'laptop' or webmcp_interactive_credential_source == "
                 "fleet_home ~ '/.config/webmcp-interactive/enrollment.json'"]},
              "vars": {"expected": "{{ managed if inventory_hostname == 'laptop' else "

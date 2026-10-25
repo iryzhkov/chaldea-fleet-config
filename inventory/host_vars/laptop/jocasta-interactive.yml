@@ -18,7 +18,6 @@
 # config. They keep project:tooling read-only access.
 webmcp_interactive_enabled: true
 webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
-webmcp_interactive_helper_sha256: f936deea9705fa4237f5c74760ccd51e1ab473fffa498836002f68b8c05036ba
 webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
 
 mcp_registrations_jocasta_interactive_state: present
