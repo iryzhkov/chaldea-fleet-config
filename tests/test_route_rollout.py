@@ -37,8 +37,7 @@ def test_agent_clients_use_native_t3_quota():
 HOST_RELEASE_SELECTIONS = {
     "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml": frozenset({
         "chaldea_node_version", "chaldea_client_waits_legacy_user_node_version",
-        "chaldea_client_waits_runtime_root", "chaldea_client_waits_legacy_system_runtime",
-        "chaldea_client_session_profiles"}),
+        "chaldea_client_waits_runtime_root", "chaldea_client_session_profiles"}),
 }
 
 

@@ -42,14 +42,9 @@ chaldea_client_waits_environment: 943bead7-d804-4e04-984e-63d230303796
 # manifest SHA-256 c8542918859a19ec99065117c5bd359a12de1838d6f54a4090f5e1ee12a2d2d1.
 # The role only selects an installed runtime; a missing one stops the pull here.
 chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.20
-# The installed system unit was rendered for client-v0.4.18, so exact ownership
-# admission would refuse the move to client-v0.4.20 before any write. This
-# admits only the role's exact rendering with that old runtime (root-owned, 0644,
-# single link, loaded from its fragment, no drop-ins); the pull then installs the
-# client-v0.4.20 unit and restarts waits through the normal guards. It never
-# selects or runs client-v0.4.18. Remove it in a separately reviewed change once
-# the installed unit is the current rendering.
-chaldea_client_waits_legacy_system_runtime: /home/igor/.local/share/chaldea/releases/client-v0.4.18
+# No legacy system runtime admission: only the current client-v0.4.20 system
+# unit is admitted. The one-time client-v0.4.18 admission that moved waits here
+# is retired, so this file must reach the laptop only after that migration.
 # The system unit runs the installed Node 26.12.0. This host-wide override also
 # moves the laptop's other Chaldea Node consumers (MCP registration command,
 # job-client launcher, collector and retention) to 26.12.0.

@@ -210,21 +210,40 @@ def test_migration_installs_the_current_unit_then_repeats_without_change(tmp_pat
     assert system.read_bytes() == old_bytes
 
 
-def test_laptop_override_names_the_installed_unit_rendering(tmp_path):
-    """The laptop's public values reproduce the observed installed unit digest."""
+def test_laptop_current_only_state_refuses_the_retired_runtime_unit(tmp_path):
+    """The laptop's final public values admit only the client-v0.4.20 unit.
+
+    The retired client-v0.4.18 rendering, which reproduces the digest observed
+    before the migration, is refused before any write.
+    """
     safe(tmp_path)
     inventory = yaml.safe_load((Path(__file__).resolve().parents[1]
                                 / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml").read_text())
-    home = "/home/igor"
-    laptop = {"ansible_facts": {"user_uid": 1001, "user_gid": 1001}, "fleet_home": home,
-              "chaldea_node_version": inventory["chaldea_node_version"],
+    assert OVERRIDE not in inventory
+    selected = inventory["chaldea_client_waits_runtime_root"]
+    retired = selected.replace(NEW, OLD)
+    assert retired != selected
+    public = {"chaldea_node_version": inventory["chaldea_node_version"],
               "chaldea_client_session_policy_enabled": inventory["chaldea_client_session_policy_enabled"],
               "chaldea_client_waits_deadline": inventory["chaldea_client_waits_deadline"]}
-    old = render(tmp_path, laptop, inventory[OVERRIDE], tmp_path / "old.service")
-    new = render(tmp_path, laptop, inventory["chaldea_client_waits_runtime_root"], tmp_path / "new.service")
+    # Pure renders with the real fleet identity reproduce the observed digest.
+    real = {"ansible_facts": {"user_uid": 1001, "user_gid": 1001}, "fleet_home": "/home/igor"} | public
+    old = render(tmp_path, real, retired, tmp_path / "old.service")
+    new = render(tmp_path, real, selected, tmp_path / "new.service")
     assert hashlib.sha256(old).hexdigest() == LAPTOP_UNIT_SHA256
     assert hashlib.sha256(new).hexdigest() != LAPTOP_UNIT_SHA256
     assert old.replace(OLD.encode(), NEW.encode()) == new
+    # The canonical guards run with a scratch home and the laptop's public
+    # selection, declaring no legacy admission, as the inventory now does.
+    system = tmp_path / "system.service"
+    laptop = variables(tmp_path, system) | public | {"chaldea_client_waits_resolved_runtime": selected}
+    laptop.pop(OVERRIDE)
+    stale = render(tmp_path, laptop, retired, system)
+    refused(guards(tmp_path, laptop), "Refusing unknown waits ownership")
+    assert system.read_bytes() == stale
+    render(tmp_path, laptop, selected, system)
+    result = guards(tmp_path, laptop)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_codex_and_claude_profiles_change_only_their_helper_runtime(tmp_path, monkeypatch):
