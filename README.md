@@ -41,12 +41,13 @@ session; it only keeps the tools and shared files those sessions use in place.
   `~/.codex/config.toml`). It removes any `local-file-llm` registration and
   leaves every other server alone. Diffs never show environment values.
   Remote servers may use native OAuth through `mcp_registrations_remote_servers`.
-  The laptop's interactive `jocasta` selection in
-  `inventory/host_vars/laptop/jocasta-interactive.yml` uses the
-  [managed native helper](docs/managed-interactive-webmcp.md) with Claude and
-  Codex; OpenCode stays off. Role defaults and other hosts remain disabled.
-  Merging this laptop selection can activate it through its ordinary pull timer;
-  root must first qualify both native clients. Public OAuth remains supported
+  The interactive `jocasta` selections for laptop, agent-a, agent-b and
+  omarchy-pc use the [managed native helper](docs/managed-interactive-webmcp.md)
+  with Claude and Codex. Role defaults remain off and OpenCode stays off.
+  Laptop is qualified; the [three-host staging sequence](docs/managed-interactive-three-hosts.md)
+  requires protected per-host delivery before merging the remaining selections.
+  Merging selections can activate them through ordinary pull timers; each host
+  still requires its own native-client acceptance. Public OAuth remains supported
   for explicitly selected entries. The module compares only the named entry's
   public fields in `~/.claude.json` and changes Claude registration through its CLI.
 - `t3`: asserts that T3 runs the pinned version and its user service is active.

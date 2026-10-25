@@ -1,0 +1,22 @@
+---
+# Candidate only. Root must qualify this exact source, protected staging,
+# review and CI before merge. Ordinary pulls activate these selections.
+# Laptop is accepted; this host still needs its own on-host native acceptance.
+# Reuse installed protected sources after root's initial per-host delivery.
+# OpenCode is excluded. Rollback must restore this host's prior entry absence.
+webmcp_interactive_enabled: true
+webmcp_interactive_laptop_qualified: true
+webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
+webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
+
+mcp_registrations_jocasta_interactive_state: present
+mcp_registrations_remote_servers:
+  - name: jocasta
+    state: "{{ mcp_registrations_jocasta_interactive_state }}"
+    url: https://jocasta.mcp.ryzhkov.dev/mcp
+    providers: [claude, codex]
+
+agent_config_fleet_tools_profile:
+  name: interactive-operator
+  tools: {"*": [read, write]}
+  mcp: "{{ ['ov-memory'] + (['jocasta'] if mcp_registrations_jocasta_interactive_state == 'present' else []) }}"

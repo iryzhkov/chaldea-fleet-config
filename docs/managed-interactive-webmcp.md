@@ -1,20 +1,22 @@
 # Managed interactive Jocasta capability
 
-This source PREPARES conditional laptop persistence. Native qualification is
-OPEN. Root owns enrollment, publication, verifier selection, activation and reviews.
-Keep this selection off main until actual Codex AND Claude full managed access,
-CAS, idempotency and >330s reuse gates pass. This source is no acceptance receipt.
-The four adopted hosts are laptop, agent-a, agent-b and omarchy-pc/GamingPC.
-OpenCode is excluded. Actual laptop qualification precedes other-host deployment.
+Laptop acceptance and persistence are the base for this candidate. Its inventory,
+ARM helper pin and protected tooling profiles remain unchanged. This source adds
+explicit managed selections for agent-a, agent-b and omarchy-pc/GamingPC.
+OpenCode is excluded. These three hosts still need protected staging and actual
+on-host Codex AND Claude qualification, CAS, idempotency and >330s reuse checks.
+This source is no acceptance receipt. Root owns enrollment, guarded source
+delivery, review/CI, activation and acceptance. Keep this candidate off main
+until root qualifies that exact source and the staging prerequisites.
 
-Only laptop inventory selects webmcp_interactive_enabled. After root qualifies
-and merges it, ordinary local pulls reuse the installed helper at its reviewed
-public SHA256 and {{ fleet_home }}/.config/webmcp-interactive/enrollment.json.
-The existing role validates custody and retains exact bytes on a repeat pull.
-No controller staging path or private digest is committed. The public OAuth
-registration below that selector remains the disabled-mode fallback.
-Role defaults stay off. Other hosts need their own explicit opt-in plus
-webmcp_interactive_laptop_qualified after laptop acceptance.
+All four host selections use the installed helper at its shared architecture
+SHA256 and {{ fleet_home }}/.config/webmcp-interactive/enrollment.json as their
+own local protected sources. The existing role validates custody and retains
+exact bytes on a repeat pull. No controller staging path or private digest is
+committed. The laptop's public OAuth registration remains its disabled-mode
+fallback; the three new hosts previously had no interactive Jocasta entry.
+Role defaults stay off. Each new host explicitly records laptop qualification.
+The operator procedure is in [the three-host staging brief](managed-interactive-three-hosts.md).
 An explicit Jocasta state=absent is honored even while managed mode is enabled;
 remove the native consumer before deleting its staged credential/helper files.
 
@@ -110,16 +112,16 @@ Example future root invocation, from this repository on the selected host:
       --tags mcp_registrations --extra-vars @/PRIVATE/fleet-laptop.yml
 
 These are instructions, not commands executed by this source change. Root
-qualifies the actual installed versions first. The prior Codex0.163/Claude2.1.276
-helper source evidence is historical. Root's current metadata reports laptop
-Codex0.164/Claude2.1.309, agent-a Codex0.163/Claude2.1.309 and agent-b/GamingPC
-Codex0.164/Claude2.1.309. Fixtures do not qualify any official T3 path.
+qualifies the actual installed versions at each host's acceptance boundary.
+Earlier helper and host-version observations are historical. Fixtures do not
+qualify any official T3 path.
 
-Persistent rollback reverts the laptop selection on fleet main and the owning
-homelab verifier selection on infra main. Apply the infra inverse first, then
-restore only the affected public native entries; coordinate both repositories
-because infra has one operator-verifier slot. Revoke issuance through the
-receipt-bound procedure and remove only owned helper/enrollment files after
+Persistent rollback restores only the affected host's prior fleet selection.
+A backend verifier rollback requires root's separate coordinated infra decision;
+retain the accepted laptop and existing backend during this three-host slice.
+Restore only the affected host's owned native entries. Root coordinates any
+separate verifier change because infra has one operator-verifier slot.
+Revoke issuance through the receipt-bound procedure and remove only owned helper/enrollment files after
 proving no remaining consumers. Setting enabled=false alone does not delete files.
 The reverted laptop selection lets ordinary pulls retain public OAuth; other
 hosts' prior entry absence requires explicit state=absent. Never clear client caches.
