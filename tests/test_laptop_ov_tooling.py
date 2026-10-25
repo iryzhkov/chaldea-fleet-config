@@ -68,6 +68,11 @@ def test_real_inventory_adds_exact_ov_entries_and_preserves_all_original_values(
         assert laptop[key] == after[key]
         before[key].pop(NAME)
     assert laptop["chaldea_client_session_ceilings"] == after["chaldea_client_session_ceilings"]
+    unchanged = copy.deepcopy(after)
+    unchanged["chaldea_client_session_presets"][NAME]["prompt"] = ""
+    # At ba05aa1, agent-a measured every declared value except the OV prompt.
+    assert hashlib.sha256(json.dumps(unchanged, sort_keys=True, separators=(",", ":")).encode()).hexdigest() == (
+        "1d4ceadade2b71d0e2f49c5ce6718dcc73fe5eecd5b50cf02133bce8c8737baf")
     # Canonical full owning hostfile at base 15f1950, measured on agent-a before
     # editing. Removing only the four OV additions must recover EVERY old value,
     # including prompts, native pins, HOME/cwd, grants and ordinary timer settings.
@@ -87,9 +92,8 @@ def test_candidate_binds_one_exact_closed_ov_grant():
     assert (preset["model"], preset["options"], preset["projectId"], preset["delegate"]) == (
         "gpt-6.1-sol", [{"id": "reasoningEffort", "value": "high"}], PROJECT, False)
     prompt = preset["prompt"]
-    assert len(prompt.encode()) < 1000
+    assert len(prompt.encode()) <= 8192  # Chaldea's public preset parser bound.
     assert NODE in prompt and SIBLING in prompt and "memory_stat" in prompt
-    assert '"renewal":"NOT_RUN"' in prompt and "do not wait or sleep" in prompt
     assert packet["enrollments"][NAME] == {
         "form": "app_password", "audience": "ov", "issuer": ISSUER,
         "tokenUrl": "https://auth.ryzhkov.dev/application/o/token/", "jwksUrl": ISSUER + "jwks/",
@@ -106,6 +110,37 @@ def test_candidate_binds_one_exact_closed_ov_grant():
     assert profile["home"] != jocasta_profile["home"]
     for value in strings(packet):
         assert "/.cache/" not in value and "/mise/" not in value and "auth.json" not in value, value
+
+
+def test_fixed_reporter_keeps_renewal_inside_one_admitted_native_run():
+    prompt = activation()["chaldea_client_session_presets"][NAME]["prompt"]
+    assert prompt == candidate()["presets"][NAME]["prompt"]
+    # Source protocol only: no sleep, model execution or actual renewal in tests.
+    steps = [
+        "1. Call memory_stat for " + NODE,
+        "2. Call memory_stat for " + SIBLING,
+        "3. Use the normal built-in terminal ONLY",
+        "/usr/bin/sleep 370",
+        "4. After successful wait completion, call memory_stat again for " + NODE,
+        "Return only JSON at most 1000 UTF-8 bytes",
+    ]
+    positions = [prompt.index(step) for step in steps]
+    assert positions == sorted(positions)
+    assert prompt.count(NODE) == 2 and prompt.count(SIBLING) == 1
+    assert prompt.count("/usr/bin/sleep 370") == 1
+    for requirement in (
+        "ONE admitted native run", "unchanged 900-second deadline",
+        "continuation/wait interface for that exact process, with no input",
+        "Do not finish this turn before that wait completes",
+        "stop safely with FAIL or INCOMPLETE", "unavailable terminal",
+        "Do not change the preset/policy or extend TTL",
+        "second successful native RPC AND independent root trace verification",
+        "elapsed >=370 seconds", "TRACE_VERIFICATION_REQUIRED",
+        "Sleep or model self-report alone is not proof",
+    ):
+        assert requirement in prompt, requirement
+    assert '"renewal":"PASS|FAIL|INCOMPLETE"' in prompt
+    assert "NOT_RUN" not in prompt and "operator checks separately" not in prompt
 
 
 def test_role_closed_validators_accept_the_merged_laptop_maps():

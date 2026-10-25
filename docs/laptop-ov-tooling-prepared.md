@@ -36,11 +36,15 @@ loads it. Never pass it as extra vars. The owning hostfile adds only:
 
 The one service is exactly `ov.read` and
 `ov_namespaces: [viking://resources/homeassistant-api/rest-api.md]`.
-The prompt calls only `memory_stat` for that node and the denied sibling
-`viking://resources/homeassistant-api/ov-canary-denied-a63e197f`, then returns
-compact JSON below 1000 bytes without content or headers. It reports
-`renewal: NOT_RUN` and never waits. Prompt and disabled-server configuration
-do not replace the OV verifier's server ACL.
+The prompt's only MCP operation is `memory_stat`: first the granted node,
+then the denied sibling
+`viking://resources/homeassistant-api/ov-canary-denied-a63e197f`, then the
+granted node again after a literal passive `/usr/bin/sleep 370` through the
+normal native terminal. All three calls and the wait belong to ONE admitted
+native run. Final JSON is at most 1000 UTF-8 bytes without content, metadata
+values or headers. The passive wait adds no service grant or server capability.
+Prompt, timing and disabled-server configuration are not authorization boundaries;
+the OV verifier and its namespace claim remain authoritative.
 
 Both original Jocasta entries, their 1800-second ceiling, all model/native pins,
 HOME/cwd, expiry, grants and destinations, ordinary client settings and timers
@@ -67,18 +71,23 @@ edit their generic files or authorize their work.
 ## Client seam and unqualified prerequisites
 
 Source inspected at Chaldea `839eadc615a1c5c977992a418f40a9366cea6594`:
-`docs/sessions.md`, `src/session/admit.ts`, `src/session/t3.ts` and
-`src/session/credential.ts`; fleet profile contract is in
+`docs/sessions.md`, `src/session/admit.ts`, `src/session/lifecycle.ts`,
+`src/session/t3.ts` and `src/session/credential.ts`; fleet profile contract is in
 `docs/chaldea-client.md` and the existing role templates.
 The installed runtime's `session --help` advertises OV.
 Invocation, private-header acquisition, native allow/deny and renewal remain
 unqualified. Help output proves syntax only.
 
-Root reports first identity enrollment succeeded and independently rechecked the
-delivered credential's public custody metadata. The staged Codex 0.163.0 native,
-companion and one-model catalog matched the reviewed pins and sizes. The live
-ordinary MCP names and existing project IDs were also revalidated. These are
-root's separate observations, not physical-host claims made by these tests.
+Root reports identity enrollment and its literal zero-change repeat accepted:
+`rc=0 ok=90 changed=0 failed=0 unreachable=0`, with credentials and baselines
+preserved. All operation intervals are CLOSED. Root prepared the empty new
+profile HOME, `.codex` and tmpdir under
+`/home/igor/.local/state/chaldea/profiles/ov-tooling-codex`, UID 1001 and mode
+0700. No model-provider login is confirmed; root's device-auth/file-store login
+status question remains pending. No auth cache was copied. Root separately
+revalidated the staged Codex 0.163.0 native, companion and catalog pins/sizes,
+ordinary MCP names and existing project IDs. These are root's observations,
+not physical-host claims made by these tests.
 
 Before merge, root must bind and retain all of the following:
 
@@ -128,10 +137,11 @@ The helper's stdout is private credential material; never invoke it in a
 model-visible tool. The existing acquisition/cache/lifecycle stays authoritative.
 No new credential mechanism or custom refresh is needed.
 
-Native acceptance and the later same-session renewal call require a user-started
-laptop T3 session and a host-local execution owner. This PC thread cannot launch
-or inspect another host's native T3 thread. Keep this boundary; add no direct
-remote launch or proxy.
+Native acceptance requires a user-started laptop T3 session and host-local
+execution owner, supported start/provider/caller exposure and the independent
+model login. The initial calls, passive wait and renewal call must stay inside
+its one admitted native root run. This PC thread cannot launch or inspect
+another host's native T3 thread. Add no direct remote launch or proxy.
 
 ## Convergence, acceptance and cleanup
 
@@ -142,15 +152,79 @@ exception, with unchanged managed bytes and service invocation,
 `failed=0`, `unreachable=0` and every other change reconciled. There is no blanket
 zero-change waiver, and fixture idempotence is not live convergence evidence.
 
-Bind admitted session, actual native thread/run, provider/model/options,
-installed source/profile, prompt and timestamps. Observe allowed-node
-`memory_stat` and sibling denial through native HTTP MCP without storing
-content, metadata values, tokens or headers. Separately bind a successful call
-more than 330 seconds later in that same session to the original 300-second
-token lifetime, and qualify issuance-stop/failed-renewal behavior. An issued
-offline JWT may remain valid until expiry; claim no immediate revocation.
-Retain exact final reporter bytes and one correlated completion delivery;
-provider removal, process exit and released occupancy are separate checks.
+### One admitted run, with independent trace evidence
+
+Chaldea `src/session/lifecycle.ts:225-265` captures the terminal root result,
+finishes the session and releases occupancy when quiescent.
+Its `issueGate` at lines 292-305 refuses `no_active_run`, `run_inactive` and
+`preset_changed`. `src/session/admit.ts:11-25` refuses per-start prompt,
+runtime and limit overrides. Therefore the former reporter's terminal result
+with `renewal: NOT_RUN` could not support a later follow-up renewal test.
+A separate session or changed preset cannot repair that missing same-run proof.
+
+The corrected fixed prompt contains the complete sequence before admission:
+
+1. Native `ov_tooling.memory_stat` for the granted documentation node succeeds.
+2. Native `memory_stat` for the explicit denied sibling is refused by the server.
+   These first two calls are the basic metadata-only initial probe.
+3. The normal built-in terminal executes ONLY the literal `/usr/bin/sleep 370`.
+   If the native interface yields a process/session handle, its normal
+   continuation/wait interface waits for that exact process with no input until
+   successful exit. No other command, shell expression, background process,
+   local file/data operation, web, delegation, helper or MCP operation is allowed.
+   The admitted native run must remain naturally active during this wait.
+4. Before final output, the same native root run calls `memory_stat` on the
+   granted node again and requires success. Finish only after the wait and this
+   second granted call, except for a safe failure or unavailable prerequisite.
+
+The 370-second wait exceeds the 300-second JWT lifetime plus potential
+30-second future-`iat` and 30-second expiry grace, with margin, within the
+unchanged 900-second run ceiling. Never fake a clock, stretch TTL, suppress
+active-run checks, keep a terminal session artificially alive or edit policy
+midrun. A call failure, unexpected allowance/denial, unavailable normal terminal,
+failed wait or insufficient remaining deadline stops safely with FAIL or
+INCOMPLETE and no renewal PASS.
+
+Root must independently bind successful before/after native RPCs, denied
+sibling, measured elapsed time >=370 seconds, admitted session ID, native
+thread/run, provider/model/options, exact pinned profile and timestamps.
+Sleep execution or model report alone is not acceptance. Final reporter JSON
+uses `v/status/allowed/denied/renewal/issues`, at most 1000 UTF-8 bytes and no
+content, metadata values, credentials or headers. Renewal PASS requires the
+actual second successful native RPC AND root's trace verification. Until that
+verification is available the fixed reporter returns INCOMPLETE with
+`TRACE_VERIFICATION_REQUIRED`; root records acceptance separately from the
+exact stored reporter bytes. No final result or follow-up is used to keep the
+old run active. Retain one correlated completion delivery, runtime exit and
+released occupancy as separate observations.
+
+The existing pinned launcher in
+`roles/chaldea_client/templates/codex-profile-exec.py.j2:45-56` still passes
+`features.shell_tool=false`. This correction changes no launcher flag, model
+catalog, profile or native pin. Whether this exact stock Codex 0.163.0 code-mode
+terminal exposes a usable passive terminal/continuation interface remains
+UNQUALIFIED. Native tools may expose `exec_command`/`write_stdin` equivalents;
+use only the interface actually supplied. If none can perform the literal wait,
+retain INCOMPLETE and the exact interface/source gap. Add no clock tool,
+scheduler, helper or framework, and claim no exclusive catalog containment.
+The source/config/parser and synthetic actual-role checks do not execute the
+370-second wait or qualify native terminal availability.
+
+### Issuance stops after completion
+
+After the successful native run reaches terminal state and release, root may
+exercise the maintained private native headers helper through a protected
+operator harness. That harness must capture all helper stdout/header bytes
+privately and report only refusal code and exit status. Expect the ordinary
+`run_inactive` or `no_active_run` refusal, bound to that completed run and preset.
+This is a separate actual gate test, never an ordinary model-visible headers
+call, token extraction, gate bypass or Authentik identity mutation.
+
+The source completion/refusal behavior plus that future protected-harness test
+does not prove failure of an in-flight refresh, exclusive catalog containment
+or immediate revocation of an issued offline token. No such claim is made.
+If the maintained private mechanism or evidence binding is unavailable, retain
+that explicit gap. No new mechanism is supplied by this draft.
 
 Rollback reverses activation: prevent new starts by removing the preset or T3
 provider, move the profile to `chaldea_client_session_profiles_absent` as
@@ -161,7 +235,8 @@ original receipts. Preserve the controller credential, other-owner state,
 existing OV route/runtime/issuer and bounded canaries.
 
 The focused tests cover exact real inventory values, all-original-value
-preservation, widened/shared refusals and actual role render/check/delivery/
+preservation, unchanged non-prompt OV configuration, ordered same-run reporter
+protocol, widened/shared refusals and actual role render/check/delivery/
 idempotence with synthetic assets and an unopened FIFO login stand-in.
 They establish no actual login, provider registration, caller admission,
 token acquisition, server denial, renewal or native acceptance.
