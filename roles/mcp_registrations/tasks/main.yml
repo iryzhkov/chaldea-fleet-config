@@ -40,6 +40,21 @@
                        | map(attribute='state', default='present') | first | default('present'))}]
          if webmcp_interactive_enabled | default(false) | bool else mcp_registrations_remote_servers }}
 
+# The closed laptop OV entry exists only with both explicit opt-ins. The module
+# refuses any helper_host other than laptop, and the staged role refuses other hosts.
+- name: Select the closed laptop OV Codex entry only on its own explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'ov') | list)
+         + [{'name': 'ov', 'url': 'https://ov.mcp.ryzhkov.dev/mcp',
+             'providers': ['codex'], 'auth_mode': 'managed_helper',
+             'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'ov')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_ov_enabled | default(false) | bool
+
 - name: Check the opt-in remote MCP servers
   ansible.builtin.assert:
     that:

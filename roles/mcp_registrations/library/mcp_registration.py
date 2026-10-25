@@ -17,9 +17,11 @@ description:
     scopes, callback). It never writes command, args, env, headers, header
     helpers, bearer tokens or client secrets, and refuses extra keys outside
     that public allowlist. Native login stays with the user.
-  - auth_mode=managed_helper is a separate closed Jocasta capability for Claude
-    and Codex. It emits only the fixed public helper command for helper_host,
-    requires empty extra and never accepts arbitrary helper or secret fields.
+  - auth_mode=managed_helper is a separate closed capability with exactly two
+    reviewed tuples: Jocasta for Claude and Codex on the four managed hosts,
+    and OV for Codex on the laptop only. It emits only the fixed public helper
+    command for helper_host, requires empty extra and never accepts arbitrary
+    helper or secret fields.
   - claude mcp get does not show the OAuth options, so for a remote server the
     module reads the one user registration from claude_config to compare it.
     Only allowlisted public fields keep their values; any other field counts as
@@ -89,12 +91,21 @@ REMOTE_OAUTH = {
 }
 PORTS = {"callbackPort", "callback_port"}
 HELPER_FIELDS = {"claude": "headersHelper", "codex": "http_headers_helper"}
-HELPER = "/usr/local/libexec/webmcp-interactive-headers jocasta "
+HELPER_PATH = "/usr/local/libexec/webmcp-interactive-headers"
+HELPER = HELPER_PATH + " jocasta "
 MANAGED_HOSTS = {"laptop", "agent-a", "agent-b", "omarchy-pc"}
+# Every closed managed_helper registration: its exact name and URL, the native
+# providers that may receive it, and the one fixed command per approved host.
+MANAGED_SERVERS = {
+    "jocasta": {"url": "https://jocasta.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+                "commands": {host: HELPER + host for host in MANAGED_HOSTS}},
+    "ov": {"url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": frozenset({"codex"}),
+           "commands": {"laptop": HELPER_PATH + " ov laptop"}},
+}
 
 
 def managed_helper(value):
-    return isinstance(value, str) and value in {HELPER + host for host in MANAGED_HOSTS}
+    return isinstance(value, str) and any(value in server["commands"].values() for server in MANAGED_SERVERS.values())
 
 
 class Hidden:
@@ -183,10 +194,11 @@ def remote_definition(module, provider, params):
     extra = params["extra"]
     if params.get("auth_mode", "oauth") == "managed_helper":
         host = params.get("helper_host")
-        if (provider not in HELPER_FIELDS or host not in MANAGED_HOSTS or extra
-                or params["name"] != "jocasta" or params["url"] != "https://jocasta.mcp.ryzhkov.dev/mcp"):
-            module.fail_json(msg="managed_helper requires the fixed Jocasta resource, approved host and native Claude/Codex provider, without extra options")
-        definition = {"url": params["url"], HELPER_FIELDS[provider]: HELPER + host}
+        server = MANAGED_SERVERS.get(params["name"])
+        if (server is None or provider not in HELPER_FIELDS or provider not in server["providers"]
+                or host not in server["commands"] or extra or params["url"] != server["url"]):
+            module.fail_json(msg="managed_helper requires a fixed reviewed name and resource, its approved host and native provider, without extra options")
+        definition = {"url": params["url"], HELPER_FIELDS[provider]: server["commands"][host]}
         return {"type": "http", **definition} if provider == "claude" else definition
     if params.get("helper_host") is not None:
         module.fail_json(msg="helper_host belongs only to managed_helper auth mode")
