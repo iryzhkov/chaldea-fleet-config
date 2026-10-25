@@ -417,8 +417,9 @@ left in place. A name cannot be delivered and retired in the same run.
 
 ### OpenCode driver
 
-The [prepared laptop selection](laptop-opencode-prepared.md) records the inactive
-public candidate and root-owned merge, staging and native acceptance gates.
+The [laptop OpenCode selection](laptop-opencode-prepared.md) records the
+selected laptop profile and the root-owned staging and native acceptance gates
+that precede its merge.
 
 An OpenCode profile names the pinned official `opencode` native (`native`,
 `elf_machine`), an operator-provisioned private `home` and runtime `tmpdir`
@@ -543,27 +544,24 @@ waits with the separately installed `client-v0.4.20` runtime (`client-v0.4.18`
 plus only the session-bound headers helper the OpenCode driver needs; stage it
 before this file reaches the laptop), an empty deadline,
 the protected policy, the `jocasta-tooling-claude` preset (`claude-opus-5`, the
-model the pinned Claude 2.1.276 accepts) with its Authentik enrollment, and its
-fixed Claude profile. The grant is `get`, `history`, `list` and `search` on
+model the pinned Claude 2.1.276 accepts) with its Authentik enrollment and
+fixed Claude profile, and the matching Codex and OpenCode presets, enrollments
+and profiles. The grant is `get`, `history`, `list` and `search` on
 `project:tooling`, 1800 seconds, `delegate: false`, destination the root caller's
-T3 project. The profile native comes from the operator-staged
+T3 project. Each profile native comes from the operator-staged
 `~/.local/share/chaldea/provider-assets/` copy. No other host and no interactive
 provider, model or Chaldea MCP registration is configured by it.
 
-Codex is retained inactive. Its first actual T3 launch exited 78; the operator
-traced it to the launcher's fixed `cwd` naming the session workspace, while it
-must equal the T3 server's own working directory, the fleet home. That fix is
-unqualified until a real launch passes. Its staged assets, protected
-profile files, Codex HOME and Authentik account stay in place, unmanaged: there
-is no declared inactive state, and listing it in
-`chaldea_client_session_profiles_absent` would delete the role-owned files. Add
-its preset, enrollment and profile (with `cwd: /home/igor`) only after it
-qualifies natively in a fresh coordinated interval; delivering the profile
-rewrites its launcher.
+Codex's first actual T3 launch exited 78; the operator traced it to the
+launcher's fixed `cwd` naming the session workspace, while it must equal the T3
+server's own working directory, the fleet home. The profile with
+`cwd: /home/igor` then passed native acceptance (fleet PR105).
 
-This branch is that held Codex candidate: it declares the Codex preset,
-enrollment and profile with `cwd: /home/igor`. Do not merge it or let a pull
-apply it before that native qualification passes.
+This branch adds the OpenCode selection (`opencode/big-pickle`, protected
+native 2.1.3, private HOME and tmpdir, `cwd: /home/igor`). Its native acceptance
+is root-pending: do not merge it or let a pull apply it before the gates in the
+[laptop OpenCode selection](laptop-opencode-prepared.md) pass for this exact
+source.
 
 Consequences of the normal pull on the laptop:
 
@@ -580,8 +578,9 @@ Consequences of the normal pull on the laptop:
 - The credential-free namespace probe restarts on every real converge, so the
   laptop's pull never reports `changed=0` for this role. The waits service
   restarts only for pending restart intent.
-- The waits tokens, answer token and the Claude app-password file must exist
-  with owner-only modes; a missing one stops the laptop's pull at this role.
+- The waits tokens, answer token and every profile's app-password file must
+  exist with owner-only modes, and the OpenCode private HOME and tmpdir must
+  exist with mode 0700; a missing one stops the laptop's pull at this role.
 
 Rollback is not a revert of this file alone. Default user mode refuses while the
 system unit exists, so a revert merged first makes the laptop's pulls stop at
