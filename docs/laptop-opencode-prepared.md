@@ -29,10 +29,13 @@ Root owns these gates before activation:
   The source pin already selects that runtime. Installed waits remains
   client-v0.4.18 until root stages and activates it. Missing runtime stops
   convergence; the draft PR itself grants no deployment authority.
-- Verify and stage the pinned arm64 OpenCode 2.1.3 native at the fragment's
-  canonical asset path. Provision its distinct 0700 HOME and runtime directory,
-  then qualify the model and authentication there. Never copy the ordinary
-  OpenCode login or inspect it as part of source validation.
+- Recover and stage the exact public arm64 OpenCode 2.1.3 artifact at the
+  fragment's canonical asset path with its reviewed hash. Ordinary installed
+  OpenCode is 2.1.4 and stays unchanged; its moving installation is not this
+  protected candidate. No isolated auth HOME exists yet. Provision the distinct
+  0700 HOME and runtime directory, then qualify the model and authentication
+  there. Never copy the ordinary OpenCode login or inspect it as part of
+  source validation.
 - Enroll the prospective ordinary account
   `chaldea-laptop-jocasta-tooling-opencode` through the existing enrollment
   path and deliver its app password at the named protected secretFile.
