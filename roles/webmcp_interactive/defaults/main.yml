@@ -8,3 +8,9 @@ webmcp_interactive_previous_helper_sha256: ""
 webmcp_interactive_credential_source: ""
 # Previous delivery SHA256 is private input for an owned rotation; never shown.
 webmcp_interactive_previous_credential_sha256: ""
+# Separate laptop-only OV capability for ordinary Codex. Off. Root enables it
+# in laptop inventory only after homelab-infra has delivered the separate
+# interactive OV credential and the reviewed helper with the OV mode is
+# installed. Fleet never reads or delivers that credential; it only checks its
+# custody before registering the fixed helper.
+webmcp_interactive_ov_enabled: false

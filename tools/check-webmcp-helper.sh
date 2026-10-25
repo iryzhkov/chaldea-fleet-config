@@ -9,8 +9,14 @@ mkdir -p "$TMPDIR"
 cd tools/webmcp-interactive-headers
 HUYANG_FRICTION=0 go test -count=1 ./...
 go build -trimpath -o "$HOME/webmcp-interactive-headers" .
-if "$HOME/webmcp-interactive-headers" invalid 2>"$HOME/error"; then
-    echo "helper admitted invalid arguments" >&2
-    exit 1
-fi
-test "$(cat "$HOME/error")" = "managed headers unavailable"
+# Open or unknown tuples fail generically before any file or network access.
+# The real "ov laptop" and "jocasta HOST" modes are never invoked here.
+for args in "invalid" "ov" "ov agent-a" "ov laptop extra" "ov --url=https://other.invalid/mcp" "jocasta homelab"; do
+    # shellcheck disable=SC2086
+    if "$HOME/webmcp-interactive-headers" $args 2>"$HOME/error" >"$HOME/output"; then
+        echo "helper admitted invalid arguments: $args" >&2
+        exit 1
+    fi
+    test "$(cat "$HOME/error")" = "managed headers unavailable"
+    test ! -s "$HOME/output"
+done

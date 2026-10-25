@@ -1,0 +1,51 @@
+---
+# INERT activation example for ordinary laptop Codex OV access. This file is
+# outside inventory, no role loads it and it is never passed as extra vars.
+# Root copies the selection below into inventory/host_vars/laptop only after
+# every precondition in docs/managed-interactive-webmcp.md ("Laptop OV for
+# ordinary Codex") holds, as recorded receipts rather than source.
+#
+# 1. homelab-infra playbooks/authentik-ov-http-identities.yml has completed an
+#    authorized REAL run and identical repeat. It delivered the separate
+#    chaldea-laptop-ov-interactive-codex app password to the credential path
+#    below as laptop UID 1001, mode 0600 in a 0700 directory, and left the
+#    controller canary and limited ov-tooling-codex identities unchanged.
+# 2. A helper artifact built from the reviewed source of this change has a
+#    recorded build receipt (source commit and tree, Go version, flags,
+#    architecture and SHA256). That receipt, not this file, supplies the hash.
+#
+# The credential is the infra role's installed file and the helper is the
+# installed binary: each is its own source on repeat local pulls. Fleet never
+# reads, copies or checksums the OV credential; the role only checks its
+# custody metadata before registering the helper.
+selection:
+  webmcp_interactive_ov_enabled: true
+  # Unchanged existing laptop self-sources for the shared helper and Jocasta.
+  webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
+  webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
+
+# Reviewed helper pin. Replace only the aarch64 entry of
+# webmcp_interactive_helper_checksums in inventory/group_vars/all/main.yml with
+# the build receipt's SHA256. For the one staged upgrade, supply the currently
+# installed laptop digest privately as webmcp_interactive_previous_helper_sha256
+# and the receipt's binary as a protected webmcp_interactive_helper_source.
+# The x86_64 entry and the other three hosts stay on their existing artifact.
+helper_pin:
+  architecture: aarch64
+  sha256: FROM_REVIEWED_BUILD_RECEIPT
+  previous_sha256: f936deea9705fa4237f5c74760ccd51e1ab473fffa498836002f68b8c05036ba
+
+# Fixed values the source already enforces; listed for root's acceptance check.
+credential:
+  path: /home/igor/.config/chaldea/authentik/ov-interactive-codex.app-password
+  username: chaldea-laptop-ov-interactive-codex
+  owner_uid: 1001
+  mode: "0600"
+  parent_mode: "0700"
+codex_entry:
+  name: ov
+  url: https://ov.mcp.ryzhkov.dev/mcp
+  http_headers_helper: /usr/local/libexec/webmcp-interactive-headers ov laptop
+# Claude, OpenCode, other hosts, the Jocasta entries and the protected
+# Chaldea tooling profiles receive nothing from this selection.
+unchanged: [claude, opencode, agent-a, agent-b, omarchy-pc, jocasta, chaldea_client_session_profiles]
