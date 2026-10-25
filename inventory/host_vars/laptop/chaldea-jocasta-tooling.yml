@@ -2,22 +2,24 @@
 # Laptop's first persistent read-only Jocasta tooling sessions. Applied by the
 # normal pull, so it must stay equal to the qualified state the reviewed
 # maintenance left (execution af50ab7396f94090bb590da80785596f, fleet d4e697a,
-# infra a65d4b8). Public values only: credentials are named by path and
-# inspected with stat; none is stored here.
+# infra a65d4b8; Codex execution 68f4bdeda1234a1aaa36fbccba654214, fleet
+# PR105). Public values only: credentials are named by path and inspected with
+# stat; none is stored here.
 #
 # The laptop runs its single waits owner under the system manager with the
-# protected session policy and one fixed provider profile, Claude. Interactive
-# T3 providers, default models and the Chaldea MCP registration are not
-# configured here: mcp_registrations_chaldea_waits_enabled stays false on this
-# host. System mode converges waits only (docs/waits-system-preflight.md); the
-# shared client pin, quota unit and route files are left as last converged.
+# protected session policy and its fixed provider profiles. Claude and Codex
+# (cwd bound to the T3 server's working directory, the fleet home) passed
+# native acceptance. Interactive T3 providers, default models and the Chaldea
+# MCP registration are not configured here:
+# mcp_registrations_chaldea_waits_enabled stays false on this host. System mode
+# converges waits only (docs/waits-system-preflight.md); the shared client pin,
+# quota unit and route files are left as last converged.
 #
-# HELD CANDIDATE, do not merge or pull until qualified: this branch adds the
-# Codex preset, enrollment and profile with cwd bound to the T3 server's
-# working directory, the fleet home. The first Codex launch, with cwd set to
-# the session workspace, exited 78. Merge only after this exact binding passes
-# a native launch in a fresh coordinated interval; delivering the profile
-# rewrites its protected launcher.
+# ROOT-GATED OPENCODE SELECTION, do not merge or pull until qualified: this
+# branch adds the OpenCode preset, enrollment and profile (opencode/big-pickle,
+# no options, protected native 2.1.3, private HOME and tmpdir). Merge only after
+# root's native acceptance of this exact source passes; delivering the profile
+# installs its protected launcher. See docs/laptop-opencode-prepared.md.
 #
 # Every other host keeps its waits settings in hosts.yml; nothing here applies
 # to them. Rollback is a target-specific packet: docs/waits-system-preflight.md
@@ -31,8 +33,18 @@ chaldea_client_waits_service_mode: system
 chaldea_client_waits_deadline: ""
 chaldea_client_waits_environment: 943bead7-d804-4e04-984e-63d230303796
 # The separately installed waits runtime. Shared current/previous and the
-# shared client pin in group_vars/all are unchanged.
-chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.18
+# shared client pin in group_vars/all are unchanged. client-v0.4.20 is
+# client-v0.4.18 plus only the session-bound headers helper (--context and
+# --expect-*); legacy helper calls behave as before. The operator stages it
+# from the published release before this file reaches the laptop: archive
+# https://github.com/iryzhkov/chaldea/releases/download/client-v0.4.20/chaldea-client.tar.gz
+# SHA-256 ed3376ab8f21c1b6bb7b2d03e9e8c074dd43ed25be4881aafe574a12e8b618ff,
+# manifest SHA-256 c8542918859a19ec99065117c5bd359a12de1838d6f54a4090f5e1ee12a2d2d1.
+# The role only selects an installed runtime; a missing one stops the pull here.
+chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.20
+# No legacy system runtime admission: only the current client-v0.4.20 system
+# unit is admitted. The one-time client-v0.4.18 admission that moved waits here
+# is retired, so this file must reach the laptop only after that migration.
 # The system unit runs the installed Node 26.12.0. This host-wide override also
 # moves the laptop's other Chaldea Node consumers (MCP registration command,
 # job-client launcher, collector and retention) to 26.12.0.
@@ -103,6 +115,22 @@ chaldea_client_session_presets:
     maxSeconds: 1800
     delegate: false
     destinations: [f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5]
+  # The model is listed by the pinned 2.1.3 source and by the T3 catalog with
+  # no options; native availability and auth are root's acceptance gate.
+  jocasta-tooling-opencode:
+    instanceId: opencode-jocasta-tooling
+    model: opencode/big-pickle
+    runtimeMode: approval-required
+    interactionMode: default
+    projectId: mcp:2fe01b0e-5727-4111-9b95-ff81508562ba
+    title: Jocasta tooling read-only OpenCode
+    prompt: *jocasta_tooling_prompt
+    inputs: {project: tooling}
+    project: tooling
+    services: *jocasta_tooling_services
+    maxSeconds: 1800
+    delegate: false
+    destinations: [f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5]
 
 # One ordinary Authentik account per host and profile, enrolled by
 # homelab-infra's playbooks/authentik-jocasta-tooling.yml, which delivers the
@@ -132,6 +160,18 @@ chaldea_client_session_enrollments:
     project: tooling
     maxTokenSeconds: 300
     secretFile: /home/igor/.config/chaldea/authentik/jocasta-tooling-codex.app-password
+  jocasta-tooling-opencode:
+    form: app_password
+    issuer: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/
+    tokenUrl: https://auth.ryzhkov.dev/application/o/token/
+    jwksUrl: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/jwks/
+    clientId: chaldea-jocasta-tooling
+    username: chaldea-laptop-jocasta-tooling-opencode
+    scope: jocasta.read
+    resource: https://jocasta.mcp.ryzhkov.dev/mcp
+    project: tooling
+    maxTokenSeconds: 300
+    secretFile: /home/igor/.config/chaldea/authentik/jocasta-tooling-opencode.app-password
 
 # The native source is the operator-staged public asset under provider-assets,
 # never a download or a mise install path. Hash and size are reviewed pins.
@@ -178,3 +218,20 @@ chaldea_client_session_profiles:
     url: https://jocasta.mcp.ryzhkov.dev/mcp
     tools: [get, history, list, search]
     disabled_servers: [jocasta]
+  # The protected 2.1.3 native, not the ordinary installed OpenCode. home and
+  # tmpdir are operator-provisioned, private 0700 and never read by the role.
+  jocasta-tooling-opencode:
+    driver: opencode
+    native:
+      source: /home/igor/.local/share/chaldea/provider-assets/opencode/2.1.3/opencode
+      sha256: 78c279e68f25e69045a7ec5f518fccbad57e8f25d7853e66ba9677ddfaf28b19
+      size: 236047352
+    elf_machine: 183
+    home: /home/igor/.local/state/chaldea/profiles/jocasta-tooling-opencode/home
+    tmpdir: /home/igor/.local/state/chaldea/profiles/jocasta-tooling-opencode/tmp
+    cwd: /home/igor
+    preset: jocasta-tooling-opencode
+    audience: jocasta
+    server: jocasta_tooling
+    url: https://jocasta.mcp.ryzhkov.dev/mcp
+    tools: [get, history, list, search]

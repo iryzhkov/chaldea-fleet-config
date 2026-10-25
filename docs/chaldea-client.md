@@ -406,14 +406,56 @@ chaldea_client_session_profiles_absent:
     driver: claude
 ```
 
-A retired Codex profile is exactly `{name, home}`; a retired Claude profile is
-exactly `{name, driver: claude}`. A normal converge, or the role-only
+A retired Codex profile is exactly `{name, home}`; a retired Claude or OpenCode
+profile is exactly `{name, driver: claude}` or `{name, driver: opencode}`. A normal converge, or the role-only
 `session-profiles-absent.yml` entrypoint, removes the launcher first, then the
 other protected files (for Codex also `<home>/.codex/config.toml`), and finally
 the profile directory with `rmdir`. It refuses links, non-root files and foreign
 directories before removing anything, and stops if anything unknown remains in
 the profile directory. The profile home, its login and the source binaries are
 left in place. A name cannot be delivered and retired in the same run.
+
+### OpenCode driver
+
+The [laptop OpenCode selection](laptop-opencode-prepared.md) records the
+selected laptop profile and the root-owned staging and native acceptance gates
+that precede its merge.
+
+An OpenCode profile names the pinned official `opencode` native (`native`,
+`elf_machine`), an operator-provisioned private `home` and runtime `tmpdir`
+(both owned by the fleet user, mode 0700, never read or written by the role),
+the T3 server `cwd`, and the usual `preset`, `audience`, `server`, `url` and
+`tools`. The role delivers `opencode`, `opencode.json` and `exec` under the
+protected profile directory. `opencode.json` holds the single remote MCP entry,
+whose Authorization header is `{file:jocasta.authorization}`, and instance
+policies: every tool denied except `<server>_*` and T3's own `t3-code-*`, and
+every MCP integration removed except those two. The T3 OpenCode provider
+instance points `binaryPath` at `exec`; ACP is not used.
+
+The launcher admits only `serve --hostname=127.0.0.1 --port=N` and `--version`.
+It stays the foreground parent of one native child in T3's process group, with
+a fixed environment: the private home as HOME and XDG roots, project, Claude
+and plugin config disabled, and only T3's serve password passed through. Each
+launch gets `<tmpdir>/opencode-<random>/` (mode 0700) holding `tmp/` for the
+child's TMPDIR and `config/`, the child's OPENCODE_CONFIG_DIR, with a copy of
+the protected `opencode.json` and the header file (mode 0600), replaced
+atomically; OpenCode watches that directory and reconnects with the new header.
+
+The launcher calls the existing headers helper without a shell, first with
+`--context`, then before each expiry with `--context --expect-session
+--expect-run --expect-deadline` bound to the original admission. It renews 25
+seconds before expiry, inside the helper's 30-second cache threshold, with a
+10-second helper timeout. The first refusal, an unchanged or too-short header,
+a changed session, run or deadline, the original deadline, a missed renewal,
+a changed config copy, a stop signal or the child's exit ends the launch: the
+owned process group gets TERM even after the direct child exits. After three
+seconds, pidfd-bound KILL reaches surviving members without killing the
+launcher or risking a reused PID. The launcher adopts orphaned descendants,
+reaps children and allows at most three more seconds for KILL completion before
+removing the launch directory. Helper completion rechecks elapsed boot time,
+the original deadline and the previous header's stop margin before publication. There is no retry, restart or new session. The child dies with the
+launcher through the parent-death signal. After an uncatchable kill the launch
+directory stays behind; its header expires on its own and is not revoked.
 
 ### Limits
 
@@ -488,9 +530,11 @@ backups because the parent's fixed capture retains the original bytes; persisten
 mode retains its backups. This role does not implement composed cleanup.
 
 An active bounded owner refuses configuration changes instead of restarting.
-Repeated validation does not renew the deadline or consume a start. Namespace
-and loader probes intentionally execute when requested; their service tasks
-report a change even when all managed file bytes are converged. Empty deadline
+Repeated validation does not renew the deadline or consume a start. The
+credential-free namespace probe runs on every real run and any failure stops
+it, but it reports no change, because it only reads; its definition and checker
+report their own changes. The loader gate's service task still reports a change
+when requested. Empty deadline
 preserves the persistent unit bytes and ordinary restart-intent recovery.
 
 ## Laptop persistent activation
@@ -498,29 +542,34 @@ preserves the persistent unit bytes and ordinary restart-intent recovery.
 `inventory/host_vars/laptop/chaldea-jocasta-tooling.yml` is the laptop's desired
 state for its first persistent read-only Jocasta tooling sessions, so the normal
 pull converges the qualified state the reviewed maintenance left. It sets system
-waits with the separately installed `client-v0.4.18` runtime, an empty deadline,
+waits with the separately installed `client-v0.4.20` runtime (`client-v0.4.18`
+plus only the session-bound headers helper the OpenCode driver needs; stage it
+before this file reaches the laptop), an empty deadline,
 the protected policy, the `jocasta-tooling-claude` preset (`claude-opus-5`, the
-model the pinned Claude 2.1.276 accepts) with its Authentik enrollment, and its
-fixed Claude profile. The grant is `get`, `history`, `list` and `search` on
+model the pinned Claude 2.1.276 accepts) with its Authentik enrollment and
+fixed Claude profile, and the matching Codex and OpenCode presets, enrollments
+and profiles. The grant is `get`, `history`, `list` and `search` on
 `project:tooling`, 1800 seconds, `delegate: false`, destination the root caller's
-T3 project. The profile native comes from the operator-staged
+T3 project. Each profile native comes from the operator-staged
 `~/.local/share/chaldea/provider-assets/` copy. No other host and no interactive
 provider, model or Chaldea MCP registration is configured by it.
 
-Codex is retained inactive. Its first actual T3 launch exited 78; the operator
-traced it to the launcher's fixed `cwd` naming the session workspace, while it
-must equal the T3 server's own working directory, the fleet home. That fix is
-unqualified until a real launch passes. Its staged assets, protected
-profile files, Codex HOME and Authentik account stay in place, unmanaged: there
-is no declared inactive state, and listing it in
-`chaldea_client_session_profiles_absent` would delete the role-owned files. Add
-its preset, enrollment and profile (with `cwd: /home/igor`) only after it
-qualifies natively in a fresh coordinated interval; delivering the profile
-rewrites its launcher.
+The laptop's move from `client-v0.4.18` used a one-time admission of the exact
+`client-v0.4.18` system unit (`chaldea_client_waits_legacy_system_runtime`, see
+[system waits preflight](waits-system-preflight.md)). That admission is retired:
+this file admits only the current `client-v0.4.20` unit and refuses the
+`client-v0.4.18` one, so it must reach the laptop only after that migration.
 
-This branch is that held Codex candidate: it declares the Codex preset,
-enrollment and profile with `cwd: /home/igor`. Do not merge it or let a pull
-apply it before that native qualification passes.
+Codex's first actual T3 launch exited 78; the operator traced it to the
+launcher's fixed `cwd` naming the session workspace, while it must equal the T3
+server's own working directory, the fleet home. The profile with
+`cwd: /home/igor` then passed native acceptance (fleet PR105).
+
+This branch adds the OpenCode selection (`opencode/big-pickle`, protected
+native 2.1.3, private HOME and tmpdir, `cwd: /home/igor`). Its native acceptance
+is root-pending: do not merge it or let a pull apply it before the gates in the
+[laptop OpenCode selection](laptop-opencode-prepared.md) pass for this exact
+source.
 
 Consequences of the normal pull on the laptop:
 
@@ -534,11 +583,13 @@ Consequences of the normal pull on the laptop:
   `chaldea_node_version`, so the file sets `retention_mise_prune: false`: the
   retention timer still cleans worktrees, temporary files and the Go cache but
   never runs `mise prune`. Keep it off while any 26.10.0 consumer remains.
-- The credential-free namespace probe restarts on every real converge, so the
-  laptop's pull never reports `changed=0` for this role. The waits service
-  restarts only for pending restart intent.
-- The waits tokens, answer token and the Claude app-password file must exist
-  with owner-only modes; a missing one stops the laptop's pull at this role.
+- The credential-free namespace probe runs on every real converge and still
+  stops the pull when it fails, but it reports no change, so a converged pull
+  reports `changed=0` for this role. The waits service restarts only for
+  pending restart intent.
+- The waits tokens, answer token and every profile's app-password file must
+  exist with owner-only modes, and the OpenCode private HOME and tmpdir must
+  exist with mode 0700; a missing one stops the laptop's pull at this role.
 
 Rollback is not a revert of this file alone. Default user mode refuses while the
 system unit exists, so a revert merged first makes the laptop's pulls stop at

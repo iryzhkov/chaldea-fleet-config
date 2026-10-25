@@ -15,7 +15,7 @@
 
 - name: Deliver each fixed provider profile with its driver's tasks
   ansible.builtin.include_tasks:
-    file: "{{ 'session-profile-claude.yml' if chaldea_client_profile.value.driver == 'claude' else 'session-profile.yml' }}"
+    file: "{{ {'claude': 'session-profile-claude.yml', 'opencode': 'session-profile-opencode.yml'}.get(chaldea_client_profile.value.driver, 'session-profile.yml') }}"
   loop: "{{ chaldea_client_session_profiles | dict2items }}"
   loop_control:
     loop_var: chaldea_client_profile

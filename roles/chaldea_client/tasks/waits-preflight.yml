@@ -96,6 +96,9 @@
     group: root
     mode: "0644"
 
+# The probe runs on every real run and fails the play when it fails. It only
+# reads proc maps and public ancestors, so running it changes nothing; any
+# preflight definition or checker change is reported by the tasks above.
 - name: Run the credential-free probe in the exact service sandbox
   become: true
   ansible.builtin.systemd_service:
@@ -104,6 +107,7 @@
     daemon_reload: true
     state: restarted
   register: chaldea_client_waits_probe
+  changed_when: false
   when: not ansible_check_mode
 
 - name: Read the completed probe result after execution

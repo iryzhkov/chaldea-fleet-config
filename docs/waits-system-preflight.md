@@ -99,6 +99,24 @@ checksum comparisons. It never installs or executes the old Node version or
 changes system units, runtime, deadline or policy. Retain it while that legacy
 backup remains reserved. Retiring the backup needs a separately reviewed packet.
 
+The persistent system unit names the canonical runtime it was rendered for, so
+selecting a different `chaldea_client_waits_runtime_root` makes exact admission
+refuse the installed unit before any write. A reviewed runtime-migration change
+may set the protected `chaldea_client_waits_legacy_system_runtime` to the exact
+old canonical runtime path, for example
+`~/.local/share/chaldea/releases/client-v0.4.18` while the new root selects
+`client-v0.4.20`. Empty preserves existing admission. The override requires
+persistent system mode with waits enabled and no deadline, a normalized absolute
+path inside the Chaldea root other than the selected runtime, and an existing
+regular system unit. It adds only one checksum expectation: the role's exact
+system rendering with that old runtime. Root ownership, 0644 mode, single link,
+loaded fragment path, absence of drop-ins and the single-owner rule remain
+mandatory, and drifted or foreign units are refused. The pull then installs the
+current rendering (keeping the old bytes as its backup) and restarts waits
+through the usual restart intent and readiness checks. The override never
+selects, installs or runs the old runtime. Remove it in a separately reviewed
+change once the installed unit is the current rendering.
+
 Rollback needs a new concrete packet. Stop and disable the role-owned system
 unit first, verify it is inactive, preserve its definition and waits.json
 backup, then remove the system definition, restore the saved user definition

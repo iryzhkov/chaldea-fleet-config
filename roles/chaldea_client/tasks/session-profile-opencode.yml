@@ -1,0 +1,189 @@
+---
+# One fixed OpenCode provider profile: the pinned native binary, the protected
+# public config and the launcher, all under its protected directory. The
+# operator provisions the private profile home and runtime directory; this role
+# only inspects them with stat and never writes, lists or reads either. Expected
+# bytes come only from the operator's profile configuration and this role's
+# templates.
+- name: Name this OpenCode profile's protected directory and headers helper argv
+  ansible.builtin.set_fact:
+    chaldea_client_profile_dir: "{{ (chaldea_client_session_policy_path | dirname) ~ '/' ~ chaldea_client_profile.key }}"
+    # The launcher adds --context, and the expected original session, run and
+    # deadline on renewal, before the final --config pair. It runs no shell.
+    chaldea_client_profile_helper:
+      - "{{ fleet_home ~ '/.local/share/mise/installs/node/' ~ chaldea_node_version ~ '/bin/node' }}"
+      - "{{ chaldea_client_waits_resolved_runtime ~ '/bin/chaldea' }}"
+      - session
+      - headers
+      - --preset
+      - "{{ chaldea_client_profile.value.preset }}"
+      - --audience
+      - "{{ chaldea_client_profile.value.audience }}"
+      - --config
+      - "{{ fleet_home ~ '/.config/chaldea/waits.json' }}"
+
+- name: Render this OpenCode profile's protected public config
+  ansible.builtin.set_fact:
+    chaldea_client_profile_config: "{{ lookup('ansible.builtin.template', 'opencode-profile-config.json.j2') }}"
+
+- name: Render the OpenCode launcher bound to those exact config bytes
+  ansible.builtin.set_fact:
+    chaldea_client_profile_exec: "{{ lookup('ansible.builtin.template', 'opencode-profile-exec.py.j2') }}"
+
+- name: Name every protected OpenCode profile file with its expected mode and SHA-256
+  ansible.builtin.set_fact:
+    chaldea_client_profile_expected:
+      native: {path: "{{ chaldea_client_profile_dir }}/opencode", mode: "0755", sha256: "{{ chaldea_client_profile.value.native.sha256 }}"}
+      config: {path: "{{ chaldea_client_profile_dir }}/opencode.json", mode: "0644", sha256: "{{ chaldea_client_profile_config | hash('sha256') }}"}
+      exec: {path: "{{ chaldea_client_profile_dir }}/exec", mode: "0755", sha256: "{{ chaldea_client_profile_exec | hash('sha256') }}"}
+    chaldea_client_profile_protected_dirs: >-
+      {%- set root = chaldea_client_session_policy_root -%}
+      {%- set parts = (chaldea_client_profile_dir | relpath(root)).split('/') -%}
+      {%- set out = [root] -%}
+      {%- for i in range(parts | length) -%}
+      {%-   set _ = out.append((root | regex_replace('/$', '')) ~ '/' ~ (parts[:i + 1] | join('/'))) -%}
+      {%- endfor -%}
+      {{ out }}
+
+- name: Inspect the pinned installed OpenCode binary without following links
+  ansible.builtin.stat:
+    path: "{{ chaldea_client_profile.value.native.source }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  register: chaldea_client_profile_native
+
+- name: Refuse a source that is not the exact pinned installed OpenCode binary
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_profile_native.stat.exists | default(false)
+      - chaldea_client_profile_native.stat.isreg and not chaldea_client_profile_native.stat.islnk
+      - chaldea_client_profile_native.stat.uid in [0, ansible_facts.user_uid | int]
+      - chaldea_client_profile_native.stat.mode[-2] not in ['2', '3', '6', '7']
+      - chaldea_client_profile_native.stat.mode[-1] not in ['2', '3', '6', '7']
+      - chaldea_client_profile_native.stat.size == chaldea_client_profile.value.native.size | int
+      - chaldea_client_profile_native.stat.checksum | default('') == chaldea_client_profile.value.native.sha256
+    fail_msg: >-
+      {{ chaldea_client_profile.value.native.source }} must be the already-installed OpenCode binary with the
+      pinned size and SHA-256, a regular file writable by no one else. This role never downloads or changes versions.
+    quiet: true
+
+- name: Inspect the operator-provisioned profile home and runtime directory without reading them
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "{{ chaldea_client_profile.value.home }}"
+    - "{{ chaldea_client_profile.value.tmpdir }}"
+  register: chaldea_client_profile_private
+
+- name: Refuse a missing, linked, shared or foreign profile home or runtime directory
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false) and item.stat.isdir and not item.stat.islnk
+      - item.stat.uid == ansible_facts.user_uid | int and item.stat.gid == ansible_facts.user_gid | int
+      - item.stat.mode == '0700'
+    fail_msg: >-
+      {{ item.item }} must be an existing directory owned by uid {{ ansible_facts.user_uid }} with mode 0700.
+      The operator provisions it; this role never creates, lists or reads it.
+    quiet: true
+  loop: "{{ chaldea_client_profile_private.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Inspect protected directories and OpenCode targets without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ chaldea_client_profile_protected_dirs + (chaldea_client_profile_expected.values() | map(attribute='path') | list) }}"
+  register: chaldea_client_profile_before
+
+- name: Refuse linked, foreign or shared-writable OpenCode profile targets
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists or item.item not in chaldea_client_profile_protected_dirs[:-3]
+      - not item.stat.exists or not item.stat.islnk
+      - not item.stat.exists or item.stat.uid == chaldea_client_session_policy_owner_uid | int
+      - not item.stat.exists or (item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7'])
+      - >-
+        not item.stat.exists or
+        (item.stat.isdir if item.item in chaldea_client_profile_protected_dirs else (item.stat.isreg and item.stat.nlink == 1))
+    fail_msg: >-
+      {{ item.item }} must be absent or owned by uid {{ chaldea_client_session_policy_owner_uid }}, writable by no one
+      else and not a link. Move an unmanaged file aside; the role replaces only its own files.
+    quiet: true
+  loop: "{{ chaldea_client_profile_before.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Write this OpenCode profile's protected files as their owner
+  become: "{{ chaldea_client_session_policy_become }}"
+  block:
+    - name: Create the protected OpenCode profile directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ chaldea_client_session_policy_owner }}"
+        group: "{{ chaldea_client_session_profile_group }}"
+        mode: "0755"
+      loop: "{{ chaldea_client_profile_protected_dirs[-3:] }}"
+
+    - name: Copy the pinned OpenCode binary byte for byte
+      ansible.builtin.copy:
+        src: "{{ chaldea_client_profile.value.native.source }}"
+        dest: "{{ chaldea_client_profile_expected.native.path }}"
+        remote_src: true
+        owner: "{{ chaldea_client_session_policy_owner }}"
+        group: "{{ chaldea_client_session_profile_group }}"
+        mode: "0755"
+        follow: false
+      # Check mode cannot predict a remote copy into a directory it has not created.
+      when: >-
+        not ansible_check_mode or
+        (chaldea_client_profile_before.results | selectattr('item', 'equalto', chaldea_client_profile_dir)
+         | map(attribute='stat.exists') | first)
+
+    - name: Write the rendered OpenCode public files, launcher last
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ chaldea_client_profile_expected[item.key].path }}"
+        owner: "{{ chaldea_client_session_policy_owner }}"
+        group: "{{ chaldea_client_session_profile_group }}"
+        mode: "{{ chaldea_client_profile_expected[item.key].mode }}"
+        follow: false
+      loop:
+        - {key: config, content: "{{ chaldea_client_profile_config }}"}
+        - {key: exec, content: "{{ chaldea_client_profile_exec }}"}
+      loop_control:
+        label: "{{ item.key }}"
+
+- name: Inspect the delivered OpenCode profile files
+  ansible.builtin.stat:
+    path: "{{ item.value.path }}"
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  loop: "{{ chaldea_client_profile_expected | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: chaldea_client_profile_after
+  when: not ansible_check_mode
+
+- name: Require the exact protected OpenCode bytes and custody
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and item.stat.isreg and not item.stat.islnk and item.stat.nlink == 1
+      - item.stat.uid == chaldea_client_session_policy_owner_uid | int
+      - item.stat.gid == chaldea_client_session_profile_owner_gid | int
+      - item.stat.mode == item.item.value.mode
+      - item.stat.checksum == item.item.value.sha256
+    fail_msg: "{{ item.item.value.path }} does not hold the exact pinned or rendered bytes; the launcher will refuse it."
+    quiet: true
+  loop: "{{ chaldea_client_profile_after.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  when: not ansible_check_mode

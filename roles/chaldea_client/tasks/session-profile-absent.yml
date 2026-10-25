@@ -27,6 +27,17 @@
     chaldea_client_retired_parents: []
   when: chaldea_client_retired.driver | default('') == 'claude'
 
+# Per-launch runtime directories in the profile's tmpdir belong to the launcher
+# and its user, never to this role; nothing in the profile home is touched.
+- name: Name the retired OpenCode profile's role-owned files
+  ansible.builtin.set_fact:
+    chaldea_client_retired_files:
+      - "{{ chaldea_client_retired_dir }}/exec"
+      - "{{ chaldea_client_retired_dir }}/opencode.json"
+      - "{{ chaldea_client_retired_dir }}/opencode"
+    chaldea_client_retired_parents: []
+  when: chaldea_client_retired.driver | default('') == 'opencode'
+
 - name: Inspect the retired profile without following links
   ansible.builtin.stat:
     path: "{{ item }}"

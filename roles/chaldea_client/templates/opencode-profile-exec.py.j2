@@ -1,0 +1,586 @@
+{% set p = chaldea_client_profile.value %}
+#!/usr/bin/python3 -I
+"""Fixed OpenCode provider profile launcher rendered by the chaldea_client role.
+
+T3 runs this in place of `opencode serve`. Every constant is literal data from the
+operator's protected profile configuration or a hash of the exact public bytes the
+role rendered beside it. The launcher admits only T3's fixed serve and version argv,
+pins the native binary and the protected config, and stays the foreground parent of
+exactly one serve child in T3's own process group.
+
+The child gets a fresh private OPENCODE_CONFIG_DIR holding a copy of the protected
+config and one short-lived bearer header file, which OpenCode watches and reloads.
+The launcher renews that header through the existing helper, bound to the original
+admitted session, run and deadline. It ends the child on the first helper refusal,
+missed renewal, deadline, cancellation signal or child exit. It never starts a new
+session, retries a refusal or restarts the child. An issued header stays valid until
+its own expiry; ending issuance is not remote revocation, and a file left behind by
+an uncatchable kill is not deleted. Same-UID processes can still race or read these
+files; this prevents accidents and stale inputs, not a hostile process.
+"""
+import base64
+import ctypes
+import hashlib
+import json
+import os
+import re
+import shutil
+import signal
+import stat
+import sys
+import time
+
+NATIVE_PATH = {{ (chaldea_client_profile_dir ~ '/opencode') | to_json }}
+NATIVE_SHA256 = {{ p.native.sha256 | to_json }}
+NATIVE_SIZE = {{ p.native.size | int }}
+ELF_MACHINE = {{ p.elf_machine | int }}
+UID = {{ ansible_facts.user_uid | int }}
+GID = {{ ansible_facts.user_gid | int }}
+OWNER_UID = {{ chaldea_client_session_policy_owner_uid | int }}
+OWNER_GID = {{ chaldea_client_session_profile_owner_gid | int }}
+CWD = {{ p.cwd | to_json }}
+HOME = {{ p.home | to_json }}
+RUNTIME = {{ p.tmpdir | to_json }}
+CONFIG_PATH = {{ (chaldea_client_profile_dir ~ '/opencode.json') | to_json }}
+CONFIG_SHA256 = {{ chaldea_client_profile_config | hash('sha256') | to_json }}
+CONFIG_SIZE = {{ chaldea_client_profile_config | length }}
+CONFIG = json.loads({{ chaldea_client_profile_config | to_json }})
+AUTHORIZATION = {{ chaldea_client_opencode_authorization | to_json }}
+HELPER = {{ chaldea_client_profile_helper | to_json }}
+HELPER_HOME = {{ fleet_home | to_json }}
+{% raw %}
+SERVE_HOSTNAME = "--hostname=127.0.0.1"
+# T3 generates the serve password; the launcher passes only these names through.
+PASSWORDS = ("OPENCODE_PASSWORD", "OPENCODE_SERVER_PASSWORD")
+ENV = {
+    "HOME": HOME,
+    "XDG_CONFIG_HOME": HOME + "/.config",
+    "XDG_DATA_HOME": HOME + "/.local/share",
+    "XDG_STATE_HOME": HOME + "/.local/state",
+    "XDG_CACHE_HOME": HOME + "/.cache",
+    "PATH": "/usr/bin:/bin",
+    "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+    "OPENCODE_CONFIG_PROJECT_DISABLE": "1",
+    "OPENCODE_DISABLE_CLAUDE_CODE": "1",
+    "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1",
+    "OPENCODE_DISABLE_AUTOUPDATE": "1",
+    "OPENCODE_DISABLE_MODELS_FETCH": "1",
+}
+HELPER_ENV = {"HOME": HELPER_HOME, "PATH": "/usr/bin:/bin"}
+# Scheduling only; the helper alone decides whether a header may be issued.
+HELPER_TIMEOUT = 10.0
+# Inside the helper's 30-second cache threshold, so a renewal mints a new header.
+REFRESH_LEAD = 25.0
+# A header with this little life left and no renewal ends the launch.
+STOP_MARGIN = 5.0
+# Bounded wake interval that notices suspend and wall-clock changes.
+WAKE_CAP = 5.0
+GRACE = 3.0
+OUTPUT_LIMIT = 16384
+ID = r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}"
+BEARER = r"Bearer [A-Za-z0-9_-]{1,4096}[.]([A-Za-z0-9_-]{1,4096})[.][A-Za-z0-9_-]{1,4096}"
+STOPS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
+WATCHED = (*STOPS, signal.SIGCHLD)
+STABLE = ("st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink", "st_size", "st_mtime_ns", "st_ctime_ns")
+PR_SET_PDEATHSIG = 1
+PR_SET_CHILD_SUBREAPER = 36
+
+
+class Refused(Exception):
+    """Ends the launch. The argument is a fixed reason word, never secret data."""
+
+
+def require(ok, reason="refused"):
+    if not ok:
+        raise Refused(reason)
+
+
+def boottime():
+    return time.clock_gettime(time.CLOCK_BOOTTIME)
+
+
+class Clock:
+    """Epoch seconds that never run behind wall time or elapsed boot time, suspend included."""
+
+    def __init__(self):
+        self.wall, self.boot = time.time(), boottime()
+
+    def now(self):
+        return max(time.time(), self.wall + (boottime() - self.boot))
+
+
+def walk(path):
+    """Open a fixed absolute directory by FDs, refusing links and shared-writable components."""
+    parts = path.split("/")[1:]
+    require(path.startswith("/") and all(p not in {"", ".", ".."} for p in parts))
+    directory = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        for part in parts:
+            nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=directory)
+            os.close(directory)
+            directory = nxt
+            meta = os.fstat(directory)
+            require(meta.st_uid in {0, UID} and not meta.st_mode & 0o022)
+        return directory
+    except BaseException:
+        os.close(directory)
+        raise
+
+
+def private_dir(path):
+    """An operator-provisioned directory owned by the launching user with mode 0700."""
+    directory = walk(path)
+    meta = os.fstat(directory)
+    if meta.st_uid != UID or meta.st_gid != GID or stat.S_IMODE(meta.st_mode) != 0o700:
+        os.close(directory)
+        raise Refused("refused")
+    return directory
+
+
+def pinned(path, digest, mode, size):
+    """Open a role-owned file by FD; check custody, exact size, streamed hash and stable metadata."""
+    parent, name = path.rsplit("/", 1)
+    directory = walk(parent)
+    try:
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory)
+    finally:
+        os.close(directory)
+    try:
+        before = os.fstat(fd)
+        require(stat.S_ISREG(before.st_mode) and stat.S_IMODE(before.st_mode) == mode)
+        require(before.st_uid == OWNER_UID and before.st_gid == OWNER_GID and before.st_nlink == 1)
+        require(before.st_size == size)
+        hashed, data, total = hashlib.sha256(), bytearray(), 0
+        while total <= size:
+            chunk = os.read(fd, min(1048576, size + 1 - total))
+            if not chunk:
+                break
+            hashed.update(chunk)
+            total += len(chunk)
+            data.extend(chunk[:max(0, 65536 - len(data))])
+        require(total == size and hashed.hexdigest() == digest)
+        after = os.fstat(fd)
+        require(all(getattr(before, key) == getattr(after, key) for key in STABLE))
+        os.lseek(fd, 0, os.SEEK_SET)
+        return fd, bytes(data)
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def pinned_native():
+    fd, header = pinned(NATIVE_PATH, NATIVE_SHA256, 0o755, NATIVE_SIZE)
+    if header[:7] != b"\x7fELF\x02\x01\x01" or int.from_bytes(header[18:20], "little") != ELF_MACHINE:
+        os.close(fd)
+        raise Refused("refused")
+    return fd
+
+
+def pinned_config():
+    """The protected public config bytes, which must parse to exactly the rendered value."""
+    fd, data = pinned(CONFIG_PATH, CONFIG_SHA256, 0o644, CONFIG_SIZE)
+    os.close(fd)
+    require(json.loads(data) == CONFIG)
+    return data
+
+
+def admitted(argv):
+    """Only T3's serve argv: loopback hostname and one numeric port."""
+    require(len(argv) == 3 and argv[0] == "serve" and argv[1] == SERVE_HOSTNAME)
+    port = argv[2].removeprefix("--port=")
+    require(argv[2].startswith("--port=") and re.fullmatch(r"[1-9][0-9]{0,4}", port, re.ASCII) is not None
+            and int(port) <= 65535)
+
+
+def child_environment(tmpdir, config_dir):
+    env = dict(ENV, TMPDIR=tmpdir)
+    if config_dir is not None:
+        env["OPENCODE_CONFIG_DIR"] = config_dir
+    for name in PASSWORDS:
+        value = os.environ.get(name)
+        if value is not None:
+            require(re.fullmatch(r"[\x21-\x7e]{1,512}", value, re.ASCII) is not None)
+            env[name] = value
+    return env
+
+
+def pairs(items):
+    result = {}
+    for key, value in items:
+        require(key not in result)
+        result[key] = value
+    return result
+
+
+def refuse_constant(_):
+    raise Refused("helper_output")
+
+
+def parsed(raw, bound):
+    """The helper's single JSON line: one bearer header and its admission context."""
+    try:
+        text = raw.decode("utf-8")
+        require(text.endswith("\n") and text.count("\n") == 1, "helper_output")
+        value = json.loads(text, object_pairs_hook=pairs, parse_constant=refuse_constant)
+        require(isinstance(value, dict) and set(value) == {"headers", "context"}, "helper_output")
+        headers, context = value["headers"], value["context"]
+        require(isinstance(headers, dict) and set(headers) == {"Authorization"}, "helper_output")
+        require(isinstance(context, dict) and set(context) == {"sessionId", "runId", "deadline", "tokenExpiresAt"},
+                "helper_output")
+        header = headers["Authorization"]
+        match = re.fullmatch(BEARER, header, re.ASCII) if isinstance(header, str) else None
+        require(match is not None, "helper_output")
+        ids = (context["sessionId"], context["runId"])
+        require(all(isinstance(i, str) and re.fullmatch(ID, i, re.ASCII) for i in ids), "helper_output")
+        numbers = (context["deadline"], context["tokenExpiresAt"])
+        require(all(type(n) is int and 0 < n < 1 << 40 for n in numbers), "helper_output")
+        segment = match.group(1)
+        claims = json.loads(base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4)), object_pairs_hook=pairs,
+                            parse_constant=refuse_constant)
+        # Scheduling cross-check only: the helper already validated this header.
+        require(isinstance(claims, dict) and claims.get("exp") == context["tokenExpiresAt"], "helper_output")
+    except (ValueError, TypeError, KeyError) as error:
+        raise Refused("helper_output") from error
+    identity = (*ids, context["deadline"])
+    require(bound is None or identity == bound, "session_changed")
+    require(context["tokenExpiresAt"] <= context["deadline"], "helper_output")
+    return header, identity, context["tokenExpiresAt"]
+
+
+def spawn(target, argv, env, stdio):
+    """Fork one child in this process group; it dies with this launcher and checks its parent."""
+    parent = os.getpid()
+    pid = os.fork()
+    if pid:
+        return pid
+    try:
+        signal.pthread_sigmask(signal.SIG_SETMASK, [])
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(PR_SET_PDEATHSIG, signal.SIGKILL, 0, 0, 0) != 0 or os.getppid() != parent:
+            os._exit(78)
+        for source, number in zip(stdio, (0, 1, 2)):
+            if source is not None:
+                os.dup2(source, number)
+        os.execve(target, argv, env)
+    finally:
+        os._exit(127)
+
+
+def read_available(fd):
+    os.set_blocking(fd, False)
+    data = bytearray()
+    try:
+        while len(data) <= OUTPUT_LIMIT:
+            chunk = os.read(fd, OUTPUT_LIMIT + 1 - len(data))
+            if not chunk:
+                break
+            data.extend(chunk)
+    except BlockingIOError:
+        pass
+    finally:
+        os.close(fd)
+    return bytes(data)
+
+
+class Launch:
+    """One serve child, its private config directory and its bound header."""
+
+    def __init__(self, clock):
+        self.clock = clock
+        self.child = self.status = self.signal = None
+        self.stopping = False
+        self.runtime = self.top = self.directory = self.name = self.config = None
+        self.identity = None
+        self.expires = 0
+        self.group = os.getpid() if os.getpgrp() == os.getpid() else None
+
+    def wait(self, timeout):
+        """Sleep until a watched signal or the timeout, then reap the serve child."""
+        info = signal.sigtimedwait(WATCHED, max(0.0, timeout))
+        # Once stopping, a stop signal (including this launcher's own group signal) changes nothing.
+        if info is not None and info.si_signo in STOPS and self.signal is None and not self.stopping:
+            self.signal = info.si_signo
+        if self.child is not None and self.status is None:
+            pid, status = os.waitpid(self.child, os.WNOHANG)
+            if pid:
+                self.status = status
+
+    def ended(self):
+        return self.signal is not None or self.status is not None
+
+    def helper(self):
+        """Run the fixed helper argv, bounded and cancellable; never through a shell."""
+        argv = [*HELPER[:-2], "--context"]
+        if self.identity is not None:
+            session, run, deadline = self.identity
+            argv += ["--expect-session", session, "--expect-run", run, "--expect-deadline", str(deadline)]
+        argv += HELPER[-2:]
+        out_read, out_write = os.pipe()
+        err_read, err_write = os.pipe()
+        null = os.open("/dev/null", os.O_RDONLY | os.O_CLOEXEC)
+        try:
+            pid = spawn(HELPER[0], argv, HELPER_ENV, (null, out_write, err_write))
+        finally:
+            for fd in (null, out_write, err_write):
+                os.close(fd)
+        status, started = None, boottime()
+        try:
+            while status is None and not self.ended():
+                left = HELPER_TIMEOUT - (boottime() - started)
+                if left <= 0:
+                    break
+                self.wait(min(left, WAKE_CAP))
+                done, code = os.waitpid(pid, os.WNOHANG)
+                if done:
+                    status = code
+        finally:
+            if status is None:
+                os.kill(pid, signal.SIGKILL)
+                os.waitpid(pid, 0)
+            output, errors = read_available(out_read), read_available(err_read)
+        if self.ended():
+            raise Refused("ended")
+        require(status is not None and boottime() - started < HELPER_TIMEOUT, "helper_timeout")
+        now = self.clock.now()
+        if self.identity is not None:
+            require(now < self.identity[2], "deadline")
+            require(now < self.expires - STOP_MARGIN, "renewal_missed")
+        if not os.WIFEXITED(status) or os.WEXITSTATUS(status) != 0:
+            word = errors.decode("ascii", "replace").strip()
+            raise Refused(word if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", word, re.ASCII) else "helper_refused")
+        header, identity, expires = parsed(output, self.identity)
+        now = self.clock.now()
+        # A renewal must extend the header and leave time to schedule the next one.
+        require(expires > self.expires and expires - now > REFRESH_LEAD, "renewal_insufficient")
+        require(now < identity[2], "deadline")
+        return header, identity, expires
+
+    def create(self, config):
+        """A fresh private launch directory: tmp for the child's TMPDIR and, for serve, the watched config."""
+        self.runtime = private_dir(RUNTIME)
+        for _ in range(8):
+            name = "opencode-" + os.urandom(16).hex()
+            try:
+                os.mkdir(name, 0o700, dir_fd=self.runtime)
+            except FileExistsError:
+                continue
+            self.name = name
+            break
+        require(self.name is not None)
+        self.top = self.subdirectory(self.runtime, self.name)
+        os.close(self.subdirectory(self.top, "tmp", create=True))
+        if config is not None:
+            self.directory = self.subdirectory(self.top, "config", create=True)
+            self.config = self.write("opencode.json", config, 0o400)
+
+    @staticmethod
+    def subdirectory(parent, name, create=False):
+        if create:
+            os.mkdir(name, 0o700, dir_fd=parent)
+        fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent)
+        os.fchmod(fd, 0o700)
+        meta = os.fstat(fd)
+        if meta.st_uid != UID or stat.S_IMODE(meta.st_mode) != 0o700:
+            os.close(fd)
+            raise Refused("refused")
+        return fd
+
+    def environment(self):
+        path = RUNTIME + "/" + self.name
+        return child_environment(path + "/tmp", path + "/config" if self.directory is not None else None)
+
+    def write(self, name, data, mode):
+        fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, mode,
+                     dir_fd=self.directory)
+        try:
+            os.fchmod(fd, mode)
+            view = memoryview(data)
+            while view:
+                view = view[os.write(fd, view):]
+            os.fsync(fd)
+            return os.fstat(fd).st_ino
+        finally:
+            os.close(fd)
+
+    def publish(self, header):
+        """Replace the watched header file atomically within the private directory."""
+        temporary = "." + AUTHORIZATION + "-" + os.urandom(8).hex()
+        self.write(temporary, header.encode("ascii"), 0o600)
+        os.rename(temporary, AUTHORIZATION, src_dir_fd=self.directory, dst_dir_fd=self.directory)
+        os.fsync(self.directory)
+
+    def intact(self):
+        """The private directory and its config copy are still exactly what this launch wrote."""
+        meta = os.fstat(self.directory)
+        require(meta.st_uid == UID and stat.S_IMODE(meta.st_mode) == 0o700, "tampered")
+        try:
+            fd = os.open("opencode.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=self.directory)
+        except OSError as error:
+            raise Refused("tampered") from error
+        try:
+            meta = os.fstat(fd)
+            data = os.read(fd, CONFIG_SIZE + 1)
+        finally:
+            os.close(fd)
+        require(meta.st_ino == self.config and stat.S_IMODE(meta.st_mode) == 0o400, "tampered")
+        require(hashlib.sha256(data).hexdigest() == CONFIG_SHA256, "tampered")
+
+    def supervise(self):
+        """Renew before each expiry until the child exits or the launch must end."""
+        while True:
+            now = self.clock.now()
+            if self.ended():
+                return
+            require(now < self.identity[2], "deadline")
+            require(now < self.expires - STOP_MARGIN, "renewal_missed")
+            renew = self.expires - REFRESH_LEAD
+            if now < renew:
+                self.wait(min(renew - now, self.identity[2] - now, WAKE_CAP))
+                continue
+            self.intact()
+            header, identity, expires = self.helper()
+            # A helper wait, including suspend, cannot bridge an expired old header.
+            now = self.clock.now()
+            require(now < self.identity[2], "deadline")
+            require(now < self.expires - STOP_MARGIN, "renewal_missed")
+            self.publish(header)
+            self.identity, self.expires = identity, expires
+
+    def group_members(self):
+        """Pin live members of T3's owned group by pidfd, excluding this launcher."""
+        members = []
+        try:
+            for name in os.listdir("/proc"):
+                if not name.isdecimal() or int(name) == os.getpid():
+                    continue
+                fd = None
+                try:
+                    # Opening first binds signals to this process even if its PID is reused.
+                    fd = os.pidfd_open(int(name))
+                    with open("/proc/" + name + "/stat", encoding="ascii", errors="replace") as handle:
+                        fields = handle.read().rsplit(")", 1)[1].split()
+                    if int(fields[2]) == self.group and fields[0] != "Z":
+                        members.append(fd)
+                        fd = None
+                except (FileNotFoundError, ProcessLookupError):
+                    pass
+                finally:
+                    if fd is not None:
+                        os.close(fd)
+            return members
+        except BaseException:
+            for fd in members:
+                os.close(fd)
+            raise
+
+    def reap(self):
+        """Reap the direct serve child and orphaned descendants adopted as subreaper."""
+        while True:
+            try:
+                pid, status = os.waitpid(-1, os.WNOHANG)
+            except ChildProcessError:
+                return
+            if not pid:
+                return
+            if pid == self.child:
+                self.status = status
+
+    def stop(self):
+        """End the owned group, reap it, then remove the private directory."""
+        self.stopping = True
+        if self.group is not None:
+            # Still clean the group when serve already exited and left descendants.
+            os.killpg(self.group, signal.SIGTERM)
+            for sig in (None, signal.SIGKILL):
+                until = boottime() + GRACE
+                while True:
+                    members = self.group_members()
+                    try:
+                        if sig is not None:
+                            for fd in members:
+                                try:
+                                    signal.pidfd_send_signal(fd, sig)
+                                except ProcessLookupError:
+                                    pass
+                    finally:
+                        for fd in members:
+                            os.close(fd)
+                    self.reap()
+                    if not members or boottime() >= until:
+                        break
+                    self.wait(min(0.05, max(0.0, until - boottime())))
+                if not members:
+                    break
+            self.reap()
+        elif self.child is not None and self.status is None:
+            # A version probe may not own its group; never signal unrelated peers.
+            os.kill(self.child, signal.SIGTERM)
+            started = boottime()
+            while self.status is None and boottime() - started < GRACE:
+                self.wait(GRACE - (boottime() - started))
+            if self.status is None:
+                os.kill(self.child, signal.SIGKILL)
+                self.status = os.waitpid(self.child, 0)[1]
+        for fd in (self.directory, self.top):
+            if fd is not None:
+                os.close(fd)
+        if self.name is not None:
+            # The child's temporary files and the header go with the launch directory.
+            shutil.rmtree(self.name, dir_fd=self.runtime, ignore_errors=True)
+        if self.runtime is not None:
+            os.close(self.runtime)
+
+
+def main():
+    argv = sys.argv[1:]
+    # T3's binary probe runs the pinned native the same supervised way, without config or header.
+    probe = argv == ["--version"]
+    if not probe:
+        # Reject all non-admitted argv before reading any protected file.
+        admitted(argv)
+    require(os.geteuid() == UID and (probe or os.getcwd() == CWD))
+    config = None if probe else pinned_config()
+    os.close(private_dir(HOME))
+    os.close(private_dir(RUNTIME))
+    native = pinned_native()
+    signal.pthread_sigmask(signal.SIG_BLOCK, WATCHED)
+    launch = Launch(Clock())
+    if launch.group is not None:
+        # No new process or service: adopt and reap descendants of this serve only.
+        libc = ctypes.CDLL(None, use_errno=True)
+        require(libc.prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) == 0)
+    reason = None
+    try:
+        launch.create(config)
+        if not probe:
+            header, launch.identity, launch.expires = launch.helper()
+            launch.publish(header)
+        launch.child = spawn(native, [NATIVE_PATH, *argv], launch.environment(), (None, None, None))
+        if probe:
+            while not launch.ended():
+                launch.wait(WAKE_CAP)
+        else:
+            launch.supervise()
+    except Refused as error:
+        reason = error.args[0]
+    finally:
+        os.close(native)
+        launch.stop()
+    if launch.signal is not None:
+        return 128 + launch.signal
+    if reason in {None, "ended"} and launch.status is not None:
+        # The child ended on its own: propagate its status.
+        if os.WIFEXITED(launch.status):
+            return os.WEXITSTATUS(launch.status)
+        return 128 + os.WTERMSIG(launch.status)
+    os.write(2, b"OPENCODE_PROFILE_ENDED " + (reason or "ended").encode("ascii") + b"\n")
+    return 78
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception:
+        os.write(2, b"OPENCODE_PROFILE_REFUSED\n")
+        sys.exit(78)
+{% endraw %}

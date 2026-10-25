@@ -1,11 +1,11 @@
 """Laptop's persistent Jocasta tooling activation, read from the real inventory.
 
 Only the laptop's dedicated host_vars file opts into system waits, the protected
-session policy and its one qualified fixed provider profile, Claude. These tests
-render the actual inventory merge, check the exact bound public configuration
-with the role's own closed validators, and require every other host to keep its
-previous settings. On this held candidate branch Codex is declared too, with cwd
-bound to the fleet home; it merges only after native qualification.
+session policy and its fixed provider profiles: the qualified Claude and Codex
+profiles and the root-gated OpenCode selection. These tests render the actual
+inventory merge, check the exact bound public configuration with the role's own
+closed validators, and require every other host to keep its previous settings.
+They are source checks only; OpenCode native acceptance belongs to root.
 """
 import copy
 import importlib.util
@@ -30,6 +30,7 @@ CALLER = "f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5"
 PROJECT = "mcp:2fe01b0e-5727-4111-9b95-ff81508562ba"
 CLAUDE = "jocasta-tooling-claude"
 CODEX = "jocasta-tooling-codex"
+OPENCODE = "jocasta-tooling-opencode"
 TOOLS = ["get", "history", "list", "search"]
 SERVICES = [{"audience": "jocasta", "grants": [{"resource": "project:tooling", "actions": TOOLS}]}]
 KEYS = {
@@ -121,7 +122,7 @@ def test_inventory_merge_applies_the_activation_only_to_the_laptop():
     for key, value in inline.items():
         assert laptop[key] == value, key
     # Interactive Chaldea MCP stays on its previous config; shared pins stay shared.
-    # Codex is retained inactive, never retired as a side effect.
+    # No declared profile is retired as a side effect.
     assert "mcp_registrations_chaldea_waits_enabled" not in laptop
     assert "chaldea_client_session_profiles_absent" not in laptop
     assert laptop["chaldea_client_version"] == "client-v0.4.11"
@@ -146,7 +147,9 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
     assert values["chaldea_client_waits_service_mode"] == "system"
     assert values["chaldea_client_waits_deadline"] == ""
     assert values["chaldea_client_waits_environment"] == "943bead7-d804-4e04-984e-63d230303796"
-    assert values["chaldea_client_waits_runtime_root"] == HOME + "/.local/share/chaldea/releases/client-v0.4.18"
+    assert values["chaldea_client_waits_runtime_root"] == HOME + "/.local/share/chaldea/releases/client-v0.4.20"
+    # The one-time client-v0.4.18 system unit admission is retired: current only.
+    assert "chaldea_client_waits_legacy_system_runtime" not in inventory_vars("laptop")
     assert values["chaldea_node_version"] == "26.12.0"
     assert values["chaldea_client_waits_legacy_user_node_version"] == "26.10.0"
     assert values["retention_mise_prune"] is False
@@ -154,8 +157,8 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
     assert values["chaldea_client_session_ceilings"] == [
         {"project": "tooling", "maxSeconds": 1800, "destinations": [CALLER], "services": SERVICES}]
     presets = values["chaldea_client_session_presets"]
-    # Held candidate: Codex is declared, with cwd bound to the fleet home.
-    assert list(presets) == [CLAUDE, CODEX]
+    # Codex is qualified with cwd bound to the fleet home; OpenCode is selected.
+    assert list(presets) == [CLAUDE, CODEX, OPENCODE]
     assert presets[CODEX] == dict(presets[CLAUDE], instanceId="codex-jocasta-tooling", model="gpt-6.1-sol",
                                   title="Jocasta tooling read-only Codex",
                                   options=[{"id": "reasoningEffort", "value": "high"}])
@@ -171,9 +174,12 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
         "jwksUrl": ISSUER + "jwks/", "clientId": "chaldea-jocasta-tooling",
         "username": "chaldea-laptop-" + name, "scope": "jocasta.read", "resource": RESOURCE,
         "project": "tooling", "maxTokenSeconds": 300,
-        "secretFile": HOME + "/.config/chaldea/authentik/" + name + ".app-password"} for name in (CLAUDE, CODEX)}
+        "secretFile": HOME + "/.config/chaldea/authentik/" + name + ".app-password"}
+        for name in (CLAUDE, CODEX, OPENCODE)}
     codex_home = HOME + "/.cache/acl-codex-startup-f73bc687/home"
-    assert values["chaldea_client_session_profiles"] == {CLAUDE: {
+    profiles = values["chaldea_client_session_profiles"]
+    assert list(profiles) == [CLAUDE, CODEX, OPENCODE]
+    assert {name: profiles[name] for name in (CLAUDE, CODEX)} == {CLAUDE: {
         "driver": "claude", "elf_machine": 183, "cwd": WORKSPACE, "preset": CLAUDE, "audience": "jocasta",
         "server": "jocasta_tooling", "url": RESOURCE, "tools": TOOLS,
         "native": {"source": ASSETS + "/claude/2.1.276/claude", "size": 231989488,
@@ -225,6 +231,34 @@ def test_laptop_retention_never_prunes_the_stopped_quota_node():
         argv, lines = retention_command(host)
         assert "--no-mise-prune" not in argv, host
         assert "Environment=CHALDEA_NODE_VERSION=26.10.0" in lines, host
+
+
+def test_opencode_selection_reuses_the_tooling_grant_and_pinned_native():
+    values = inventory_vars("laptop")
+    # Same prompt, grant, ceiling and destination as Claude; no model options.
+    assert values["chaldea_client_session_presets"][OPENCODE] == dict(
+        values["chaldea_client_session_presets"][CLAUDE],
+        instanceId="opencode-jocasta-tooling", model="opencode/big-pickle",
+        title="Jocasta tooling read-only OpenCode")
+    assert values["chaldea_client_session_enrollments"][OPENCODE] == dict(
+        values["chaldea_client_session_enrollments"][CLAUDE],
+        username="chaldea-laptop-" + OPENCODE,
+        secretFile=HOME + "/.config/chaldea/authentik/" + OPENCODE + ".app-password")
+    # The protected 2.1.3 native with its own private HOME and tmpdir.
+    assert values["chaldea_client_session_profiles"][OPENCODE] == {
+        "driver": "opencode", "elf_machine": 183, "cwd": HOME, "preset": OPENCODE,
+        "home": HOME + "/.local/state/chaldea/profiles/" + OPENCODE + "/home",
+        "tmpdir": HOME + "/.local/state/chaldea/profiles/" + OPENCODE + "/tmp",
+        "audience": "jocasta", "server": "jocasta_tooling", "url": RESOURCE, "tools": TOOLS,
+        "native": {"source": ASSETS + "/opencode/2.1.3/opencode", "size": 236047352,
+                   "sha256": "78c279e68f25e69045a7ec5f518fccbad57e8f25d7853e66ba9677ddfaf28b19"}}
+    # The only ceiling is still the tooling read grant.
+    assert values["chaldea_client_session_ceilings"] == [
+        {"project": "tooling", "maxSeconds": 1800, "destinations": [CALLER], "services": SERVICES}]
+    for host in OTHER_HOSTS:
+        other = inventory_vars(host)
+        for short in ("presets", "enrollments", "profiles"):
+            assert OPENCODE not in other.get("chaldea_client_session_" + short, {}), host
 
 
 def test_role_closed_validators_accept_the_activation():
