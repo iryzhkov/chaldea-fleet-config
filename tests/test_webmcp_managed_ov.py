@@ -163,15 +163,18 @@ def test_actual_ansible_selection_is_default_off_and_laptop_bound(tmp_path):
         call("codex", codex_config=str(tmp_path / "config.toml"), **ov(helper_host="agent-a"))
 
 
-def test_capability_is_off_in_defaults_and_every_inventory_file():
+def test_capability_is_off_by_default_and_only_the_held_laptop_selects_it():
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults["webmcp_interactive_ov_enabled"] is False
+    owner = ROOT / "inventory/host_vars/laptop/jocasta-interactive.yml"
     for path in (ROOT / "inventory").rglob("*"):
         if path.is_file():
             text = path.read_text(errors="replace")
-            assert "webmcp_interactive_ov_enabled" not in text, path
+            assert ("webmcp_interactive_ov_enabled" in text) is (path == owner), path
             assert "ov-interactive-codex" not in text, path
-    laptop = yaml.safe_load((ROOT / "inventory/host_vars/laptop/jocasta-interactive.yml").read_text())
+            # The one-time upgrade guard is never an inventory value.
+            assert "previous_helper_sha256" not in text, path
+    laptop = yaml.safe_load(owner.read_text())
     assert [s["name"] for s in laptop["mcp_registrations_remote_servers"]] == ["jocasta"]
     # The protected limited OV preset keeps its own separate credential path.
     limited = yaml.safe_load((ROOT / "docs/examples/laptop-ov-tooling-codex.yml").read_text())
@@ -185,9 +188,11 @@ def test_inert_activation_example_is_exact_and_invents_no_hash():
     assert example["codex_entry"] == {"name": "ov", "url": OV_URL, "http_headers_helper": OV_HELPER}
     assert example["credential"]["path"] == "/home/igor/" + CREDENTIAL
     assert example["credential"]["username"] == "chaldea-laptop-ov-interactive-codex"
-    assert example["helper_pin"]["sha256"] == "FROM_REVIEWED_BUILD_RECEIPT"
+    laptop = yaml.safe_load((ROOT / "inventory/host_vars/laptop/jocasta-interactive.yml").read_text())
+    assert example["helper_pin"]["sha256"] == laptop["webmcp_interactive_helper_sha256"]
+    assert example["helper_pin"]["scope"] == "inventory/host_vars/laptop"
     pins = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())["webmcp_interactive_helper_checksums"]
-    assert example["helper_pin"]["previous_sha256"] == pins["aarch64"]
+    assert example["helper_pin"]["previous_sha256"] == pins["aarch64"] != example["helper_pin"]["sha256"]
     assert example["helper_pin"]["architecture"] == "aarch64"
 
 
