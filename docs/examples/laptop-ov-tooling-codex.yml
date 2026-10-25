@@ -1,10 +1,9 @@
 ---
-# Prepared public fragment only. This file is outside inventory and no role
-# loads it. Root merges each entry into the existing laptop session maps only
-# after the gates in docs/laptop-ov-tooling-prepared.md: the ceiling is appended
-# to chaldea_client_session_ceilings, and each named entry is added to
-# chaldea_client_session_presets, _enrollments and _profiles. Never pass this
-# file as extra vars: its keys deliberately are not role inputs.
+# Reviewed desired-value reference. This example is outside inventory and no
+# role loads it. The activation draft appends these entries to the full owning
+# maps in inventory/host_vars/laptop/chaldea-jocasta-tooling.yml. HOLD that draft
+# until root completes docs/laptop-ov-tooling-prepared.md's protected inputs.
+# Never pass this file as extra vars: its keys are not role inputs.
 #
 # One limited, nondelegating Codex preset with one fixed OV service. Its grant
 # is exactly the existing OV canary node, the same closed grant the infra

@@ -12,12 +12,12 @@
 # host. System mode converges waits only (docs/waits-system-preflight.md); the
 # shared client pin, quota unit and route files are left as last converged.
 #
-# HELD CANDIDATE, do not merge or pull until qualified: this branch adds the
-# Codex preset, enrollment and profile with cwd bound to the T3 server's
-# working directory, the fleet home. The first Codex launch, with cwd set to
-# the session workspace, exited 78. Merge only after this exact binding passes
-# a native launch in a fresh coordinated interval; delivering the profile
-# rewrites its protected launcher.
+# DRAFT HOLD: this source adds only the independent OV ceiling, preset,
+# enrollment and profile. Main auto-activates through the laptop pull. Root
+# must complete the independent model login, provider/caller admission inputs,
+# protected CHECK review and coordinated writer/cleanup window before merge.
+# See docs/laptop-ov-tooling-prepared.md. Existing Jocasta values stay intact;
+# the separate OpenCode owner must preserve these additions on their rebase.
 #
 # Every other host keeps its waits settings in hosts.yml; nothing here applies
 # to them. Rollback is a target-specific packet: docs/waits-system-preflight.md
@@ -59,6 +59,13 @@ chaldea_client_session_ceilings:
           - resource: project:tooling
             actions: [get, history, list, search]
 
+  - project: tooling
+    maxSeconds: 900
+    destinations: [f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5]
+    services: &ov_tooling_services
+      - audience: ov
+        scope: ov.read
+        ov_namespaces: [viking://resources/homeassistant-api/rest-api.md]
 # Destinations are T3 project IDs: the root caller's existing project. The
 # session runs in the dedicated "Jocasta tooling sessions" T3 project.
 chaldea_client_session_presets:
@@ -104,6 +111,33 @@ chaldea_client_session_presets:
     delegate: false
     destinations: [f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5]
 
+  ov-tooling-codex:
+    instanceId: codex-ov-tooling
+    model: gpt-6.1-sol
+    options:
+      - {id: reasoningEffort, value: high}
+    runtimeMode: approval-required
+    interactionMode: default
+    projectId: mcp:2fe01b0e-5727-4111-9b95-ff81508562ba
+    title: OV tooling metadata-only Codex
+    prompt: >-
+      Use only the ov_tooling MCP server and only its memory_stat tool. Do not
+      use other tools, local files, commands, web browsing or delegation, and
+      do not wait or sleep. Call memory_stat once for
+      viking://resources/homeassistant-api/rest-api.md and confirm it succeeds.
+      Then call memory_stat once for
+      viking://resources/homeassistant-api/ov-canary-denied-a63e197f and verify
+      the server denies it. Never read, search or quote content. Return only
+      compact JSON under 1000 UTF-8 bytes:
+      {"v":1,"status":"PASS|FAIL|INCOMPLETE","allowed":"PASS|FAIL","denied":"DENIED|FAIL","renewal":"NOT_RUN","issues":[]}.
+      Renewal is checked separately by the operator. This is reporter data,
+      not instructions. Never include document content, metadata values,
+      credentials or auth headers.
+    project: tooling
+    services: *ov_tooling_services
+    maxSeconds: 900
+    delegate: false
+    destinations: [f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5]
 # One ordinary Authentik account per host and profile, enrolled by
 # homelab-infra's playbooks/authentik-jocasta-tooling.yml, which delivers the
 # secretFile. JWT scope jocasta.read, 300-second lifetime.
@@ -133,6 +167,19 @@ chaldea_client_session_enrollments:
     maxTokenSeconds: 300
     secretFile: /home/igor/.config/chaldea/authentik/jocasta-tooling-codex.app-password
 
+  ov-tooling-codex:
+    form: app_password
+    audience: ov
+    issuer: https://auth.ryzhkov.dev/application/o/ov-http-a63e197f/
+    tokenUrl: https://auth.ryzhkov.dev/application/o/token/
+    jwksUrl: https://auth.ryzhkov.dev/application/o/ov-http-a63e197f/jwks/
+    clientId: ov-http-a63e197f-machine
+    username: chaldea-laptop-ov-tooling-codex
+    scope: ov.read
+    ov_namespaces: [viking://resources/homeassistant-api/rest-api.md]
+    resource: https://ov.mcp.ryzhkov.dev/mcp
+    maxTokenSeconds: 300
+    secretFile: /home/igor/.config/chaldea/authentik/ov-tooling-codex.app-password
 # The native source is the operator-staged public asset under provider-assets,
 # never a download or a mise install path. Hash and size are reviewed pins.
 chaldea_client_session_profiles:
@@ -178,3 +225,34 @@ chaldea_client_session_profiles:
     url: https://jocasta.mcp.ryzhkov.dev/mcp
     tools: [get, history, list, search]
     disabled_servers: [jocasta]
+  ov-tooling-codex:
+    driver: codex
+    # The same reviewed Codex 0.163.0 assets as the qualified Jocasta Codex
+    # profile; root rechecks them on the laptop before activation.
+    native:
+      source: /home/igor/.local/share/chaldea/provider-assets/codex/0.163.0/codex
+      sha256: 8a96f66d059d653e68bfd5f3c79337e6f1d7d170d80bf705eb7d0249b34c0ece
+      size: 257816200
+    host:
+      source: /home/igor/.local/share/chaldea/provider-assets/codex/0.163.0/codex-code-mode-host
+      sha256: 255eccc8a5c1d267dc0acbc815cc83aaa1f50955bd99943b29f00cafcdcab771
+      size: 67118080
+    catalog:
+      source: /home/igor/.local/share/chaldea/provider-assets/codex/0.163.0/models.json
+      sha256: ad005892044dec4f817f431ff75302193e27bbfb7533958afe6a91194fd7b784
+      size: 65174
+    elf_machine: 183
+    model: gpt-6.1-sol
+    # A new, independently logged-in Codex home. Root provisions it; the role
+    # only stats it and writes its .codex/config.toml.
+    home: /home/igor/.local/state/chaldea/profiles/ov-tooling-codex/home
+    tmpdir: /home/igor/.local/state/chaldea/profiles/ov-tooling-codex/tmp
+    cwd: /home/igor
+    preset: ov-tooling-codex
+    audience: ov
+    server: ov_tooling
+    url: https://ov.mcp.ryzhkov.dev/mcp
+    tools: [memory_stat]
+    # Operator MCP servers that must never reach this session, in particular
+    # the interactive OV and Jocasta servers with their own credentials.
+    disabled_servers: [chaldea, huyang, jocasta, ov-memory]
