@@ -85,7 +85,7 @@ export function createPlugin(runtime) {
       if (!admitted(ctx, runtime)) return;
       // Every value lives in this closure: one independent state per location.
       const state = { stopped: false, observed: false, collision: false, busy: false,
-        token: undefined, timer: undefined, child: undefined };
+        token: undefined, timer: undefined, expiry: undefined, child: undefined };
 
       const after = (delay, run) => {
         const handle = runtime.setTimeout(run, Math.max(0, delay));
@@ -110,7 +110,19 @@ export function createPlugin(runtime) {
       const drop = async () => {
         if (!state.token) return;
         state.token = undefined;
+        runtime.clearTimeout(state.expiry);
+        state.expiry = undefined;
         await reload();
+      };
+      // Deadline enforcement independent of the refresh loop, which may be
+      // waiting on a hung helper. Only the token it was armed for can be dropped.
+      const hold = (token) => {
+        runtime.clearTimeout(state.expiry);
+        state.token = token;
+        state.expiry = after(token.deadline - runtime.now(), () => {
+          state.expiry = undefined;
+          if (!state.stopped && state.token === token) void drop();
+        });
       };
 
       const runHelper = () => new Promise((resolve) => {
@@ -182,7 +194,7 @@ export function createPlugin(runtime) {
         }
         if (state.stopped) return;
         if (next) {
-          state.token = next;
+          hold(next);
           await reload();
           return schedule((next.deadline - next.issued) / 2);
         }
@@ -210,7 +222,9 @@ export function createPlugin(runtime) {
       return async () => {
         state.stopped = true;
         runtime.clearTimeout(state.timer);
+        runtime.clearTimeout(state.expiry);
         state.timer = undefined;
+        state.expiry = undefined;
         const child = state.child;
         if (child) {
           kill(child.proc, "SIGTERM");

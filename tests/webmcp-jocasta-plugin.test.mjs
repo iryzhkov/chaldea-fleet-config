@@ -270,6 +270,68 @@ test("the transform withholds an expired token even if no timer ran", async () =
   assert.equal(c.servers().has("jocasta"), false);
 });
 
+// A 25s token: deadline at +15s, refresh at +7.5s, helper kill bound at +19.5s.
+async function shortToken(options = {}) {
+  const s = await started(options);
+  await s.h.advance(0);
+  const token = jwt(s.h.clock.now + 25_000, "short");
+  s.h.child.reply(output(token));
+  await flush();
+  assert.deepEqual(s.c.servers().get("jocasta"), expected(token));
+  return { ...s, token };
+}
+
+test("expiry withholds the reserved entry at its deadline while a refresh helper hangs", async () => {
+  const { h, c, token } = await shortToken();
+  await h.advance(7_500);
+  assert.equal(h.spawns.length, 2);
+  const hung = h.child;
+  const reloads = c.ctx.reloads;
+  await h.advance(7_499);
+  assert.deepEqual(c.servers().get("jocasta"), expected(token), "still inside its bounded validity");
+  await h.advance(1);
+  assert.equal(c.servers().has("jocasta"), false, "withheld at exp - 10s although the helper is unresolved");
+  assert.equal(c.ctx.reloads, reloads + 1, "expiry itself triggered the rebuild");
+  assert.deepEqual(hung.signals, [], "the refresh helper is still in flight");
+  assert.deepEqual(c.servers().get("unrelated"), unrelated);
+  assert.deepEqual(c.servers().get("huyang"), huyang);
+  await h.advance(4_500);
+  assert.deepEqual(hung.signals, ["SIGKILL"], "then killed at its own bound");
+  c.rebuild();
+  assert.equal(c.servers().has("jocasta"), false, "nothing revived the old token");
+  await h.advance(15_000);
+  assert.equal(h.spawns.length, 3, "retries continue");
+});
+
+test("an old expiry callback cannot remove its replacement, and the new one is enforced", async () => {
+  const { h, c } = await shortToken();
+  await h.advance(7_500);
+  const next = jwt(h.clock.now + 25_000, "next");
+  // exp is whole seconds: this deadline is floor(exp) - 10s.
+  const deadline = Math.floor((h.clock.now + 25_000) / 1000) * 1000 - 10_000;
+  h.child.reply(output(next));
+  await flush();
+  await h.advance(7_500);
+  assert.deepEqual(c.servers().get("jocasta"), expected(next), "first token's deadline passed harmlessly");
+  assert.equal(h.spawns.length, 3);
+  await h.advance(deadline - h.clock.now - 1);
+  assert.deepEqual(c.servers().get("jocasta"), expected(next));
+  await h.advance(1);
+  assert.equal(c.servers().has("jocasta"), false, "replacement withheld at its own deadline during a hang");
+});
+
+test("a failing reload still drops the token; the next rebuild withholds it", async () => {
+  const { h, c } = await shortToken();
+  c.ctx.mcp.reload = async () => { c.ctx.reloads++; throw new Error("reload failed"); };
+  await h.advance(7_500);
+  const reloads = c.ctx.reloads;
+  await h.advance(7_500);
+  assert.equal(c.ctx.reloads, reloads + 1, "expiry attempted the reload");
+  // Honest limit: without a successful rebuild the native state is not changed here.
+  c.rebuild();
+  assert.equal(c.servers().has("jocasta"), false);
+});
+
 const malformed = [
   ["empty", () => ""],
   ["no newline", (t) => output(t).trimEnd()],

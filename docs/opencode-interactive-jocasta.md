@@ -60,8 +60,17 @@ reads the `exp` claim of this already verified output only to end its use
 earlier: validity is `min(exp, close + 300s)`, and output with 20 seconds or
 less left is refused. This adds no trust decision and exposes no claim.
 
-- Deadline: validity minus 10 seconds. The transform withholds a token at or
-  past its deadline on any rebuild, even if a timer was late.
+- Deadline: validity minus 10 seconds. Each held token has its own expiry
+  timer, independent of the refresh loop, so a refresh helper that hangs (up
+  to its 12-second bound) cannot extend it. At the deadline that timer drops
+  the token and calls `ctx.mcp.reload()`, which removes the entry and its
+  connection. A replacement token cancels the old timer, and an old timer can
+  only drop the token it was armed for. The transform also withholds a token
+  at or past its deadline on any rebuild, even if a timer was late.
+- If that reload fails, the token is still dropped and any later rebuild
+  withholds it, but the native connection keeps its old header until a
+  rebuild happens. Local removal is never server revocation: an issued token
+  stays valid at Jocasta until its own expiry, at most 300 seconds.
 - Refresh: at half the time to the deadline (about 145 seconds for a
   300-second token).
 - Failure: a still-valid token stays only until its deadline. Retries run
@@ -71,7 +80,7 @@ less left is refused. This adds no trust decision and exposes no claim.
   held token is dropped.
 
 Cleanup (location or process shutdown, plugin reload) stops scheduling,
-clears its timer, sends SIGTERM to an in-flight helper, waits up to 2 seconds,
+clears its refresh and expiry timers, sends SIGTERM to an in-flight helper, waits up to 2 seconds,
 then SIGKILL and waits for exit. It then disposes only its own transform.
 Timers are unref'd.
 
