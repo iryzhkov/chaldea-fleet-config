@@ -10,6 +10,7 @@
       - webmcp_interactive_helper_sha256 is match('^[0-9a-f]{64}$')
       - webmcp_interactive_credential_source is match('^/')
       - fleet_home == ansible_facts.user_dir
+      - not (webmcp_interactive_ov_enabled | default(false) | bool) or inventory_hostname == 'laptop'
     quiet: true
 
 - name: Inspect the public helper artifact on the controller
@@ -64,6 +65,38 @@
       - not webmcp_interactive_helper_target.stat.exists or (webmcp_interactive_helper_target.stat.isreg and not webmcp_interactive_helper_target.stat.islnk and webmcp_interactive_helper_target.stat.uid == 0 and webmcp_interactive_helper_target.stat.nlink == 1 and webmcp_interactive_helper_target.stat.mode == '0755')
       - not webmcp_interactive_helper_target.stat.exists or webmcp_interactive_helper_target.stat.checksum in [webmcp_interactive_helper_sha256, webmcp_interactive_previous_helper_sha256]
     quiet: true
+
+# homelab-infra's authentik-ov-http-identities.yml delivers this credential to
+# the bound laptop UID. Metadata only: the file is never read or checksummed.
+- name: Inspect the separately delivered laptop OV credential without reading it
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "{{ fleet_home }}"
+    - "{{ fleet_home }}/.config"
+    - "{{ fleet_home }}/.config/chaldea"
+    - "{{ fleet_home }}/.config/chaldea/authentik"
+    - "{{ fleet_home }}/.config/chaldea/authentik/ov-interactive-codex.app-password"
+  register: webmcp_interactive_ov_credential
+  when: webmcp_interactive_ov_enabled | default(false) | bool
+
+- name: Require private OV credential custody before registering its helper
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and not item.stat.islnk
+      - item.stat.uid == ansible_facts.user_uid | int or (index < 3 and item.stat.uid == 0)
+      - item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - item.stat.isdir if index < 4 else (item.stat.isreg and item.stat.nlink == 1 and item.stat.mode == '0600' and 16 <= item.stat.size <= 256)
+      - index != 3 or item.stat.mode == '0700'
+    quiet: true
+  loop: "{{ webmcp_interactive_ov_credential.results | default([]) }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.item }}"
+  when: webmcp_interactive_ov_enabled | default(false) | bool
 
 - name: Stage only a protected per-host enrollment
   no_log: true

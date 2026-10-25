@@ -64,7 +64,7 @@ line without server responses or credential values.
 
 Codex receives http_headers_helper; Claude receives headersHelper. The registration
 module's auth_mode=managed_helper accepts only this fixed name, URL, command and
-approved host. extra must be empty. Public auth_mode=oauth retains its existing
+approved host, or the separate laptop OV tuple below. extra must be empty. Public auth_mode=oauth retains its existing
 refusal of arbitrary helpers, headers, bearer values and client secrets.
 Unrelated native entries are preserved. Limited Codex profiles disable jocasta;
 strict Claude tooling config remains independent. Chaldea session admission and
@@ -129,8 +129,75 @@ If a stored Jocasta OAuth credential takes precedence in Codex, root may need th
 supported per-server logout only after inspecting that concrete condition.
 Never use global logout or copy unrelated authentication.
 
-A future Web MCP service reuses the same host identity and protected credential.
-It needs a separately reviewed explicit application policy/resource/scope grant
-and registration/helper capability. Adding a URL creates no grant. This helper
-currently supports Jocasta only. These controls do not isolate secrets from
+Another Web MCP service needs a separately reviewed explicit application
+policy/resource/scope grant and registration/helper capability. Adding a URL
+creates no grant. This helper supports exactly Jocasta on the four hosts and
+OV for laptop Codex, below. These controls do not isolate secrets from
 arbitrary code running as the owning Unix user.
+
+## Laptop OV for ordinary Codex
+
+The second closed helper tuple is exactly:
+
+    /usr/local/libexec/webmcp-interactive-headers ov laptop
+
+It lets ordinary interactive Codex on the laptop read the existing OV HTTPS
+MCP endpoint https://ov.mcp.ryzhkov.dev/mcp with a short-lived token, without
+a browser or model login. Its identity is separate from the Jocasta managed
+identity and from the limited Chaldea preset ov-tooling-codex. homelab-infra's
+playbooks/authentik-ov-http-identities.yml enrolls the account
+chaldea-laptop-ov-interactive-codex under the same existing owned OV
+application and delivers its raw app password to the bound laptop UID at
+~/.config/chaldea/authentik/ov-interactive-codex.app-password. Fleet never
+receives, reads, copies or checksums that credential.
+
+The helper finds the file from the account database's home for its UID,
+ignoring HOME and every other environment value. It applies the same held
+no-follow directory walk as for Jocasta and accepts only this UID's
+single-link 0600 regular file of 16 to 256 printable ASCII bytes, without a
+newline, in a 0700 directory. It never opens the limited preset's
+ov-tooling-codex file.
+
+The compiled contract is: token endpoint auth.ryzhkov.dev/application/o/token/;
+client ov-http-a63e197f-machine; username chaldea-laptop-ov-interactive-codex;
+scope ov.read; issuer .../application/o/ov-http-a63e197f/ and its exact jwks/
+endpoint. The request follows Chaldea's established OV session exchange,
+without a resource indicator, because the OV scope mapping fixes the audience.
+The response must be a Bearer token with scope exactly ov.read, 30 < expires_in
+<= 300 and no refresh token. After RS256 verification against the pinned JWKS,
+the helper requires the OV verifier's own rules (ov-mcp ov_http/auth.py): a
+header of only alg, kid and typ, kid in [A-Za-z0-9_.-]{1,128}, typ JWT or
+at+jwt when present, at most 32 claims and a token of at most 12288 bytes. It
+then requires the exact issuer, a single string audience equal to the OV
+resource, azp equal to the client, scope exactly ov.read, ov_namespaces exactly
+[viking://resources/homeassistant-api/rest-api.md], integer iat/exp with the
+same lifetime and reserve rules as Jocasta, and a nonempty subject of at most
+256 characters without control characters. It refuses every other service's
+grant claim, the Jocasta operator and identity claims, and case-folded aliases
+of any checked claim.
+
+The OV scope mapping signs no account identity, so unlike the Jocasta mode the
+helper cannot compare a signed identity claim with its username. The subject
+is Authentik's opaque per-user value, checked for shape only, exactly as the
+OV verifier and Chaldea's OV session credential do. Binding therefore rests on
+the fixed credential file and username plus the signed single-node grant.
+This is a documented property of the existing OV contract, not a widened
+trust: no issuer, verifier or mapping changes.
+
+Registration is a separate explicit opt-in, webmcp_interactive_ov_enabled,
+off by default and accepted only with webmcp_interactive_enabled on the
+laptop. The role refuses it on any other host, then checks the credential's
+ancestors, private directory and file metadata without reading it. The
+module's managed_helper set holds only the Jocasta tuple and this OV tuple:
+name ov, its exact URL, Codex only, helper_host laptop only and empty extra.
+Claude, OpenCode, other hosts, arbitrary helper strings, headers and OAuth
+fields are refused. An explicit ov state=absent is honored.
+
+No inventory enables this capability. The inert
+[activation example](examples/laptop-ov-interactive-codex.yml) lists root's
+preconditions, the self-sourced installed credential and helper, and where the
+reviewed helper pin goes. Upgrading the laptop's helper replaces the binary
+that also serves its Jocasta registration, so root rechecks laptop Jocasta
+after the upgrade. Native acceptance (allowed node read, sibling denial,
+reuse past token lifetime) remains root's on-host evidence; the fixtures here
+are not acceptance.
