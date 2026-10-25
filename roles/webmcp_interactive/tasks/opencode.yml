@@ -1,0 +1,99 @@
+---
+# Ordinary OpenCode consumer of the existing full Jocasta helper: exactly one
+# fleet-owned plugin file. Included from mcp_registrations only when
+# webmcp_interactive_opencode_state is set. It never writes OpenCode JSON, the
+# Huyang plugin, sibling plugins, the enrollment or the helper. See
+# docs/opencode-interactive-jocasta.md.
+- name: Require an explicit OpenCode Jocasta state on a canonical host
+  ansible.builtin.assert:
+    that:
+      - webmcp_interactive_opencode_state in ['present', 'absent']
+      - inventory_hostname in ['laptop', 'agent-a', 'agent-b', 'omarchy-pc']
+      - fleet_home is match('^/') and not fleet_home is match('.*/$')
+      - fleet_home == ansible_facts.user_dir
+      - ansible_facts.user_uid is defined
+      - >-
+        webmcp_interactive_opencode_state == 'absent' or
+        (webmcp_interactive_enabled | bool and
+         (inventory_hostname == 'laptop' or webmcp_interactive_laptop_qualified | bool))
+    fail_msg: OpenCode Jocasta needs present or absent on a canonical host; present also needs the staged managed helper.
+    quiet: true
+
+- name: Inspect the OpenCode Jocasta plugin destination components
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - .config
+    - .config/opencode
+    - .config/opencode/plugins
+    - .config/opencode/plugins/webmcp-jocasta.js
+  register: webmcp_interactive_opencode_paths
+
+- name: Refuse links, wrong types and foreign or shared-writable destinations
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or not item.stat.islnk
+      - not item.stat.exists or (item.stat.isreg if index == 3 else item.stat.isdir)
+      - not item.stat.exists or item.stat.uid == ansible_facts.user_uid | int
+      - not item.stat.exists or (item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7'])
+      - not item.stat.exists or index != 3 or item.stat.nlink == 1
+    fail_msg: Refusing an unsafe OpenCode Jocasta plugin destination.
+    quiet: true
+  loop: "{{ webmcp_interactive_opencode_paths.results }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.item }}"
+
+- name: Read the existing OpenCode Jocasta plugin marker
+  ansible.builtin.slurp:
+    src: "{{ fleet_home }}/.config/opencode/plugins/webmcp-jocasta.js"
+  when: webmcp_interactive_opencode_paths.results[3].stat.exists
+  register: webmcp_interactive_opencode_existing
+
+- name: Refuse an unmanaged file at the OpenCode Jocasta plugin name
+  ansible.builtin.assert:
+    that:
+      - >-
+        not webmcp_interactive_opencode_paths.results[3].stat.exists or
+        (webmcp_interactive_opencode_existing.content | b64decode).startswith('// fleet-managed: webmcp-jocasta/v1\n')
+    fail_msg: The OpenCode Jocasta plugin name is occupied by an unmanaged file; it is left untouched.
+    quiet: true
+
+- name: Create the OpenCode plugin directory
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.config/opencode/plugins"
+    state: directory
+    mode: u+rwx,go-w
+  when: webmcp_interactive_opencode_state == 'present'
+
+- name: Install the fleet-owned OpenCode Jocasta plugin
+  ansible.builtin.template:
+    src: opencode-webmcp-jocasta.js.j2
+    dest: "{{ fleet_home }}/.config/opencode/plugins/webmcp-jocasta.js"
+    mode: "0644"
+    follow: false
+    backup: false
+  when:
+    - webmcp_interactive_opencode_state == 'present'
+    - not ansible_check_mode or webmcp_interactive_opencode_paths.results[2].stat.exists
+
+- name: Explain deferred plugin install for a fresh check-mode destination
+  ansible.builtin.debug:
+    msg: Would install the fleet-owned OpenCode Jocasta plugin after creating its directory.
+  changed_when: true
+  when:
+    - webmcp_interactive_opencode_state == 'present'
+    - ansible_check_mode and not webmcp_interactive_opencode_paths.results[2].stat.exists
+
+# Rollback removes only the marked fleet file. A running OpenCode keeps its
+# in-memory registration until that process or location ends.
+- name: Remove only the fleet-owned OpenCode Jocasta plugin
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.config/opencode/plugins/webmcp-jocasta.js"
+    state: absent
+  when:
+    - webmcp_interactive_opencode_state == 'absent'
+    - webmcp_interactive_opencode_paths.results[3].stat.exists

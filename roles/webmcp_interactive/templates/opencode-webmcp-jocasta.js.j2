@@ -1,0 +1,254 @@
+// fleet-managed: webmcp-jocasta/v1
+// Ordinary OpenCode consumer of the existing full Jocasta helper. Rendered by
+// roles/webmcp_interactive/tasks/opencode.yml; see docs/opencode-interactive-jocasta.md.
+// Supported host API: OpenCode 2.1.4 PromisePlugin (MCP transform and reload).
+import { spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+// Public declaration rendered from inventory and this account's facts. The
+// helper host comes only from here; the environment can only refuse.
+const DECLARATION = Object.freeze({{ {'host': inventory_hostname, 'uid': ansible_facts.user_uid | int, 'home': fleet_home} | to_json }});
+{% raw %}
+const ID = "fleet.webmcp-jocasta";
+const VERSION = "2.1.4";
+const NAME = "jocasta";
+const URL = "https://jocasta.mcp.ryzhkov.dev/mcp";
+const HELPER = "/usr/local/libexec/webmcp-interactive-headers";
+const HOSTS = ["laptop", "agent-a", "agent-b", "omarchy-pc"];
+const PLUGIN = "/.config/opencode/plugins/webmcp-jocasta.js";
+const HELPER_ENV = { PATH: "/usr/bin:/bin" };
+// The helper has its own eight-second deadline; this bound only stops a hang.
+const HELPER_TIMEOUT_MS = 12000;
+const KILL_GRACE_MS = 2000;
+const OUTPUT_LIMIT = 16384;
+// Helper contract: an issued token has more than 30s and at most 300s left.
+// Its expiry claim is read only to schedule an earlier end of this already
+// verified output; it never extends the bound or makes a new trust decision.
+const MAX_LIFETIME_MS = 300000;
+const MIN_REMAINING_MS = 20000;
+const EXPIRY_MARGIN_MS = 10000;
+const RETRY_MS = 15000;
+const OBSERVE_MS = 250;
+// Exactly the helper's one-line native header JSON for a compact JWT.
+const OUTPUT = /^\{"Authorization":"Bearer ([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)"\}\n$/;
+
+// Returns {authorization, deadline} or undefined. Never throws or echoes input.
+export function parseHelperOutput(bytes, closedAt) {
+  try {
+    const match = OUTPUT.exec(Buffer.from(bytes).toString("utf8"));
+    if (!match) return undefined;
+    const exp = JSON.parse(Buffer.from(match[2], "base64url").toString("utf8"))?.exp;
+    if (!Number.isSafeInteger(exp)) return undefined;
+    const expiresAt = Math.min(exp * 1000, closedAt + MAX_LIFETIME_MS);
+    if (expiresAt - closedAt <= MIN_REMAINING_MS) return undefined;
+    return {
+      authorization: "Bearer " + match[1] + "." + match[2] + "." + match[3],
+      issued: closedAt,
+      deadline: expiresAt - EXPIRY_MARGIN_MS,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+// Refusal only: a mismatch withholds the plugin. Nothing here selects a host.
+function admitted(ctx, runtime) {
+  try {
+    const env = runtime.env;
+    const home = DECLARATION.home;
+    return ctx?.app?.version === VERSION
+      && HOSTS.includes(DECLARATION.host)
+      && Number.isSafeInteger(DECLARATION.uid) && runtime.getuid() === DECLARATION.uid
+      && typeof home === "string" && home.startsWith("/") && !home.endsWith("/")
+      && env.HOME === home
+      && env.OPENCODE_CONFIG_DIR === undefined
+      && (env.XDG_CONFIG_HOME === undefined || env.XDG_CONFIG_HOME === home + "/.config")
+      && runtime.realpath(runtime.modulePath) === runtime.realpath(home + PLUGIN);
+  } catch {
+    return false;
+  }
+}
+
+function kill(proc, signal) {
+  try {
+    proc.kill(signal);
+  } catch {
+    // Already gone.
+  }
+}
+
+export function createPlugin(runtime) {
+  return {
+    id: ID,
+    async setup(ctx) {
+      if (!admitted(ctx, runtime)) return;
+      // Every value lives in this closure: one independent state per location.
+      const state = { stopped: false, observed: false, collision: false, busy: false,
+        token: undefined, timer: undefined, child: undefined };
+
+      const after = (delay, run) => {
+        const handle = runtime.setTimeout(run, Math.max(0, delay));
+        handle?.unref?.();
+        return handle;
+      };
+      const schedule = (delay) => {
+        if (state.stopped) return;
+        runtime.clearTimeout(state.timer);
+        state.timer = after(delay, () => {
+          state.timer = undefined;
+          void tick();
+        });
+      };
+      const reload = async () => {
+        try {
+          await ctx.mcp.reload();
+        } catch {
+          // The transform's own deadline check still withholds a stale value.
+        }
+      };
+      const drop = async () => {
+        if (!state.token) return;
+        state.token = undefined;
+        await reload();
+      };
+
+      const runHelper = () => new Promise((resolve) => {
+        let proc;
+        try {
+          proc = runtime.spawn(HELPER, ["jocasta", DECLARATION.host], {
+            cwd: "/", env: { ...HELPER_ENV }, shell: false, stdio: ["ignore", "pipe", "ignore"],
+          });
+        } catch {
+          resolve(undefined);
+          return;
+        }
+        const chunks = [];
+        let size = 0;
+        let rejected = false;
+        let settled = false;
+        let exited;
+        const child = { proc, exited: new Promise((done) => { exited = done; }) };
+        state.child = child;
+        const limit = after(HELPER_TIMEOUT_MS, () => {
+          rejected = true;
+          kill(proc, "SIGKILL");
+        });
+        const finish = (code, signal) => {
+          if (settled) return;
+          settled = true;
+          runtime.clearTimeout(limit);
+          if (state.child === child) state.child = undefined;
+          const valid = code === 0 && signal === null && !rejected && !state.stopped;
+          const result = valid ? parseHelperOutput(Buffer.concat(chunks), runtime.now()) : undefined;
+          chunks.length = 0;
+          exited();
+          resolve(result);
+        };
+        proc.stdout?.on("error", () => {});
+        proc.stdout?.on("data", (chunk) => {
+          size += chunk.length;
+          if (size > OUTPUT_LIMIT) {
+            rejected = true;
+            chunks.length = 0;
+            kill(proc, "SIGKILL");
+          } else if (!rejected) {
+            chunks.push(Buffer.from(chunk));
+          }
+        });
+        proc.once("close", finish);
+        // Only a failed spawn ends here; a running child always ends with close.
+        proc.on("error", () => {
+          if (proc.pid === undefined) finish(null, "spawn");
+        });
+      });
+
+      const tick = async () => {
+        if (state.stopped || state.busy) return;
+        if (state.token && runtime.now() >= state.token.deadline) await drop();
+        if (state.stopped) return;
+        // Learn about a foreign reserved entry before minting anything.
+        if (!state.observed) return schedule(OBSERVE_MS);
+        if (state.collision) {
+          await drop();
+          return schedule(RETRY_MS);
+        }
+        state.busy = true;
+        let next;
+        try {
+          next = await runHelper();
+        } finally {
+          state.busy = false;
+        }
+        if (state.stopped) return;
+        if (next) {
+          state.token = next;
+          await reload();
+          return schedule((next.deadline - next.issued) / 2);
+        }
+        // Keep a still-valid token only until its own deadline, never after it.
+        if (state.token && runtime.now() >= state.token.deadline) await drop();
+        const left = state.token ? state.token.deadline - runtime.now() : RETRY_MS;
+        schedule(Math.min(RETRY_MS, left));
+      };
+
+      const registration = await ctx.mcp.transform((editor) => {
+        try {
+          state.observed = true;
+          // Rebuilds start fresh: anything here belongs to config or another plugin.
+          state.collision = editor.get(NAME) !== undefined;
+          const token = state.token;
+          if (state.collision || state.stopped || !token || runtime.now() >= token.deadline) return;
+          editor.set(NAME, { type: "remote", url: URL, oauth: false,
+            headers: { Authorization: token.authorization } });
+        } catch {
+          // Throwing would disable the whole plugin group.
+        }
+      });
+      schedule(0);
+
+      return async () => {
+        state.stopped = true;
+        runtime.clearTimeout(state.timer);
+        state.timer = undefined;
+        const child = state.child;
+        if (child) {
+          kill(child.proc, "SIGTERM");
+          let grace;
+          const ended = await Promise.race([
+            child.exited.then(() => true),
+            new Promise((done) => { grace = after(KILL_GRACE_MS, () => done(false)); }),
+          ]);
+          runtime.clearTimeout(grace);
+          if (!ended) {
+            kill(child.proc, "SIGKILL");
+            await child.exited;
+          }
+        }
+        state.token = undefined;
+        try {
+          await registration.dispose();
+        } catch {
+          // Scope shutdown still removes this transform.
+        }
+      };
+    },
+  };
+}
+
+const runtime = {
+  spawn,
+  now: () => Date.now(),
+  setTimeout: (run, delay) => setTimeout(run, delay),
+  clearTimeout: (handle) => clearTimeout(handle),
+  getuid: () => process.getuid(),
+  realpath: (path) => realpathSync(path),
+  get env() {
+    return process.env;
+  },
+  modulePath: fileURLToPath(import.meta.url),
+};
+
+/** @satisfies {import("@opencode/plugin").Plugin.Plugin} */
+export default createPlugin(runtime);
+{% endraw %}

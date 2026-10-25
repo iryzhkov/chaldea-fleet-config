@@ -3,7 +3,9 @@
 Laptop acceptance and persistence are the base for this candidate. Its inventory,
 ARM helper pin and protected tooling profiles remain unchanged. This source adds
 explicit managed selections for agent-a, agent-b and omarchy-pc/GamingPC.
-OpenCode is excluded. These three hosts still need protected staging and actual
+These registrations cover Claude and Codex. Ordinary OpenCode uses the same
+helper through a separate, default-off plugin selection described in
+[the OpenCode consumer](opencode-interactive-jocasta.md). These three hosts still need protected staging and actual
 on-host Codex AND Claude qualification, CAS, idempotency and >330s reuse checks.
 This source is no acceptance receipt. Root owns enrollment, guarded source
 delivery, review/CI, activation and acceptance. Keep this candidate off main
@@ -18,7 +20,8 @@ fallback; the three new hosts previously had no interactive Jocasta entry.
 Role defaults stay off. Each new host explicitly records laptop qualification.
 The operator procedure is in [the three-host staging brief](managed-interactive-three-hosts.md).
 An explicit Jocasta state=absent is honored even while managed mode is enabled;
-remove the native consumer before deleting its staged credential/helper files.
+remove the native consumers, including an OpenCode plugin selection, before
+deleting its staged credential/helper files.
 
 Before activation, account for Codex's native credential precedence. A stored
 Jocasta OAuth login can override helper Authorization. If actual connection
@@ -62,7 +65,9 @@ A decoded token alone is never trusted. No key/token/credential cache is written
 The only successful stdout is native header JSON. All failures print one generic
 line without server responses or credential values.
 
-Codex receives http_headers_helper; Claude receives headersHelper. The registration
+Codex receives http_headers_helper; Claude receives headersHelper. Ordinary
+OpenCode has no helper field; its fleet plugin runs the same fixed command in
+memory only (opencode-interactive-jocasta.md). The registration
 module's auth_mode=managed_helper accepts only this fixed name, URL, command and
 approved host, or the separate laptop OV tuple below. extra must be empty. Public auth_mode=oauth retains its existing
 refusal of arbitrary helpers, headers, bearer values and client secrets.
