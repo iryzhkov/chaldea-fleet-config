@@ -22,13 +22,14 @@ session; it only keeps the tools and shared files those sessions use in place.
   neither are skills installed by the skills CLI (caveman, find-skills, the
   mattpocock skills, recorded in `~/.agents/.skill-lock.json`) or the skills
   Omarchy links in; those stay with whatever installed them.
-- `mise_agents`: keeps claude, codex and OpenCode (`npm:@opencode/cli`) at
-  their newest release that is at least 24 hours old. A drop-in,
-  `~/.config/mise/conf.d/agents.toml`, lists each as `latest`, and the play
-  installs the newest version old enough; mise runs the newest installed
-  version. The user's `~/.config/mise/config.toml` is never written, and a tool
-  also listed there takes that file's version; the play reports it. The drop-in
-  holds only plain version strings, because a drop-in with tool options needs
+- `mise_agents`: keeps selected tools without a user declaration at their
+  newest release that is at least 24 hours old. Defaults remain claude, codex
+  and the existing OpenCode declaration (`npm:@opencode/cli`). A drop-in,
+  `~/.config/mise/conf.d/agents.toml`, lists fleet-owned tools as `latest`;
+  the play installs the newest release old enough. User-declared tools are
+  omitted from both declaration and installation, preserving their complete
+  versions, options and `allow_builds`. See [mise ownership](docs/mise-agents.md).
+  The drop-in holds plain version strings because options there need
   `mise trust`, which for that directory trusts the whole home directory.
 - `huyang`: opt-in pinned releases, safe checkout migration and a separate
   checksum-pinned Neovim/parser/language-server toolchain. Every host is disabled
