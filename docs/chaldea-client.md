@@ -655,8 +655,10 @@ and the custody of the publisher credential, confirms that the normal
 `blob.json` and `exec.json` are absent, keeps a copy of the current launcher,
 and creates `blob.json` exclusively, never over an existing file. Without
 `blob.json`, the selected client runs `--artifact` jobs without custody, as
-before. After the merge, converge only the launcher at once rather than waiting
-for the timer, reviewing the check run's diff first:
+before. After the merge, record the exact merge commit, and converge only the
+launcher at once rather than waiting for the timer. Run from a checkout whose
+`git rev-parse HEAD` equals that recorded commit, not a moving `main`, and
+review the check run's diff first:
 
 ```sh
 ansible-playbook -i inventory site.yml --limit omarchy-pc --tags chaldea_exec_launcher --check --diff
@@ -664,10 +666,35 @@ ansible-playbook -i inventory site.yml --limit omarchy-pc --tags chaldea_exec_la
 ```
 
 The tag runs the validation and the launcher template only: no SSH enrollment,
-client release, `current` link or user service. To roll back, remove both
-settings on main and run the same command; the launcher returns to the pinned
-bytes. Restoring the saved launcher by hand lasts only until the next pull while
-the settings remain on main.
+client release, `current` link or user service.
+
+### Rollback only without pending custody
+
+Rolling back hands real `chaldea exec` to client-v0.4.11, which knows nothing
+of pending custody: its journal pruning deletes pending records together with
+their publication drafts and local artifact reserves. Before any step that lets
+client-v0.4.11 run `chaldea exec` again (removing either setting on main,
+rendering or restoring an earlier launcher) and before removing `blob.json`,
+even before the merge, take a bounded read-only inventory of the exec state
+directory (`$XDG_STATE_HOME/chaldea/exec` unless `exec.json` sets `stateDir`)
+while no `chaldea exec` runs, and start none until the rollback completes:
+
+- every entry in `journal/` is a regular file (not a symlink) holding a JSON
+  object, and no record has a `blob` field whose `state` is anything other than
+  `confirmed`;
+- every entry under `publication/` is named for a job whose journal record has
+  `blob.state` `confirmed`.
+
+If any record is pending, or any entry is malformed, unreadable, unsafe or
+otherwise incomplete, refuse the rollback. Keep the selection, `blob.json`,
+local artifacts, journals and reserves, and do not abandon, delete or retry
+anything until an operator has confirmed publication. To pause publication,
+close the tunnel or the publication window and keep the selected client; that
+is not a rollback. Only when the inventory is clean, remove both settings on
+main (a source change under the same review and merge rules) and run the same
+launcher-only command; the launcher returns to the pinned bytes. Restoring a
+saved launcher by hand lasts only until the next pull while the settings remain
+on main.
 
 ## Tests
 
