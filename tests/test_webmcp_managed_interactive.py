@@ -126,6 +126,40 @@ def test_actual_ansible_selection_honors_managed_absence_and_keeps_oauth(tmp_pat
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+@pytest.mark.parametrize(("architecture", "helper_sha256"), [
+    ("aarch64", "f936deea9705fa4237f5c74760ccd51e1ab473fffa498836002f68b8c05036ba"),
+    ("x86_64", "667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed"),
+])
+def test_inventory_selects_managed_jocasta_only_for_laptop(tmp_path, architecture, helper_sha256):
+    import subprocess
+    tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
+    select = next(t for t in tasks if t["name"].startswith("Select explicit"))
+    play = tmp_path / "inventory-selection.yml"
+    play.write_text(yaml.safe_dump([{
+        "hosts": "agent_hosts", "gather_facts": False,
+        "vars": {"ansible_facts": {"user_dir": str(tmp_path), "architecture": architecture}},
+        "tasks": [
+            {**select, "vars": {"mcp_registrations_remote_servers":
+                "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
+            {"ansible.builtin.assert": {"that": [
+                "mcp_registrations_effective_remote_servers == expected",
+                f"webmcp_interactive_helper_sha256 == '{helper_sha256}'",
+                "(webmcp_interactive_enabled | default(false) | bool) == (inventory_hostname == 'laptop')",
+                "inventory_hostname != 'laptop' or webmcp_interactive_helper_source == "
+                "'/usr/local/libexec/webmcp-interactive-headers'",
+                "inventory_hostname != 'laptop' or webmcp_interactive_credential_source == "
+                "fleet_home ~ '/.config/webmcp-interactive/enrollment.json'"]},
+             "vars": {"expected": "{{ managed if inventory_hostname == 'laptop' else "
+                                  "hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}",
+                      "managed": [{"name": "jocasta", "url": URL, "providers": ["claude", "codex"],
+                                   "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}]}},
+        ]}]))
+    result = subprocess.run(["ansible-playbook", "-i", str(ROOT / "inventory/hosts.yml"), str(play)],
+                            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_remote_cli_failures_do_not_quote_output():
     from test_mcp_registration import FakeModule
     module = FakeModule()
@@ -158,6 +192,10 @@ def test_protected_input_read_and_unsafe_metadata(tmp_path):
     with pytest.raises(ValueError):
         mod.protected_read(str(path), "laptop")
     path.chmod(0o600)
+    tmp_path.chmod(0o755)
+    with pytest.raises(ValueError):
+        mod.protected_read(str(path), "laptop")
+    tmp_path.chmod(0o700)
     link = tmp_path / "link"
     os.link(path, link)
     with pytest.raises(ValueError):
@@ -169,36 +207,52 @@ def test_protected_input_read_and_unsafe_metadata(tmp_path):
         mod.protected_read(str(path), "laptop")
 
 
-def test_ansible_keeps_protected_json_as_exact_text(tmp_path):
-    import hashlib
+@pytest.mark.parametrize("reuse_installed", [False, True])
+def test_ansible_keeps_protected_json_as_exact_text(tmp_path, reuse_installed):
+    import re
     import subprocess
-    private = tmp_path / "private"
-    private.mkdir(mode=0o700)
-    source = private / "laptop.json"
+    home = tmp_path / "home"
+    private = home / ".config/webmcp-interactive"
+    private.mkdir(parents=True, mode=0o700)
+    target = private / "enrollment.json"
+    source = target if reuse_installed else private / "laptop.json"
     value = {"version": 1, "owner": "00000000-0000-4000-8000-000000000000", "host": "laptop",
              "username": "webmcp-interactive-laptop", "password": "synthetic-private-password", "generation": 1}
     content = json.dumps(value, sort_keys=True, separators=(",", ":"))
     source.write_text(content)
     source.chmod(0o600)
-    target = private / "delivered.json"
+    tasks = yaml.safe_load((ROOT / "roles/webmcp_interactive/tasks/main.yml").read_text())
+    delivery = next(t for t in tasks if t["name"] == "Stage only a protected per-host enrollment")
+    install = next(t for t in tasks if t["name"] == "Install exact public native helper")
+    helper = tmp_path / "installed-helper"
+    helper_source = helper if reuse_installed else tmp_path / "staged-helper"
+    helper_source.write_text("synthetic public helper fixture\n")
+    helper_source.chmod(0o755)
+    # Keep the actual copy task, with its fixed privileged destination moved to scratch.
+    install = {**install, "become": False, "ansible.builtin.copy": {
+        **install["ansible.builtin.copy"], "dest": str(helper),
+        "owner": str(os.getuid()), "group": str(os.getgid())}}
     play = tmp_path / "delivery.yml"
     play.write_text(yaml.safe_dump([{
-        "name": "Check actual protected lookup and copy types", "hosts": "localhost",
+        "name": "Check actual protected delivery and local pull reuse", "hosts": "laptop",
         "connection": "local", "gather_facts": False,
-        "tasks": [
-            {"name": "Read private fixture", "ansible.builtin.set_fact": {
-                "staged": "{{ lookup('webmcp_private', source, 'laptop') }}"}, "no_log": True},
-            {"name": "Require exact text", "ansible.builtin.assert": {"that": [
-                "staged is string", "staged | hash('sha256') == expected"]}, "no_log": True},
-            {"name": "Deliver private fixture", "ansible.builtin.copy": {
-                "content": "{{ staged }}", "dest": str(target), "mode": "0600", "follow": False},
-             "no_log": True, "diff": False},
-        ]}]))
+        "vars": {"fleet_home": str(home), "ansible_facts": {"user_uid": os.getuid()},
+                 "webmcp_interactive_credential_source": str(source),
+                 "webmcp_interactive_previous_credential_sha256": "",
+                 "webmcp_interactive_helper_source": str(helper_source)},
+        "tasks": [delivery, install]}]))
     env = {**os.environ, "ANSIBLE_LOOKUP_PLUGINS": str(ROOT / "roles/webmcp_interactive/lookup_plugins"),
            "PYTHONDONTWRITEBYTECODE": "1"}
-    result = subprocess.run(["ansible-playbook", "-i", "localhost,", str(play), "--extra-vars",
-                             json.dumps({"source": str(source), "expected": hashlib.sha256(content.encode()).hexdigest()})],
-                            env=env, capture_output=True, text=True)
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert target.read_text() == content
-    assert "synthetic-private-password" not in result.stdout + result.stderr
+    for repeat in range(2):
+        result = subprocess.run(["ansible-playbook", "-i", "laptop,", str(play)],
+                                env=env, capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert target.read_text() == content
+        assert helper.read_text() == "synthetic public helper fixture\n"
+        assert helper.stat().st_mode & 0o777 == 0o755
+        assert target.stat().st_mode & 0o777 == 0o600
+        assert target.stat().st_uid == os.getuid()
+        assert private.stat().st_mode & 0o777 == 0o700
+        assert "synthetic-private-password" not in result.stdout + result.stderr
+        if reuse_installed or repeat:
+            assert re.search(r"laptop\s+: ok=\d+\s+changed=0\s", result.stdout)

@@ -39,17 +39,15 @@ session; it only keeps the tools and shared files those sessions use in place.
   edited directly) and with Codex (only the `[mcp_servers.<name>]` tables of
   `~/.codex/config.toml`). It removes any `local-file-llm` registration and
   leaves every other server alone. Diffs never show environment values.
-  A host may opt into remote servers with each client's native OAuth through
-  `mcp_registrations_remote_servers`; only the laptop does, for its interactive
-  `jocasta` server in `inventory/host_vars/laptop/jocasta-interactive.yml`,
-  registered with Claude Code and Codex (OpenCode supported, off). Those entries carry public
-  OAuth options only (client ID, scopes, callback); the user completes the
-  native login. To compare Claude's OAuth options, which `claude mcp get` does
-  not print, the module reads only that one entry's public fields from
-  `~/.claude.json`, still changing it through the CLI. The separate
-  [managed interactive capability](docs/managed-interactive-webmcp.md) adds a
-  fixed native helper mode for explicitly enrolled hosts. It is disabled by
-  default; a source merge does not activate it.
+  Remote servers may use native OAuth through `mcp_registrations_remote_servers`.
+  The laptop's interactive `jocasta` selection in
+  `inventory/host_vars/laptop/jocasta-interactive.yml` uses the
+  [managed native helper](docs/managed-interactive-webmcp.md) with Claude and
+  Codex; OpenCode stays off. Role defaults and other hosts remain disabled.
+  Merging this laptop selection can activate it through its ordinary pull timer;
+  root must first qualify both native clients. Public OAuth remains supported
+  for explicitly selected entries. The module compares only the named entry's
+  public fields in `~/.claude.json` and changes Claude registration through its CLI.
 - `t3`: asserts that T3 runs the pinned version and its user service is active.
   It upgrades only when `t3_allow_upgrade=true` is passed, because `t3 update`
   restarts the service and interrupts running sessions.
