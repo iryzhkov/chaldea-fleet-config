@@ -94,6 +94,10 @@ def select(home, dropin, tools, scratch):
     if any(os.environ.get(key) for key in redirects):
         raise ValueError("Mise configuration environment overrides are active; resolve ownership "
                          "for the normal global config before retrying")
+    xdg = os.environ.get("XDG_CONFIG_HOME")
+    if xdg and Path(xdg) != Path.home() / ".config":
+        raise ValueError("XDG_CONFIG_HOME redirects mise outside the normal global directory; "
+                         "resolve ownership before retrying")
     config = Path(home) / ".config/mise"
     for directory in (Path(home) / ".config", config, config / "conf.d"):
         if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
@@ -124,7 +128,7 @@ def select(home, dropin, tools, scratch):
         if not isinstance(data.get("alias", {}), dict):
             raise ValueError(f"{path}: alias must be a TOML table")
         if (any(key in data for key in ("include", "tool_alias", "plugins")) or
-                any(isinstance(value, dict) and "backend" in value
+                any(isinstance(value, str) or isinstance(value, dict) and "backend" in value
                     for value in data.get("alias", {}).values())):
             raise ValueError(f"{path}: includes or custom tool aliases/plugins need an explicit ownership decision")
         table = data.get("tools", {})

@@ -28,6 +28,8 @@
     argv: [mise, latest, "{{ item.name }}"]
     chdir: "{{ fleet_home }}"
   environment:
+    HOME: "{{ fleet_home }}"
+    XDG_CONFIG_HOME: "{{ fleet_home }}/.config"
     MISE_MINIMUM_RELEASE_AGE: "{{ mise_agents_minimum_release_age }}"
   loop: "{{ mise_agents_owned.tools }}"
   loop_control:
@@ -56,6 +58,9 @@
       - "{{ item.item.name }}{{ '[' ~ item.item.install_options ~ ']' if item.item.install_options is defined else '' }}@{{ item.stdout | trim }}"
     chdir: "{{ fleet_home }}"
     creates: "{{ mise_agents_installs }}/{{ item.item.name | replace(':', '-') | replace('@', '') | replace('/', '-') }}/{{ item.stdout | trim }}"
+  environment:
+    HOME: "{{ fleet_home }}"
+    XDG_CONFIG_HOME: "{{ fleet_home }}/.config"
   loop: "{{ mise_agents_latest.results | default([]) }}"
   loop_control:
     label: "{{ item.item.name }}@{{ item.stdout | default('') | trim }}"

@@ -2,8 +2,8 @@
 # Every CI gate, runnable locally: build the hashed toolchain from
 # requirements-ci.txt, then run the unit tests, ansible-lint, a syntax check, a
 # check-mode run and two real runs against a synthetic inventory whose home is a
-# scratch dir, and the role tests in tests/*.yml. Node must be on PATH;
-# the workflow supplies a checksum-pinned runtime in job-local disk scratch.
+# scratch dir, and the role tests in tests/*.yml. Node and mise must be on PATH;
+# the workflow supplies checksum-pinned runtimes in job-local disk scratch.
 set -euo pipefail
 phase=${1:-all}
 if (( $# > 1 )); then
@@ -31,6 +31,11 @@ export XDG_CACHE_HOME="$HOME/.cache" XDG_DATA_HOME="$HOME/.local/share"
 # Fail before preparing the Python environment if the JavaScript prerequisite is missing.
 command -v node >/dev/null 2>&1 || {
 	echo 'ci: Node is required on PATH; CI stages its pinned runtime in job scratch' >&2
+	exit 1
+}
+
+command -v mise >/dev/null 2>&1 || {
+	echo 'ci: mise with registry --json is required on PATH; CI stages it in job scratch' >&2
 	exit 1
 }
 

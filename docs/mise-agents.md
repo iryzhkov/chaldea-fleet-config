@@ -28,11 +28,14 @@ with `registry --json` are required.
 
 Malformed TOML, symlinked config files, non-tool sections in the managed file,
 conf.d folders, includes, custom backend aliases/plugins, configuration
-environment overrides and unknown shorthands fail before overwrite or installation. Resolve the reported
-ownership ambiguity first; custom tools can use explicit backend identifiers.
-This preflight is deliberately limited to the listed global sources. Project
-config, environment-specific configs and environment overrides remain mise's
-responsibility; the role does not migrate them or force `--path`.
+environment overrides and unknown shorthands fail before overwrite or
+installation. Resolve the reported ownership ambiguity first; custom tools
+can use explicit backend identifiers. This preflight is deliberately limited
+to the listed global sources. Project and environment-specific configs remain
+mise's responsibility. Non-default `XDG_CONFIG_HOME` and mise configuration
+environment overrides are rejected. Release lookups and installs explicitly
+use `fleet_home` and its normal `.config` directory, matching preflight.
+The role does not migrate other sources or force `--path`.
 
 Existing stale fleet declarations disappear on the next real converge.
 An empty `mise_agents_tools: []` leaves an empty managed tools table and needs

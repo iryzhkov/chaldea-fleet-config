@@ -28,9 +28,9 @@ experimental = true
 STALE = '[tools]\nclaude = "latest"\ncodex = "latest"\n"npm:@opencode/cli" = "latest"\n'
 
 
-def fixture(tmp_path, global_text=GLOBAL, tools=None, install=True):
+def fixture(tmp_path, global_text=GLOBAL, tools=None, install=True, target_home=None):
     assert MISE, "mise must be staged on PATH for the real-parser regression"
-    home = Path.home()
+    home = target_home or Path.home()
     assert home.is_relative_to(tmp_path.parent)
     config = home / ".config/mise"
     config.mkdir(parents=True)
@@ -48,6 +48,8 @@ def fixture(tmp_path, global_text=GLOBAL, tools=None, install=True):
 import json, os, pathlib, re, sys
 if sys.argv[1] == 'registry':
     os.execv({MISE!r}, [{MISE!r}, *sys.argv[1:]])
+assert os.environ['HOME'] == {str(home)!r}
+assert os.environ['XDG_CONFIG_HOME'] == {str(home / '.config')!r}
 with open({str(record)!r}, 'a') as stream:
     stream.write(json.dumps([sys.argv[1:], os.environ.get('MISE_MINIMUM_RELEASE_AGE')]) + '\\n')
 if sys.argv[1] == 'latest':
@@ -75,10 +77,11 @@ else:
                    "ANSIBLE_ROLES_PATH": str(ROOT / "roles"),
                    "ANSIBLE_LOCAL_TEMP": str(tmp_path / "ansible")}
 
-    def run(check=False, success=True):
+    def run(check=False, success=True, extra_environment=None):
         result = subprocess.run(["ansible-playbook", "-i", "localhost,", str(play),
                                  *(["--check", "--diff"] if check else [])],
-                                cwd=ROOT, env=environment, capture_output=True, text=True)
+                                cwd=ROOT, env={**environment, **(extra_environment or {})},
+                                capture_output=True, text=True)
         output = result.stdout + result.stderr
         assert (result.returncode == 0) == success, output
         assert "do-not-print-this-value" not in output, output
@@ -90,10 +93,11 @@ else:
     return home, global_path, dropin, run, calls
 
 
-def mise(home, *args):
+def mise(home, *args, extra_environment=None):
     environment = {key: value for key, value in os.environ.items() if not key.startswith("MISE_")}
     environment.update(HOME=str(home), MISE_SYSTEM_CONFIG_DIR=str(home / "empty-system"),
                        MISE_CEILING_PATHS=str(home), MISE_YES="1")
+    environment.update(extra_environment or {})
     return subprocess.run([MISE, *args], cwd=home, env=environment, text=True, capture_output=True)
 
 
@@ -187,6 +191,7 @@ def test_install_disabled_still_converges_declarations(tmp_path):
     '[env]\nSECRET = "do-not-print-this-value"\nbroken = [\n',
     '[tools]\ncodex = "1"\ncodex = "2"\n',
     '[tool_alias.custom]\nbackend = "npm:fixture"\n',
+    '[alias]\ncodex = "npm:fixture"\n',
     'include = ["other.toml"]\n',
     '[tools]\nunknown-custom-plugin = "latest"\n',
     '[tools]\ncodex = 123\n',
@@ -197,6 +202,40 @@ def test_ambiguous_or_invalid_config_fails_before_overwrite_or_install(tmp_path,
     run(success=False)
     assert (user.read_bytes(), managed.read_bytes()) == before
     assert calls() == []
+
+
+def test_redirected_xdg_config_fails_before_changes_with_real_mise(tmp_path):
+    home, user, managed, run, calls = fixture(tmp_path, "")
+    redirected = tmp_path / "personal-config"
+    (redirected / "mise").mkdir(parents=True)
+    alternate = redirected / "mise/config.toml"
+    alternate.write_text('[tools]\ncodex = "0.163.0"\n')
+    environment = {"XDG_CONFIG_HOME": str(redirected)}
+    selected = mise(home, "ls", "--current", "--json", "codex",
+                    extra_environment=environment)
+    assert selected.returncode == 0, selected.stderr
+    assert json.loads(selected.stdout)[0]["source"]["path"] == str(alternate)
+    before = user.read_bytes(), managed.read_bytes(), alternate.read_bytes()
+    assert "XDG_CONFIG_HOME" in run(success=False, extra_environment=environment)
+    assert (user.read_bytes(), managed.read_bytes(), alternate.read_bytes()) == before
+    assert not calls()
+
+
+def test_release_commands_use_the_inspected_fleet_home(tmp_path):
+    _, _, managed, run, calls = fixture(tmp_path, "", target_home=tmp_path / "target-home",
+                                       tools=[{"name": "codex"}])
+    run()
+    assert tomllib.loads(managed.read_text())["tools"] == {"codex": "latest"}
+    assert len(calls()) == 2
+
+
+def test_equivalent_duplicate_selections_fail_before_changes(tmp_path):
+    _, user, managed, run, calls = fixture(
+        tmp_path, "", tools=[{"name": "claude"}, {"name": "claude-code"}])
+    before = user.read_bytes(), managed.read_bytes()
+    assert "equivalent tool identities" in run(success=False)
+    assert (user.read_bytes(), managed.read_bytes()) == before
+    assert not calls()
 
 
 def test_user_fragment_also_owns_tools(tmp_path):
