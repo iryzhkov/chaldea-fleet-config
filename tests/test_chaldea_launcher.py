@@ -1,6 +1,7 @@
 """The installed launcher uses the pinned Node, preserves CLI arguments and sends
 only `chaldea exec` to an optional, separately admitted client."""
 
+import hashlib
 import json
 import os
 import socket
@@ -314,3 +315,38 @@ def test_launcher_tag_converges_only_validation_and_the_launcher(tmp_path):
     assert {p for p in home.rglob("*")} - before == {launcher.parent, launcher}
     assert f"chaldea_entry='{paths['entry']}'" in launcher.read_text()
     assert json.loads(manager.read_text())["calls"] == []
+
+
+ADMITTED = "/home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f"
+ENROLLED = {"chaldea_job_client_exec_entry": ADMITTED + "/client-1e86175cd2ef2e11fdf4584d22cc73127a162d42/bin/chaldea",
+            "chaldea_job_client_exec_node": ADMITTED + "/node-26.10.0"}
+
+
+def test_only_omarchy_pc_enrolls_the_admitted_exec_client(tmp_path):
+    """Merging enrollment activates omarchy-pc through its pull timer, so the real
+    inventory must select exactly the admitted paths there and nowhere else."""
+    listed = subprocess.run(["ansible-inventory", "-i", str(ROOT / "inventory"), "--list"],
+                            cwd=ROOT, capture_output=True, text=True)
+    assert listed.returncode == 0, listed.stderr
+    hostvars = json.loads(listed.stdout)["_meta"]["hostvars"]
+    assert {"omarchy-pc", "agent-a", "agent-b", "laptop"} <= hostvars.keys()
+    for host, values in hostvars.items():
+        selected = {key: values[key] for key in ENROLLED if key in values}
+        assert selected == (ENROLLED if host == "omarchy-pc" else {}), host
+
+    # The enrolled values pass the role's validation and render through the real
+    # template module; only the exec block differs from the pinned launcher.
+    pc = hostvars["omarchy-pc"]
+    home = tmp_path / "home"
+    result = playbook(tmp_path, {"fleet_home": str(home), "chaldea_client_enabled": pc["chaldea_client_enabled"],
+                                 "chaldea_node_version": pc["chaldea_node_version"], **ENROLLED}, ROLE)
+    assert result.returncode == 0, result.stdout + result.stderr
+    rendered = (home / ".local/bin/chaldea").read_bytes()
+    print("omarchy-pc launcher sha256", hashlib.sha256(rendered).hexdigest())
+    lines = rendered.decode().splitlines(keepends=True)
+    base = JINJA.from_string(BASE_LAUNCHER.read_text()).render(
+        chaldea_client_enabled=pc["chaldea_client_enabled"],
+        chaldea_node_version=pc["chaldea_node_version"]).splitlines(keepends=True)
+    assert lines[:2] == base[:2] and lines[len(lines) - len(base) + 2:] == base[2:]
+    assert f"    chaldea_entry='{ENROLLED['chaldea_job_client_exec_entry']}'\n" in lines
+    assert f"    chaldea_node='{ENROLLED['chaldea_job_client_exec_node']}'\n" in lines
