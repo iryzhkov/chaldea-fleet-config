@@ -69,7 +69,14 @@ record = {"argv": sys.argv[1:], "env": dict(os.environ), "pid": os.getpid(), "pg
           "dir_mode": os.stat(config).st_mode & 0o777, "listing": sorted(os.listdir(config)),
           "config": open(config + "/opencode.json").read(), "seen": []}
 if scenario.get("grandchild"):
-    record["grandchild"] = subprocess.Popen(["/usr/bin/python3", "-c", "import time; time.sleep(120)"]).pid
+    script = ("import signal,time; from pathlib import Path; "
+              + ("signal.signal(signal.SIGTERM, signal.SIG_IGN); " if scenario.get("grandchild_ignore_term") else "")
+              + "Path('grandchild-ready').write_text('ready'); time.sleep(120)")
+    record["grandchild"] = subprocess.Popen(["/usr/bin/python3", "-c", script],
+                                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                            stderr=subprocess.DEVNULL).pid
+    while not os.path.exists("grandchild-ready"):
+        time.sleep(0.01)
 def save():
     with open(base + "/serve-record.tmp", "w") as handle:
         json.dump(record, handle)
@@ -330,6 +337,76 @@ def test_child_ignoring_term_is_killed_after_bounded_grace(tmp_path, monkeypatch
     code, _, stderr = finish(start(case))
     assert (code, stderr) == (78, "OPENCODE_PROFILE_ENDED session_mismatch\n")
     assert gone(serve_record(case)["pid"]) and list(case.runtime.iterdir()) == []
+
+
+
+@pytest.mark.parametrize("natural_exit", [True, False])
+def test_owned_group_reaps_lingering_and_term_ignoring_grandchildren(tmp_path, monkeypatch, natural_exit):
+    case = opencode_layout(tmp_path, monkeypatch)
+    ok(run(case))
+    scenario(case, grandchild=True, grandchild_ignore_term=True,
+             lifetime=0.5 if natural_exit else 60, exit=7)
+    helper_steps(case, [{}] if natural_exit else [{}, {"refuse": "session_mismatch"}])
+    process = start(case)
+    try:
+        code, _, stderr = finish(process, timeout=15)
+        assert (code, stderr) == ((7, "") if natural_exit else
+                                  (78, "OPENCODE_PROFILE_ENDED session_mismatch\n"))
+        record = serve_record(case)
+        assert gone(record["pid"]) and gone(record["grandchild"])
+        assert list(case.runtime.iterdir()) == []
+    finally:
+        # This is a synthetic job-only process group, including on the red baseline.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.communicate(timeout=10)
+
+
+@pytest.mark.parametrize("advance, expires, deadline, reason", [
+    (11, 1300, 5000, "helper_timeout"),
+    (6, 1005, 5000, "renewal_missed"),
+    (6, 1300, 1005, "deadline"),
+])
+def test_helper_completion_after_suspend_is_refused(tmp_path, monkeypatch, advance, expires, deadline, reason):
+    case = opencode_layout(tmp_path, monkeypatch)
+    ok(run(case))
+    launcher = in_process(case)
+    clock = FakeClock(1000.0)
+    launch = launcher["Launch"](clock)
+    launch.identity, launch.expires = ("sess-1", "run-1", deadline), expires
+    launch.wait = lambda timeout: setattr(clock, "value", clock.value + advance)
+
+    def completed_helper(target, argv, env, stdio):
+        context = {"sessionId": "sess-1", "runId": "run-1",
+                   "deadline": deadline, "tokenExpiresAt": min(deadline, 1400)}
+        os.write(stdio[1], helper_line(context))
+        return 424242
+
+    with patch.dict(launcher["Launch"].helper.__globals__,
+                    spawn=completed_helper, boottime=lambda: clock.value), \
+         patch.object(os, "waitpid", lambda pid, flags: (pid, 0)):
+        with pytest.raises(launcher["Refused"], match=reason):
+            launch.helper()
+    assert launch.expires == expires
+
+
+def test_supervise_never_publishes_across_the_old_header_stop_margin(tmp_path, monkeypatch):
+    case = opencode_layout(tmp_path, monkeypatch)
+    ok(run(case))
+    launcher = in_process(case)
+    clock = FakeClock(1275.0)
+    launch = supervised(launcher, clock, 1300, 5000, lambda t: t, [])
+
+    def suspended_helper():
+        clock.value += 30
+        return "Bearer a.b.c", launch.identity, 1600
+
+    launch.helper = suspended_helper
+    with pytest.raises(launcher["Refused"], match="renewal_missed"):
+        launch.supervise()
+    assert launch.published == [] and launch.expires == 1300
 
 
 def test_uncatchable_launcher_kill_takes_the_child_with_it(tmp_path, monkeypatch):
