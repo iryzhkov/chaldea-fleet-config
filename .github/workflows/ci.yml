@@ -52,6 +52,19 @@ jobs:
             --directory "$node_scratch/runtime" --strip-components=1 --no-same-owner
           test "$("$node_scratch/runtime/bin/node" --version)" = "v$CI_NODE_VERSION"
           printf '%s\n' "$node_scratch/runtime/bin" >>"$GITHUB_PATH"
+      # Exercise the observed duplicate-global-declaration behavior without
+      # using the runner's home or installing any agent CLI.
+      - name: Stage checksum-pinned mise for synthetic role tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mise_scratch=$(mktemp -d "$TMPDIR/mise.XXXXXXXX")
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            https://github.com/jdx/mise/releases/download/v2026.10.15/mise-v2026.10.15-linux-x64.tar.gz \
+            --output "$mise_scratch/mise.tar.gz"
+          printf '%s  %s\n' 1c2d85dc42bef51e0bb20780093c746d6e12dfd15ca461f3979bd52cc214bc19 "$mise_scratch/mise.tar.gz" | sha256sum --check -
+          tar --extract --gzip --file "$mise_scratch/mise.tar.gz" --directory "$mise_scratch" --no-same-owner
+          printf '%s\n' "$mise_scratch/mise/bin" >>"$GITHUB_PATH"
       - run: bash tools/ci.sh "${{ matrix.phase }}"
       - name: Remove this run's disk-backed scratch
         if: always()

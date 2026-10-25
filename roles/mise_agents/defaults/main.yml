@@ -1,9 +1,9 @@
 ---
 # Agent CLIs kept at their newest release that is at least
-# mise_agents_minimum_release_age old. Each is listed as "latest" in a drop-in
-# beside the user's own config, which is never rewritten, and the play
-# installs the newest version old enough; mise then runs the newest installed
-# version. Tool options needed at install time go in install_options rather
+# mise_agents_minimum_release_age old. User-declared tools are omitted from
+# the managed drop-in and installation. Other selected tools are listed as
+# "latest"; the play installs the newest version old enough and mise runs the
+# newest installed version. Tool options needed at install time go in install_options rather
 # than the drop-in: a drop-in with options needs mise trust, and mise trusts
 # the whole home directory for a file under ~/.config/mise/conf.d.
 mise_agents_tools:
@@ -12,6 +12,7 @@ mise_agents_tools:
   - {name: "npm:@opencode/cli", install_options: allow_builds=@opencode/cli}
 mise_agents_minimum_release_age: 24h
 mise_agents_dropin: "{{ fleet_home }}/.config/mise/conf.d/agents.toml"
-# False writes only the drop-in and runs no mise command.
+# False writes only the drop-in; the read-only registry preflight still runs.
+# An empty tools list needs no mise executable. Check mode never queries or installs releases.
 mise_agents_install: true
 mise_agents_installs: "{{ fleet_home }}/.local/share/mise/installs"

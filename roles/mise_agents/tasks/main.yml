@@ -1,4 +1,16 @@
 ---
+- name: Select agent tools not declared by the user
+  mise_agent_tools:
+    home: "{{ fleet_home }}"
+    dropin: "{{ mise_agents_dropin }}"
+    tools: "{{ mise_agents_tools }}"
+  register: mise_agents_owned
+
+- name: Report agent CLIs owned by user configuration
+  ansible.builtin.debug:
+    msg: "User mise configuration owns {{ mise_agents_owned.overridden | join(', ') }}; fleet declaration and installation skipped"
+  when: mise_agents_owned.overridden | length > 0
+
 - name: Create the mise drop-in directory
   ansible.builtin.file:
     path: "{{ mise_agents_dropin | dirname }}"
@@ -17,14 +29,13 @@
     chdir: "{{ fleet_home }}"
   environment:
     MISE_MINIMUM_RELEASE_AGE: "{{ mise_agents_minimum_release_age }}"
-  loop: "{{ mise_agents_tools }}"
+  loop: "{{ mise_agents_owned.tools }}"
   loop_control:
     label: "{{ item.name }}"
   register: mise_agents_latest
   changed_when: false
   failed_when: false
-  check_mode: false
-  when: mise_agents_install | bool
+  when: mise_agents_install | bool and not ansible_check_mode
 
 # An unreachable registry leaves the installed versions in place.
 - name: Report agent CLIs whose newest release could not be read
@@ -52,31 +63,3 @@
     - item.rc is defined
     - item.rc == 0
     - item.stdout | trim | length > 0
-
-- name: Read the version mise selects for each agent CLI
-  ansible.builtin.command:
-    argv: [mise, ls, --current, --json, "{{ item.name }}"]
-    chdir: "{{ fleet_home }}"
-  loop: "{{ mise_agents_tools }}"
-  loop_control:
-    label: "{{ item.name }}"
-  register: mise_agents_selected
-  changed_when: false
-  failed_when: false
-  check_mode: false
-  when: mise_agents_install | bool
-
-- name: Report agent CLIs that another mise config sets
-  ansible.builtin.debug:
-    msg: >-
-      {{ item.item.name }} is set to
-      {{ (item.stdout | from_json | first).requested_version | default('?') }} by
-      {{ (item.stdout | from_json | first).source.path }}, which takes precedence
-      over {{ mise_agents_dropin }}
-  loop: "{{ mise_agents_selected.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  when:
-    - item.rc | default(1) == 0
-    - item.stdout | from_json | length > 0
-    - (item.stdout | from_json | first).source.path | default('') != mise_agents_dropin
