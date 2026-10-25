@@ -1,15 +1,20 @@
 # Managed interactive Jocasta capability
 
-This source is staged and disabled. It has no deployed/native success claim.
-Root owns enrollment, publication, verifier selection, activation and reviews.
+This source PREPARES conditional laptop persistence. Native qualification is
+OPEN. Root owns enrollment, publication, verifier selection, activation and reviews.
+Keep this selection off main until actual Codex AND Claude full managed access,
+CAS, idempotency and >330s reuse gates pass. This source is no acceptance receipt.
 The four adopted hosts are laptop, agent-a, agent-b and omarchy-pc/GamingPC.
 OpenCode is excluded. Actual laptop qualification precedes other-host deployment.
 
-The default laptop registration remains its existing public OAuth definition.
-Only explicit webmcp_interactive_enabled selects the managed registration and
-stages its helper/credential. Other hosts need that same explicit opt-in plus
-webmcp_interactive_laptop_qualified. No inventory opts in in this change.
-A normal pull therefore retains existing behavior after a source merge.
+Only laptop inventory selects webmcp_interactive_enabled. After root qualifies
+and merges it, ordinary local pulls reuse the installed helper at its reviewed
+public SHA256 and {{ fleet_home }}/.config/webmcp-interactive/enrollment.json.
+The existing role validates custody and retains exact bytes on a repeat pull.
+No controller staging path or private digest is committed. The public OAuth
+registration below that selector remains the disabled-mode fallback.
+Role defaults stay off. Other hosts need their own explicit opt-in plus
+webmcp_interactive_laptop_qualified after laptop acceptance.
 An explicit Jocasta state=absent is honored even while managed mode is enabled;
 remove the native consumer before deleting its staged credential/helper files.
 

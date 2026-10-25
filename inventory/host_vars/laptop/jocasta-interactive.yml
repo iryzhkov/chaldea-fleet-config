@@ -1,25 +1,26 @@
 ---
-# The laptop's ordinary interactive Claude and Codex sessions get the full
-# Jocasta Web MCP server (read and write across all projects), each through its
-# own native OAuth login with one public Authentik client. Design:
-# interactive-design/RESULT.md of the 86fde145 laptop work, guide revision 32.
-# OpenCode is optional and off in this release: its public options are kept
-# below, unused until opencode is added to providers.
+# PREPARED conditional laptop selection, not native acceptance. Keep off main
+# until root passes actual Codex AND Claude full managed access, CAS, idempotency
+# and >330s reuse gates. Merging activates this selection through ordinary pulls.
+# Only this laptop opts in; other hosts retain default-off managed capability.
+# OpenCode remains excluded. The public OAuth definition below is the fallback
+# when managed mode is disabled; the existing role selects the fixed native
+# helper for ordinary interactive Codex and Claude when enabled.
 #
-# Public values only. The registration holds no token, header, header helper or
-# client secret; Igor completes each client's native MCP login after delivery,
-# never Ansible. Tokens stay in each client's own credential store.
-#
-# Activation: the normal pull applies this file once it is on main. Keep it off
-# main until the Jocasta operator verifier, the Authentik public application and
-# its exact redirects are live. state: absent removes only the jocasta
-# registrations of the listed providers (rollback); unrelated registrations are
-# untouched.
+# Local pulls reuse the accepted installed artifacts. No controller staging path,
+# credential value or private digest belongs in inventory. The role requires the
+# enrollment's UID-owned 0700 parent and single-link 0600 file without symlinks.
+# state: absent removes only the listed Jocasta registrations.
 #
 # Isolation: the protected Chaldea tooling profiles
 # (chaldea-jocasta-tooling.yml) are unchanged. Their Codex home is separate and
 # disables any jocasta server by name; their Claude profile uses a strict MCP
 # config. They keep project:tooling read-only access.
+webmcp_interactive_enabled: true
+webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
+webmcp_interactive_helper_sha256: f936deea9705fa4237f5c74760ccd51e1ab473fffa498836002f68b8c05036ba
+webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
+
 mcp_registrations_jocasta_interactive_state: present
 
 mcp_registrations_remote_servers:
