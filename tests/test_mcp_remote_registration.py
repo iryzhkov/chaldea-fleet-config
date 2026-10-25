@@ -85,18 +85,22 @@ def inventory_vars(host):
     return json.loads(result.stdout)
 
 
-def test_only_the_laptop_opts_in_and_the_role_default_is_off():
+def test_four_hosts_opt_in_and_the_role_default_is_off():
     defaults = yaml.safe_load((ROOT / "roles/mcp_registrations/defaults/main.yml").read_text())
     assert defaults["mcp_registrations_remote_servers"] == []
     assert defaults["mcp_registrations_providers"] == ["claude", "codex"]
     agent_defaults = yaml.safe_load((ROOT / "roles/agent_config/defaults/main.yml").read_text())
     assert agent_defaults["agent_config_fleet_tools_profile"]["mcp"] == ["ov-memory"]
-    for host in ("agent-a", "agent-b", "omarchy-pc", "normandy", "homelab"):
+    for host in ("normandy", "homelab"):
         values = inventory_vars(host)
         assert "mcp_registrations_remote_servers" not in values, host
         assert "agent_config_fleet_tools_profile" not in values, host
+    for host in ("laptop", "agent-a", "agent-b", "omarchy-pc"):
+        values = inventory_vars(host)
+        assert values["webmcp_interactive_enabled"] is True
+        assert [server["name"] for server in values["mcp_registrations_remote_servers"]] == ["jocasta"]
+        assert values["mcp_registrations_remote_servers"][0]["providers"] == ["claude", "codex"]
     laptop = inventory_vars("laptop")
-    assert [server["name"] for server in laptop["mcp_registrations_remote_servers"]] == ["jocasta"]
     # The protected tooling profiles stay isolated from the operator server.
     codex = laptop["chaldea_client_session_profiles"]["jocasta-tooling-codex"]
     assert "jocasta" in codex["disabled_servers"] and codex["home"] != "/home/igor"
