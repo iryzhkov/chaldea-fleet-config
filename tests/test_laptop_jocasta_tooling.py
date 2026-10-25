@@ -227,6 +227,43 @@ def test_laptop_retention_never_prunes_the_stopped_quota_node():
         assert "Environment=CHALDEA_NODE_VERSION=26.10.0" in lines, host
 
 
+
+
+def test_prepared_opencode_selection_is_inactive_and_preserves_deployed_profiles():
+    candidate = yaml.safe_load((ROOT / "docs/examples/laptop-jocasta-tooling-opencode.yml").read_text())
+    assert set(candidate) == {"presets", "enrollments", "profiles"}
+    name = "jocasta-tooling-opencode"
+    values = activation()
+    for short in candidate:
+        key = "chaldea_client_session_" + short
+        assert set(candidate[short]) == {name}
+        assert name not in inventory_vars("laptop")[key]
+        before = copy.deepcopy(values[key])
+        values[key] = values[key] | candidate[short]
+        assert {k: v for k, v in values[key].items() if k != name} == before
+    assert values["chaldea_client_session_presets"][name] == dict(
+        values["chaldea_client_session_presets"][CLAUDE],
+        instanceId="opencode-jocasta-tooling", model="opencode/beam-free",
+        options=[{"id": "variant", "value": "medium"}], title="Jocasta tooling read-only OpenCode")
+    enrollment = values["chaldea_client_session_enrollments"][name]
+    assert enrollment == dict(
+        values["chaldea_client_session_enrollments"][CLAUDE],
+        username="chaldea-laptop-" + name,
+        secretFile=HOME + "/.config/chaldea/authentik/" + name + ".app-password")
+    profile = values["chaldea_client_session_profiles"][name]
+    assert profile == {
+        "driver": "opencode", "elf_machine": 183, "cwd": HOME, "preset": name,
+        "home": HOME + "/.local/state/chaldea/profiles/" + name + "/home",
+        "tmpdir": HOME + "/.local/state/chaldea/profiles/" + name + "/tmp",
+        "audience": "jocasta", "server": "jocasta_tooling", "url": RESOURCE, "tools": TOOLS,
+        "native": {"source": ASSETS + "/opencode/2.1.3/opencode", "size": 236047352,
+                   "sha256": "78c279e68f25e69045a7ec5f518fccbad57e8f25d7853e66ba9677ddfaf28b19"}}
+    load("session_enrollment").chaldea_session_enrollments(
+        values["chaldea_client_session_enrollments"], values["chaldea_client_session_presets"],
+        values["chaldea_client_session_ceilings"], HOME)
+    assert validate_profiles(values)
+
+
 def test_role_closed_validators_accept_the_activation():
     values = activation()
     load("session_enrollment").chaldea_session_enrollments(

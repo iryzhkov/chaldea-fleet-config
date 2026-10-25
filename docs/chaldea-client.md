@@ -417,6 +417,9 @@ left in place. A name cannot be delivered and retired in the same run.
 
 ### OpenCode driver
 
+The [prepared laptop selection](laptop-opencode-prepared.md) records the inactive
+public candidate and root-owned merge, staging and native acceptance gates.
+
 An OpenCode profile names the pinned official `opencode` native (`native`,
 `elf_machine`), an operator-provisioned private `home` and runtime `tmpdir`
 (both owned by the fleet user, mode 0700, never read or written by the role),
