@@ -447,8 +447,12 @@ seconds before expiry, inside the helper's 30-second cache threshold, with a
 10-second helper timeout. The first refusal, an unchanged or too-short header,
 a changed session, run or deadline, the original deadline, a missed renewal,
 a changed config copy, a stop signal or the child's exit ends the launch: the
-child gets TERM, then KILL after three seconds, and the launch directory is
-removed. There is no retry, restart or new session. The child dies with the
+owned process group gets TERM even after the direct child exits. After three
+seconds, pidfd-bound KILL reaches surviving members without killing the
+launcher or risking a reused PID. The launcher adopts orphaned descendants,
+reaps children and allows at most three more seconds for KILL completion before
+removing the launch directory. Helper completion rechecks elapsed boot time,
+the original deadline and the previous header's stop margin before publication. There is no retry, restart or new session. The child dies with the
 launcher through the parent-death signal. After an uncatchable kill the launch
 directory stays behind; its header expires on its own and is not revoked.
 

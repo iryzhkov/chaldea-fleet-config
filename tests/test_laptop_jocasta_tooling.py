@@ -227,8 +227,6 @@ def test_laptop_retention_never_prunes_the_stopped_quota_node():
         assert "Environment=CHALDEA_NODE_VERSION=26.10.0" in lines, host
 
 
-
-
 def test_prepared_opencode_selection_is_inactive_and_preserves_deployed_profiles():
     candidate = yaml.safe_load((ROOT / "docs/examples/laptop-jocasta-tooling-opencode.yml").read_text())
     assert set(candidate) == {"presets", "enrollments", "profiles"}

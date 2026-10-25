@@ -83,6 +83,7 @@ STOPS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 WATCHED = (*STOPS, signal.SIGCHLD)
 STABLE = ("st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink", "st_size", "st_mtime_ns", "st_ctime_ns")
 PR_SET_PDEATHSIG = 1
+PR_SET_CHILD_SUBREAPER = 36
 
 
 class Refused(Exception):
@@ -291,6 +292,7 @@ class Launch:
         self.runtime = self.top = self.directory = self.name = self.config = None
         self.identity = None
         self.expires = 0
+        self.group = os.getpid() if os.getpgrp() == os.getpid() else None
 
     def wait(self, timeout):
         """Sleep until a watched signal or the timeout, then reap the serve child."""
@@ -338,7 +340,11 @@ class Launch:
             output, errors = read_available(out_read), read_available(err_read)
         if self.ended():
             raise Refused("ended")
-        require(status is not None, "helper_timeout")
+        require(status is not None and boottime() - started < HELPER_TIMEOUT, "helper_timeout")
+        now = self.clock.now()
+        if self.identity is not None:
+            require(now < self.identity[2], "deadline")
+            require(now < self.expires - STOP_MARGIN, "renewal_missed")
         if not os.WIFEXITED(status) or os.WEXITSTATUS(status) != 0:
             word = errors.decode("ascii", "replace").strip()
             raise Refused(word if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", word, re.ASCII) else "helper_refused")
@@ -432,17 +438,83 @@ class Launch:
                 self.wait(min(renew - now, self.identity[2] - now, WAKE_CAP))
                 continue
             self.intact()
-            header, self.identity, self.expires = self.helper()
+            header, identity, expires = self.helper()
+            # A helper wait, including suspend, cannot bridge an expired old header.
+            now = self.clock.now()
+            require(now < self.identity[2], "deadline")
+            require(now < self.expires - STOP_MARGIN, "renewal_missed")
             self.publish(header)
+            self.identity, self.expires = identity, expires
+
+    def group_members(self):
+        """Pin live members of T3's owned group by pidfd, excluding this launcher."""
+        members = []
+        try:
+            for name in os.listdir("/proc"):
+                if not name.isdecimal() or int(name) == os.getpid():
+                    continue
+                fd = None
+                try:
+                    # Opening first binds signals to this process even if its PID is reused.
+                    fd = os.pidfd_open(int(name))
+                    with open("/proc/" + name + "/stat", encoding="ascii", errors="replace") as handle:
+                        fields = handle.read().rsplit(")", 1)[1].split()
+                    if int(fields[2]) == self.group and fields[0] != "Z":
+                        members.append(fd)
+                        fd = None
+                except (FileNotFoundError, ProcessLookupError):
+                    pass
+                finally:
+                    if fd is not None:
+                        os.close(fd)
+            return members
+        except BaseException:
+            for fd in members:
+                os.close(fd)
+            raise
+
+    def reap(self):
+        """Reap the direct serve child and orphaned descendants adopted as subreaper."""
+        while True:
+            try:
+                pid, status = os.waitpid(-1, os.WNOHANG)
+            except ChildProcessError:
+                return
+            if not pid:
+                return
+            if pid == self.child:
+                self.status = status
 
     def stop(self):
-        """Terminate and reap the child within a bounded grace, then remove the private directory."""
+        """End the owned group, reap it, then remove the private directory."""
         self.stopping = True
-        if self.child is not None and self.status is None:
+        if self.group is not None:
+            # Still clean the group when serve already exited and left descendants.
+            os.killpg(self.group, signal.SIGTERM)
+            for sig in (None, signal.SIGKILL):
+                until = boottime() + GRACE
+                while True:
+                    members = self.group_members()
+                    try:
+                        if sig is not None:
+                            for fd in members:
+                                try:
+                                    signal.pidfd_send_signal(fd, sig)
+                                except ProcessLookupError:
+                                    pass
+                    finally:
+                        for fd in members:
+                            os.close(fd)
+                    self.reap()
+                    if not members or boottime() >= until:
+                        break
+                    self.wait(min(0.05, max(0.0, until - boottime())))
+                if not members:
+                    break
+            self.reap()
+        elif self.child is not None and self.status is None:
+            # A version probe may not own its group; never signal unrelated peers.
             os.kill(self.child, signal.SIGTERM)
-            if os.getpgrp() == os.getpid():
-                # T3 made this launcher its process group leader; reach serve's own children too.
-                os.killpg(os.getpgrp(), signal.SIGTERM)
             started = boottime()
             while self.status is None and boottime() - started < GRACE:
                 self.wait(GRACE - (boottime() - started))
@@ -473,6 +545,10 @@ def main():
     native = pinned_native()
     signal.pthread_sigmask(signal.SIG_BLOCK, WATCHED)
     launch = Launch(Clock())
+    if launch.group is not None:
+        # No new process or service: adopt and reap descendants of this serve only.
+        libc = ctypes.CDLL(None, use_errno=True)
+        require(libc.prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) == 0)
     reason = None
     try:
         launch.create(config)

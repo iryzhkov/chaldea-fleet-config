@@ -53,8 +53,11 @@ cleanup. It writes a watched atomic 0600 header inside a private 0700 launch
 directory and binds every renewal to the original session, run and absolute
 deadline. It schedules at token expiry minus 25 seconds, stops on first refusal,
 and never retries, replaces the admission or extends its ceiling. Process-group
-signaling, parent-death handling, reaping and bounded cleanup remain in the
-reviewed launcher. An uncatchable launcher death can leave the private launch
+signaling and parent-death handling remain per serve. The launcher adopts and
+reaps orphaned descendants, signals its owned group after direct-child exit,
+and escalates survivors through pidfds after three seconds, with a further
+three-second cleanup bound. A helper result arriving after timeout, original
+deadline or the old header's stop margin is refused before publication. An uncatchable launcher death can leave the private launch
 directory until operator cleanup; an issued JWT expires independently.
 
 The retained credential-free native atomic-rename proof and policy fixtures
