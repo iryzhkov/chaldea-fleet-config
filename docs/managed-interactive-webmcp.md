@@ -115,12 +115,14 @@ helper source evidence is historical. Root's current metadata reports laptop
 Codex0.164/Claude2.1.309, agent-a Codex0.163/Claude2.1.309 and agent-b/GamingPC
 Codex0.164/Claude2.1.309. Fixtures do not qualify any official T3 path.
 
-Rollback first withdraws issuance/verifier selection through infra's receipt-bound
-procedure. Root restores the exact previous affected native entries and removes
-only receipt-owned helper/enrollment files, after proving no remaining consumers.
-Setting enabled=false alone does not delete files. Laptop's ordinary pull then
-uses its prior OAuth definition; other hosts' prior entry absence requires
-explicit state=absent through the registration module. Never clear client caches.
+Persistent rollback reverts the laptop selection on fleet main and the owning
+homelab verifier selection on infra main. Apply the infra inverse first, then
+restore only the affected public native entries; coordinate both repositories
+because infra has one operator-verifier slot. Revoke issuance through the
+receipt-bound procedure and remove only owned helper/enrollment files after
+proving no remaining consumers. Setting enabled=false alone does not delete files.
+The reverted laptop selection lets ordinary pulls retain public OAuth; other
+hosts' prior entry absence requires explicit state=absent. Never clear client caches.
 If a stored Jocasta OAuth credential takes precedence in Codex, root may need the
 supported per-server logout only after inspecting that concrete condition.
 Never use global logout or copy unrelated authentication.
