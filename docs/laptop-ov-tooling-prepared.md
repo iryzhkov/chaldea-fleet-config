@@ -39,9 +39,9 @@ The one service is exactly `ov.read` and
 The prompt's only MCP operation is `memory_stat`: first the granted node,
 then the denied sibling
 `viking://resources/homeassistant-api/ov-canary-denied-a63e197f`, then the
-granted node again after a literal passive `/usr/bin/sleep 370` through the
-normal native terminal. All three calls and the wait belong to ONE admitted
-native run. Final JSON is at most 1000 UTF-8 bytes without content, metadata
+granted node again after a passive 370-second timer in the existing code-mode
+VM. All three calls and the awaited timer belong to ONE admitted native run.
+The timer script makes no nested tool or command call and requires no shell. Final JSON is at most 1000 UTF-8 bytes without content, metadata
 values or headers. The passive wait adds no service grant or server capability.
 Prompt, timing and disabled-server configuration are not authorization boundaries;
 the OV verifier and its namespace claim remain authoritative.
@@ -60,7 +60,12 @@ and canonical semantic SHA-256
 The focused regression removes only the four OV additions and requires the
 complete remaining hostfile to recover that semantic digest. Original Jocasta
 field assertions remain, and the real inventory's complete policy is rendered
-through the role without session-map overrides.
+through the role without session-map overrides. Blanking only the new OV prompt
+also recovers the full non-prompt digest shared by drafts `ba05aa1c` and
+`5a83ccd2`:
+`1d4ceadade2b71d0e2f49c5ce6718dcc73fe5eecd5b50cf02133bce8c8737baf`.
+This timer correction changes only that prompt in the owning inventory/example;
+every prior declared value outside it is preserved.
 
 Fleet PR112 belongs to another owner and remains separate pending their user
 decision. This draft deliberately changes the owning hostfile. Their future
@@ -167,12 +172,22 @@ The corrected fixed prompt contains the complete sequence before admission:
 1. Native `ov_tooling.memory_stat` for the granted documentation node succeeds.
 2. Native `memory_stat` for the explicit denied sibling is refused by the server.
    These first two calls are the basic metadata-only initial probe.
-3. The normal built-in terminal executes ONLY the literal `/usr/bin/sleep 370`.
-   If the native interface yields a process/session handle, its normal
-   continuation/wait interface waits for that exact process with no input until
-   successful exit. No other command, shell expression, background process,
-   local file/data operation, web, delegation, helper or MCP operation is allowed.
-   The admitted native run must remain naturally active during this wait.
+3. The existing native code-mode `exec` runs ONLY the following raw JavaScript.
+   The YAML prompt is a literal block so the pragma remains on its own first
+   line. Native tool input is the raw script, without Markdown fences.
+
+   ```javascript
+   // @exec: {"yield_time_ms":1000,"max_output_tokens":100}
+   await new Promise(resolve => setTimeout(resolve, 370000)); text("wait complete");
+   ```
+
+   Only after `exec` returns a running cell ID, use the existing native `wait`
+   continuations for that exact cell until completion. Each wait uses
+   `yield_time_ms <=60000` and `max_tokens: 100`; do not terminate the cell.
+   The script makes no nested tool or command call. No shell, OS sleep, clock
+   tool, fake time, model think-loop, local data/file operation, web, delegation,
+   helper, daemon, scheduler or other MCP operation is allowed. The awaited
+   promise keeps the same admitted native root run naturally active.
 4. Before final output, the same native root run calls `memory_stat` on the
    granted node again and requires success. Finish only after the wait and this
    second granted call, except for a safe failure or unavailable prerequisite.
@@ -180,15 +195,15 @@ The corrected fixed prompt contains the complete sequence before admission:
 The 370-second wait exceeds the 300-second JWT lifetime plus potential
 30-second future-`iat` and 30-second expiry grace, with margin, within the
 unchanged 900-second run ceiling. Never fake a clock, stretch TTL, suppress
-active-run checks, keep a terminal session artificially alive or edit policy
-midrun. A call failure, unexpected allowance/denial, unavailable normal terminal,
-failed wait or insufficient remaining deadline stops safely with FAIL or
-INCOMPLETE and no renewal PASS.
+active-run checks, keep a session artificially alive or edit policy midrun.
+A call failure, unexpected allowance/denial, unavailable VM timer, failed timer
+or insufficient remaining deadline stops safely with FAIL or INCOMPLETE and
+no renewal PASS. There is no fallback timer, command or tool.
 
 Root must independently bind successful before/after native RPCs, denied
 sibling, measured elapsed time >=370 seconds, admitted session ID, native
 thread/run, provider/model/options, exact pinned profile and timestamps.
-Sleep execution or model report alone is not acceptance. Final reporter JSON
+Timer script output or model report alone is not acceptance. Final reporter JSON
 uses `v/status/allowed/denied/renewal/issues`, at most 1000 UTF-8 bytes and no
 content, metadata values, credentials or headers. Renewal PASS requires the
 actual second successful native RPC AND root's trace verification. Until that
@@ -198,17 +213,46 @@ exact stored reporter bytes. No final result or follow-up is used to keep the
 old run active. Retain one correlated completion delivery, runtime exit and
 released occupancy as separate observations.
 
-The existing pinned launcher in
-`roles/chaldea_client/templates/codex-profile-exec.py.j2:45-56` still passes
-`features.shell_tool=false`. This correction changes no launcher flag, model
-catalog, profile or native pin. Whether this exact stock Codex 0.163.0 code-mode
-terminal exposes a usable passive terminal/continuation interface remains
-UNQUALIFIED. Native tools may expose `exec_command`/`write_stdin` equivalents;
-use only the interface actually supplied. If none can perform the literal wait,
-retain INCOMPLETE and the exact interface/source gap. Add no clock tool,
-scheduler, helper or framework, and claim no exclusive catalog containment.
-The source/config/parser and synthetic actual-role checks do not execute the
-370-second wait or qualify native terminal availability.
+### Pinned code-mode timer source evidence
+
+Official Codex `rust-v0.163.0` tag object
+`129b8ec7ee6f4511557a4856279f529025c25af4` resolves to commit
+`83086188ae0614bd882818ff1aa23f3194962012`. Root inspected that exact tag in
+the sparse source clone
+`/home/igor/.cache/web-mcp-caafd4a9/codex-0163-source`; this worker confirmed
+the Git objects and read these regions through Huyang without building or
+running tests there:
+
+- `codex-rs/code-mode-protocol/src/description.rs:23-55` defines ordinary native
+  `exec`/`wait`, raw asynchronous JavaScript without Node, file-system or network
+  access, global `setTimeout`/`clearTimeout`, awaited promises and the yield
+  pragma. Unawaited timeouts alone do not keep the isolate alive.
+- `codex-rs/code-mode-runtime/src/runtime/globals.rs:25-44` always installs
+  `setTimeout` and `clearTimeout` into the VM globals.
+- `codex-rs/code-mode-runtime/src/runtime/timers.rs:15-54` schedules native
+  Tokio sleep from the numeric delay. Clearing the timeout or dropping the
+  isolate cancels its task; the normalizer at lines 119-128 permits 370000 ms.
+- `codex-rs/code-mode-runtime/src/runtime/mod.rs:550-600` contains an awaited
+  3,600,000-ms timer and clearing/cell-lifetime test using mock Tokio time.
+  Reading that test is SOURCE evidence only. It was not rerun, and mock time
+  supplies no live elapsed-time or renewal evidence.
+- `codex-rs/core/src/tools/spec_plan.rs:1250-1256` returns before advertising
+  environment/shell tools when `ShellTool` is disabled.
+
+The existing launcher at
+`roles/chaldea_client/templates/codex-profile-exec.py.j2:45-56` keeps
+`features.shell_tool=false`. The shell-based draft `5a83ccd2` is superseded
+by this pure VM timer protocol. No feature, launcher, template, role, validator,
+permission, catalog or native-pin change is needed or included.
+
+The profile's catalog/companion contract selects `code_mode_only`; root is
+separately checking the actual public catalog's `tool_mode`. Source support
+for a VM timer does not qualify the actual native interface, catalog, elapsed
+time, HTTP MCP calls or renewal. If the normal pinned VM timer or its existing
+cell continuations are unavailable, return INCOMPLETE without a fallback.
+Add no tool, clock, scheduler, helper, daemon, delegation or framework, and make
+no exclusive catalog-containment claim. The focused source/config/parser and
+synthetic actual-role checks execute no timer and perform no native model run.
 
 ### Issuance stops after completion
 
@@ -236,7 +280,8 @@ existing OV route/runtime/issuer and bounded canaries.
 
 The focused tests cover exact real inventory values, all-original-value
 preservation, unchanged non-prompt OV configuration, ordered same-run reporter
-protocol, widened/shared refusals and actual role render/check/delivery/
-idempotence with synthetic assets and an unopened FIFO login stand-in.
+protocol, refusals of short/unawaited/nested/unbounded/fallback timer-source
+variants, existing widened/shared grant refusals and actual role render/check/
+delivery/idempotence with synthetic assets and an unopened FIFO login stand-in.
 They establish no actual login, provider registration, caller admission,
 token acquisition, server denial, renewal or native acceptance.

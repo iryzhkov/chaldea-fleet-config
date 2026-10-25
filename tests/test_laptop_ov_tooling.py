@@ -112,35 +112,67 @@ def test_candidate_binds_one_exact_closed_ov_grant():
         assert "/.cache/" not in value and "/mise/" not in value and "auth.json" not in value, value
 
 
-def test_fixed_reporter_keeps_renewal_inside_one_admitted_native_run():
-    prompt = activation()["chaldea_client_session_presets"][NAME]["prompt"]
-    assert prompt == candidate()["presets"][NAME]["prompt"]
-    # Source protocol only: no sleep, model execution or actual renewal in tests.
+TIMER_SCRIPT = ('// @exec: {"yield_time_ms":1000,"max_output_tokens":100}\n'
+                'await new Promise(resolve => setTimeout(resolve, 370000)); text("wait complete");')
+
+
+def assert_timer_protocol(raw):
+    # Parse source text only. Never execute JavaScript or wait in these tests.
+    script = raw.split("3. Use normal code-mode exec with ONLY this raw JavaScript:\n", 1)[1]
+    script = script.split("\nIf exec returns a running cell ID", 1)[0]
+    assert script == TIMER_SCRIPT
+    prompt = " ".join(raw.split())
     steps = [
         "1. Call memory_stat for " + NODE,
         "2. Call memory_stat for " + SIBLING,
-        "3. Use the normal built-in terminal ONLY",
-        "/usr/bin/sleep 370",
-        "4. After successful wait completion, call memory_stat again for " + NODE,
+        "3. Use normal code-mode exec with ONLY this raw JavaScript:",
+        " ".join(TIMER_SCRIPT.split()),
+        "4. After successful timer completion, call memory_stat again for " + NODE,
         "Return only JSON at most 1000 UTF-8 bytes",
     ]
     positions = [prompt.index(step) for step in steps]
     assert positions == sorted(positions)
     assert prompt.count(NODE) == 2 and prompt.count(SIBLING) == 1
-    assert prompt.count("/usr/bin/sleep 370") == 1
     for requirement in (
         "ONE admitted native run", "unchanged 900-second deadline",
-        "continuation/wait interface for that exact process, with no input",
-        "Do not finish this turn before that wait completes",
-        "stop safely with FAIL or INCOMPLETE", "unavailable terminal",
-        "Do not change the preset/policy or extend TTL",
+        "continuations for that exact cell until completion",
+        "each wait with yield_time_ms <=60000 and max_tokens 100",
+        "never terminate the cell",
+        "Do not finish this admitted run before the timer and second granted call",
+        "timer script must make no nested tool or command call",
+        "stop safely with FAIL or INCOMPLETE", "unavailable VM timer",
+        "never use a fallback timer or tool",
+        "Do not change the preset/policy, runtime flags or token lifetime",
         "second successful native RPC AND independent root trace verification",
         "elapsed >=370 seconds", "TRACE_VERIFICATION_REQUIRED",
-        "Sleep or model self-report alone is not proof",
+        "Script output or model self-report is not proof",
     ):
         assert requirement in prompt, requirement
     assert '"renewal":"PASS|FAIL|INCOMPLETE"' in prompt
     assert "NOT_RUN" not in prompt and "operator checks separately" not in prompt
+    assert "/usr/bin/sleep" not in prompt and "exec_command" not in prompt
+    assert "write_stdin" not in prompt and "tools." not in prompt
+
+
+def test_fixed_reporter_keeps_renewal_inside_one_admitted_native_run():
+    prompt = activation()["chaldea_client_session_presets"][NAME]["prompt"]
+    assert prompt == candidate()["presets"][NAME]["prompt"]
+    assert_timer_protocol(prompt)
+
+
+@pytest.mark.parametrize("old,new", [
+    ("370000", "330000"),
+    ("await new Promise", "new Promise"),
+    ('text("wait complete");', 'text("wait complete"); await tools.exec_command({cmd: "sleep 370"});'),
+    ('"yield_time_ms":1000', '"yield_time_ms":370000'),
+    ("yield_time_ms <=60000", "yield_time_ms <=60001"),
+    ("never use a fallback timer or tool", "use a fallback shell timer"),
+])
+def test_timer_source_contract_refuses_short_unawaited_nested_or_unbounded_variants(old, new):
+    prompt = activation()["chaldea_client_session_presets"][NAME]["prompt"]
+    assert old in prompt
+    with pytest.raises(AssertionError):
+        assert_timer_protocol(prompt.replace(old, new, 1))
 
 
 def test_role_closed_validators_accept_the_merged_laptop_maps():

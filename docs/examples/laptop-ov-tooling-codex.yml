@@ -28,8 +28,8 @@ presets:
     interactionMode: default
     projectId: mcp:2fe01b0e-5727-4111-9b95-ff81508562ba
     title: OV tooling metadata-only Codex
-    prompt: >-
-      Stay in ONE admitted native run until the wait and second granted call
+    prompt: |-
+      Stay in ONE admitted native run until the timer and second granted call
       finish, within the unchanged 900-second deadline. Use only ov_tooling
       memory_stat for these MCP calls:
       1. Call memory_stat for viking://resources/homeassistant-api/rest-api.md;
@@ -37,25 +37,30 @@ presets:
       2. Call memory_stat for
       viking://resources/homeassistant-api/ov-canary-denied-a63e197f;
       require server denial.
-      3. Use the normal built-in terminal ONLY to execute the literal command
-      /usr/bin/sleep 370. If it yields a process/session handle, use only the
-      normal continuation/wait interface for that exact process, with no input,
-      until successful exit. Do not finish this turn before that wait completes.
-      No other commands, shell expressions, backgrounding, keepalives, clock
-      changes, local data/files, web, delegation, helpers or MCP operations.
-      The passive wait is timing only, not an authorization boundary.
-      4. After successful wait completion, call memory_stat again for
+      3. Use normal code-mode exec with ONLY this raw JavaScript:
+      // @exec: {"yield_time_ms":1000,"max_output_tokens":100}
+      await new Promise(resolve => setTimeout(resolve, 370000)); text("wait complete");
+      If exec returns a running cell ID, use only existing native wait
+      continuations for that exact cell until completion, each wait with
+      yield_time_ms <=60000 and max_tokens 100; never terminate the cell.
+      Do not finish this admitted run before the timer and second granted call.
+      The timer script must make no nested tool or command call. No shell,
+      OS sleep, clock tool, fake time, model think-loop, local data/files, web,
+      delegation, helper, daemon, scheduler or other MCP operation is allowed.
+      The passive VM timer is timing only, not an authorization boundary.
+      4. After successful timer completion, call memory_stat again for
       viking://resources/homeassistant-api/rest-api.md; require success in
       this SAME admitted session/run/provider/pinned profile before final output.
-      On any call failure, unexpected allowance/denial, unavailable terminal,
-      failed wait or insufficient deadline, stop safely with FAIL or INCOMPLETE;
-      never claim renewal PASS. Do not change the preset/policy or extend TTL.
+      On any call failure, unexpected allowance/denial, unavailable VM timer,
+      failed timer or insufficient deadline, stop safely with FAIL or INCOMPLETE;
+      never claim renewal PASS and never use a fallback timer or tool.
+      Do not change the preset/policy, runtime flags or token lifetime.
       Return only JSON at most 1000 UTF-8 bytes:
       {"v":1,"status":"PASS|FAIL|INCOMPLETE","allowed":"PASS|FAIL","denied":"DENIED|FAIL","renewal":"PASS|FAIL|INCOMPLETE","issues":[]}.
       Renewal PASS requires the second successful native RPC AND independent
       root trace verification of both calls and elapsed >=370 seconds in this
       same run. Without that verification report INCOMPLETE with issue
-      TRACE_VERIFICATION_REQUIRED. Sleep or model self-report alone is not proof.
+      TRACE_VERIFICATION_REQUIRED. Script output or model self-report is not proof.
       Never include content, metadata values, credentials or headers.
     project: tooling
     services: *ov_tooling_services
