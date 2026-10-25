@@ -3,8 +3,9 @@
 This candidate selects agent-a, agent-b and omarchy-pc for ordinary interactive
 Codex and Claude. Laptop is already accepted and stays unchanged. OpenCode is
 excluded. Merging these flags enables ordinary pull convergence, so this branch
-must stay unpublished until root qualifies the exact source, protected staging,
-review and CI. Source tests do not establish live readiness or native acceptance.
+must stay unmerged until root qualifies the exact source, protected staging,
+review and CI. A draft branch may be published for review and CI; it does not
+activate ordinary pulls. Source tests do not establish live readiness or native acceptance.
 
 ## Per-host inputs
 
