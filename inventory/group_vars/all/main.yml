@@ -29,6 +29,13 @@ huyang_sha256:
   x86_64: "04bd7410676624954ff64b919b61abc4d125db8280b47bbcf8d3fb41b74ae16c"
   aarch64: "3bd6da4bd49ffae5c9d48094a25c99c9fd690ecba9e70fb2cdac534cf5a06dd8"
 
+# Existing native helper artifacts from build 23d824a7-069a-4b74-a085-88ff6442fb60.
+# Shared pins only; hosts opt in after protected enrollment and qualification.
+webmcp_interactive_helper_checksums:
+  aarch64: "f936deea9705fa4237f5c74760ccd51e1ab473fffa498836002f68b8c05036ba"
+  x86_64: "667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed"
+webmcp_interactive_helper_sha256: "{{ webmcp_interactive_helper_checksums[ansible_facts.architecture] }}"
+
 # Credentials are referenced by path only (relative to the home directory);
 # the play checks that each file exists and is private, never reads it.
 agent_tools_credential_files:

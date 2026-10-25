@@ -1,0 +1,58 @@
+---
+# PREPARED conditional laptop selection, not native acceptance. Keep off main
+# until root passes actual Codex AND Claude full managed access, CAS, idempotency
+# and >330s reuse gates. Merging activates this selection through ordinary pulls.
+# Only this laptop opts in; other hosts retain default-off managed capability.
+# OpenCode remains excluded. The public OAuth definition below is the fallback
+# when managed mode is disabled; the existing role selects the fixed native
+# helper for ordinary interactive Codex and Claude when enabled.
+#
+# Local pulls reuse the accepted installed artifacts. No controller staging path,
+# credential value or private digest belongs in inventory. The role requires the
+# enrollment's UID-owned 0700 parent and single-link 0600 file without symlinks.
+# state: absent removes only the listed Jocasta registrations.
+#
+# Isolation: the protected Chaldea tooling profiles
+# (chaldea-jocasta-tooling.yml) are unchanged. Their Codex home is separate and
+# disables any jocasta server by name; their Claude profile uses a strict MCP
+# config. They keep project:tooling read-only access.
+webmcp_interactive_enabled: true
+webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
+webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
+
+mcp_registrations_jocasta_interactive_state: present
+
+mcp_registrations_remote_servers:
+  - name: jocasta
+    state: "{{ mcp_registrations_jocasta_interactive_state }}"
+    url: https://jocasta.mcp.ryzhkov.dev/mcp
+    providers: [claude, codex]
+    # Exact redirect http://localhost:43182/callback.
+    claude:
+      oauth:
+        clientId: jocasta-laptop-interactive
+        callbackPort: 43182
+        scopes: jocasta.read jocasta.write offline_access
+    # The callback path is Codex's own suffix for this exact URL:
+    # base64url of the first nine SHA-256 bytes of the canonical MCP URL. No
+    # oauth_resource: discovery supplies the resource.
+    codex:
+      scopes: [jocasta.read, jocasta.write, offline_access]
+      oauth:
+        client_id: jocasta-laptop-interactive
+        callback_port: 43181
+        callback_url: http://127.0.0.1:43181/callback/bbdouGp56E53
+    # Off: not in providers, so the role does not register it.
+    opencode:
+      oauth:
+        clientId: jocasta-laptop-interactive
+        scope: jocasta.read jocasta.write offline_access
+        callbackPort: 43183
+        redirectUri: http://127.0.0.1:43183/callback
+
+# The same interactive profile as the role default, plus the jocasta MCP
+# guidance while the registration is present. Instruction filtering only.
+agent_config_fleet_tools_profile:
+  name: interactive-operator
+  tools: {"*": [read, write]}
+  mcp: "{{ ['ov-memory'] + (['jocasta'] if mcp_registrations_jocasta_interactive_state == 'present' else []) }}"

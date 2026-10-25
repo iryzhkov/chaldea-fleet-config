@@ -8,7 +8,7 @@
     provider: "{{ item.0 }}"
     name: "{{ item.1.name }}"
     state: "{{ 'present' if item.1.enabled | default(true) | bool else 'absent' }}"
-    command: "{{ item.1.command }}"
+    command: "{{ item.1.command | default(omit) }}"
     args: "{{ item.1.args | default([]) }}"
     env: >-
       {{ item.1.env | default({})
@@ -16,9 +16,63 @@
     extra: "{{ item.1[item.0] | default({}) }}"
     claude_command: "{{ mcp_registrations_claude }}"
     codex_config: "{{ mcp_registrations_codex_config }}"
+    opencode_config: "{{ mcp_registrations_opencode_config }}"
   loop: "{{ mcp_registrations_providers | product(mcp_registrations_servers | rejectattr('name', 'equalto', 'chaldea') | list) | list }}"
   loop_control:
     label: "{{ item.0 }}: {{ item.1.name }}"
+
+# Remote servers own their names: no stdio or retired entry may share one.
+- name: Stage explicitly enabled managed interactive credentials and helper
+  ansible.builtin.include_role:
+    name: webmcp_interactive
+    apply:
+      tags: [mcp_registrations]
+  when: webmcp_interactive_enabled | default(false) | bool
+
+- name: Select explicit managed authentication without widening other registrations
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_remote_servers | rejectattr('name', 'equalto', 'jocasta') | list)
+         + [{'name': 'jocasta', 'url': 'https://jocasta.mcp.ryzhkov.dev/mcp',
+             'providers': ['claude', 'codex'], 'auth_mode': 'managed_helper',
+             'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'jocasta')
+                       | map(attribute='state', default='present') | first | default('present'))}]
+         if webmcp_interactive_enabled | default(false) | bool else mcp_registrations_remote_servers }}
+
+- name: Check the opt-in remote MCP servers
+  ansible.builtin.assert:
+    that:
+      - mcp_registrations_effective_remote_servers | map(attribute='name') | unique | list | length == mcp_registrations_effective_remote_servers | length
+      - >-
+        mcp_registrations_effective_remote_servers | map(attribute='name')
+        | intersect(mcp_registrations_servers | map(attribute='name') | list + mcp_registrations_retired) | length == 0
+      - mcp_registrations_effective_remote_servers | rejectattr('providers', 'defined') | list | length == 0
+      - >-
+        mcp_registrations_effective_remote_servers | map(attribute='providers') | flatten
+        | difference(['claude', 'codex', 'opencode']) | length == 0
+      - mcp_registrations_effective_remote_servers | map(attribute='state', default='present') | difference(['present', 'absent']) | length == 0
+    fail_msg: Each remote MCP server needs a unique name of its own, a providers list and state present or absent.
+    quiet: true
+  when: mcp_registrations_effective_remote_servers | length > 0
+
+- name: Register the opt-in remote MCP servers
+  mcp_registration:
+    provider: "{{ item.1 }}"
+    name: "{{ item.0.name }}"
+    state: "{{ item.0.state | default('present') }}"
+    transport: remote
+    auth_mode: "{{ item.0.auth_mode | default('oauth') }}"
+    helper_host: "{{ item.0.helper_host | default(omit) }}"
+    url: "{{ item.0.url | default(omit) }}"
+    extra: "{{ item.0[item.1] | default({}) }}"
+    claude_command: "{{ mcp_registrations_claude }}"
+    claude_config: "{{ mcp_registrations_claude_config }}"
+    codex_config: "{{ mcp_registrations_codex_config }}"
+    opencode_config: "{{ mcp_registrations_opencode_config }}"
+  loop: "{{ mcp_registrations_effective_remote_servers | subelements('providers') }}"
+  loop_control:
+    label: "{{ item.1 }}: {{ item.0.name }}"
 
 - name: Remove retired MCP servers
   mcp_registration:
@@ -27,6 +81,7 @@
     state: absent
     claude_command: "{{ mcp_registrations_claude }}"
     codex_config: "{{ mcp_registrations_codex_config }}"
+    opencode_config: "{{ mcp_registrations_opencode_config }}"
   loop: "{{ mcp_registrations_providers | product(mcp_registrations_retired) | list }}"
   loop_control:
     label: "{{ item.0 }}: {{ item.1 }}"

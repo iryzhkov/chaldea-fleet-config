@@ -25,11 +25,28 @@ mcp_registrations_servers:
     command: "{{ fleet_home }}/.local/bin/ov-memory-mcp"
     env: {OV_BASE_URL: "https://ov.ryzhkov.dev"}
     agent_env: OV_AGENT
-    codex: {default_tools_approval_mode: approve}
+    # Codex starts stdio servers with a cleared environment. The wrapper's
+    # keyring lookup (secret-tool) needs the desktop session bus. Failed or
+    # empty keyring lookups fall back to the existing keyfile.
+    codex: {default_tools_approval_mode: approve, env_vars: [DBUS_SESSION_BUS_ADDRESS, XDG_RUNTIME_DIR]}
 # Registrations removed from both providers wherever they are found.
 mcp_registrations_retired:
   - local-file-llm
 mcp_registrations_agent_host: "{{ inventory_hostname }}"
 mcp_registrations_providers: [claude, codex]
 mcp_registrations_claude: [claude]
+# Read, never written, to compare a remote server's OAuth options; the claude
+# CLI makes every change.
+mcp_registrations_claude_config: "{{ fleet_home }}/.claude.json"
 mcp_registrations_codex_config: "{{ fleet_home }}/.codex/config.toml"
+# Remote (HTTP) servers that use each client's native OAuth login. None by
+# default: a host opts in from its own host_vars file, and each entry names
+# its own providers, so the stdio servers above keep their providers. Fields:
+# name, url, providers (claude, codex, opencode), state (present or absent,
+# default present) and one key per provider holding that client's public
+# options (OAuth client ID, scopes, callback). Never a token, header, header
+# helper or client secret: the module refuses them.
+# A separate explicit webmcp_interactive_enabled opt-in selects the fixed
+# Jocasta managed_helper entry after protected staging. Default remains OAuth.
+# See docs/managed-interactive-webmcp.md; no host is enabled by this capability.
+mcp_registrations_remote_servers: []

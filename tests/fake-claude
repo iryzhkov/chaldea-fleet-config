@@ -4,26 +4,57 @@
 The first argument is a JSON file holding the user-scope mcpServers object,
 so a test can point the mcp_registrations role at a scratch file with
 mcp_registrations_claude: [tests/fake-claude, STATE].
+
+With --user-config FILE instead, FILE is shaped like ~/.claude.json: user
+servers under mcpServers, other keys kept as they are, and local-scope servers
+under projects.CWD.mcpServers. A .mcp.json in the working directory supplies
+project-scope servers. As the real CLI does, get prints a remote server's
+headers but not its OAuth options, and a local or project server hides the
+user one.
 """
 
 import json
+import os
 import sys
 
-state_path, *argv = sys.argv[1:]
+config_mode = sys.argv[1] == "--user-config"
+state_path, *argv = sys.argv[2:] if config_mode else sys.argv[1:]
 try:
     with open(state_path) as handle:
-        servers = json.load(handle)
+        document = json.load(handle)
 except FileNotFoundError:
-    servers = {}
+    document = {}
+servers = document.setdefault("mcpServers", {}) if config_mode else document
+scopes = []
+if config_mode:
+    local = document.get("projects", {}).get(os.getcwd(), {}).get("mcpServers", {})
+    try:
+        with open(".mcp.json") as handle:
+            project = json.load(handle).get("mcpServers", {})
+    except FileNotFoundError:
+        project = {}
+    scopes = [("Local config (private to you in this project)", local),
+              ("Project config (shared via .mcp.json)", project)]
+scopes.append(("User config (available in all your projects)", servers))
 words = [word for word in argv if word not in ("-s", "user")]
 assert words[0] == "mcp", argv
 verb, name = words[1], words[2]
 if verb == "get":
-    server = servers.get(name)
+    scope, server = next(((scope, found[name]) for scope, found in scopes if name in found), (None, None))
     if server is None:
         print(f'No MCP server named "{name}". Configured servers: {", ".join(servers)}')
         sys.exit(1)
-    print(f"{name}:\n  Scope: User config (available in all your projects)\n  Status: ✔ Connected")
+    print(f"{name}:\n  Scope: {scope}\n  Status: ✔ Connected")
+    if server.get("type") in ("http", "sse"):
+        print(f"  Type: {server['type']}\n  URL: {server['url']}")
+        if server.get("headers"):
+            print("  Headers:")
+            for key, value in server["headers"].items():
+                print(f"    {key}: {value}")
+        if server.get("oauth", {}).get("clientId"):
+            print("  OAuth: client_id configured")
+        print(f"\nTo remove this server, run: claude mcp remove {name} -s user")
+        sys.exit(0)
     print(f"  Type: {server['type']}\n  Command: {server['command']}\n  Args: {' '.join(server.get('args', []))}\n  Environment:")
     for key, value in server.get("env", {}).items():
         print(f"    {key}={value}")
@@ -39,4 +70,4 @@ elif verb == "remove":
         print(f"No user-scoped MCP server found with name: {name}", file=sys.stderr)
         sys.exit(1)
 with open(state_path, "w") as handle:
-    json.dump(servers, handle, indent=2)
+    json.dump(document, handle, indent=2)

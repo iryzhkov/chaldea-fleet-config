@@ -718,7 +718,31 @@ GUIDANCE_CONSISTENCY_CHANGES = json.loads(
 NATIVE_EXECUTOR_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_native_executor.json").read_text())
 
+# Laptop interactive Jocasta Web MCP guidance and its fleet-tools MCP grant,
+# 2026-10-24. Reverse this latest layer first; earlier fixtures stay unchanged.
+JOCASTA_WEB_MCP_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_jocasta_web_mcp.json").read_text())
+
+# Explicit managed-enrollment guidance adopted for this assignment, 2026-10-24.
+# Reverse only this exact prose change; preserve all earlier byte fixtures.
+MANAGED_WEB_MCP_CHANGES = {
+    "agents/jocasta.md": [
+        [
+            "and REST API, through your own native OAuth login. If it reports that\nauthentication is needed, ask Igor to complete that client's MCP login; never copy a\ntoken into a prompt, config or command.",
+            "and REST API. The current public registration uses native OAuth. An explicitly\nenrolled managed registration instead obtains short-lived headers privately through\nthe native client. Ask the operator to reconcile a managed enrollment failure;\nnever run its headers helper in a tool whose output reaches the model. For the\npublic OAuth mode, ask Igor to complete that client's MCP login when required.\nNever copy a token into a prompt, config or command."
+        ]
+    ]
+}
+
 def old_bytes(relative, data):
+    for before, after in reversed(MANAGED_WEB_MCP_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
+    for before, after in reversed(JOCASTA_WEB_MCP_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(NATIVE_EXECUTOR_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative

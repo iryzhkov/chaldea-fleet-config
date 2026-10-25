@@ -31,4 +31,34 @@ failure rather than writing mutable copies elsewhere. Documents are archived aut
 
 Credentials are per-host and must not be copied into prompts, logs, source or handoffs.
 
+## Web MCP
+
+Where the `jocasta` MCP server is registered (the laptop's ordinary interactive Claude
+and Codex sessions), it reads and changes the same documents and revisions as the CLI
+and REST API. The current public registration uses native OAuth. An explicitly
+enrolled managed registration instead obtains short-lived headers privately through
+the native client. Ask the operator to reconcile a managed enrollment failure;
+never run its headers helper in a tool whose output reaches the model. For the
+public OAuth mode, ask Igor to complete that client's MCP login when required.
+Never copy a token into a prompt, config or command. Protected Chaldea tooling sessions keep their
+read-only tooling access and do not get this server. The server's tool schemas are
+authoritative; if a field below differs, follow the schema.
+
+- Read narrowly. `get` with `view: "outline"` lists headings with their line ranges and
+  the revision; `get` with `section: {heading, heading_line}` returns one exact section,
+  and `lines` a pinned range. Pass `revision` to keep reading the same snapshot. A
+  heading that occurs more than once is refused as ambiguous; add `heading_line`.
+- `search` with `include_excerpts` returns bounded excerpts of the exact returned
+  revision. An excerpt locates text; read it before choosing an edit target.
+- Change a passage with `edit`: exact path or ID, `if_revision` equal to the revision you
+  read, nonempty `old` text that occurs exactly once (optionally within one `section`),
+  `new`, and a fresh `idempotency_key`. Zero or several matches and stale revisions are
+  refused without a change; re-read, reconcile and retry with a new key. Reuse a key
+  only to retry the identical request.
+- Whole-document writes (`mutate` put) and create, move, archive, unarchive and restore
+  follow the update rules above: fetch the full current document, reconcile and pass
+  `if_revision`. A targeted `edit` is the only partial write.
+- CLI, REST and Web MCP may be mixed; every write needs the latest revision, whichever
+  path made it.
+
 
