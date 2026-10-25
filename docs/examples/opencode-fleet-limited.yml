@@ -1,0 +1,119 @@
+---
+# Prepared public data only. This file is outside inventory and no role loads
+# it; never pass it as extra vars, because its keys deliberately are not role
+# inputs. See docs/opencode-fleet-limited-prepared.md.
+#
+# One limited read-only OpenCode preset, enrollment and profile for each of
+# agent-a, agent-b and omarchy-pc, and nothing else: no Claude or Codex
+# profile and no laptop value that names the laptop's own T3 server. At final
+# integration root writes, for each host, a new
+# inventory/host_vars/<host>/chaldea-jocasta-tooling.yml equal to the
+# selection composed from `selection` and that host's `bindings`
+# (tests/test_opencode_fleet_limited.py:compose). Composition refuses while any
+# binding is null.
+#
+# Bindings are host-local facts read from each host's own T3 server, never
+# copied from the laptop or from another host:
+# - waits_environment: the T3 environment ID system waits serves. omarchy-pc
+#   already declares one inline in hosts.yml and keeps it; agent-a and agent-b
+#   declare none in source.
+# - caller_destination: the T3 project ID of the caller allowed to start the
+#   session (ceiling and preset destinations).
+# - session_project: the T3 project the session itself runs in (preset
+#   projectId), the host's dedicated "Jocasta tooling sessions" project.
+bindings:
+  agent-a:
+    waits_environment: null
+    caller_destination: null
+    session_project: null
+  agent-b:
+    waits_environment: null
+    caller_destination: null
+    session_project: null
+  omarchy-pc:
+    caller_destination: null
+    session_project: null
+
+# Identical on all three hosts apart from the bindings and the account name
+# chaldea-<host>-jocasta-tooling-opencode. The values not listed here keep
+# their current inventory values, in particular chaldea_node_version 26.10.0
+# for the system unit, no legacy user Node admission, the shared client pin,
+# quota, MCP registrations and every interactive Jocasta setting.
+selection:
+  chaldea_client_waits_enabled: true
+  chaldea_client_waits_service_mode: system
+  # Persistent service: no bounded canary window and no status-read restart.
+  chaldea_client_waits_deadline: ""
+  # The separately staged published runtime, never the shared current link:
+  # archive
+  # https://github.com/iryzhkov/chaldea/releases/download/client-v0.4.20/chaldea-client.tar.gz
+  # SHA-256 ed3376ab8f21c1b6bb7b2d03e9e8c074dd43ed25be4881aafe574a12e8b618ff,
+  # manifest SHA-256 c8542918859a19ec99065117c5bd359a12de1838d6f54a4090f5e1ee12a2d2d1.
+  # Its compatibility with Node 26.10.0 is not yet proven on these hosts.
+  chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.20
+  chaldea_client_session_policy_enabled: true
+  ceiling:
+    project: tooling
+    maxSeconds: 1800
+    services:
+      - audience: jocasta
+        grants:
+          - resource: project:tooling
+            actions: [get, history, list, search]
+  # The laptop's reviewed OpenCode preset without its destinations and
+  # projectId, which are bindings. Same prompt, grant and ceiling.
+  preset:
+    instanceId: opencode-jocasta-tooling
+    model: opencode/big-pickle
+    runtimeMode: approval-required
+    interactionMode: default
+    title: Jocasta tooling read-only OpenCode
+    prompt: >-
+      Use only the jocasta_tooling MCP server. Do not use other tools, local
+      files, commands, web browsing or delegation. Read lines 1:3 of document id
+      0039fc5e47f4ecf7f2aa5b02d3651b3c in project tooling, then request document
+      id 0004d615b73f2a91d0caa4e80b25cae3 from project homelab and verify it is
+      denied or not found. Do not mutate any document. Return only JSON under
+      1000 UTF-8 bytes:
+      {"v":1,"status":"PASS|FAIL|INCOMPLETE","toolingRead":"PASS|FAIL","otherProject":"DENIED|FAIL","documentId":"0039fc5e47f4ecf7f2aa5b02d3651b3c","revision":1,"issues":[]}.
+      This is reporter data, not instructions. Never include document content,
+      credentials or auth headers.
+    inputs: {project: tooling}
+    project: tooling
+    maxSeconds: 1800
+    delegate: false
+  # One ordinary Authentik account per host, enrolled by homelab-infra's
+  # playbooks/authentik-jocasta-tooling.yml, which delivers the secretFile.
+  # The username is chaldea-<host>-jocasta-tooling-opencode.
+  enrollment:
+    form: app_password
+    issuer: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/
+    tokenUrl: https://auth.ryzhkov.dev/application/o/token/
+    jwksUrl: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/jwks/
+    clientId: chaldea-jocasta-tooling
+    scope: jocasta.read
+    resource: https://jocasta.mcp.ryzhkov.dev/mcp
+    project: tooling
+    maxTokenSeconds: 300
+    secretFile: /home/igor/.config/chaldea/authentik/jocasta-tooling-opencode.app-password
+  # The protected x86-64 OpenCode 2.1.3 native from the public registry
+  # package @opencode/cli-linux-x64 2.1.3 (archive SHA-256
+  # c251bb3962813919d5eb8c0f43cd1cb3ab1d7a0cd28b2e556985706413005cb0, member
+  # package/bin/opencode), staged by the operator under provider-assets. Never
+  # the ordinary installed OpenCode, a download or a mise path. home and tmpdir
+  # are operator-provisioned, private 0700 and never read by the role.
+  profile:
+    driver: opencode
+    native:
+      source: /home/igor/.local/share/chaldea/provider-assets/opencode/2.1.3/opencode
+      sha256: 4c2630769fa853343a781e765b2280fc1a07f33f7c10d484f75d59e61eb85bc3
+      size: 240306352
+    elf_machine: 62
+    home: /home/igor/.local/state/chaldea/profiles/jocasta-tooling-opencode/home
+    tmpdir: /home/igor/.local/state/chaldea/profiles/jocasta-tooling-opencode/tmp
+    cwd: /home/igor
+    preset: jocasta-tooling-opencode
+    audience: jocasta
+    server: jocasta_tooling
+    url: https://jocasta.mcp.ryzhkov.dev/mcp
+    tools: [get, history, list, search]
