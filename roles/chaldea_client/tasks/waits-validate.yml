@@ -15,3 +15,17 @@
       - chaldea_client_waits_service_mode != 'system' or chaldea_client_waits_enabled | bool
     fail_msg: Protected sessions require explicit system waits mode with waits enabled; user mode cannot map root.
     quiet: true
+
+- name: Refuse a legacy system runtime admission outside persistent system waits
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_waits_legacy_system_runtime | default('') is string
+      - >-
+        chaldea_client_waits_legacy_system_runtime | default('') == '' or
+        (chaldea_client_waits_legacy_system_runtime is regex('/([A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+', match_type='fullmatch') and
+         chaldea_client_waits_legacy_system_runtime | normpath == chaldea_client_waits_legacy_system_runtime and
+         '..' not in chaldea_client_waits_legacy_system_runtime.split('/') and
+         chaldea_client_waits_service_mode == 'system' and chaldea_client_waits_enabled | bool and
+         chaldea_client_waits_deadline | default('') | length == 0)
+    fail_msg: A legacy system runtime admission requires persistent system waits and an exact safe absolute path.
+    quiet: true

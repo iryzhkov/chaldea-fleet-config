@@ -28,8 +28,11 @@ Root owns these gates before merging:
   manifest SHA-256
   `c8542918859a19ec99065117c5bd359a12de1838d6f54a4090f5e1ee12a2d2d1`.
   The source pin already selects that runtime. Installed waits stays on
-  client-v0.4.18 until root activates it. A missing runtime stops convergence;
-  the PR itself grants no deployment authority.
+  client-v0.4.18 until root activates it. The pull admits the installed
+  client-v0.4.18 system unit only by its exact rendering, replaces it with the
+  client-v0.4.20 unit and restarts waits through the normal guards; any other
+  unit is refused before writes. A missing runtime stops convergence; the PR
+  itself grants no deployment authority.
 - Stage the exact public arm64 OpenCode 2.1.3 native at the profile's
   canonical asset path with its reviewed hash and size. Ordinary installed
   OpenCode is 2.1.4 and stays unchanged; its moving installation is not this
