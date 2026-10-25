@@ -1,15 +1,23 @@
 ---
+# chaldea_exec_launcher converges only the launcher: no SSH enrollment, client
+# release, current link or user service.
+- name: Validate the launcher selection before changing files
+  ansible.builtin.import_tasks: exec-selector.yml
+  tags: [chaldea_exec_launcher]
+
 - name: Create the local CLI directory
   ansible.builtin.file:
     path: "{{ fleet_home }}/.local/bin"
     state: directory
     mode: u+rwx
+  tags: [chaldea_exec_launcher]
 
 - name: Install the pinned Chaldea launcher
   ansible.builtin.template:
     src: chaldea.j2
     dest: "{{ fleet_home }}/.local/bin/chaldea"
     mode: "0755"
+  tags: [chaldea_exec_launcher]
 
 - name: Configure compute SSH only for enrolled clients
   ansible.builtin.import_tasks: ssh.yml

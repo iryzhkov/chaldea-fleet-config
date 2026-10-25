@@ -3,3 +3,8 @@ chaldea_job_client_enabled: false
 chaldea_job_client_key: "{{ fleet_home }}/.ssh/chaldea-job_ed25519"
 chaldea_job_client_targets: []
 # Entries: {name: agent-a, address: 192.0.2.2, port: 2222}
+# Optional exec-only client: set both to absolute paths of a separately admitted
+# client entry and Node. Only `chaldea exec` uses them; empty keeps the launcher
+# byte-identical. See docs/chaldea-client.md, "Exec-only client selection".
+chaldea_job_client_exec_entry: ""
+chaldea_job_client_exec_node: ""

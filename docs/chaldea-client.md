@@ -598,6 +598,71 @@ target-specific packet in [system waits preflight](waits-system-preflight.md)
 and the profile inverse above run. Running the inverse while this file is still
 on main lets the next pull reinstall it. Coordinate both, inverse after merge.
 
+## Exec-only client selection
+
+`chaldea_job_client_exec_entry` and `chaldea_job_client_exec_node` let
+`chaldea exec` on one host run a separately admitted client, such as the
+blob-capable private controller, while every other command keeps the pinned
+release, its services and its `current` link. Both default to empty, which
+renders the launcher byte for byte as before, so merging the source changes no
+host. Set both or neither, as distinct absolute paths of letters, digits, `.`,
+`_`, `-` and `/` with no `.` or `..` segment. Both roles that render
+`~/.local/bin/chaldea` refuse anything else before they change a file.
+
+The launcher checks only the first argument. When it is exactly `exec`, the
+launcher runs the selected Node on the selected entry with the arguments, exit
+status, environment and working directory unchanged. HOME and XDG are not
+touched, so the exec journal, state, `exec-hosts`, SSH configuration and
+`--host` fallback stay where the pinned client keeps them. Every other
+invocation, including no arguments, `--describe`, `--help`, `wait`,
+`decision`, `quota`, `route` and `artifacts`, still runs the pinned release.
+A selected entry that is not a regular file, or a Node that is not an executable
+regular file, makes `chaldea exec` exit 69 without falling back. The launcher
+does not hash the selected bytes: deployment admission establishes them, so keep
+both under an owner-only directory.
+
+A `blob.json` alone cannot add custody to ordinary exec: client-v0.4.11 has no
+blob support and ignores the file. The selected client reads the default
+`$XDG_CONFIG_HOME/chaldea/blob.json` only when `--artifact` names an output;
+without one, a job behaves as before. With `"publication": "manual"`, an
+artifact job records a pending custody intent that keeps its journal record and
+local artifact reserve until publication is confirmed, and makes no network
+attempt to the store, whether or not the tunnel is open. Publication still
+needs an operator, an admitted tunnel and an approved window. Enabling manual
+mode uploads nothing and widens no NAS artifact-risk approval. Journal
+retention is unchanged except that pending custody records are kept.
+
+Example for omarchy-pc, not enrolled in inventory by this change:
+
+```yaml
+# inventory/hosts.yml, omarchy-pc host variables
+chaldea_job_client_exec_entry: /home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f/client-1e86175cd2ef2e11fdf4584d22cc73127a162d42/bin/chaldea
+chaldea_job_client_exec_node: /home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f/node-26.10.0
+```
+
+The matching manual `~/.config/chaldea/blob.json`, mode 0600, names the
+existing publisher credential by path and contains no secret:
+
+```json
+{"version": 1, "endpoint": "http://127.0.0.1:43900", "bucket": "artifacts-igor-exec",
+ "principal": "igor-exec", "region": "garage", "publication": "manual",
+ "credentialFile": "/home/igor/.local/share/chaldea-blob-profiles/publisher/credential.json"}
+```
+
+Converge only the launcher, after the check run's diff is reviewed:
+
+```sh
+ansible-playbook -i inventory site.yml --limit omarchy-pc --tags chaldea_exec_launcher --check --diff
+ansible-playbook -i inventory site.yml --limit omarchy-pc --tags chaldea_exec_launcher
+```
+
+The tag runs the validation and the launcher template only: no SSH enrollment,
+client release, `current` link or user service. The pull timer converges
+main, so a selection that exists only in a local checkout is reverted by the
+next pull; activation lasts only once the settings are enrolled on main. To roll
+back, clear both settings and run the same command; the launcher returns to the
+pinned bytes.
+
 ## Tests
 
 The two canary public-render fixture cases require actual UID 0 ownership. They
