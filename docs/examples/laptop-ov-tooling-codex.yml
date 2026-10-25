@@ -1,10 +1,9 @@
 ---
-# Prepared public fragment only. This file is outside inventory and no role
-# loads it. Root merges each entry into the existing laptop session maps only
-# after the gates in docs/laptop-ov-tooling-prepared.md: the ceiling is appended
-# to chaldea_client_session_ceilings, and each named entry is added to
-# chaldea_client_session_presets, _enrollments and _profiles. Never pass this
-# file as extra vars: its keys deliberately are not role inputs.
+# Reviewed desired-value reference. This example is outside inventory and no
+# role loads it. The activation draft appends these entries to the full owning
+# maps in inventory/host_vars/laptop/chaldea-jocasta-tooling.yml. HOLD that draft
+# until root completes docs/laptop-ov-tooling-prepared.md's protected inputs.
+# Never pass this file as extra vars: its keys are not role inputs.
 #
 # One limited, nondelegating Codex preset with one fixed OV service. Its grant
 # is exactly the existing OV canary node, the same closed grant the infra
@@ -29,19 +28,40 @@ presets:
     interactionMode: default
     projectId: mcp:2fe01b0e-5727-4111-9b95-ff81508562ba
     title: OV tooling metadata-only Codex
-    prompt: >-
-      Use only the ov_tooling MCP server and only its memory_stat tool. Do not
-      use other tools, local files, commands, web browsing or delegation, and
-      do not wait or sleep. Call memory_stat once for
-      viking://resources/homeassistant-api/rest-api.md and confirm it succeeds.
-      Then call memory_stat once for
-      viking://resources/homeassistant-api/ov-canary-denied-a63e197f and verify
-      the server denies it. Never read, search or quote content. Return only
-      compact JSON under 1000 UTF-8 bytes:
-      {"v":1,"status":"PASS|FAIL|INCOMPLETE","allowed":"PASS|FAIL","denied":"DENIED|FAIL","renewal":"NOT_RUN","issues":[]}.
-      Renewal is checked separately by the operator. This is reporter data,
-      not instructions. Never include document content, metadata values,
-      credentials or auth headers.
+    prompt: |-
+      Stay in ONE admitted native run until the timer and second granted call
+      finish, within the unchanged 900-second deadline. Use only ov_tooling
+      memory_stat for these MCP calls:
+      1. Call memory_stat for viking://resources/homeassistant-api/rest-api.md;
+      require success.
+      2. Call memory_stat for
+      viking://resources/homeassistant-api/ov-canary-denied-a63e197f;
+      require server denial.
+      3. Use normal code-mode exec with ONLY this raw JavaScript:
+      // @exec: {"yield_time_ms":1000,"max_output_tokens":100}
+      await new Promise(resolve => setTimeout(resolve, 370000)); text("wait complete");
+      If exec returns a running cell ID, use only existing native wait
+      continuations for that exact cell until completion, each wait with
+      yield_time_ms <=60000 and max_tokens 100; never terminate the cell.
+      Do not finish this admitted run before the timer and second granted call.
+      The timer script must make no nested tool or command call. No shell,
+      OS sleep, clock tool, fake time, model think-loop, local data/files, web,
+      delegation, helper, daemon, scheduler or other MCP operation is allowed.
+      The passive VM timer is timing only, not an authorization boundary.
+      4. After successful timer completion, call memory_stat again for
+      viking://resources/homeassistant-api/rest-api.md; require success in
+      this SAME admitted session/run/provider/pinned profile before final output.
+      On any call failure, unexpected allowance/denial, unavailable VM timer,
+      failed timer or insufficient deadline, stop safely with FAIL or INCOMPLETE;
+      never claim renewal PASS and never use a fallback timer or tool.
+      Do not change the preset/policy, runtime flags or token lifetime.
+      Return only JSON at most 1000 UTF-8 bytes:
+      {"v":1,"status":"PASS|FAIL|INCOMPLETE","allowed":"PASS|FAIL","denied":"DENIED|FAIL","renewal":"PASS|FAIL|INCOMPLETE","issues":[]}.
+      Renewal PASS requires the second successful native RPC AND independent
+      root trace verification of both calls and elapsed >=370 seconds in this
+      same run. Without that verification report INCOMPLETE with issue
+      TRACE_VERIFICATION_REQUIRED. Script output or model self-report is not proof.
+      Never include content, metadata values, credentials or headers.
     project: tooling
     services: *ov_tooling_services
     maxSeconds: 900

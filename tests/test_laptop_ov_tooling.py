@@ -1,15 +1,14 @@
-"""Inert laptop OV tooling candidate (docs/examples/laptop-ov-tooling-codex.yml).
+"""Laptop OV activation draft, checked against the real owning inventory.
 
-The candidate is outside inventory. These tests check its exact closed values,
-run the role's own public validators over the laptop's real maps with the
-candidate merged, render the protected policy from the real inventory, and
-deliver the profile through the actual role in a scratch tree. Nothing here
-enables the candidate, reads a credential or touches a model login.
+The reviewed example remains the desired-value reference. These tests bind it
+to the real third entry, preserve every original Jocasta value, reject widened
+or shared variants and deliver the actual OV profile through the role in scratch.
+The Jocasta inventory test renders and checks the complete protected policy.
+No fixture reads a credential or touches a model login.
 """
 import copy
+import hashlib
 import json
-import os
-import subprocess
 import tomllib
 from pathlib import Path
 
@@ -36,13 +35,12 @@ def candidate():
 
 
 def merged(packet=None):
-    """The laptop's real maps with the candidate added, as root would merge them."""
-    packet = copy.deepcopy(candidate() if packet is None else packet)
+    """Replace only OV values for negative cases, retaining the real inventory."""
     values = activation()
-    values["chaldea_client_session_ceilings"] = values["chaldea_client_session_ceilings"] + packet["ceilings"]
-    for short in MAPS:
-        key = "chaldea_client_session_" + short
-        values[key] = values[key] | packet[short]
+    if packet is not None:
+        values["chaldea_client_session_ceilings"][-1:] = copy.deepcopy(packet["ceilings"])
+        for short in MAPS:
+            values["chaldea_client_session_" + short][NAME] = copy.deepcopy(packet[short][NAME])
     return values
 
 
@@ -53,22 +51,34 @@ def validate(values):
     return validate_profiles(values)
 
 
-def test_candidate_is_inactive_and_merging_preserves_every_existing_entry():
+def test_real_inventory_adds_exact_ov_entries_and_preserves_all_original_values():
     packet = candidate()
     assert set(packet) == {"ceilings", *MAPS}
     assert all(set(packet[short]) == {NAME} for short in MAPS)
     laptop = inventory_vars("laptop")
-    for short in MAPS:
-        assert NAME not in laptop["chaldea_client_session_" + short]
-    assert all(s.get("audience") != "ov" for c in laptop["chaldea_client_session_ceilings"] for s in c["services"])
-    for path in (ROOT / "inventory").rglob("*"):
-        if path.is_file():
-            assert "ov-tooling" not in path.read_text(errors="replace"), path
-    before, after = activation(), merged()
-    assert after["chaldea_client_session_ceilings"][:-1] == before["chaldea_client_session_ceilings"]
+    after = activation()
+    assert after["chaldea_client_session_ceilings"][-1:] == packet["ceilings"]
+    assert len(after["chaldea_client_session_ceilings"]) == 2
+    before = copy.deepcopy(after)
+    before["chaldea_client_session_ceilings"].pop()
     for short in MAPS:
         key = "chaldea_client_session_" + short
-        assert {k: v for k, v in after[key].items() if k != NAME} == before[key]
+        assert list(after[key]) == ["jocasta-tooling-claude", CODEX, NAME]
+        assert after[key][NAME] == packet[short][NAME]
+        assert laptop[key] == after[key]
+        before[key].pop(NAME)
+    assert laptop["chaldea_client_session_ceilings"] == after["chaldea_client_session_ceilings"]
+    unchanged = copy.deepcopy(after)
+    unchanged["chaldea_client_session_presets"][NAME]["prompt"] = ""
+    # At ba05aa1, agent-a measured every declared value except the OV prompt.
+    assert hashlib.sha256(json.dumps(unchanged, sort_keys=True, separators=(",", ":")).encode()).hexdigest() == (
+        "1d4ceadade2b71d0e2f49c5ce6718dcc73fe5eecd5b50cf02133bce8c8737baf")
+    # Canonical full owning hostfile at base 15f1950, measured on agent-a before
+    # editing. Removing only the four OV additions must recover EVERY old value,
+    # including prompts, native pins, HOME/cwd, grants and ordinary timer settings.
+    canonical = json.dumps(before, sort_keys=True, separators=(",", ":")).encode()
+    assert hashlib.sha256(canonical).hexdigest() == (
+        "c810430f87db92769cecb239c1a7270df06dc8f001181b9329ebc3843ffa8e37")
 
 
 def test_candidate_binds_one_exact_closed_ov_grant():
@@ -82,9 +92,8 @@ def test_candidate_binds_one_exact_closed_ov_grant():
     assert (preset["model"], preset["options"], preset["projectId"], preset["delegate"]) == (
         "gpt-6.1-sol", [{"id": "reasoningEffort", "value": "high"}], PROJECT, False)
     prompt = preset["prompt"]
-    assert len(prompt.encode()) < 1000
+    assert len(prompt.encode()) <= 8192  # Chaldea's public preset parser bound.
     assert NODE in prompt and SIBLING in prompt and "memory_stat" in prompt
-    assert '"renewal":"NOT_RUN"' in prompt and "do not wait or sleep" in prompt
     assert packet["enrollments"][NAME] == {
         "form": "app_password", "audience": "ov", "issuer": ISSUER,
         "tokenUrl": "https://auth.ryzhkov.dev/application/o/token/", "jwksUrl": ISSUER + "jwks/",
@@ -101,6 +110,69 @@ def test_candidate_binds_one_exact_closed_ov_grant():
     assert profile["home"] != jocasta_profile["home"]
     for value in strings(packet):
         assert "/.cache/" not in value and "/mise/" not in value and "auth.json" not in value, value
+
+
+TIMER_SCRIPT = ('// @exec: {"yield_time_ms":1000,"max_output_tokens":100}\n'
+                'await new Promise(resolve => setTimeout(resolve, 370000)); text("wait complete");')
+
+
+def assert_timer_protocol(raw):
+    # Parse source text only. Never execute JavaScript or wait in these tests.
+    script = raw.split("3. Use normal code-mode exec with ONLY this raw JavaScript:\n", 1)[1]
+    script = script.split("\nIf exec returns a running cell ID", 1)[0]
+    assert script == TIMER_SCRIPT
+    prompt = " ".join(raw.split())
+    steps = [
+        "1. Call memory_stat for " + NODE,
+        "2. Call memory_stat for " + SIBLING,
+        "3. Use normal code-mode exec with ONLY this raw JavaScript:",
+        " ".join(TIMER_SCRIPT.split()),
+        "4. After successful timer completion, call memory_stat again for " + NODE,
+        "Return only JSON at most 1000 UTF-8 bytes",
+    ]
+    positions = [prompt.index(step) for step in steps]
+    assert positions == sorted(positions)
+    assert prompt.count(NODE) == 2 and prompt.count(SIBLING) == 1
+    for requirement in (
+        "ONE admitted native run", "unchanged 900-second deadline",
+        "continuations for that exact cell until completion",
+        "each wait with yield_time_ms <=60000 and max_tokens 100",
+        "never terminate the cell",
+        "Do not finish this admitted run before the timer and second granted call",
+        "timer script must make no nested tool or command call",
+        "stop safely with FAIL or INCOMPLETE", "unavailable VM timer",
+        "never use a fallback timer or tool",
+        "Do not change the preset/policy, runtime flags or token lifetime",
+        "second successful native RPC AND independent root trace verification",
+        "elapsed >=370 seconds", "TRACE_VERIFICATION_REQUIRED",
+        "Script output or model self-report is not proof",
+    ):
+        assert requirement in prompt, requirement
+    assert '"renewal":"PASS|FAIL|INCOMPLETE"' in prompt
+    assert "NOT_RUN" not in prompt and "operator checks separately" not in prompt
+    assert "/usr/bin/sleep" not in prompt and "exec_command" not in prompt
+    assert "write_stdin" not in prompt and "tools." not in prompt
+
+
+def test_fixed_reporter_keeps_renewal_inside_one_admitted_native_run():
+    prompt = activation()["chaldea_client_session_presets"][NAME]["prompt"]
+    assert prompt == candidate()["presets"][NAME]["prompt"]
+    assert_timer_protocol(prompt)
+
+
+@pytest.mark.parametrize("old,new", [
+    ("370000", "330000"),
+    ("await new Promise", "new Promise"),
+    ('text("wait complete");', 'text("wait complete"); await tools.exec_command({cmd: "sleep 370"});'),
+    ('"yield_time_ms":1000', '"yield_time_ms":370000'),
+    ("yield_time_ms <=60000", "yield_time_ms <=60001"),
+    ("never use a fallback timer or tool", "use a fallback shell timer"),
+])
+def test_timer_source_contract_refuses_short_unawaited_nested_or_unbounded_variants(old, new):
+    prompt = activation()["chaldea_client_session_presets"][NAME]["prompt"]
+    assert old in prompt
+    with pytest.raises(AssertionError):
+        assert_timer_protocol(prompt.replace(old, new, 1))
 
 
 def test_role_closed_validators_accept_the_merged_laptop_maps():
@@ -159,54 +231,18 @@ def test_role_validators_refuse_widened_or_shared_candidates(mutate):
         validate(merged(packet))
 
 
-def test_real_inventory_renders_the_merged_policy_through_the_role(tmp_path):
-    assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).resolve())
-    values = merged()
-    policy = tmp_path / "policy.json"
-    play = tmp_path / "validate.yml"
-    play.write_text(yaml.safe_dump([{
-        "name": "Validate and render the laptop policy with the OV candidate merged",
-        "hosts": "laptop", "gather_facts": False,
-        "tasks": [
-            {"name": "Run the role's public policy validation",
-             "ansible.builtin.include_role": {"name": "chaldea_client", "tasks_from": "session-policy-public-validate"}},
-            {"name": "Run the role's fixed profile validation",
-             "ansible.builtin.include_role": {"name": "chaldea_client", "tasks_from": "session-profiles-validate"}},
-            {"name": "Render the policy into scratch",
-             "ansible.builtin.copy": {
-                 "content": "{{ lookup('ansible.builtin.template', '" + str(ROLE / "templates/policy.json.j2") + "') }}",
-                 "dest": str(policy), "mode": "0600"}},
-        ],
-    }]))
-    extra = {"fleet_home": HOME} | {key: values[key] for key in (
-        "chaldea_client_session_ceilings", "chaldea_client_session_presets",
-        "chaldea_client_session_enrollments", "chaldea_client_session_profiles")}
-    extra_path = tmp_path / "candidate.json"
-    extra_path.write_text(json.dumps(extra))
-    env = dict(os.environ, ANSIBLE_ROLES_PATH=str(ROOT / "roles"))
-    result = subprocess.run([
-        "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", "laptop", str(play),
-        "--extra-vars", "@" + str(extra_path)], text=True, capture_output=True, env=env, cwd=ROOT)
-    assert result.returncode == 0, result.stdout + result.stderr
-    rendered = json.loads(policy.read_text())
-    assert rendered == {
-        "version": 1, "environment": values["chaldea_client_waits_environment"],
-        "ceilings": values["chaldea_client_session_ceilings"],
-        "presets": values["chaldea_client_session_presets"],
-        "enrollments": values["chaldea_client_session_enrollments"]}
-    assert len(policy.read_bytes()) < 64 * 1024
-
-
 def test_actual_role_delivers_the_ov_profile_with_its_closed_server(tmp_path, monkeypatch):
     from test_chaldea_session_profiles import PRESET, launch, layout, ok, run
 
     case = layout(tmp_path, monkeypatch)
-    packet = candidate()
+    values = activation()
+    packet = {"ceilings": values["chaldea_client_session_ceilings"][-1:]}
+    packet.update({short: {NAME: values["chaldea_client_session_" + short][NAME]} for short in MAPS})
     home = case.home
     variables = case.variables
     # Binaries, model, home and paths are the scratch fixture's; the preset,
     # grant, enrollment, server, URL, tools and neutralized servers are the
-    # candidate's own values.
+    # actual inventory's own values.
     preset = dict(packet["presets"][NAME], model=case.profile["model"])
     enrollment = dict(packet["enrollments"][NAME],
                       secretFile=str(home / ".config/chaldea/authentik" / (NAME + ".app-password")))

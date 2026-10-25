@@ -151,11 +151,12 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
     assert values["chaldea_client_waits_legacy_user_node_version"] == "26.10.0"
     assert values["retention_mise_prune"] is False
     assert values["chaldea_client_session_policy_enabled"] is True
-    assert values["chaldea_client_session_ceilings"] == [
+    assert len(values["chaldea_client_session_ceilings"]) == 2
+    assert values["chaldea_client_session_ceilings"][:1] == [
         {"project": "tooling", "maxSeconds": 1800, "destinations": [CALLER], "services": SERVICES}]
     presets = values["chaldea_client_session_presets"]
     # Held candidate: Codex is declared, with cwd bound to the fleet home.
-    assert list(presets) == [CLAUDE, CODEX]
+    assert list(presets) == [CLAUDE, CODEX, "ov-tooling-codex"]
     assert presets[CODEX] == dict(presets[CLAUDE], instanceId="codex-jocasta-tooling", model="gpt-6.1-sol",
                                   title="Jocasta tooling read-only Codex",
                                   options=[{"id": "reasoningEffort", "value": "high"}])
@@ -166,14 +167,14 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
         "interactionMode": "default", "projectId": PROJECT, "title": "Jocasta tooling read-only Claude",
         "prompt": preset["prompt"], "inputs": {"project": "tooling"}, "project": "tooling",
         "services": SERVICES, "maxSeconds": 1800, "delegate": False, "destinations": [CALLER]}
-    assert values["chaldea_client_session_enrollments"] == {name: {
+    assert {name: values["chaldea_client_session_enrollments"][name] for name in (CLAUDE, CODEX)} == {name: {
         "form": "app_password", "issuer": ISSUER, "tokenUrl": "https://auth.ryzhkov.dev/application/o/token/",
         "jwksUrl": ISSUER + "jwks/", "clientId": "chaldea-jocasta-tooling",
         "username": "chaldea-laptop-" + name, "scope": "jocasta.read", "resource": RESOURCE,
         "project": "tooling", "maxTokenSeconds": 300,
         "secretFile": HOME + "/.config/chaldea/authentik/" + name + ".app-password"} for name in (CLAUDE, CODEX)}
     codex_home = HOME + "/.cache/acl-codex-startup-f73bc687/home"
-    assert values["chaldea_client_session_profiles"] == {CLAUDE: {
+    assert {name: values["chaldea_client_session_profiles"][name] for name in (CLAUDE, CODEX)} == {CLAUDE: {
         "driver": "claude", "elf_machine": 183, "cwd": WORKSPACE, "preset": CLAUDE, "audience": "jocasta",
         "server": "jocasta_tooling", "url": RESOURCE, "tools": TOOLS,
         "native": {"source": ASSETS + "/claude/2.1.276/claude", "size": 231989488,
@@ -285,8 +286,10 @@ def test_real_inventory_renders_the_protected_policy_through_the_role(tmp_path):
     ], text=True, capture_output=True, env=env, cwd=ROOT)
     assert result.returncode == 0, result.stdout + result.stderr
     values = activation()
-    assert json.loads(policy.read_text()) == {
+    rendered = json.loads(policy.read_text())
+    assert rendered == {
         "version": 1, "environment": values["chaldea_client_waits_environment"],
         "ceilings": values["chaldea_client_session_ceilings"],
         "presets": values["chaldea_client_session_presets"],
         "enrollments": values["chaldea_client_session_enrollments"]}
+    assert len(policy.read_bytes()) < 64 * 1024
