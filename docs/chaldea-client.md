@@ -530,9 +530,11 @@ backups because the parent's fixed capture retains the original bytes; persisten
 mode retains its backups. This role does not implement composed cleanup.
 
 An active bounded owner refuses configuration changes instead of restarting.
-Repeated validation does not renew the deadline or consume a start. Namespace
-and loader probes intentionally execute when requested; their service tasks
-report a change even when all managed file bytes are converged. Empty deadline
+Repeated validation does not renew the deadline or consume a start. The
+credential-free namespace probe runs on every real run and any failure stops
+it, but it reports no change, because it only reads; its definition and checker
+report their own changes. The loader gate's service task still reports a change
+when requested. Empty deadline
 preserves the persistent unit bytes and ordinary restart-intent recovery.
 
 ## Laptop persistent activation
@@ -581,9 +583,10 @@ Consequences of the normal pull on the laptop:
   `chaldea_node_version`, so the file sets `retention_mise_prune: false`: the
   retention timer still cleans worktrees, temporary files and the Go cache but
   never runs `mise prune`. Keep it off while any 26.10.0 consumer remains.
-- The credential-free namespace probe restarts on every real converge, so the
-  laptop's pull never reports `changed=0` for this role. The waits service
-  restarts only for pending restart intent.
+- The credential-free namespace probe runs on every real converge and still
+  stops the pull when it fails, but it reports no change, so a converged pull
+  reports `changed=0` for this role. The waits service restarts only for
+  pending restart intent.
 - The waits tokens, answer token and every profile's app-password file must
   exist with owner-only modes, and the OpenCode private HOME and tmpdir must
   exist with mode 0700; a missing one stops the laptop's pull at this role.

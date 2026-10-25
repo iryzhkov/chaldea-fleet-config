@@ -22,9 +22,25 @@ state_path = Path(os.environ["WAITS_RECOVERY_STATE"])
 state = json.loads(state_path.read_text())
 words = [word for word in sys.argv[1:] if not word.startswith("-")]
 verb = words[0] if words else ""
+probe = any("chaldea-waits-preflight" in word for word in words[1:])
 rc = 0
 if "--version" in sys.argv:
     print("systemd 257 (257)")
+elif probe and verb == "show":
+    # A completed oneshot: inactive, with its last result.
+    print("Id=chaldea-waits-preflight.service\nLoadState=loaded\nUnitFileState=static")
+    print("ActiveState=inactive\nSubState=dead\nDropInPaths=")
+    print("FragmentPath=/etc/systemd/system/chaldea-waits-preflight.service")
+    print("Result=" + state.get("probe_result", "success"))
+    print("ExecMainStatus=" + ("0" if state.get("probe_result", "success") == "success" else "1"))
+elif probe and verb in ["start", "restart"]:
+    # The module starts an inactive oneshot for state=restarted.
+    verb = "run"
+    state["probes"] = state.get("probes", 0) + 1
+    state["probe_result"] = "exit-code" if state.get("fail_probe") or state.get("bad_probe_status") else "success"
+    if state.get("fail_probe"):
+        print("injected probe failure", file=sys.stderr)
+        rc = 1
 elif verb == "show":
     unit = Path(os.environ["WAITS_RECOVERY_UNIT"]).read_text()
     command = next(line.split("=", 1)[1] for line in unit.splitlines() if line.startswith("ExecStart="))
@@ -48,7 +64,7 @@ elif verb in ["start", "restart"]:
         state["restarts"] += 1
         state["pid"] += 1
         state["loaded"] = json.loads(Path(os.environ["WAITS_RECOVERY_CONFIG"]).read_text())
-state["calls"].append(verb)
+state["calls"].append(verb + (":probe" if probe else ""))
 state_path.write_text(json.dumps(state))
 sys.exit(rc)
 '''
@@ -110,7 +126,10 @@ def recovery(tmp_path, monkeypatch):
         }
         for original in canonical:
             expanded = ([task for task in preflight if task["name"] in {
-                            "Render the credential-free namespace checker", "Install the preflight in the system manager"}]
+                            "Render the credential-free namespace checker", "Install the preflight in the system manager",
+                            "Run the credential-free probe in the exact service sandbox",
+                            "Read the completed probe result after execution",
+                            "Require actual namespace and ancestor probe success"}]
                         if original.get("ansible.builtin.import_tasks") == "waits-preflight.yml"
                         else [original] if original["name"] in names else [])
             for task in expanded:
@@ -190,6 +209,45 @@ def test_restart_or_readiness_failure_preserves_intent(recovery, failure):
     ok(recovery["execute"](7386))
     assert read_state(recovery)["loaded"]["port"] == 7386
     assert not recovery["marker"].exists()
+
+
+def test_converged_run_executes_the_probe_but_reports_no_change(recovery):
+    ok(recovery["execute"]())
+    before = read_state(recovery)
+    assert before["probes"] == 1 and before["probe_result"] == "success"
+    # The probe is reloaded and restarted on every run, and still read back.
+    calls = before["calls"]
+    assert calls.index("run:probe") < calls.index("show:probe", calls.index("run:probe"))
+    converged = recovery["execute"]()
+    ok(converged)
+    after = read_state(recovery)
+    assert after["probes"] == before["probes"] + 1, "converged run skipped the probe"
+    assert after["restarts"] == before["restarts"], "converged run restarted the daemon"
+    assert "changed=0" in converged.stdout, converged.stdout
+    # A real configuration change is still reported alongside the probe.
+    changed = recovery["execute"](7386)
+    ok(changed)
+    assert "changed=0" not in changed.stdout and read_state(recovery)["loaded"]["port"] == 7386
+
+
+@pytest.mark.parametrize("failure, task", [
+    ("fail_probe", "Run the credential-free probe in the exact service sandbox"),
+    ("bad_probe_status", "Require actual namespace and ancestor probe success"),
+])
+def test_probe_failure_still_stops_before_credentials_and_activation(recovery, failure, task):
+    ok(recovery["execute"]())
+    state = read_state(recovery)
+    state[failure] = True
+    recovery["state"].write_text(json.dumps(state))
+    failed = recovery["execute"](7386)
+    assert failed.returncode != 0, failed.stdout
+    assert "fatal: [localhost]: FAILED!" in failed.stdout and "TASK [" + task in failed.stdout
+    after = read_state(recovery)
+    assert after["probes"] == state["probes"] + 1
+    # Nothing after the probe ran: the daemon kept its old configuration.
+    assert after["restarts"] == state["restarts"] and after["loaded"]["port"] == 7385
+    assert "Start the sole system waits owner" not in failed.stdout
+    assert recovery["marker"].exists()
 
 
 def test_intent_precedes_preflight_checker_write_and_survives_resume(recovery):
