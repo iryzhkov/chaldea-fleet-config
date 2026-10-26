@@ -29,6 +29,15 @@
       tags: [mcp_registrations]
   when: webmcp_interactive_enabled | default(false) | bool
 
+# Its own explicit selection; Claude and Codex registrations are unaffected.
+- name: Deliver or remove the ordinary OpenCode Jocasta plugin
+  ansible.builtin.include_role:
+    name: webmcp_interactive
+    tasks_from: opencode.yml
+    apply:
+      tags: [mcp_registrations]
+  when: webmcp_interactive_opencode_state | default('') | length > 0
+
 - name: Select explicit managed authentication without widening other registrations
   ansible.builtin.set_fact:
     mcp_registrations_effective_remote_servers: >-
