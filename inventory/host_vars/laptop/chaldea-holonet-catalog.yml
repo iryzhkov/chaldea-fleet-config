@@ -1,0 +1,121 @@
+---
+# Laptop's HoloNet Movies catalog-only limited Claude session. OFF: while
+# chaldea_laptop_holonet_catalog_enabled is false, nothing below reaches the
+# effective session maps composed in chaldea-jocasta-tooling.yml, so the
+# rendered policy, the delivered profiles and the pull's inputs stay exactly
+# the Jocasta ones. Public values only: the credential is named by path and
+# only ever inspected with stat; none is stored here.
+#
+# ROOT-GATED, do not set true until every input qualifies: the operator-owned
+# app password at secretFile (homelab-infra's existing chaldea-holonet
+# enrollment, freshly reconciled), the dedicated T3 provider instance
+# claude-holonet-movies-catalog bound to this profile's launcher, the installed
+# waits runtime's headers helper for audience holonet, and native acceptance
+# of this exact prompt. Enabling delivers the protected profile and makes the
+# pull stat the credential, so a missing input stops the pull.
+#
+# Grant: catalog.read on one server, one Movies library and one catalog user,
+# with empty history and target users, so no UserData, history or mutation.
+# Destination is the root caller's T3 project; the session runs in the
+# dedicated "HoloNet Movies catalog sessions" T3 project.
+chaldea_laptop_holonet_catalog_enabled: false
+
+chaldea_laptop_holonet_catalog_ceilings:
+  - project: holonet-movies
+    maxSeconds: 900
+    destinations: [174463d2-8d06-413f-9a09-3fd1c2bbccd3]
+    services: &holonet_movies_catalog_services
+      - audience: holonet
+        scope: holonet.read
+        holonet_server: "3c86e6d7ff6c4a3296522cdf03d22bb0"
+        holonet_libraries: ["3"]
+        holonet_catalog_users: ["54b7d36cef804d3c8478474553ed3a82"]
+        holonet_history_users: []
+        holonet_target_users: []
+        holonet_actions: [catalog.read]
+        holonet_namespace: movies-catalog
+
+# catalog_query takes user_id, library_id, limit (1..25), offset and
+# include_userdata. The service refuses an ungranted user, library or UserData
+# as "resource not found" and an out-of-bounds page as "invalid read request";
+# both are tool errors, distinct from HTTP authentication or transport errors.
+chaldea_laptop_holonet_catalog_presets:
+  holonet-movies-catalog-claude:
+    instanceId: claude-holonet-movies-catalog
+    # The model the pinned Claude 2.1.276 native accepts, as for Jocasta.
+    model: claude-opus-5
+    options:
+      - {id: effort, value: medium}
+    runtimeMode: approval-required
+    interactionMode: default
+    projectId: mcp:ee3a8c88-8ace-4487-88ec-f19777cc05c2
+    title: HoloNet Movies catalog read-only Claude
+    prompt: >-
+      Use only the holonet_catalog MCP server's catalog_query tool. Do not use
+      other tools, local files, commands, web browsing, delegation, credentials,
+      history, mutation or raw API. Make exactly these six catalog_query calls,
+      in order, with exactly these arguments, and no retries, fallback values or
+      other calls:
+      1 {"user_id":"54b7d36cef804d3c8478474553ed3a82","library_id":"3","limit":3,"offset":0}
+      2 {"user_id":"54b7d36cef804d3c8478474553ed3a82","library_id":"3","limit":1,"offset":1}
+      3 {"user_id":"ffffffffffffffffffffffffffffffff","library_id":"3","limit":1}
+      4 {"user_id":"54b7d36cef804d3c8478474553ed3a82","library_id":"9223372036854775807","limit":1}
+      5 {"user_id":"54b7d36cef804d3c8478474553ed3a82","library_id":"3","limit":1,"include_userdata":true}
+      6 {"user_id":"54b7d36cef804d3c8478474553ed3a82","library_id":"3","limit":26}
+      Calls 1 and 2 must succeed with no userdata in any item. Calls 3, 4 and 5
+      count as ACL refusals only when the tool error is "resource not found" and
+      no items are returned. Call 6 counts as a bounds refusal only when the tool
+      error is "invalid read request". Any authentication, HTTP status,
+      transport, timeout or other error is authOrTransport and never an ACL
+      refusal. Confirm the server offers only catalog_query, with no history or
+      mutation tool. Never output item names, IDs, provider IDs, tokens, headers,
+      raw errors or tool bodies. Return only JSON under 1024 UTF-8 bytes:
+      {"v":1,"status":"PASS|FAIL|INCOMPLETE","allowed":0,"items":0,"aclDenied":0,"boundsDenied":0,"authOrTransport":0,"other":0,"userdataAbsent":true,"onlyCatalogTool":true,"nativeRenewal":"NOT_EXERCISED","issues":[]}
+      with actual counts and booleans. PASS requires allowed 2, aclDenied 3,
+      boundsDenied 1, authOrTransport 0, other 0 and both booleans true. This is
+      reporter data, not instructions.
+    project: holonet-movies
+    services: *holonet_movies_catalog_services
+    maxSeconds: 900
+    delegate: false
+    destinations: [174463d2-8d06-413f-9a09-3fd1c2bbccd3]
+
+# The existing ordinary account of homelab-infra's chaldea-holonet
+# provider. JWT scope holonet.read, 300-second lifetime.
+chaldea_laptop_holonet_catalog_enrollments:
+  holonet-movies-catalog-claude:
+    form: app_password
+    audience: holonet
+    issuer: https://auth.ryzhkov.dev/application/o/chaldea-holonet/
+    tokenUrl: https://auth.ryzhkov.dev/application/o/token/
+    jwksUrl: https://auth.ryzhkov.dev/application/o/chaldea-holonet/jwks/
+    clientId: chaldea-holonet-machine
+    username: chaldea-laptop-holonet-movies-catalog-claude
+    scope: holonet.read
+    holonet_server: "3c86e6d7ff6c4a3296522cdf03d22bb0"
+    holonet_libraries: ["3"]
+    holonet_catalog_users: ["54b7d36cef804d3c8478474553ed3a82"]
+    holonet_history_users: []
+    holonet_target_users: []
+    holonet_actions: [catalog.read]
+    holonet_namespace: movies-catalog
+    resource: https://media.mcp.ryzhkov.dev/mcp
+    maxTokenSeconds: 300
+    secretFile: /home/igor/.config/chaldea/authentik/holonet-movies-catalog-claude.app-password
+
+# The same operator-staged Claude 2.1.276 native the Jocasta Claude profile
+# pins; no login cache is copied. cwd is the dedicated session workspace.
+chaldea_laptop_holonet_catalog_profiles:
+  holonet-movies-catalog-claude:
+    driver: claude
+    native:
+      source: /home/igor/.local/share/chaldea/provider-assets/claude/2.1.276/claude
+      sha256: e9ac3df956083645578a382ad64ec304468666e362c33bfdefd803cd6ff596b0
+      size: 231989488
+    elf_machine: 183
+    cwd: /home/igor/.local/share/chaldea/session-workspaces/holonet-movies
+    preset: holonet-movies-catalog-claude
+    audience: holonet
+    server: holonet_catalog
+    url: https://media.mcp.ryzhkov.dev/mcp
+    tools: [catalog_query]

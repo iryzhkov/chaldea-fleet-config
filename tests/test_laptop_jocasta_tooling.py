@@ -6,12 +6,18 @@ profiles and the root-gated OpenCode selection. These tests render the actual
 inventory merge, check the exact bound public configuration with the role's own
 closed validators, and require every other host to keep its previous settings.
 They are source checks only; OpenCode native acceptance belongs to root.
+
+The effective session maps are composed in inventory from the literal Jocasta
+inputs and the default-off HoloNet catalog input; activation() is that
+composition with HoloNet disabled, and effective_laptop() asks Ansible itself.
 """
 import copy
+import functools
 import importlib.util
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -40,10 +46,51 @@ KEYS = {
     "chaldea_client_session_ceilings", "chaldea_client_session_presets",
     "chaldea_client_session_enrollments", "chaldea_client_session_profiles", "retention_mise_prune",
 }
+SESSION_MAPS = ("ceilings", "presets", "enrollments", "profiles")
+# Each effective session map and the literal Jocasta input it equals while HoloNet is off.
+JOCASTA_INPUTS = {"chaldea_client_session_" + short: "chaldea_laptop_jocasta_" + short for short in SESSION_MAPS}
+
+
+def source():
+    """The activation file as written, with its composition expressions unevaluated."""
+    return yaml.safe_load(ACTIVATION.read_text())
 
 
 def activation():
-    return yaml.safe_load(ACTIVATION.read_text())
+    """The effective values with HoloNet disabled: each session map is its Jocasta input."""
+    values = source()
+    for effective, literal in JOCASTA_INPUTS.items():
+        values[effective] = values.pop(literal)
+    return values
+
+
+def effective_session_maps(extra=None):
+    """The laptop's session maps as Ansible templates them from the real inventory."""
+    with tempfile.TemporaryDirectory() as scratch:
+        output = Path(scratch) / "effective.json"
+        play = Path(scratch) / "effective.yml"
+        expression = ", ".join(f"'{key}': {key}" for key in JOCASTA_INPUTS)
+        play.write_text(yaml.safe_dump([{
+            "name": "Write the laptop's effective session maps", "hosts": "laptop", "gather_facts": False,
+            "tasks": [{"name": "Write them in order", "ansible.builtin.copy": {
+                "content": "{{ {" + expression + "} | to_json(sort_keys=False) }}", "dest": str(output),
+                "mode": "0600"}}]}]))
+        result = subprocess.run([
+            "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", "laptop", str(play),
+            "--extra-vars", json.dumps({"fleet_home": HOME} | (extra or {}))],
+            text=True, capture_output=True, cwd=ROOT)
+        assert result.returncode == 0, result.stdout + result.stderr
+        return json.loads(output.read_text())
+
+
+@functools.cache
+def _effective_laptop():
+    return json.dumps(effective_session_maps())
+
+
+def effective_laptop():
+    """The laptop's real effective session maps, HoloNet as configured (off)."""
+    return json.loads(_effective_laptop())
 
 
 def inventory_vars(host):
@@ -113,12 +160,18 @@ def with_codex(cwd):
 def test_inventory_merge_applies_the_activation_only_to_the_laptop():
     values = activation()
     assert set(values) == KEYS
+    assert set(source()) == KEYS | set(JOCASTA_INPUTS.values())
     # One source of truth: hosts.yml no longer sets any activation key inline.
     inline = inline_laptop()
-    assert not set(inline) & KEYS
+    assert not set(inline) & (KEYS | set(JOCASTA_INPUTS.values()))
     laptop = inventory_vars("laptop")
-    for key, value in values.items():
+    for key, value in source().items():
         assert laptop[key] == value, key
+    # Templated by Ansible, each session map is exactly its Jocasta input, in order.
+    effective = effective_laptop()
+    for key in JOCASTA_INPUTS:
+        assert effective[key] == values[key], key
+        assert list(effective[key]) == list(values[key]), key
     for key, value in inline.items():
         assert laptop[key] == value, key
     # Interactive Chaldea MCP stays on its previous config; shared pins stay shared.
@@ -131,7 +184,8 @@ def test_inventory_merge_applies_the_activation_only_to_the_laptop():
         other = inventory_vars(host)
         assert other["chaldea_node_version"] == "26.10.0", host
         assert other["chaldea_client_version"] == "client-v0.4.11", host
-        for key in KEYS - {"chaldea_node_version", "chaldea_client_waits_enabled", "chaldea_client_waits_environment"}:
+        for key in (KEYS | set(JOCASTA_INPUTS.values())) - {
+                "chaldea_node_version", "chaldea_client_waits_enabled", "chaldea_client_waits_environment"}:
             assert key not in other, (host, key)
     pc = inventory_vars("omarchy-pc")
     assert pc["chaldea_client_waits_enabled"] is True
@@ -234,7 +288,7 @@ def test_laptop_retention_never_prunes_the_stopped_quota_node():
 
 
 def test_opencode_selection_reuses_the_tooling_grant_and_pinned_native():
-    values = inventory_vars("laptop")
+    values = effective_laptop()
     # Same prompt, grant, ceiling and destination as Claude; no model options.
     assert values["chaldea_client_session_presets"][OPENCODE] == dict(
         values["chaldea_client_session_presets"][CLAUDE],
@@ -324,3 +378,14 @@ def test_real_inventory_renders_the_protected_policy_through_the_role(tmp_path):
         "ceilings": values["chaldea_client_session_ceilings"],
         "presets": values["chaldea_client_session_presets"],
         "enrollments": values["chaldea_client_session_enrollments"]}
+    # Byte for byte the policy of the previous literal maps: the same render with
+    # the composition replaced by the Jocasta inputs themselves, as extra vars.
+    previous = tmp_path / "previous.json"
+    play.write_text(play.read_text().replace(str(policy), str(previous)))
+    literal = tmp_path / "literal.json"
+    literal.write_text(json.dumps({"fleet_home": HOME} | {key: values[key] for key in JOCASTA_INPUTS}))
+    result = subprocess.run([
+        "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", "laptop", str(play),
+        "--extra-vars", "@" + str(literal)], text=True, capture_output=True, env=env, cwd=ROOT)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert policy.read_bytes() == previous.read_bytes()
