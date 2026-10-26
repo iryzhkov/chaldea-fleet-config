@@ -9,8 +9,9 @@ grant or lifetime. The helper, its compiled contract and signature checks, and
 the Claude and Codex registrations are unchanged. Limited Chaldea tooling
 profiles, including the limited OpenCode profile, are unchanged and separate.
 
-The capability is off. No inventory selects it. Root selects it per host after
-that host's protected staging and native qualification.
+Role defaults remain off. The qualified laptop selects the consumer; agent-a,
+agent-b and omarchy-pc remain unselected until their own protected staging and
+native qualification pass.
 
 ## Mechanism
 
