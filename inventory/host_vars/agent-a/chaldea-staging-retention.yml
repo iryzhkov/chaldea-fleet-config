@@ -1,0 +1,11 @@
+---
+# Preserve the separately staged waits runtime through ordinary user-mode pulls.
+# Existing installed rollback versions stay retained; current/previous are also
+# protected by the role. Missing versions are never installed by retention.
+# This selects no service, session policy, profile, provider or active runtime.
+chaldea_client_retained_versions:
+  - client-v0.2.0
+  - client-v0.3.0
+  - client-v0.4.7
+  - client-v0.4.8
+  - client-v0.4.20
