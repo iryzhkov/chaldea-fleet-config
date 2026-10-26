@@ -12,13 +12,15 @@ fleet_home: "{{ ansible_facts.user_dir }}"
 agent_tools_homelab_cli_repo: git@github-homelab-cli:iryzhkov/homelab-cli.git
 
 # Agent tools, each at an exact commit: none of them publishes releases yet.
+# Only explicitly selected hosts advance the stdio OV safety pin.
+agent_tools_ov_memory_ref: efac1c8f04662a3512da84aa6559a26061e97832
 agent_tools_sources:
   - name: homelab-cli
     repo: "{{ agent_tools_homelab_cli_repo }}"
     ref: f035d2820a28a523012078114005c30e8a0f00cc
   - name: ov-memory
     repo: https://github.com/iryzhkov/ov-mcp.git
-    ref: efac1c8f04662a3512da84aa6559a26061e97832
+    ref: "{{ agent_tools_ov_memory_ref }}"
 
 # The first main-only release, huyang-v0.21.0 from main f26ceb7. The orchestrator
 # downloaded both assets and computed these digests on 2026-10-18. Hosts enable

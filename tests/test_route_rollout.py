@@ -37,7 +37,11 @@ def test_agent_clients_use_native_t3_quota():
 # The held laptop OV activation pins the reviewed aarch64 headers helper for
 # the laptop alone; its exact value is asserted in
 # test_webmcp_managed_interactive.py.
+# The laptop and omarchy-pc stdio OV safety pins are checked for every host in
+# test_ov_source_selection.py.
 HOST_RELEASE_SELECTIONS = {
+    "inventory/host_vars/laptop/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
+    "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml": frozenset({
         "chaldea_node_version", "chaldea_client_waits_legacy_user_node_version",
         "chaldea_client_waits_runtime_root", "chaldea_client_session_profiles"}),
