@@ -61,7 +61,28 @@ retention_mise_prune: false
 chaldea_client_waits_legacy_user_node_version: "26.10.0"
 
 chaldea_client_session_policy_enabled: true
-chaldea_client_session_ceilings:
+
+# The role reads only the effective chaldea_client_session_* maps below. Each
+# is the literal Jocasta input that follows, plus the HoloNet catalog input
+# from host_vars/laptop/chaldea-holonet-catalog.yml only while
+# chaldea_laptop_holonet_catalog_enabled is true. Disabled, every map equals
+# its Jocasta input exactly, so the rendered policy and the delivered profiles
+# keep their bytes. Jocasta entries are combined last, so a HoloNet name can
+# never replace one of them.
+chaldea_client_session_ceilings: >-
+  {{ chaldea_laptop_jocasta_ceilings + (chaldea_laptop_holonet_catalog_ceilings
+     if chaldea_laptop_holonet_catalog_enabled | bool else []) }}
+chaldea_client_session_presets: >-
+  {{ (chaldea_laptop_holonet_catalog_presets if chaldea_laptop_holonet_catalog_enabled | bool else {})
+     | combine(chaldea_laptop_jocasta_presets) }}
+chaldea_client_session_enrollments: >-
+  {{ (chaldea_laptop_holonet_catalog_enrollments if chaldea_laptop_holonet_catalog_enabled | bool else {})
+     | combine(chaldea_laptop_jocasta_enrollments) }}
+chaldea_client_session_profiles: >-
+  {{ (chaldea_laptop_holonet_catalog_profiles if chaldea_laptop_holonet_catalog_enabled | bool else {})
+     | combine(chaldea_laptop_jocasta_profiles) }}
+
+chaldea_laptop_jocasta_ceilings:
   - project: tooling
     maxSeconds: 1800
     destinations: [f29ad608-ef74-42e2-bc34-1d8c4f4c8dc5]
@@ -73,7 +94,7 @@ chaldea_client_session_ceilings:
 
 # Destinations are T3 project IDs: the root caller's existing project. The
 # session runs in the dedicated "Jocasta tooling sessions" T3 project.
-chaldea_client_session_presets:
+chaldea_laptop_jocasta_presets:
   jocasta-tooling-claude:
     instanceId: claude-jocasta-tooling
     # The pinned Claude 2.1.276 native refuses opus-5-5 (needs >= 2.1.280);
@@ -135,7 +156,7 @@ chaldea_client_session_presets:
 # One ordinary Authentik account per host and profile, enrolled by
 # homelab-infra's playbooks/authentik-jocasta-tooling.yml, which delivers the
 # secretFile. JWT scope jocasta.read, 300-second lifetime.
-chaldea_client_session_enrollments:
+chaldea_laptop_jocasta_enrollments:
   jocasta-tooling-claude:
     form: app_password
     issuer: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/
@@ -175,7 +196,7 @@ chaldea_client_session_enrollments:
 
 # The native source is the operator-staged public asset under provider-assets,
 # never a download or a mise install path. Hash and size are reviewed pins.
-chaldea_client_session_profiles:
+chaldea_laptop_jocasta_profiles:
   jocasta-tooling-claude:
     driver: claude
     native:

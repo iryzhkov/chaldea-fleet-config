@@ -21,7 +21,7 @@ import yaml
 
 from test_laptop_jocasta_tooling import (
     ASSETS, CALLER, HOME, OPENCODE as NAME, PROJECT, RESOURCE, ROLE, ROOT, SERVICES, TOOLS, activation,
-    inventory_vars, load, strings)
+    effective_laptop, inventory_vars, load, strings)
 
 CANDIDATE = ROOT / "docs/examples/opencode-fleet-limited.yml"
 HOSTS = ("agent-a", "agent-b", "omarchy-pc")
@@ -123,7 +123,7 @@ def test_prepared_data_is_inert_and_every_binding_is_unpopulated():
                                    "chaldea_client_waits_legacy_user_node_version", "retention_mise_prune"}:
             assert key not in current, (host, key)
     # The laptop keeps exactly its three reviewed profiles.
-    laptop = inventory_vars("laptop")
+    laptop = effective_laptop()
     for short in ("presets", "enrollments", "profiles"):
         assert list(laptop["chaldea_client_session_" + short]) == [
             "jocasta-tooling-claude", "jocasta-tooling-codex", NAME]
