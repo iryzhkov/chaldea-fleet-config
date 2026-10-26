@@ -1,7 +1,8 @@
 // webmcp-interactive-headers is a closed, uncached native headers helper.
 // Trust: system HTTPS roots at fixed issuer/JWKS endpoints, then RS256 verification.
 // No CLI/config option can select another endpoint, resource, scope or client.
-// The only invocations are the fixed tuples "jocasta HOST" and "ov laptop".
+// The only invocations are the fixed tuples "jocasta HOST", "ov laptop" and
+// "ov-full HOST" for laptop and omarchy-pc.
 package main
 
 import (
@@ -52,6 +53,24 @@ const ovUsername = "chaldea-laptop-ov-interactive-codex"
 const ovCredential = ".config/chaldea/authentik/ov-interactive-codex.app-password"
 const ovNamespace = "viking://resources/homeassistant-api/rest-api.md"
 
+// The full interactive OV mode uses the same owned OV provider and one
+// resource-root account per selected host, whose signed grant carries all four
+// actions (homelab-infra playbooks/vars/authentik-ov-http-full-interactive.yml).
+// Ordinary Codex and Claude on that host share it. It never reads the narrow
+// interactive or limited preset credentials, and they never read its file.
+const ovFullScopes = "ov.read ov.write ov.remove ov.maintain"
+const ovFullCredential = ".config/chaldea/authentik/ov-full-interactive.app-password"
+const ovFullNamespace = "viking://resources"
+
+var ovFullActions = []string{"read", "write", "remove", "maintain"}
+
+// Each selected host's actual node name and numeric UID: homelab-infra binds
+// the credential delivery to exactly these.
+var ovFullHosts = map[string]struct {
+	node string
+	uid  int
+}{"laptop": {"omarchy-macbook-air-igor", 1001}, "omarchy-pc": {"omarchy-pc", 1000}}
+
 var denied = errors.New("managed headers unavailable")
 var hosts = map[string]bool{"laptop": true, "agent-a": true, "agent-b": true, "omarchy-pc": true}
 var ovKid = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
@@ -60,7 +79,18 @@ var ovKid = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 // managed Jocasta identity claims. Matching is on the lowercased name.
 var ovForeign = []string{"jocasta_projects", "jocasta_operator", "webmcp_identity", "grants", "project",
 	"source", "homelab_services", "homelab_hosts", "ha_entities", "ha_actions"}
-var ovChecked = []string{"iss", "sub", "aud", "azp", "scope", "iat", "exp", "nbf", "ov_namespaces"}
+var ovChecked = []string{"iss", "sub", "aud", "azp", "scope", "iat", "exp", "nbf", "ov_namespaces", "ov_actions"}
+
+// ovContract is one closed OV mode's signed grant. A nil actions list means
+// the token must carry no ov_actions claim at all.
+type ovContract struct {
+	scope     func(string) bool
+	namespace string
+	actions   []string
+}
+
+var ovNarrow = ovContract{scope: func(s string) bool { return s == ovScope }, namespace: ovNamespace}
+var ovFull = ovContract{scope: exactOVFullScopes, namespace: ovFullNamespace, actions: ovFullActions}
 
 type enrollment struct {
 	Version    int    `json:"version"`
@@ -77,6 +107,8 @@ func main() {
 		jocasta(os.Args[2])
 	case "ov":
 		ov()
+	case "ov-full":
+		ovFullMode(os.Args[2])
 	default:
 		fail()
 	}
@@ -92,6 +124,9 @@ func selectMode(args []string) string {
 	}
 	if args[0] == "ov" && args[1] == "laptop" {
 		return "ov"
+	}
+	if _, ok := ovFullHosts[args[1]]; ok && args[0] == "ov-full" {
+		return "ov-full"
 	}
 	return ""
 }
@@ -130,6 +165,38 @@ func ov() {
 		fail()
 	}
 	emit(token)
+}
+
+func ovFullMode(host string) {
+	node, err := os.Hostname()
+	if err != nil || ovFullBinding(host, node, os.Getuid()) != nil {
+		fail()
+	}
+	path, err := credentialPath(os.Getuid(), ovFullCredential)
+	if err != nil {
+		fail()
+	}
+	password, err := readOVCredential(path, os.Getuid())
+	if err != nil {
+		fail()
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	token, err := acquireOVFull(ctx, httpClient(), host, password, time.Now)
+	if err != nil {
+		fail()
+	}
+	emit(token)
+}
+
+// ovFullBinding admits only the selected host's own machine and account: the
+// kernel node name and real UID, never an argument, HOME or another variable.
+func ovFullBinding(host, node string, uid int) error {
+	binding, ok := ovFullHosts[host]
+	if !ok || node != binding.node || uid != binding.uid {
+		return denied
+	}
+	return nil
 }
 
 // This pipe is the only token output; no file or persistent token cache.
@@ -220,11 +287,15 @@ func readEnrollment(path string, uid int, host string) (enrollment, error) {
 // ovCredentialPath uses the account database's home for this UID. HOME, USER
 // and every other environment value are ignored.
 func ovCredentialPath(uid int) (string, error) {
+	return credentialPath(uid, ovCredential)
+}
+
+func credentialPath(uid int, relative string) (string, error) {
 	account, err := user.LookupId(strconv.Itoa(uid))
 	if err != nil || account.Uid != strconv.Itoa(uid) || !filepath.IsAbs(account.HomeDir) || filepath.Clean(account.HomeDir) != account.HomeDir {
 		return "", denied
 	}
-	return filepath.Join(account.HomeDir, ovCredential), nil
+	return filepath.Join(account.HomeDir, relative), nil
 }
 
 // The infra role delivers the exact app password, without a newline.
@@ -366,11 +437,32 @@ func exactScopes(s string) bool {
 	return len(f) == 2 && ((f[0] == "jocasta.read" && f[1] == "jocasta.write") || (f[1] == "jocasta.read" && f[0] == "jocasta.write"))
 }
 
+// exactOVFullScopes admits exactly the four OV families once each, in any
+// order, separated by single spaces.
+func exactOVFullScopes(s string) bool {
+	got := strings.Split(s, " ")
+	want := strings.Split(ovFullScopes, " ")
+	slices.Sort(got)
+	slices.Sort(want)
+	return slices.Equal(got, want)
+}
+
 func acquireOV(ctx context.Context, client *http.Client, password string, now func() time.Time) (string, error) {
+	return exchangeOV(ctx, client, ovUsername, password, ovScope, ovNarrow, now)
+}
+
+func acquireOVFull(ctx context.Context, client *http.Client, host, password string, now func() time.Time) (string, error) {
+	if _, ok := ovFullHosts[host]; !ok {
+		return "", denied
+	}
+	return exchangeOV(ctx, client, "chaldea-"+host+"-ov-full-interactive", password, ovFullScopes, ovFull, now)
+}
+
+func exchangeOV(ctx context.Context, client *http.Client, username, password, scope string, contract ovContract, now func() time.Time) (string, error) {
 	// The established OV client exchange (Chaldea's session credential): no
 	// resource indicator, since the provider's scope mapping fixes the audience.
-	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {ovClientID}, "username": {ovUsername},
-		"password": {password}, "scope": {ovScope}}
+	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {ovClientID}, "username": {username},
+		"password": {password}, "scope": {scope}}
 	start := now().Unix()
 	data, err := response(ctx, client, "POST", tokenURL, strings.NewReader(form.Encode()), 32768)
 	if err != nil {
@@ -383,14 +475,14 @@ func acquireOV(ctx context.Context, client *http.Client, password string, now fu
 		Scope       string          `json:"scope"`
 		Refresh     json.RawMessage `json:"refresh_token"`
 	}
-	if strictJSON(data, &result) != nil || !strings.EqualFold(result.TokenType, "Bearer") || result.ExpiresIn <= 30 || result.ExpiresIn > 300 || result.Scope != ovScope || len(result.Refresh) != 0 {
+	if strictJSON(data, &result) != nil || !strings.EqualFold(result.TokenType, "Bearer") || result.ExpiresIn <= 30 || result.ExpiresIn > 300 || !contract.scope(result.Scope) || len(result.Refresh) != 0 {
 		return "", denied
 	}
 	keys, err := response(ctx, client, "GET", ovJWKSURL, nil, 65536)
 	if err != nil {
 		return "", denied
 	}
-	if validateOV(result.AccessToken, keys, now().Unix(), start, result.ExpiresIn) != nil {
+	if validateOVContract(result.AccessToken, keys, now().Unix(), start, result.ExpiresIn, contract) != nil {
 		return "", denied
 	}
 	return result.AccessToken, nil
@@ -507,9 +599,21 @@ func validateToken(token string, keys []byte, identity string, now, start, expir
 // validateOV checks the signed OV contract after signature verification. It
 // follows the OV verifier: one string audience, ov.read, a nonempty subject
 // without control characters, at most 32 claims, an alg/kid/typ-only header,
-// and the exact single admitted namespace. The OV scope mapping signs no
-// account identity, so the subject is checked for shape, not compared.
+// and the exact single admitted namespace, without any ov_actions claim. The
+// OV scope mapping signs no account identity, so the subject is checked for
+// shape, not compared.
 func validateOV(token string, keys []byte, now, start, expires int64) error {
+	return validateOVContract(token, keys, now, start, expires, ovNarrow)
+}
+
+// validateOVFull additionally requires the four OV scope families and exactly
+// the resources root with all four signed actions; an old read-only grant shape
+// is refused rather than treated as full access.
+func validateOVFull(token string, keys []byte, now, start, expires int64) error {
+	return validateOVContract(token, keys, now, start, expires, ovFull)
+}
+
+func validateOVContract(token string, keys []byte, now, start, expires int64, contract ovContract) error {
 	if len(token) > 12288 {
 		return denied
 	}
@@ -549,13 +653,26 @@ func validateOV(token string, keys []byte, now, start, expires int64) error {
 	}
 	var iss, aud, azp, scope, sub string
 	if !text(c["iss"], &iss) || iss != ovIssuer || !text(c["aud"], &aud) || aud != ovResource ||
-		!text(c["azp"], &azp) || azp != ovClientID || !text(c["scope"], &scope) || scope != ovScope ||
+		!text(c["azp"], &azp) || azp != ovClientID || !text(c["scope"], &scope) || !contract.scope(scope) ||
 		!text(c["sub"], &sub) || !subject(sub) {
 		return denied
 	}
 	var namespaces []string
-	if raw, ok := c["ov_namespaces"]; !ok || json.Unmarshal(raw, &namespaces) != nil || len(namespaces) != 1 || namespaces[0] != ovNamespace {
+	if raw, ok := c["ov_namespaces"]; !ok || json.Unmarshal(raw, &namespaces) != nil || len(namespaces) != 1 || namespaces[0] != contract.namespace {
 		return denied
+	}
+	// Signed actions are an exact list: unknown, duplicate, missing or reordered
+	// actions refuse, and the narrow mode admits no action claim at all.
+	raw, present := c["ov_actions"]
+	if contract.actions == nil {
+		if present {
+			return denied
+		}
+	} else {
+		var actions []string
+		if !present || len(raw) == 0 || raw[0] != '[' || json.Unmarshal(raw, &actions) != nil || !slices.Equal(actions, contract.actions) {
+			return denied
+		}
 	}
 	var iat, exp int64
 	if !integer(c["iat"], &iat) || !integer(c["exp"], &exp) {
