@@ -1,11 +1,10 @@
 """Laptop's persistent Jocasta tooling activation, read from the real inventory.
 
-Only the laptop's dedicated host_vars file opts into system waits, the protected
-session policy and its fixed provider profiles: the qualified Claude and Codex
-profiles and the root-gated OpenCode selection. These tests render the actual
-inventory merge, check the exact bound public configuration with the role's own
-closed validators, and require every other host to keep its previous settings.
-They are source checks only; OpenCode native acceptance belongs to root.
+The laptop's dedicated host_vars file selects system waits and the protected
+Claude, Codex and OpenCode profiles. These tests render its actual inventory
+merge and check the exact public configuration with the role's closed validators.
+The three x86 hosts select only limited OpenCode; other hosts keep their previous
+settings. These are source checks; OpenCode native acceptance belongs to root.
 
 The effective session maps are composed in inventory from the literal Jocasta
 inputs and the qualified HoloNet catalog input; activation() is that
@@ -157,7 +156,7 @@ def with_codex(cwd):
     return values
 
 
-def test_inventory_merge_applies_the_activation_only_to_the_laptop():
+def test_inventory_merge_preserves_laptop_and_scopes_other_selections():
     values = activation()
     assert set(values) == KEYS
     assert set(source()) == KEYS | set(JOCASTA_INPUTS.values())
@@ -184,13 +183,20 @@ def test_inventory_merge_applies_the_activation_only_to_the_laptop():
         other = inventory_vars(host)
         assert other["chaldea_node_version"] == "26.10.0", host
         assert other["chaldea_client_version"] == "client-v0.4.11", host
-        for key in (KEYS | set(JOCASTA_INPUTS.values())) - {
-                "chaldea_node_version", "chaldea_client_waits_enabled", "chaldea_client_waits_environment"}:
+        if host in ("agent-a", "agent-b", "omarchy-pc"):
+            assert other["chaldea_client_waits_service_mode"] == "system"
+            for short in ("presets", "enrollments", "profiles"):
+                assert list(other["chaldea_client_session_" + short]) == [OPENCODE]
+            absent = {"chaldea_client_waits_legacy_user_node_version", "retention_mise_prune"} | set(JOCASTA_INPUTS.values())
+        else:
+            absent = (KEYS | set(JOCASTA_INPUTS.values())) - {"chaldea_node_version"}
+        for key in absent:
             assert key not in other, (host, key)
     pc = inventory_vars("omarchy-pc")
     assert pc["chaldea_client_waits_enabled"] is True
     assert pc["chaldea_client_waits_environment"] == "94023493-6346-46a6-8ca0-3c7d7ef28644"
-    for host in ("agent-a", "agent-b", "normandy", "homelab"):
+    assert pc["mcp_registrations_chaldea_waits_enabled"] is True
+    for host in ("normandy", "homelab"):
         other = inventory_vars(host)
         assert "chaldea_client_waits_enabled" not in other and "chaldea_client_waits_environment" not in other
 
@@ -309,7 +315,7 @@ def test_opencode_selection_reuses_the_tooling_grant_and_pinned_native():
     # HoloNet has a separate ceiling; the tooling grant is unchanged.
     assert [c for c in values["chaldea_client_session_ceilings"] if c["project"] == "tooling"] == [
         {"project": "tooling", "maxSeconds": 1800, "destinations": [CALLER], "services": SERVICES}]
-    for host in OTHER_HOSTS:
+    for host in ("normandy", "homelab"):
         other = inventory_vars(host)
         for short in ("presets", "enrollments", "profiles"):
             assert OPENCODE not in other.get("chaldea_client_session_" + short, {}), host

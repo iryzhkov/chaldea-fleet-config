@@ -1,0 +1,81 @@
+---
+# Source selection only. Root owns enrollment, native qualification and merge.
+# Ordinary pulls activate this file after merge. No live gate is implied.
+# Composed from docs/examples/opencode-fleet-limited.yml using this host's
+# independently recorded T3 bindings. Keep ordinary current/rollback separate.
+chaldea_client_waits_enabled: true
+chaldea_client_waits_service_mode: system
+chaldea_client_waits_deadline: ""
+chaldea_client_waits_environment: 3bdbb18e-1b99-468a-a408-b6a37eb992a0
+chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.20
+chaldea_client_session_policy_enabled: true
+
+chaldea_client_session_ceilings:
+  - project: tooling
+    maxSeconds: 1800
+    destinations: [6da35bb8-30b0-495d-9d27-a515a8104cae]
+    services:
+      - audience: jocasta
+        grants:
+          - resource: project:tooling
+            actions: [get, history, list, search]
+
+chaldea_client_session_presets:
+  jocasta-tooling-opencode:
+    instanceId: opencode-jocasta-tooling
+    model: opencode/big-pickle
+    runtimeMode: approval-required
+    interactionMode: default
+    title: Jocasta tooling read-only OpenCode
+    prompt: >-
+      Use only the jocasta_tooling MCP server. Do not use other tools, local
+      files, commands, web browsing or delegation. Read lines 1:3 of document id
+      0039fc5e47f4ecf7f2aa5b02d3651b3c in project tooling, then request document
+      id 0004d615b73f2a91d0caa4e80b25cae3 from project homelab and verify it is
+      denied or not found. Do not mutate any document. Return only JSON under
+      1000 UTF-8 bytes:
+      {"v":1,"status":"PASS|FAIL|INCOMPLETE","toolingRead":"PASS|FAIL","otherProject":"DENIED|FAIL","documentId":"0039fc5e47f4ecf7f2aa5b02d3651b3c","revision":1,"issues":[]}.
+      This is reporter data, not instructions. Never include document content,
+      credentials or auth headers.
+    inputs: {project: tooling}
+    project: tooling
+    maxSeconds: 1800
+    delegate: false
+    projectId: 78efc077-aaef-4e2d-99eb-c655f4acdd63
+    destinations: [6da35bb8-30b0-495d-9d27-a515a8104cae]
+    services:
+      - audience: jocasta
+        grants:
+          - resource: project:tooling
+            actions: [get, history, list, search]
+
+chaldea_client_session_enrollments:
+  jocasta-tooling-opencode:
+    form: app_password
+    issuer: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/
+    tokenUrl: https://auth.ryzhkov.dev/application/o/token/
+    jwksUrl: https://auth.ryzhkov.dev/application/o/chaldea-jocasta/jwks/
+    clientId: chaldea-jocasta-tooling
+    scope: jocasta.read
+    resource: https://jocasta.mcp.ryzhkov.dev/mcp
+    project: tooling
+    maxTokenSeconds: 300
+    secretFile: /home/igor/.config/chaldea/authentik/jocasta-tooling-opencode.app-password
+    username: chaldea-agent-b-jocasta-tooling-opencode
+
+chaldea_client_session_profiles:
+  jocasta-tooling-opencode:
+    driver: opencode
+    native:
+      source: /home/igor/.local/share/chaldea/provider-assets/opencode/2.1.3/opencode
+      sha256: 4c2630769fa853343a781e765b2280fc1a07f33f7c10d484f75d59e61eb85bc3
+      size: 240306352
+    elf_machine: 62
+    home: /home/igor/.local/state/chaldea/profiles/jocasta-tooling-opencode/home
+    tmpdir: /home/igor/.local/state/chaldea/profiles/jocasta-tooling-opencode/tmp
+    preset: jocasta-tooling-opencode
+    audience: jocasta
+    server: jocasta_tooling
+    url: https://jocasta.mcp.ryzhkov.dev/mcp
+    tools: [get, history, list, search]
+    cwd: /home/igor

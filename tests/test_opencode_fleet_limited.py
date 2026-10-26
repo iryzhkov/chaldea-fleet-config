@@ -1,13 +1,9 @@
-"""Prepared limited OpenCode selections for agent-a, agent-b and omarchy-pc.
+"""Source selections for limited OpenCode on agent-a, agent-b and omarchy-pc.
 
-The prepared data (docs/examples/opencode-fleet-limited.yml) is outside
-inventory. These tests check that it stays inert, that composing a host's
-selection refuses unpopulated, malformed, shared or laptop-copied bindings,
-that the composed selection is the laptop's reviewed OpenCode shape with only
-the host-local facts changed, and that the role's own validators, policy
-render and profile delivery accept it. The bindings used here are explicit
-test-only IDs, never real host metadata. Nothing here reads a credential,
-contacts an issuer or touches a host.
+Check real inventory against the existing composition and independently recorded
+public bindings. Synthetic bindings exercise refusals. Role validation, policy
+render and profile delivery run only in scratch; they do not qualify live hosts.
+Nothing here reads a credential or contacts an issuer.
 """
 import copy
 import json
@@ -44,10 +40,32 @@ def fixture_id(host, slot, prefix=""):
     return prefix + "00000000-0000-4000-8000-%012x" % (HOSTS.index(host) * 16 + slot + 0xf1000)
 
 
-# Test-only bindings. Real values come from each host's own T3 server at root
-# integration and replace these nowhere in source except that host's inventory.
+# Synthetic bindings remain separate from the independently recorded public IDs.
 FIXTURE = {host: {"caller_destination": fixture_id(host, 1), "session_project": fixture_id(host, 2, "mcp:")}
            | ({} if host == "omarchy-pc" else {"waits_environment": fixture_id(host, 0)}) for host in HOSTS}
+
+
+# HOST-BINDINGS-CURRENT.json, independently reread on each host, 2026-10-26.
+EXPECTED_BINDINGS = {
+    "agent-a": {
+        "waits_environment": "dc3566f7-d27c-43b5-8ea1-73e132e53679",
+        "caller_destination": "cd6771e9-9294-4d56-9270-8cefff423bf8",
+        "session_project": "ff2f9e9e-78ac-4dc1-87b5-09f96d6790ba"
+    },
+    "agent-b": {
+        "waits_environment": "3bdbb18e-1b99-468a-a408-b6a37eb992a0",
+        "caller_destination": "6da35bb8-30b0-495d-9d27-a515a8104cae",
+        "session_project": "78efc077-aaef-4e2d-99eb-c655f4acdd63"
+    },
+    "omarchy-pc": {
+        "caller_destination": "mcp:3468b34a-e7fa-4438-9de8-3ca0911f148c",
+        "session_project": "cbddbdc3-07f6-4089-ad38-19cae918fc8d"
+    }
+}
+EXPECTED_WORKSPACES = {
+    "agent-a": HOME, "agent-b": HOME,
+    "omarchy-pc": HOME + "/.local/state/chaldea/session-workspaces/jocasta-tooling-opencode",
+}
 
 
 class Unbound(ValueError):
@@ -81,7 +99,7 @@ def compose(host, bindings, packet=None):
         selection["preset"], projectId=bindings["session_project"], services=services, destinations=destinations)}
     values["chaldea_client_session_enrollments"] = {NAME: dict(
         selection["enrollment"], username="chaldea-" + host + "-" + NAME)}
-    values["chaldea_client_session_profiles"] = {NAME: selection["profile"]}
+    values["chaldea_client_session_profiles"] = {NAME: dict(selection["profile"], cwd=packet["workspaces"][host])}
     return values
 
 
@@ -102,26 +120,32 @@ def validate(values):
         values["chaldea_client_session_enrollments"], HOME, [])
 
 
-def test_prepared_data_is_inert_and_every_binding_is_unpopulated():
+def test_real_inventory_equals_the_composition_with_exact_host_bindings():
     packet = candidate()
-    assert set(packet) == {"bindings", "selection"}
+    assert set(packet) == {"bindings", "workspaces", "selection"}
     assert list(packet["bindings"]) == list(HOSTS)
-    assert {host: set(packet["bindings"][host]) for host in HOSTS} == {host: set(FIXTURE[host]) for host in HOSTS}
-    assert all(value is None for host in HOSTS for value in packet["bindings"][host].values())
-    for host in HOSTS:
-        with pytest.raises(Unbound):
-            compose(host, packet["bindings"][host], packet)
-    for path in (ROOT / "inventory").rglob("*"):
-        if path.is_file() and path != ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml":
-            assert NAME not in path.read_text(errors="replace"), path
-    for host in HOSTS:
-        assert not (ROOT / "inventory/host_vars" / host / "chaldea-jocasta-tooling.yml").exists()
+    assert packet["bindings"] == EXPECTED_BINDINGS
+    assert packet["workspaces"] == EXPECTED_WORKSPACES
+    selections = compose_all(packet["bindings"])
+    for host, values in selections.items():
+        path = ROOT / "inventory/host_vars" / host / "chaldea-jocasta-tooling.yml"
+        assert yaml.safe_load(path.read_text()) == values
         current = inventory_vars(host)
-        assert current["chaldea_node_version"] == "26.10.0" and current["chaldea_client_version"] == "client-v0.4.11"
-        for key in SESSION_KEYS | {"chaldea_client_waits_service_mode", "chaldea_client_waits_runtime_root",
-                                   "chaldea_client_session_policy_enabled",
-                                   "chaldea_client_waits_legacy_user_node_version", "retention_mise_prune"}:
+        assert all(current[key] == value for key, value in values.items())
+        assert current["chaldea_node_version"] == "26.10.0"
+        assert current["chaldea_client_version"] == "client-v0.4.11"
+        for key in ("chaldea_client_waits_legacy_user_node_version", "retention_mise_prune",
+                    "chaldea_client_session_profiles_absent"):
             assert key not in current, (host, key)
+        interactive = yaml.safe_load((path.parent / "jocasta-interactive.yml").read_text())
+        assert interactive["webmcp_interactive_enabled"] is True
+        assert interactive["webmcp_interactive_opencode_state"] == "present"
+        assert interactive["mcp_registrations_remote_servers"] == [{
+            "name": "jocasta", "state": "{{ mcp_registrations_jocasta_interactive_state }}",
+            "url": RESOURCE, "providers": ["claude", "codex"]}]
+        assert interactive["webmcp_interactive_helper_source"] == "/usr/local/libexec/webmcp-interactive-headers"
+        assert interactive["webmcp_interactive_credential_source"] == (
+            "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json")
     # The laptop keeps its three Jocasta profiles plus qualified HoloNet.
     laptop = effective_laptop()
     for short in ("presets", "enrollments", "profiles"):
@@ -136,7 +160,7 @@ def _set(host, key, value):
 
 
 @pytest.mark.parametrize("change", [
-    pytest.param(None, id="prepared-nulls"),
+    pytest.param(None, id="unpopulated-bindings"),
     pytest.param(_set("agent-a", "waits_environment", ""), id="empty-environment"),
     pytest.param(_set("agent-b", "caller_destination", "TODO"), id="placeholder-caller"),
     pytest.param(_set("agent-a", "session_project", "mcp:" + "0" * 31), id="malformed-project"),
@@ -152,7 +176,7 @@ def _set(host, key, value):
 ])
 def test_composition_refuses_unpopulated_shared_or_copied_bindings(change):
     if change is None:
-        bindings = candidate()["bindings"]
+        bindings = {host: {key: None for key in values} for host, values in FIXTURE.items()}
     else:
         bindings = copy.deepcopy(FIXTURE)
         change(bindings)
@@ -181,7 +205,8 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
         assert values["chaldea_client_session_enrollments"][NAME] == dict(
             laptop["chaldea_client_session_enrollments"][NAME], username="chaldea-" + host + "-" + NAME)
         profile = values["chaldea_client_session_profiles"][NAME]
-        assert profile == dict(laptop["chaldea_client_session_profiles"][NAME], native=X64, elf_machine=62)
+        assert profile == dict(laptop["chaldea_client_session_profiles"][NAME], native=X64, elf_machine=62,
+                               cwd=EXPECTED_WORKSPACES[host])
         assert profile["native"]["sha256"] != laptop["chaldea_client_session_profiles"][NAME]["native"]["sha256"]
         assert values["chaldea_client_session_enrollments"][NAME]["secretFile"] == (
             HOME + "/.config/chaldea/authentik/jocasta-tooling-opencode.app-password")
@@ -203,7 +228,7 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
 
 @pytest.mark.parametrize("host", HOSTS)
 def test_role_closed_validators_accept_each_composed_host(host):
-    assert validate(compose_all(FIXTURE)[host])
+    assert validate(compose_all(candidate()["bindings"])[host])
 
 
 def _preset(**change):
@@ -243,7 +268,7 @@ def test_role_validators_refuse_widened_composed_selections(mutate):
 @pytest.mark.parametrize("host", HOSTS)
 def test_real_inventory_renders_each_host_policy_through_the_role(tmp_path, host):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).resolve())
-    values = compose_all(FIXTURE)[host]
+    values = compose_all(candidate()["bindings"])[host]
     policy = tmp_path / "policy.json"
     play = tmp_path / "validate.yml"
     play.write_text(yaml.safe_dump([{
@@ -261,7 +286,7 @@ def test_real_inventory_renders_each_host_policy_through_the_role(tmp_path, host
         ],
     }]))
     extra_path = tmp_path / "selection.json"
-    extra_path.write_text(json.dumps({"fleet_home": HOME} | values))
+    extra_path.write_text(json.dumps({"fleet_home": HOME}))
     env = dict(os.environ, ANSIBLE_ROLES_PATH=str(ROOT / "roles"))
     result = subprocess.run([
         "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", host, str(play),
@@ -277,10 +302,10 @@ def test_real_inventory_renders_each_host_policy_through_the_role(tmp_path, host
 
 
 def test_inventory_render_refuses_a_selection_without_a_waits_environment(tmp_path):
-    # agent-a declares no environment in source: an unbound selection stops the
+    # An explicitly empty environment overrides inventory and must stop the
     # role's own public validation before any write.
     values = compose_all(FIXTURE)["agent-a"]
-    values.pop("chaldea_client_waits_environment")
+    values["chaldea_client_waits_environment"] = ""
     play = tmp_path / "validate.yml"
     play.write_text(yaml.safe_dump([{
         "name": "Validate an unbound selection", "hosts": "agent-a", "gather_facts": False,
@@ -296,16 +321,21 @@ def test_inventory_render_refuses_a_selection_without_a_waits_environment(tmp_pa
     assert "needs waits enabled with its environment" in result.stdout, result.stdout[-6000:]
 
 
+@pytest.mark.parametrize("host", HOSTS)
 @pytest.mark.parametrize("machine,launches", [(62, True), (183, False)])
 def test_actual_role_delivers_the_composed_profile_and_its_launcher_checks_the_machine(
-        tmp_path, monkeypatch, machine, launches):
+        tmp_path, monkeypatch, host, machine, launches):
     from test_chaldea_session_profiles import ok, run
     from test_chaldea_session_profiles_opencode import opencode_layout
 
     case = opencode_layout(tmp_path, monkeypatch)
     if case.opencode["elf_machine"] != 62:
         pytest.skip("needs an x86-64 job host: the scratch native is the host's bash")
-    values = compose_all(FIXTURE)["agent-a"]
+    values = compose_all(candidate()["bindings"])[host]
+    if host == "omarchy-pc":
+        cwd = case.home / ".local/state/chaldea/session-workspaces/jocasta-tooling-opencode"
+        cwd.mkdir(parents=True, mode=0o700)
+        case.opencode["cwd"] = str(cwd)
     variables = case.variables
     # The scratch fixture supplies the native bytes, private directories and
     # T3 server directory; preset, grant, enrollment, server, URL and tools are

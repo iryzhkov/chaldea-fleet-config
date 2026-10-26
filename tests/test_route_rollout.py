@@ -42,6 +42,11 @@ def test_agent_clients_use_native_t3_quota():
 # The laptop and omarchy-pc stdio OV safety pins are checked for every host in
 # test_ov_source_selection.py.
 HOST_RELEASE_SELECTIONS = {
+    # Exact limited selections; native pins and separate .20 waits are checked
+    # against the composition in test_opencode_fleet_limited.py.
+    **{f"inventory/host_vars/{host}/chaldea-jocasta-tooling.yml": frozenset({
+        "chaldea_client_waits_runtime_root", "chaldea_client_session_profiles"})
+       for host in ("agent-a", "agent-b", "omarchy-pc")},
     "inventory/host_vars/laptop/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml": frozenset({

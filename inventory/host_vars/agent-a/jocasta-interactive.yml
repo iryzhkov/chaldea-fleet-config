@@ -3,8 +3,10 @@
 # review and CI before merge. Ordinary pulls activate these selections.
 # Laptop is accepted; this host still needs its own on-host native acceptance.
 # Reuse installed protected sources after root's initial per-host delivery.
-# OpenCode is excluded. Rollback must restore this host's prior entry absence.
+# Ordinary OpenCode uses the existing fleet Jocasta plugin. Root owns native
+# acceptance before merge. Rollback removes only its marked plugin file.
 webmcp_interactive_enabled: true
+webmcp_interactive_opencode_state: present
 webmcp_interactive_laptop_qualified: true
 webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
 webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
