@@ -193,10 +193,22 @@ name ov, its exact URL, Codex only, helper_host laptop only and empty extra.
 Claude, OpenCode, other hosts, arbitrary helper strings, headers and OAuth
 fields are refused. An explicit ov state=absent is honored.
 
-No inventory enables this capability. The inert
+The laptop activation is HELD. Its owning inventory,
+inventory/host_vars/laptop/jocasta-interactive.yml, sets
+webmcp_interactive_ov_enabled and a laptop-only webmcp_interactive_helper_sha256
+for the reviewed aarch64 build ff9ccff552680ce1e86b3bed4c68c1a7902a0a0e7a0b5f9de174bc3d74b568fc
+(Chaldea build 031e3362-b931-43e3-9da3-be31383e22dc). The shared architecture
+pins and the other hosts are unchanged. Merging it activates ordinary laptop
+pulls, so it stays unmerged until all of these hold: the separate ordinary OV
+credential exists and is accepted; the reviewed helper is protected-staged;
+root has accepted the full CHECK; and one bounded staging/merge/convergence
+interval is ready. The installed helper's previous public SHA256,
+f936deea9705fa4237f5c74760ccd51e1ab473fffa498836002f68b8c05036ba, is only an
+explicit one-time operational upgrade guard (private
+webmcp_interactive_previous_helper_sha256 for the staging run), not a permanent
+acceptance list; inventory never carries it. The
 [activation example](examples/laptop-ov-interactive-codex.yml) lists root's
-preconditions, the self-sourced installed credential and helper, and where the
-reviewed helper pin goes. Upgrading the laptop's helper replaces the binary
+preconditions and the self-sourced installed credential and helper. Upgrading the laptop's helper replaces the binary
 that also serves its Jocasta registration, so root rechecks laptop Jocasta
 after the upgrade. Native acceptance (allowed node read, sibling denial,
 reuse past token lifetime) remains root's on-host evidence; the fixtures here

@@ -20,6 +20,19 @@ webmcp_interactive_enabled: true
 webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
 webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
 
+# HELD laptop OV selection for ordinary Codex only (docs/managed-interactive-webmcp.md,
+# "Laptop OV for ordinary Codex"). Do not merge until the separate ordinary OV
+# credential is accepted, the reviewed helper below is protected-staged, root
+# has accepted the full CHECK and one bounded staging/merge/convergence interval
+# is ready. The helper and Jocasta enrollment keep their installed self-sources;
+# the OV credential is infra-delivered and fleet only checks its custody.
+webmcp_interactive_ov_enabled: true
+# Laptop-only pin for the reviewed aarch64 helper with the OV mode, from Chaldea
+# build 031e3362-b931-43e3-9da3-be31383e22dc. Host vars take precedence over the
+# shared architecture pin; the other hosts keep their existing artifact. The
+# previous helper digest is a one-time private staging input, never inventory.
+webmcp_interactive_helper_sha256: ff9ccff552680ce1e86b3bed4c68c1a7902a0a0e7a0b5f9de174bc3d74b568fc
+
 mcp_registrations_jocasta_interactive_state: present
 
 mcp_registrations_remote_servers:
