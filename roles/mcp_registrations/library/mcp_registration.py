@@ -18,10 +18,14 @@ description:
     helpers, bearer tokens or client secrets, and refuses extra keys outside
     that public allowlist. Native login stays with the user.
   - auth_mode=managed_helper is a separate closed capability with exactly two
-    reviewed tuples: Jocasta for Claude and Codex on the four managed hosts,
+    reviewed default tuples: Jocasta for Claude and Codex on the four managed hosts,
     and OV for Codex on the laptop only. It emits only the fixed public helper
     command for helper_host, requires empty extra and never accepts arbitrary
     helper or secret fields.
+  - helper_profile selects one further closed managed_helper tuple by name. The
+    only one, ov-full, is the full interactive OV successor of the laptop OV
+    entry: the same name and resource for Claude and Codex on laptop and
+    omarchy-pc, with the helper's separate "ov-full HOST" mode.
   - claude mcp get does not show the OAuth options, so for a remote server the
     module reads the one user registration from claude_config to compare it.
     Only allowlisted public fields keep their values; any other field counts as
@@ -37,6 +41,7 @@ options:
   url: {description: HTTPS URL of a remote server, type: str}
   auth_mode: {description: oauth or closed managed_helper mode, default: oauth, type: str}
   helper_host: {description: Explicit approved host in managed_helper mode, type: str}
+  helper_profile: {description: Closed managed_helper profile other than the name's default (ov-full), type: str}
   extra: {description: Further provider-specific keys, type: dict}
   claude_command: {description: The claude CLI as an argument list, type: list, elements: str}
   claude_config: {description: Claude's user config, read only for a remote server, type: path}
@@ -102,10 +107,18 @@ MANAGED_SERVERS = {
     "ov": {"url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": frozenset({"codex"}),
            "commands": {"laptop": HELPER_PATH + " ov laptop"}},
 }
+# Closed profiles selected explicitly by helper_profile. Each keeps a fixed
+# registration name, so selecting one replaces that name's default tuple on the
+# host instead of adding a second entry with the same tools.
+MANAGED_PROFILES = {
+    "ov-full": {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+                "commands": {host: HELPER_PATH + " ov-full " + host for host in ("laptop", "omarchy-pc")}},
+}
 
 
 def managed_helper(value):
-    return isinstance(value, str) and any(value in server["commands"].values() for server in MANAGED_SERVERS.values())
+    return isinstance(value, str) and any(value in server["commands"].values()
+                                          for server in [*MANAGED_SERVERS.values(), *MANAGED_PROFILES.values()])
 
 
 class Hidden:
@@ -194,13 +207,19 @@ def remote_definition(module, provider, params):
     extra = params["extra"]
     if params.get("auth_mode", "oauth") == "managed_helper":
         host = params.get("helper_host")
-        server = MANAGED_SERVERS.get(params["name"])
+        profile = params.get("helper_profile")
+        if profile is None:
+            server = MANAGED_SERVERS.get(params["name"])
+        else:
+            server = MANAGED_PROFILES.get(profile) if isinstance(profile, str) else None
+            if server is not None and server["name"] != params["name"]:
+                server = None
         if (server is None or provider not in HELPER_FIELDS or provider not in server["providers"]
                 or host not in server["commands"] or extra or params["url"] != server["url"]):
             module.fail_json(msg="managed_helper requires a fixed reviewed name and resource, its approved host and native provider, without extra options")
         definition = {"url": params["url"], HELPER_FIELDS[provider]: server["commands"][host]}
         return {"type": "http", **definition} if provider == "claude" else definition
-    if params.get("helper_host") is not None:
+    if params.get("helper_host") is not None or params.get("helper_profile") is not None:
         module.fail_json(msg="helper_host belongs only to managed_helper auth mode")
     unknown = sorted(set(extra) - REMOTE_EXTRA[provider])
     oauth = extra.get("oauth", {})
@@ -524,6 +543,7 @@ def main():
             "url": {"type": "str"},
             "auth_mode": {"type": "str", "default": "oauth", "choices": ["oauth", "managed_helper"]},
             "helper_host": {"type": "str"},
+            "helper_profile": {"type": "str"},
             "extra": {"type": "dict", "default": {}},
             "claude_command": {"type": "list", "elements": "str", "default": ["claude"]},
             "claude_config": {"type": "path", "default": "~/.claude.json"},
@@ -539,7 +559,8 @@ def main():
 def check_transport(module, params):
     """A stdio server needs a command; a remote one a public HTTPS URL and no stdio fields."""
     if params["transport"] == "stdio":
-        if params.get("auth_mode", "oauth") != "oauth" or params.get("helper_host") is not None:
+        if (params.get("auth_mode", "oauth") != "oauth" or params.get("helper_host") is not None
+                or params.get("helper_profile") is not None):
             module.fail_json(msg="managed helper authentication requires remote transport")
         if params["url"] is not None:
             module.fail_json(msg="url belongs to a remote server; set transport: remote")

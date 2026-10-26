@@ -50,5 +50,8 @@ mcp_registrations_codex_config: "{{ fleet_home }}/.codex/config.toml"
 # Jocasta managed_helper entry after protected staging. Default remains OAuth.
 # On the laptop only, webmcp_interactive_ov_enabled additionally selects the
 # fixed Codex-only OV entry (helper "ov laptop"); it is off by default.
+# On laptop or omarchy-pc, webmcp_interactive_ov_full_enabled instead selects
+# the full interactive OV entry of the same name for Claude and Codex (helper
+# "ov-full HOST"); it is off by default and excludes the narrow opt-in.
 # See docs/managed-interactive-webmcp.md; no host is enabled by this capability.
 mcp_registrations_remote_servers: []
