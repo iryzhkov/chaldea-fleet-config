@@ -27,7 +27,9 @@ password nor JWT belongs in chat, tool arguments or logs.
 `webmcp_interactive_holonet_enabled` defaults to false. It requires the existing
 `webmcp_interactive_enabled`, laptop UID1001, private separately delivered
 credential metadata and a reviewed helper artifact pin before activation.
-No inventory selects it in this source batch. Existing Jocasta and OV helper
+Only laptop inventory selects it. Keep the activation candidate unmerged until
+guarded staging, exact artifact/native/lifetime acceptance and rollback readiness
+pass. Merging activates it through normal pulls. Existing Jocasta and OV helper
 modes and registrations remain available. Removing only this named native entry
 is the registration inverse; do not withdraw unrelated servers or the preset.
 
