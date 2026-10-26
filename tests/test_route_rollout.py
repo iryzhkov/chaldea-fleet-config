@@ -45,6 +45,11 @@ HOST_RELEASE_SELECTIONS = {
         "chaldea_client_waits_runtime_root", "chaldea_laptop_jocasta_profiles"}),
     "inventory/host_vars/laptop/chaldea-holonet-catalog.yml": frozenset({"chaldea_laptop_holonet_catalog_profiles"}),
     "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
+    # Inactive-runtime retention only; bounded histories and cleanup preservation
+    # are exercised in test_chaldea_client.py. These do not select active pins.
+    "inventory/host_vars/agent-a/chaldea-staging-retention.yml": frozenset({"chaldea_client_retained_versions"}),
+    "inventory/host_vars/agent-b/chaldea-staging-retention.yml": frozenset({"chaldea_client_retained_versions"}),
+    "inventory/host_vars/omarchy-pc/chaldea-staging-retention.yml": frozenset({"chaldea_client_retained_versions"}),
 }
 
 

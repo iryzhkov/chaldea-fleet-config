@@ -480,6 +480,84 @@ def test_explicit_rollback_history_preserves_payloads_and_cache(tmp_path, monkey
         assert (root / "previous").resolve() == root / "releases/client-v0.4.9"
 
 
+
+@pytest.mark.parametrize("host", ["agent-a", "agent-b", "omarchy-pc"])
+@pytest.mark.parametrize("staged", [False, True])
+def test_host_staged_runtime_survives_real_cleanup(tmp_path, host, staged):
+    safe(tmp_path)
+    host_vars = yaml.safe_load(
+        (ROOT / "inventory/host_vars" / host / "chaldea-staging-retention.yml").read_text())
+    assert set(host_vars) == {"chaldea_client_retained_versions"}
+    history = host_vars["chaldea_client_retained_versions"]
+    assert 0 < len(history) <= 6 and len(history) == len(set(history))
+    assert "client-v0.4.20" in history
+    baseline = (["client-v0.4.0", "client-v0.4.2", "client-v0.4.7", "client-v0.4.8"]
+                if host == "omarchy-pc" else
+                ["client-v0.2.0", "client-v0.3.0", "client-v0.4.7", "client-v0.4.8"])
+    assert set(baseline) <= set(history)
+    home = Path.home()
+    root, cache = home / "stage-releases", home / "stage-cache"
+    releases = root / "releases"
+    releases.mkdir(parents=True)
+    cache.mkdir()
+    previous = "client-v0.4.11" if host == "omarchy-pc" else "client-v0.4.9"
+    keep = set(baseline) | {"client-v0.4.11", previous}
+    if staged:
+        keep.add("client-v0.4.20")
+    for version in keep | {"client-v0.1.0"}:
+        release = releases / version
+        release.mkdir()
+        (release / "sentinel").write_bytes(version.encode())
+        for suffix in (".tar.gz", ".json"):
+            (cache / (version + suffix)).write_bytes(version.encode())
+    (root / "current").symlink_to(releases / "client-v0.4.11")
+    (root / "previous").symlink_to(releases / previous)
+    (cache / "operator-note").write_bytes(b"unmanaged neighbor")
+
+    def snapshot():
+        paths = [root / "current", root / "previous", cache / "operator-note"]
+        for version in keep:
+            paths.extend([releases / version, releases / version / "sentinel",
+                          cache / (version + ".tar.gz"), cache / (version + ".json")])
+        result = {}
+        for path in paths:
+            st = path.lstat()
+            result[str(path)] = (
+                os.readlink(path) if path.is_symlink() else
+                path.read_bytes() if path.is_file() else None,
+                st.st_mode, st.st_uid, st.st_gid, st.st_mtime_ns, st.st_ino)
+        return result
+
+    before = snapshot()
+    canonical = yaml.safe_load((ROOT / "roles/chaldea_client/tasks/client.yml").read_text())
+    names = {"Inspect retained previous link", "Find only managed release directories",
+             "Remove managed releases outside current, previous and explicit rollback history",
+             "Find managed client cache archives and manifests",
+             "Remove caches outside current, previous and explicit rollback history"}
+    tasks = [task for task in canonical if task.get("name") in names]
+    assert len(tasks) == len(names)
+    play = tmp_path / "staged-cleanup.yml"
+    play.write_text(yaml.safe_dump([{
+        "hosts": "localhost", "connection": "local", "gather_facts": False,
+        "vars": host_vars | {"chaldea_client_root": str(root),
+                             "chaldea_client_cache": str(cache),
+                             "chaldea_client_version": "client-v0.4.11",
+                             "ansible_python_interpreter": sys.executable},
+        "tasks": tasks,
+    }]))
+    for attempt in range(2):
+        result = subprocess.run(["ansible-playbook", "-i", "localhost,", str(play)],
+                                cwd=ROOT, env=os.environ.copy(), capture_output=True, text=True)
+        success(result)
+        assert snapshot() == before
+        assert sorted(p.name for p in releases.iterdir()) == sorted(keep)
+        assert sorted(p.name for p in cache.iterdir()) == sorted(
+            [version + suffix for version in keep for suffix in (".tar.gz", ".json")]
+            + ["operator-note"])
+        if attempt:
+            assert "changed=0" in result.stdout
+
+
 @pytest.mark.parametrize("retained", [
     "client-v0.2.0", {"client-v0.2.0": True}, None, 1,
     ["client-v0.2.0"] * 2,
