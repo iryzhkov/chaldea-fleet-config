@@ -8,7 +8,7 @@ closed validators, and require every other host to keep its previous settings.
 They are source checks only; OpenCode native acceptance belongs to root.
 
 The effective session maps are composed in inventory from the literal Jocasta
-inputs and the default-off HoloNet catalog input; activation() is that
+inputs and the qualified HoloNet catalog input; activation() is that
 composition with HoloNet disabled, and effective_laptop() asks Ansible itself.
 """
 import copy
@@ -89,7 +89,7 @@ def _effective_laptop():
 
 
 def effective_laptop():
-    """The laptop's real effective session maps, HoloNet as configured (off)."""
+    """The laptop's real effective session maps, HoloNet as configured."""
     return json.loads(_effective_laptop())
 
 
@@ -167,8 +167,8 @@ def test_inventory_merge_applies_the_activation_only_to_the_laptop():
     laptop = inventory_vars("laptop")
     for key, value in source().items():
         assert laptop[key] == value, key
-    # Templated by Ansible, each session map is exactly its Jocasta input, in order.
-    effective = effective_laptop()
+    # Explicit rollback preserves exactly the Jocasta inputs, in order.
+    effective = effective_session_maps({"chaldea_laptop_holonet_catalog_enabled": False})
     for key in JOCASTA_INPUTS:
         assert effective[key] == values[key], key
         assert list(effective[key]) == list(values[key]), key

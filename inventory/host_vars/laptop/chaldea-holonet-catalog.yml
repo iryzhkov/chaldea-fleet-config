@@ -1,12 +1,14 @@
 ---
-# Laptop's HoloNet Movies catalog-only limited Claude session. OFF: while
+# Laptop's qualified HoloNet Movies catalog-only limited Claude session. While
 # chaldea_laptop_holonet_catalog_enabled is false, nothing below reaches the
 # effective session maps composed in chaldea-jocasta-tooling.yml, so the
 # rendered policy, the delivered profiles and the pull's inputs stay exactly
 # the Jocasta ones. Public values only: the credential is named by path and
 # only ever inspected with stat; none is stored here.
 #
-# ROOT-GATED, do not set true until every input qualifies: the operator-owned
+# Qualified 2026-10-26: initial native ACL/result/wake PASS; renewal untested.
+# Receipt: jocasta:58bc525cb4458d74f21df2a57573a0e9@2.
+# Keep all qualified prerequisites: the operator-owned
 # app password at secretFile (homelab-infra's existing chaldea-holonet
 # enrollment, freshly reconciled), the dedicated T3 provider instance
 # claude-holonet-movies-catalog bound to this profile's launcher, the installed
@@ -18,7 +20,7 @@
 # with empty history and target users, so no UserData, history or mutation.
 # Destination is the root caller's T3 project; the session runs in the
 # dedicated "HoloNet Movies catalog sessions" T3 project.
-chaldea_laptop_holonet_catalog_enabled: false
+chaldea_laptop_holonet_catalog_enabled: true
 
 chaldea_laptop_holonet_catalog_ceilings:
   - project: holonet-movies

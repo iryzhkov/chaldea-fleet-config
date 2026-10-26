@@ -1,4 +1,4 @@
-"""Default-off laptop HoloNet Movies catalog session (host_vars/laptop/chaldea-holonet-catalog.yml).
+"""Qualified laptop HoloNet Movies catalog session (host_vars/laptop/chaldea-holonet-catalog.yml).
 
 The HoloNet input is combined into the laptop's effective session maps only
 while its flag is true. These tests check its exact closed values and prompt,
@@ -80,10 +80,10 @@ def enabled_extra(holonet=None):
     return extra
 
 
-def test_input_is_off_and_binds_the_exact_catalog_only_values():
+def test_input_is_enabled_and_binds_the_exact_catalog_only_values():
     values = yaml.safe_load(INPUT.read_text())
     assert set(values) == {FLAG} | {PREFIX + short for short in SESSION_MAPS}
-    assert values[FLAG] is False
+    assert values[FLAG] is True
     holonet = packet()
     assert all(set(holonet["chaldea_client_session_" + short]) == {NAME} for short in SESSION_MAPS[1:])
     assert holonet["chaldea_client_session_ceilings"] == [
@@ -132,7 +132,7 @@ def test_bindings_are_actual_and_share_nothing_with_jocasta():
     for path in (ROOT / "inventory").rglob("*.yml"):
         if path not in {INPUT, ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml"}:
             assert "holonet" not in json.dumps(yaml.safe_load(path.read_text())).lower(), path
-    assert inventory_vars("laptop")[FLAG] is False
+    assert inventory_vars("laptop")[FLAG] is True
     for host in ("agent-a", "agent-b", "omarchy-pc", "normandy", "homelab"):
         assert not any(key.startswith(PREFIX) for key in inventory_vars(host)), host
 
@@ -157,7 +157,7 @@ def test_prompt_makes_exactly_the_six_fixed_calls_and_a_bounded_counts_result():
 
 
 def test_disabled_effective_maps_are_exactly_the_jocasta_inputs():
-    effective, jocasta = effective_laptop(), activation()
+    effective, jocasta = effective_session_maps({FLAG: False}), activation()
     for key in JOCASTA_INPUTS:
         assert effective[key] == jocasta[key] and list(effective[key]) == list(jocasta[key]), key
     assert NAME not in json.dumps(effective)
@@ -166,7 +166,7 @@ def test_disabled_effective_maps_are_exactly_the_jocasta_inputs():
 
 
 def test_enabled_composition_adds_only_holonet_and_keeps_every_jocasta_entry():
-    effective, jocasta, holonet = effective_session_maps(enabled_extra()), activation(), packet()
+    effective, jocasta, holonet = effective_laptop(), activation(), packet()
     assert effective == {key: composed()[key] for key in JOCASTA_INPUTS}
     ceilings = "chaldea_client_session_ceilings"
     assert effective[ceilings] == jocasta[ceilings] + holonet[ceilings]

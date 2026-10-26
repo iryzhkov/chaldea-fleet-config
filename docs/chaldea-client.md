@@ -396,7 +396,7 @@ then name that instance in the preset:
 A Claude profile may explicitly set `capabilities_probe: true` to recognize only
 the two stock T3 0.1.0 / SDK 0.3.276 initialization argv shapes. This defaults
 off; absent or false keeps the pre-probe launcher bytes identical. HoloNet selects
-it, while its admission switch remains off. Existing Jocasta profiles do not opt in.
+it, with its qualified catalog-only admission enabled. Existing Jocasta profiles do not opt in.
 
 T3's auxiliary health query omits provider launchArgs and asks for user/project/local
 setting sources. Passing it through would violate the conversation contract.
@@ -603,9 +603,9 @@ The file keeps its literal Jocasta inputs under `chaldea_laptop_jocasta_ceilings
 `chaldea_client_session_*` maps are composed from them in the same file, adding
 the HoloNet Movies catalog input from
 `inventory/host_vars/laptop/chaldea-holonet-catalog.yml` only while
-`chaldea_laptop_holonet_catalog_enabled` is true. That flag is false, so each
-effective map equals its Jocasta input and the rendered policy and profiles keep
-their bytes. Jocasta entries are combined last, so a HoloNet name cannot
+`chaldea_laptop_holonet_catalog_enabled` is true. The qualified laptop input now
+selects it. An explicit false override restores exactly the Jocasta-only maps.
+Jocasta entries are combined last, so a HoloNet name cannot
 replace one. `ansible-inventory` shows the composition expressions
 unevaluated; read effective values through a play, as the tests do.
 
@@ -614,8 +614,11 @@ Claude profile: `catalog.read` on one server, one library and one catalog user,
 no history or target users, 900 seconds, `delegate: false`, the pinned Claude
 2.1.276 native and the single `catalog_query` tool on `holonet_catalog`. Its
 fixed prompt makes six calls (two allowed pages, three ACL refusals, one bounds
-refusal) and returns counts only. Setting the flag true is root-gated: it
-requires the enrolled app password, the dedicated T3 provider instance
+refusal) and returns counts only. This is a fixed qualification preset, not a
+free-form media assistant. Initial native catalog/ACL/result/wake qualification
+passed on 2026-10-26; native renewal was NOT_EXERCISED. The evidence is
+`jocasta:58bc525cb4458d74f21df2a57573a0e9@2`. Selection still requires the
+enrolled app password, the dedicated T3 provider instance
 `claude-holonet-movies-catalog`, an installed headers helper that serves audience
 `holonet`, and native acceptance of this exact source. Enabled, the pull stats
 that credential and delivers the profile.
