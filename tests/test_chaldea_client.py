@@ -279,6 +279,32 @@ def test_secret_refusal_precedes_writes_and_unit_calls(tmp_path, monkeypatch, fa
     assert not json.loads((tmp_path / "systemctl.json").read_text())["calls"]
 
 
+@pytest.mark.parametrize("selected", [
+    {"chaldea_job_client_exec_entry": "/opt/fixture/bin/chaldea"},
+    {"chaldea_job_client_exec_entry": "relative/bin/chaldea", "chaldea_job_client_exec_node": "/opt/node"},
+])
+def test_unsafe_exec_selection_refuses_before_client_changes(tmp_path, monkeypatch, selected):
+    # This role renders the shared launcher too, so it must refuse before any write.
+    variables = fixture(tmp_path, monkeypatch) | selected
+    result = run(tmp_path, variables)
+    assert result.returncode != 0
+    assert "Set chaldea_job_client_exec_entry and chaldea_job_client_exec_node together" in result.stdout
+    assert not (Path.home() / ".local/share/chaldea").exists()
+    assert not (Path.home() / ".local/bin/chaldea").exists()
+    assert not json.loads((tmp_path / "systemctl.json").read_text())["calls"]
+
+
+def test_exec_selection_renders_in_the_client_launcher(tmp_path, monkeypatch):
+    variables = fixture(tmp_path, monkeypatch) | {
+        "chaldea_job_client_exec_entry": "/opt/fixture/client/bin/chaldea",
+        "chaldea_job_client_exec_node": "/opt/fixture/node"}
+    success(run(tmp_path, variables))
+    launcher = (Path.home() / ".local/bin/chaldea").read_text()
+    assert "chaldea_entry='/opt/fixture/client/bin/chaldea'" in launcher
+    assert "chaldea_node='/opt/fixture/node'" in launcher
+    assert "/.local/share/chaldea/current/bin/chaldea" in launcher
+
+
 @pytest.mark.parametrize("linked_parent", [False, True])
 def test_disabled_units_need_no_secrets_and_upgrade_retains_one_previous(tmp_path, monkeypatch, linked_parent):
     if linked_parent:

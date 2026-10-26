@@ -1,5 +1,22 @@
 #!/bin/sh
 # bin/chaldea dispatches both fleet compute and the waits/decision CLI.
+{% if chaldea_job_client_exec_entry | default('') | length > 0 %}
+# Only `chaldea exec` runs this separately admitted client; every other command
+# keeps the pinned release below. A missing selection never falls back.
+if [ "${1-}" = exec ]; then
+    chaldea_entry='{{ chaldea_job_client_exec_entry }}'
+    chaldea_node='{{ chaldea_job_client_exec_node }}'
+    if [ ! -f "$chaldea_entry" ]; then
+        printf '%s\n' "chaldea: the selected exec client is missing at $chaldea_entry; refusing to fall back to the pinned release." >&2
+        exit 69
+    fi
+    if [ ! -f "$chaldea_node" ] || [ ! -x "$chaldea_node" ]; then
+        printf '%s\n' "chaldea: the selected exec Node is not an executable file at $chaldea_node; refusing to fall back to the pinned release." >&2
+        exit 69
+    fi
+    exec "$chaldea_node" "$chaldea_entry" "$@"
+fi
+{% endif %}
 chaldea_entry="$HOME/.local/share/chaldea/{{ 'current' if chaldea_client_enabled | default(false) else 'app' }}/bin/chaldea"
 chaldea_node="$HOME/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
 if [ ! -f "$chaldea_entry" ]; then

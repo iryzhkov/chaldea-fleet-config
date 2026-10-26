@@ -23,6 +23,11 @@
     fail_msg: Set valid client pins, at most six unique canonical retained client versions, waits environment and explicit Codex home in inventory.
     quiet: true
 
+# This role also renders the shared launcher, so it refuses an unsafe exec-only
+# selection before any change, as chaldea_job_client does.
+- name: Validate the launcher's optional exec-only selection before changing files
+  ansible.builtin.include_tasks: "{{ role_path }}/../chaldea_job_client/tasks/exec-selector.yml"
+
 - name: Inspect operator-provisioned secrets without reading their contents
   ansible.builtin.stat:
     path: "{{ item.path }}"
