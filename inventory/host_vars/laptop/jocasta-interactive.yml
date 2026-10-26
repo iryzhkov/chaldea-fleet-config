@@ -1,11 +1,10 @@
 ---
-# PREPARED conditional laptop selection, not native acceptance. Keep off main
-# until root passes actual Codex AND Claude full managed access, CAS, idempotency
-# and >330s reuse gates. Merging activates this selection through ordinary pulls.
-# Only this laptop opts in; other hosts retain default-off managed capability.
-# OpenCode remains excluded. The public OAuth definition below is the fallback
-# when managed mode is disabled; the existing role selects the fixed native
-# helper for ordinary interactive Codex and Claude when enabled.
+# Accepted laptop managed Jocasta access. Claude and Codex use the fixed native
+# helper; ordinary OpenCode 2.1.4 uses the separate fleet plugin after native
+# ARM64/T3 read, write, CAS, idempotence, lifetime and rollback acceptance.
+# Merging the OpenCode selection enables that consumer through ordinary pulls.
+# The public OAuth definition below remains the disabled-managed-mode fallback
+# for Claude and Codex. No identity, credential or other-service grant is added.
 #
 # Local pulls reuse the accepted installed artifacts. No controller staging path,
 # credential value or private digest belongs in inventory. The role requires the
@@ -17,6 +16,7 @@
 # disables any jocasta server by name; their Claude profile uses a strict MCP
 # config. They keep project:tooling read-only access.
 webmcp_interactive_enabled: true
+webmcp_interactive_opencode_state: present
 webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
 webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
 
@@ -55,7 +55,7 @@ mcp_registrations_remote_servers:
         client_id: jocasta-laptop-interactive
         callback_port: 43181
         callback_url: http://127.0.0.1:43181/callback/bbdouGp56E53
-    # Off: not in providers, so the role does not register it.
+    # Native OAuth stays off here; OpenCode uses the separate helper plugin.
     opencode:
       oauth:
         clientId: jocasta-laptop-interactive

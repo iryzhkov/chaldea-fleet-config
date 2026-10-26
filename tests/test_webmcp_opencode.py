@@ -168,7 +168,7 @@ def test_fresh_check_mode_creates_nothing(tmp_path):
     assert not (home / ".config/opencode").exists()
 
 
-def test_selection_is_explicit_standalone_and_off_in_inventory():
+def test_selection_is_explicit_standalone_and_laptop_only():
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults["webmcp_interactive_opencode_state"] == ""
     assert defaults["webmcp_interactive_enabled"] is False
@@ -182,8 +182,14 @@ def test_selection_is_explicit_standalone_and_off_in_inventory():
         < names.index(deliver["name"])
     select = next(t for t in tasks if t["name"].startswith("Select explicit"))
     assert "'providers': ['claude', 'codex']" in select["ansible.builtin.set_fact"]["mcp_registrations_effective_remote_servers"]
-    for path in (ROOT / "inventory").rglob("*.yml"):
-        assert "webmcp_interactive_opencode_state" not in path.read_text(), path
+    inventory = ROOT / "inventory"
+    selections = {path.relative_to(inventory).as_posix()
+                  for path in inventory.rglob("*.yml")
+                  if "webmcp_interactive_opencode_state" in path.read_text()}
+    assert selections == {"host_vars/laptop/jocasta-interactive.yml"}
+    laptop = yaml.safe_load((inventory / "host_vars/laptop/jocasta-interactive.yml").read_text())
+    assert laptop["webmcp_interactive_enabled"] is True
+    assert laptop["webmcp_interactive_opencode_state"] == "present"
     main = (ROOT / "roles/webmcp_interactive/tasks/main.yml").read_text()
     assert "opencode" not in main.lower()
 

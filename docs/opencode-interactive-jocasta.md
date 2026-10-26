@@ -139,6 +139,17 @@ scratch home and runs `tests/webmcp-jocasta-plugin.test.mjs` against the
 rendered file with fake helper processes, clock and editor. A separate scratch
 fixture ran the exact template with OpenCode 2.1.4 natively; its receipt is
 root's evidence and not committed here. Fixtures are not host acceptance.
-Each host still needs its own native check with the real enrollment and helper:
-activation, full Jocasta read/write, a refresh past one token lifetime, and
-rollback.
+The laptop passed real ARM64 ordinary T3 OpenCode 2.1.4 acceptance on
+2026-10-26, canary `d3efff2f70384875a03f88344cc5843e`. Thirteen native Jocasta
+calls covered full read, outline, section reads explicitly pinned to revisions 1
+and 2, guarded edit, identical retry, stale refusal, preservation and own archive.
+The same native backend served a successful read 395 seconds after the first
+read. This shows post-token-lifetime access; token rotation was not inspected.
+The existing helper and enrollment were reused, and the document was archived at
+revision 3. Plugin removal and an unchanged repeat passed; the recorded backend
+process group was explicitly stopped after checking for other active clients.
+A completed T3 task alone did not establish backend exit.
+
+The laptop inventory selects this accepted consumer. Agent-a, agent-b and
+omarchy-pc remain unselected until their own installed inputs and native checks
+pass. The limited tooling profiles and other services' selections are separate.
