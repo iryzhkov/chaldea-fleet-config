@@ -122,11 +122,11 @@ def test_prepared_data_is_inert_and_every_binding_is_unpopulated():
                                    "chaldea_client_session_policy_enabled",
                                    "chaldea_client_waits_legacy_user_node_version", "retention_mise_prune"}:
             assert key not in current, (host, key)
-    # The laptop keeps exactly its three reviewed profiles.
+    # The laptop keeps its three Jocasta profiles plus qualified HoloNet.
     laptop = effective_laptop()
     for short in ("presets", "enrollments", "profiles"):
         assert list(laptop["chaldea_client_session_" + short]) == [
-            "jocasta-tooling-claude", "jocasta-tooling-codex", NAME]
+            "holonet-movies-catalog-claude", "jocasta-tooling-claude", "jocasta-tooling-codex", NAME]
 
 
 def _set(host, key, value):

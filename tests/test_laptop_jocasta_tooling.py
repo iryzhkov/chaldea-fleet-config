@@ -8,7 +8,7 @@ closed validators, and require every other host to keep its previous settings.
 They are source checks only; OpenCode native acceptance belongs to root.
 
 The effective session maps are composed in inventory from the literal Jocasta
-inputs and the default-off HoloNet catalog input; activation() is that
+inputs and the qualified HoloNet catalog input; activation() is that
 composition with HoloNet disabled, and effective_laptop() asks Ansible itself.
 """
 import copy
@@ -89,7 +89,7 @@ def _effective_laptop():
 
 
 def effective_laptop():
-    """The laptop's real effective session maps, HoloNet as configured (off)."""
+    """The laptop's real effective session maps, HoloNet as configured."""
     return json.loads(_effective_laptop())
 
 
@@ -167,8 +167,8 @@ def test_inventory_merge_applies_the_activation_only_to_the_laptop():
     laptop = inventory_vars("laptop")
     for key, value in source().items():
         assert laptop[key] == value, key
-    # Templated by Ansible, each session map is exactly its Jocasta input, in order.
-    effective = effective_laptop()
+    # Explicit rollback preserves exactly the Jocasta inputs, in order.
+    effective = effective_session_maps({"chaldea_laptop_holonet_catalog_enabled": False})
     for key in JOCASTA_INPUTS:
         assert effective[key] == values[key], key
         assert list(effective[key]) == list(values[key]), key
@@ -306,8 +306,8 @@ def test_opencode_selection_reuses_the_tooling_grant_and_pinned_native():
         "audience": "jocasta", "server": "jocasta_tooling", "url": RESOURCE, "tools": TOOLS,
         "native": {"source": ASSETS + "/opencode/2.1.3/opencode", "size": 236047352,
                    "sha256": "78c279e68f25e69045a7ec5f518fccbad57e8f25d7853e66ba9677ddfaf28b19"}}
-    # The only ceiling is still the tooling read grant.
-    assert values["chaldea_client_session_ceilings"] == [
+    # HoloNet has a separate ceiling; the tooling grant is unchanged.
+    assert [c for c in values["chaldea_client_session_ceilings"] if c["project"] == "tooling"] == [
         {"project": "tooling", "maxSeconds": 1800, "destinations": [CALLER], "services": SERVICES}]
     for host in OTHER_HOSTS:
         other = inventory_vars(host)
@@ -348,7 +348,7 @@ def test_codex_candidate_cwd_outside_or_aliasing_the_fleet_home_is_refused(cwd):
         validate_profiles(with_codex(cwd))
 
 
-def test_real_inventory_renders_the_protected_policy_through_the_role(tmp_path):
+def test_explicit_off_inventory_restores_the_jocasta_policy_bytes_through_the_role(tmp_path):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).resolve())
     policy = tmp_path / "policy.json"
     play = tmp_path / "validate.yml"
@@ -369,7 +369,7 @@ def test_real_inventory_renders_the_protected_policy_through_the_role(tmp_path):
     env = dict(os.environ, ANSIBLE_ROLES_PATH=str(ROOT / "roles"))
     result = subprocess.run([
         "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", "laptop", str(play),
-        "--extra-vars", json.dumps({"fleet_home": HOME}),
+        "--extra-vars", json.dumps({"fleet_home": HOME, "chaldea_laptop_holonet_catalog_enabled": False}),
     ], text=True, capture_output=True, env=env, cwd=ROOT)
     assert result.returncode == 0, result.stdout + result.stderr
     values = activation()
