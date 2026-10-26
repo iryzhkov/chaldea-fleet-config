@@ -571,6 +571,28 @@ is root-pending: do not merge it or let a pull apply it before the gates in the
 [laptop OpenCode selection](laptop-opencode-prepared.md) pass for this exact
 source.
 
+The file keeps its literal Jocasta inputs under `chaldea_laptop_jocasta_ceilings`,
+`_presets`, `_enrollments` and `_profiles`. The role's
+`chaldea_client_session_*` maps are composed from them in the same file, adding
+the HoloNet Movies catalog input from
+`inventory/host_vars/laptop/chaldea-holonet-catalog.yml` only while
+`chaldea_laptop_holonet_catalog_enabled` is true. That flag is false, so each
+effective map equals its Jocasta input and the rendered policy and profiles keep
+their bytes. Jocasta entries are combined last, so a HoloNet name cannot
+replace one. `ansible-inventory` shows the composition expressions
+unevaluated; read effective values through a play, as the tests do.
+
+The HoloNet input is one `holonet-movies-catalog-claude` preset, enrollment and
+Claude profile: `catalog.read` on one server, one library and one catalog user,
+no history or target users, 900 seconds, `delegate: false`, the pinned Claude
+2.1.276 native and the single `catalog_query` tool on `holonet_catalog`. Its
+fixed prompt makes six calls (two allowed pages, three ACL refusals, one bounds
+refusal) and returns counts only. Setting the flag true is root-gated: it
+requires the enrolled app password, the dedicated T3 provider instance
+`claude-holonet-movies-catalog`, an installed headers helper that serves audience
+`holonet`, and native acceptance of this exact source. Enabled, the pull stats
+that credential and delivers the profile.
+
 Consequences of the normal pull on the laptop:
 
 - `chaldea_client` converges waits only: the shared client pin, quota unit,
