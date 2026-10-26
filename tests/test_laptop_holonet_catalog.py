@@ -102,7 +102,7 @@ def test_input_is_off_and_binds_the_exact_catalog_only_values():
         "secretFile": HOME + "/.config/chaldea/authentik/" + NAME + ".app-password"}
     jocasta_claude = activation()["chaldea_client_session_profiles"][CLAUDE]
     assert holonet["chaldea_client_session_profiles"][NAME] == {
-        "driver": "claude", "native": jocasta_claude["native"], "elf_machine": 183,
+        "driver": "claude", "capabilities_probe": True, "native": jocasta_claude["native"], "elf_machine": 183,
         "cwd": HOME + "/.local/share/chaldea/session-workspaces/holonet-movies", "preset": NAME,
         "audience": "holonet", "server": "holonet_catalog", "url": MEDIA, "tools": ["catalog_query"]}
     assert jocasta_claude["native"] == {"source": ASSETS + "/claude/2.1.276/claude", "size": 231989488,

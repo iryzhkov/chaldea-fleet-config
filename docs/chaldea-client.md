@@ -325,8 +325,8 @@ and name that instance in the preset. Order removal the other way round.
 ### Claude profiles
 
 A Claude profile pins only the native binary. It has no companion, catalog,
-home or temporary directory, and the role writes nothing in any home. It has
-exactly these fields:
+home or temporary directory, and the role writes nothing in any home. Its required
+fields are below; the optional boolean `capabilities_probe` is described separately.
 
 ```yaml
 chaldea_client_session_profiles:
@@ -362,8 +362,8 @@ Bash, PowerShell, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch and Agent.
 
 The launcher is the accepted fixed Claude reporter launcher with its literals
 rendered from the profile and its single-run receipt removed. It writes nothing
-and starts no process other than the native binary. At each start it admits only
-the fixed T3 argv shape: `--restricted`, `--strict-mcp-config`, `--mcp-config`
+and starts no process other than the native binary. Conversation starts admit only
+the fixed T3 argv shape below; an opted-in capability probe has its own narrower path: `--restricted`, `--strict-mcp-config`, `--mcp-config`
 equal to this profile's `mcp.json`, empty `--setting-sources`, empty tools,
 default permission mode, stream JSON, the T3 control tool denial, `--add-dir` of
 the profile `cwd` (optionally with T3's attachments directory, which it drops),
@@ -390,6 +390,33 @@ then name that instance in the preset:
 --setting-sources '' --settings /etc/chaldea/sessions/<name>/claude-settings.json
 --tools '' --disallowed-tools 'mcp__t3-code__*,mcp__t3_code__*'
 ```
+
+### Optional Claude capability probe
+
+A Claude profile may explicitly set `capabilities_probe: true` to recognize only
+the two stock T3 0.1.0 / SDK 0.3.276 initialization argv shapes. This defaults
+off; absent or false keeps the pre-probe launcher bytes identical. HoloNet selects
+it, while its admission switch remains off. Existing Jocasta profiles do not opt in.
+
+T3's auxiliary health query omits provider launchArgs and asks for user/project/local
+setting sources. Passing it through would violate the conversation contract.
+The optional branch accepts the complete finite argv, then replaces it with
+restricted initialization, empty setting sources, hooks disabled, no tools,
+strict empty MCP config and all MCP tools denied. It pins the same protected
+policy/native bytes, uses only the fixed profile cwd, disables connected Claude
+MCP and IDE discovery in the child environment, and never passes a credential
+helper or catalog grant to the probe. All other shapes still refuse. There is no
+auth-CLI passthrough, unrestricted fallback or changed conversation parser.
+A managed MCP configuration that conflicts with strict mode still fails closed,
+just as on the conversation path. Each probe hashes the pinned native binary,
+about 232 MB for this version, so periodic checks have that local CPU/I/O cost.
+
+The upstream health caller waits for initialization with a never-yielding prompt.
+The argv itself cannot authenticate that caller or prevent another same-UID caller
+from submitting stdin. This is not a hostile-process sandbox. Even such a caller
+gets the probe's empty tool/MCP permissions, not the profile's service grant.
+Successful metadata initialization still does not qualify a model turn, MCP ACLs,
+stored results or renewal. Those require separate real native acceptance.
 
 ### Rollback
 

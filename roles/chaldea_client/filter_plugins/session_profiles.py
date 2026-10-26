@@ -128,7 +128,9 @@ def opencode_profile(field, value, fleet_home):
 
 
 def claude_profile(field, value):
-    require(set(value) == CLAUDE_FIELDS, field + " needs exactly the claude profile fields")
+    require(CLAUDE_FIELDS <= set(value) <= CLAUDE_FIELDS | {"capabilities_probe"},
+            field + " needs exactly the claude profile fields and optional capabilities_probe")
+    require(type(value.get("capabilities_probe", False)) is bool, field + ".capabilities_probe must be a boolean")
     pin(value["native"], CLAUDE_NATIVE_LIMIT, field + ".native")
     require(integer(value["elf_machine"]) and value["elf_machine"] in MACHINES, field + ".elf_machine")
     safe_path(value["cwd"], field + ".cwd")

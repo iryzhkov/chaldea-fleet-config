@@ -68,7 +68,8 @@ export HUYANG_PLUGIN_SOURCE="$PWD/roles/agent_config/files/opencode/huyang-profi
 # Whole-file lanes avoid shared-HOME concurrency and keep parameterized cases intact.
 # The remainder collects tests recursively, so new files are included automatically.
 skill_tests=(tests/test_agent_skills.py tests/test_laptop_skill_links.py)
-role_tests=(tests/test_agent_source_migration.py tests/test_chaldea_client.py tests/test_huyang_role.py)
+role_tests=(tests/test_agent_source_migration.py tests/test_chaldea_client.py tests/test_huyang_role.py
+            tests/test_chaldea_claude_capabilities_probe.py tests/test_chaldea_session_profiles_claude.py)
 pytest_targets=(tests)
 case "$phase" in
 	pytest-skills) pytest_targets=("${skill_tests[@]}") ;;
