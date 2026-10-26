@@ -1,0 +1,26 @@
+---
+# Both roles that render the launcher run this first, so an unsafe selection
+# refuses before either writes it. The paths become single-quoted shell
+# literals, which the character set below keeps exact.
+- name: Validate the optional exec-only client selection
+  ansible.builtin.assert:
+    that:
+      - chaldea_job_client_exec_entry | default('') is string
+      - chaldea_job_client_exec_node | default('') is string
+      - >-
+        (chaldea_job_client_exec_entry | default('') | length > 0) ==
+        (chaldea_job_client_exec_node | default('') | length > 0)
+      - >-
+        [chaldea_job_client_exec_entry | default(''), chaldea_job_client_exec_node | default('')] |
+        reject('equalto', '') | reject('match', '^(/[A-Za-z0-9._-]+)+\Z') | list | length == 0
+      - >-
+        [chaldea_job_client_exec_entry | default(''), chaldea_job_client_exec_node | default('')] |
+        select('search', '(^|/)[.][.]?(/|$)') | list | length == 0
+      - >-
+        chaldea_job_client_exec_entry | default('') | length == 0 or
+        chaldea_job_client_exec_entry != chaldea_job_client_exec_node
+    fail_msg: >-
+      Set chaldea_job_client_exec_entry and chaldea_job_client_exec_node together,
+      as distinct absolute paths of letters, digits, '.', '_', '-' and '/', with no
+      '.' or '..' segment, or leave both empty.
+    quiet: true

@@ -598,6 +598,104 @@ target-specific packet in [system waits preflight](waits-system-preflight.md)
 and the profile inverse above run. Running the inverse while this file is still
 on main lets the next pull reinstall it. Coordinate both, inverse after merge.
 
+## Exec-only client selection
+
+`chaldea_job_client_exec_entry` and `chaldea_job_client_exec_node` let
+`chaldea exec` on one host run a separately admitted client, such as the
+blob-capable private controller, while every other command keeps the pinned
+release, its services and its `current` link. Both default to empty, which
+renders the launcher byte for byte as before; only omarchy-pc sets them. Set both or neither, as distinct absolute paths of letters, digits, `.`,
+`_`, `-` and `/` with no `.` or `..` segment. Both roles that render
+`~/.local/bin/chaldea` refuse anything else before they change a file.
+
+The launcher checks only the first argument. When it is exactly `exec`, the
+launcher runs the selected Node on the selected entry with the arguments, exit
+status, environment and working directory unchanged. HOME and XDG are not
+touched, so the exec journal, state, `exec-hosts`, SSH configuration and
+`--host` fallback stay where the pinned client keeps them. Every other
+invocation, including no arguments, `--describe`, `--help`, `wait`,
+`decision`, `quota`, `route` and `artifacts`, still runs the pinned release.
+A selected entry that is not a regular file, or a Node that is not an executable
+regular file, makes `chaldea exec` exit 69 without falling back. The launcher
+does not hash the selected bytes: deployment admission establishes them, so keep
+both under an owner-only directory.
+
+A `blob.json` alone cannot add custody to ordinary exec: client-v0.4.11 has no
+blob support and ignores the file. The selected client reads the default
+`$XDG_CONFIG_HOME/chaldea/blob.json` only when `--artifact` names an output;
+without one, a job behaves as before. With `"publication": "manual"`, an
+artifact job records a pending custody intent that keeps its journal record and
+local artifact reserve until publication is confirmed, and makes no network
+attempt to the store, whether or not the tunnel is open. Publication still
+needs an operator, an admitted tunnel and an approved window. Enabling manual
+mode uploads nothing and widens no NAS artifact-risk approval. Journal
+retention is unchanged except that pending custody records are kept.
+
+omarchy-pc sets both in `inventory/hosts.yml`:
+
+```yaml
+chaldea_job_client_exec_entry: /home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f/client-1e86175cd2ef2e11fdf4584d22cc73127a162d42/bin/chaldea
+chaldea_job_client_exec_node: /home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f/node-26.10.0
+```
+
+The matching manual `~/.config/chaldea/blob.json`, mode 0600, names the
+existing publisher credential by path and contains no secret:
+
+```json
+{"version": 1, "endpoint": "http://127.0.0.1:43900", "bucket": "artifacts-igor-exec",
+ "principal": "igor-exec", "region": "garage", "publication": "manual",
+ "credentialFile": "/home/igor/.local/share/chaldea-blob-profiles/publisher/credential.json"}
+```
+
+**Merging the enrollment activates it on omarchy-pc.** That host's pull timer
+converges main with the full site play, and both launcher roles render the same
+bytes, so the next pull after the merge installs the selection. Before the
+merge, the operator verifies the admitted bytes of the selected Node and entry
+and the custody of the publisher credential, confirms that the normal
+`blob.json` and `exec.json` are absent, keeps a copy of the current launcher,
+and creates `blob.json` exclusively, never over an existing file. Without
+`blob.json`, the selected client runs `--artifact` jobs without custody, as
+before. After the merge, record the exact merge commit, and converge only the
+launcher at once rather than waiting for the timer. Run from a checkout whose
+`git rev-parse HEAD` equals that recorded commit, not a moving `main`, and
+review the check run's diff first:
+
+```sh
+ansible-playbook -i inventory site.yml --limit omarchy-pc --tags chaldea_exec_launcher --check --diff
+ansible-playbook -i inventory site.yml --limit omarchy-pc --tags chaldea_exec_launcher
+```
+
+The tag runs the validation and the launcher template only: no SSH enrollment,
+client release, `current` link or user service.
+
+### Rollback only without pending custody
+
+Rolling back hands real `chaldea exec` to client-v0.4.11, which knows nothing
+of pending custody: its journal pruning deletes pending records together with
+their publication drafts and local artifact reserves. Before any step that lets
+client-v0.4.11 run `chaldea exec` again (removing either setting on main,
+rendering or restoring an earlier launcher) and before removing `blob.json`,
+even before the merge, take a bounded read-only inventory of the exec state
+directory (`$XDG_STATE_HOME/chaldea/exec` unless `exec.json` sets `stateDir`)
+while no `chaldea exec` runs, and start none until the rollback completes:
+
+- every entry in `journal/` is a regular file (not a symlink) holding a JSON
+  object, and no record has a `blob` field whose `state` is anything other than
+  `confirmed`;
+- every entry under `publication/` is named for a job whose journal record has
+  `blob.state` `confirmed`.
+
+If any record is pending, or any entry is malformed, unreadable, unsafe or
+otherwise incomplete, refuse the rollback. Keep the selection, `blob.json`,
+local artifacts, journals and reserves, and do not abandon, delete or retry
+anything until an operator has confirmed publication. To pause publication,
+close the tunnel or the publication window and keep the selected client; that
+is not a rollback. Only when the inventory is clean, remove both settings on
+main (a source change under the same review and merge rules) and run the same
+launcher-only command; the launcher returns to the pinned bytes. Restoring a
+saved launcher by hand lasts only until the next pull while the settings remain
+on main.
+
 ## Tests
 
 The two canary public-render fixture cases require actual UID 0 ownership. They
