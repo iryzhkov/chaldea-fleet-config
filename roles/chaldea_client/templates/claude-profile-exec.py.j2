@@ -190,14 +190,49 @@ def verified_native():
         raise
 
 
-def main():
+{% endraw %}{% if p.capabilities_probe | default(false) %}{% raw %}def capabilities_probe_args(argv):
+    """Only the two stock T3 0.1.0 / SDK 0.3.276 initialization shapes."""
+    head = ["--output-format", "stream-json", "--verbose", "--input-format", "stream-json",
+            "--setting-sources=user,project,local"]
+    tail = ["--permission-mode", "default", "--no-session-persistence",
+            "--settings", '{"disableAllHooks":true}']
+    require(argv in [head + ["--strict-mcp-config"] + tail, head + tail])
+    # The generic probe does not append the provider's launchArgs. Never pass
+    # its filesystem settings through or expose this profile's MCP/helper.
+    settings = {"disableAllHooks": True,
+                "permissions": {"allow": [], "deny": ["mcp__*", *POLICY["deny"]]}}
+    return ["--output-format", "stream-json", "--verbose", "--input-format", "stream-json",
+            "--restricted", "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
+            "--setting-sources", "", "--permission-mode", "default", "--no-session-persistence",
+            "--tools", "", "--disallowed-tools", "mcp__*",
+            "--settings", json.dumps(settings, separators=(",", ":"), allow_nan=False)]
+
+
+{% endraw %}{% endif %}{% raw %}def main():
     argv = sys.argv[1:]
     if argv == ["--version"]:
         require(os.geteuid() == REPORTER_UID)
         fd = verified_native()
         os.execve(fd, [NATIVE_PATH, "--version"], os.environ)
         return
-    # Reject all non-admitted argv before reading any protected file.
+{% endraw %}{% if p.capabilities_probe | default(false) %}{% raw %}    if "--no-session-persistence" in argv:
+        # Validate the complete finite shape before touching protected files.
+        args = capabilities_probe_args(argv)
+        require(os.geteuid() == REPORTER_UID)
+        fd, raw = pinned_file(POLICY_PATH, POLICY_SHA256, 65536)
+        os.close(fd)
+        policy = parse_object(raw.decode("utf-8"))
+        require(set(policy) == {"permissions"} and policy["permissions"] == POLICY)
+        os.chdir(REPORTER_CWD)
+        require(os.getcwd() == REPORTER_CWD)
+        fd = verified_native()
+        environment = dict(os.environ)
+        environment.update(ENABLE_CLAUDEAI_MCP_SERVERS="false", CLAUDE_CODE_AUTO_CONNECT_IDE="0",
+                           CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL="1")
+        environment.pop("FORCE_CODE_TERMINAL", None)
+        os.execve(fd, [NATIVE_PATH, *args], environment)
+        return
+{% endraw %}{% endif %}{% raw %}    # Reject all non-admitted argv before reading any protected file.
     corrected_args(argv, POLICY)
     require(os.geteuid() == REPORTER_UID and os.getcwd() == REPORTER_CWD)
     fd, raw = pinned_file(POLICY_PATH, POLICY_SHA256, 65536)

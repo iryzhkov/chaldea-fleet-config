@@ -391,6 +391,30 @@ then name that instance in the preset:
 --tools '' --disallowed-tools 'mcp__t3-code__*,mcp__t3_code__*'
 ```
 
+### Optional Claude capability probe
+
+A Claude profile may explicitly set `capabilities_probe: true` to recognize only
+the two stock T3 0.1.0 / SDK 0.3.276 initialization argv shapes. This defaults
+off; absent or false keeps the pre-probe launcher bytes identical. HoloNet selects
+it, while its admission switch remains off. Existing Jocasta profiles do not opt in.
+
+T3's auxiliary health query omits provider launchArgs and asks for user/project/local
+setting sources. Passing it through would violate the conversation contract.
+The optional branch accepts the complete finite argv, then replaces it with
+restricted initialization, empty setting sources, hooks disabled, no tools,
+strict empty MCP config and all MCP tools denied. It pins the same protected
+policy/native bytes, uses only the fixed profile cwd, disables connected Claude
+MCP and IDE discovery in the child environment, and never passes a credential
+helper or catalog grant to the probe. All other shapes still refuse. There is no
+auth-CLI passthrough, unrestricted fallback or changed conversation parser.
+
+The upstream health caller waits for initialization with a never-yielding prompt.
+The argv itself cannot authenticate that caller or prevent another same-UID caller
+from submitting stdin. This is not a hostile-process sandbox. Even such a caller
+gets the probe's empty tool/MCP permissions, not the profile's service grant.
+Successful metadata initialization still does not qualify a model turn, MCP ACLs,
+stored results or renewal. Those require separate real native acceptance.
+
 ### Rollback
 
 The guarded inverse removes a retired profile's role-owned files. First remove

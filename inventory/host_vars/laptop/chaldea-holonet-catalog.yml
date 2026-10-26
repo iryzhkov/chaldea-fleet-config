@@ -108,6 +108,7 @@ chaldea_laptop_holonet_catalog_enrollments:
 chaldea_laptop_holonet_catalog_profiles:
   holonet-movies-catalog-claude:
     driver: claude
+    capabilities_probe: true
     native:
       source: /home/igor/.local/share/chaldea/provider-assets/claude/2.1.276/claude
       sha256: e9ac3df956083645578a382ad64ec304468666e362c33bfdefd803cd6ff596b0
