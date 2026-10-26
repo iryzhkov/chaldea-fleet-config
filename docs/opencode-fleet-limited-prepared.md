@@ -49,6 +49,18 @@ prepared for these hosts, and the laptop's three profiles are unchanged.
 The tool allowlist and prompt are not the authorization boundary; the Jocasta
 verifier and the token's project claim are.
 
+## Preserve staging through normal pulls
+
+The per-host `chaldea-staging-retention.yml` files retain `client-v0.4.20`
+while these hosts still converge the ordinary user-mode client. Without that
+explicit retention, the next normal pull removes the inactive staged release
+before system-mode activation. These files use the existing bounded rollback
+list, preserve each host's installed rollback history and current/previous,
+and neither install absent versions nor select a service or profile. The
+shared list, six-version ceiling and cleanup tasks remain unchanged. Recheck
+installed rollback versions before merging, and verify the runtime still
+exists after a normal converge before accepting final readiness.
+
 ## Bindings root supplies
 
 Each host's selection needs host-local IDs read from that host's own T3
