@@ -48,7 +48,7 @@ def test_default_launcher_bytes_equal_pre_probe_template(trim, selected):
         env.from_string(original.read_text()).render(**variables))
 
 
-def test_probe_option_is_claude_only_and_strict_boolean(tmp_path, monkeypatch):
+def test_probe_option_is_strict_boolean(tmp_path, monkeypatch):
     case = claude_layout(tmp_path, monkeypatch)
     filter_file = ROOT / "roles/chaldea_client/filter_plugins/session_profiles.py"
     check = runpy.run_path(str(filter_file))["claude_profile"]

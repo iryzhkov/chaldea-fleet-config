@@ -325,8 +325,8 @@ and name that instance in the preset. Order removal the other way round.
 ### Claude profiles
 
 A Claude profile pins only the native binary. It has no companion, catalog,
-home or temporary directory, and the role writes nothing in any home. It has
-exactly these fields:
+home or temporary directory, and the role writes nothing in any home. Its required
+fields are below; the optional boolean `capabilities_probe` is described separately.
 
 ```yaml
 chaldea_client_session_profiles:
@@ -362,8 +362,8 @@ Bash, PowerShell, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch and Agent.
 
 The launcher is the accepted fixed Claude reporter launcher with its literals
 rendered from the profile and its single-run receipt removed. It writes nothing
-and starts no process other than the native binary. At each start it admits only
-the fixed T3 argv shape: `--restricted`, `--strict-mcp-config`, `--mcp-config`
+and starts no process other than the native binary. Conversation starts admit only
+the fixed T3 argv shape below; an opted-in capability probe has its own narrower path: `--restricted`, `--strict-mcp-config`, `--mcp-config`
 equal to this profile's `mcp.json`, empty `--setting-sources`, empty tools,
 default permission mode, stream JSON, the T3 control tool denial, `--add-dir` of
 the profile `cwd` (optionally with T3's attachments directory, which it drops),
@@ -407,6 +407,9 @@ policy/native bytes, uses only the fixed profile cwd, disables connected Claude
 MCP and IDE discovery in the child environment, and never passes a credential
 helper or catalog grant to the probe. All other shapes still refuse. There is no
 auth-CLI passthrough, unrestricted fallback or changed conversation parser.
+A managed MCP configuration that conflicts with strict mode still fails closed,
+just as on the conversation path. Each probe hashes the pinned native binary,
+about 232 MB for this version, so periodic checks have that local CPU/I/O cost.
 
 The upstream health caller waits for initialization with a never-yielding prompt.
 The argv itself cannot authenticate that caller or prevent another same-UID caller
