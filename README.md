@@ -43,9 +43,12 @@ session; it only keeps the tools and shared files those sessions use in place.
   Remote servers may use native OAuth through `mcp_registrations_remote_servers`.
   The interactive `jocasta` selections for laptop, agent-a, agent-b and
   omarchy-pc use the [managed native helper](docs/managed-interactive-webmcp.md)
-  with Claude and Codex. Role defaults remain off and OpenCode stays off.
-  Laptop is qualified; the [three-host staging sequence](docs/managed-interactive-three-hosts.md)
-  requires protected per-host delivery before merging the remaining selections.
+  with Claude and Codex. Ordinary OpenCode uses the
+  [separate helper plugin](docs/opencode-interactive-jocasta.md), selected only
+  on the qualified laptop. Other hosts remain unselected until their own staging
+  and native checks pass. Role defaults remain off. The
+  [three-host staging sequence](docs/managed-interactive-three-hosts.md) describes
+  protected managed-helper delivery for Claude and Codex.
   Merging selections can activate them through ordinary pull timers; each host
   still requires its own native-client acceptance. Public OAuth remains supported
   for explicitly selected entries. The module compares only the named entry's

@@ -16,7 +16,7 @@ webmcp_interactive_previous_credential_sha256: ""
 webmcp_interactive_ov_enabled: false
 # Ordinary OpenCode consumer of the same full Jocasta helper. Empty: the role
 # never touches OpenCode. present (with webmcp_interactive_enabled) installs the
-# one fleet-owned plugin; absent removes only that marked file. No inventory
-# sets it; root selects it per host after native qualification. See
+# one fleet-owned plugin; absent removes only that marked file. Laptop inventory
+# selects it after native qualification; additional hosts stay unset. See
 # docs/opencode-interactive-jocasta.md.
 webmcp_interactive_opencode_state: ""
