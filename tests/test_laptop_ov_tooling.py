@@ -17,7 +17,7 @@ import pytest
 import yaml
 
 from test_laptop_jocasta_tooling import (
-    ASSETS, CALLER, CODEX, HOME, PROJECT, ROLE, ROOT, activation, inventory_vars, load, strings, validate_profiles)
+    ASSETS, CALLER, CODEX, HOME, PROJECT, ROLE, ROOT, activation, effective_laptop, load, strings, validate_profiles)
 
 CANDIDATE = ROOT / "docs/examples/laptop-ov-tooling-codex.yml"
 NAME = "ov-tooling-codex"
@@ -57,7 +57,7 @@ def test_candidate_is_inactive_and_merging_preserves_every_existing_entry():
     packet = candidate()
     assert set(packet) == {"ceilings", *MAPS}
     assert all(set(packet[short]) == {NAME} for short in MAPS)
-    laptop = inventory_vars("laptop")
+    laptop = effective_laptop()
     for short in MAPS:
         assert NAME not in laptop["chaldea_client_session_" + short]
     assert all(s.get("audience") != "ov" for c in laptop["chaldea_client_session_ceilings"] for s in c["services"])

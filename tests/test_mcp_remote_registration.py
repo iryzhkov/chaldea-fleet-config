@@ -102,9 +102,9 @@ def test_four_hosts_opt_in_and_the_role_default_is_off():
         assert values["mcp_registrations_remote_servers"][0]["providers"] == ["claude", "codex"]
     laptop = inventory_vars("laptop")
     # The protected tooling profiles stay isolated from the operator server.
-    codex = laptop["chaldea_client_session_profiles"]["jocasta-tooling-codex"]
+    codex = laptop["chaldea_laptop_jocasta_profiles"]["jocasta-tooling-codex"]
     assert "jocasta" in codex["disabled_servers"] and codex["home"] != "/home/igor"
-    assert laptop["chaldea_client_session_profiles"]["jocasta-tooling-claude"]["server"] == "jocasta_tooling"
+    assert laptop["chaldea_laptop_jocasta_profiles"]["jocasta-tooling-claude"]["server"] == "jocasta_tooling"
 
 
 # Codex

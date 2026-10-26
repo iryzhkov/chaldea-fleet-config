@@ -88,8 +88,8 @@ def test_activation_is_opt_in_and_profiles_unchanged():
     select = next(t for t in tasks if t["name"].startswith("Select explicit"))
     assert "else mcp_registrations_remote_servers" in select["ansible.builtin.set_fact"]["mcp_registrations_effective_remote_servers"]
     laptop = yaml.safe_load((ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml").read_text())
-    assert "jocasta" in laptop["chaldea_client_session_profiles"]["jocasta-tooling-codex"]["disabled_servers"]
-    assert laptop["chaldea_client_session_profiles"]["jocasta-tooling-claude"]["server"] == "jocasta_tooling"
+    assert "jocasta" in laptop["chaldea_laptop_jocasta_profiles"]["jocasta-tooling-codex"]["disabled_servers"]
+    assert laptop["chaldea_laptop_jocasta_profiles"]["jocasta-tooling-claude"]["server"] == "jocasta_tooling"
 
 
 def test_actual_ansible_selection_honors_managed_absence_and_keeps_oauth(tmp_path):
