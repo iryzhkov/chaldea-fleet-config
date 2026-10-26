@@ -1,0 +1,66 @@
+---
+# INERT activation example for full interactive OV access from ordinary Claude
+# and Codex on laptop and omarchy-pc. This file is outside inventory, no role
+# loads it and it is never passed as extra vars. Each host's selection merges
+# separately, only after every precondition in docs/managed-interactive-webmcp.md
+# ("Full interactive OV") holds as recorded receipts rather than source:
+#
+# 1. The OV HTTP server checks both the requested scope family and the signed
+#    ov_actions claim and is deployed with its accepted backend contract.
+# 2. homelab-infra playbooks/authentik-ov-http-identities.yml has completed an
+#    authorized REAL run and identical repeat with
+#    -e ov_http_identities_full_interactive=true, delivering the host's
+#    ov-full-interactive app password below and leaving the controller, limited
+#    and narrow interactive identities unchanged.
+# 3. A helper artifact built from accepted source with the "ov-full HOST" mode
+#    has a recorded build receipt per architecture. That receipt, not this
+#    file, supplies the pin; none exists yet.
+#
+# Selecting a host replaces its "ov" entry by name: on the laptop the narrow
+# Codex entry ("ov laptop") becomes the full one and webmcp_interactive_ov_enabled
+# must be removed in the same change; Claude gains its first "ov" entry. The
+# stdio ov-memory registration stays until native parity is accepted for that
+# host and provider, then a separate reviewed change retires exactly those.
+hosts:
+  laptop:
+    selection:
+      webmcp_interactive_ov_full_enabled: true
+    binding: {node: omarchy-macbook-air-igor, uid: 1001}
+    credential:
+      path: /home/igor/.config/chaldea/authentik/ov-full-interactive.app-password
+      username: chaldea-laptop-ov-full-interactive
+    entries:
+      codex: {name: ov, url: "https://ov.mcp.ryzhkov.dev/mcp",
+              http_headers_helper: /usr/local/libexec/webmcp-interactive-headers ov-full laptop}
+      claude: {name: ov, type: http, url: "https://ov.mcp.ryzhkov.dev/mcp",
+               headersHelper: /usr/local/libexec/webmcp-interactive-headers ov-full laptop}
+  omarchy-pc:
+    selection:
+      webmcp_interactive_ov_full_enabled: true
+    binding: {node: omarchy-pc, uid: 1000}
+    credential:
+      path: /home/igor/.config/chaldea/authentik/ov-full-interactive.app-password
+      username: chaldea-omarchy-pc-ov-full-interactive
+    entries:
+      codex: {name: ov, url: "https://ov.mcp.ryzhkov.dev/mcp",
+              http_headers_helper: /usr/local/libexec/webmcp-interactive-headers ov-full omarchy-pc}
+      claude: {name: ov, type: http, url: "https://ov.mcp.ryzhkov.dev/mcp",
+               headersHelper: /usr/local/libexec/webmcp-interactive-headers ov-full omarchy-pc}
+
+# Built later from accepted source; never a placeholder default.
+helper_pin:
+  sha256: null
+  status: pending accepted-source build
+
+# Signed contract the helper checks after RS256 verification, for root's
+# acceptance check. The server applies its own ACL independently.
+contract:
+  issuer: https://auth.ryzhkov.dev/application/o/ov-http-a63e197f/
+  client_id: ov-http-a63e197f-machine
+  resource: https://ov.mcp.ryzhkov.dev/mcp
+  scope: ov.read ov.write ov.remove ov.maintain
+  ov_namespaces: [viking://resources]
+  ov_actions: [read, write, remove, maintain]
+# Other hosts, OpenCode, the Jocasta entries, the limited Chaldea profiles and
+# the stdio ov-memory registration receive nothing from this selection.
+unchanged: [agent-a, agent-b, opencode, jocasta, chaldea_client_session_profiles, ov-memory]

@@ -14,6 +14,12 @@ webmcp_interactive_previous_credential_sha256: ""
 # installed. Fleet never reads or delivers that credential; it only checks its
 # custody before registering the fixed helper.
 webmcp_interactive_ov_enabled: false
+# Full interactive OV for ordinary Claude and Codex on laptop and omarchy-pc:
+# the helper's "ov-full HOST" mode with homelab-infra's separately delivered
+# ov-full-interactive credential (docs/managed-interactive-webmcp.md, "Full
+# interactive OV"). Off. It replaces the narrow selection above, never joins
+# it, and needs a reviewed helper pin with that mode before any host opts in.
+webmcp_interactive_ov_full_enabled: false
 # Ordinary OpenCode consumer of the same full Jocasta helper. Empty: the role
 # never touches OpenCode. present (with webmcp_interactive_enabled) installs the
 # one fleet-owned plugin; absent removes only that marked file. Laptop inventory

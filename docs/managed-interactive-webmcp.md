@@ -178,8 +178,8 @@ resource, azp equal to the client, scope exactly ov.read, ov_namespaces exactly
 [viking://resources/homeassistant-api/rest-api.md], integer iat/exp with the
 same lifetime and reserve rules as Jocasta, and a nonempty subject of at most
 256 characters without control characters. It refuses every other service's
-grant claim, the Jocasta operator and identity claims, and case-folded aliases
-of any checked claim.
+grant claim, the Jocasta operator and identity claims, any ov_actions claim,
+and case-folded aliases of any checked claim.
 
 The OV scope mapping signs no account identity, so unlike the Jocasta mode the
 helper cannot compare a signed identity claim with its username. The subject
@@ -218,3 +218,83 @@ that also serves its Jocasta registration, so root rechecks laptop Jocasta
 after the upgrade. Native acceptance (allowed node read, sibling denial,
 reuse past token lifetime) remains root's on-host evidence; the fixtures here
 are not acceptance.
+
+## Full interactive OV
+
+The third closed helper tuple is, for HOST laptop or omarchy-pc only:
+
+    /usr/local/libexec/webmcp-interactive-headers ov-full HOST
+
+It gives ordinary interactive Claude and Codex on that host the whole OV
+resources store through https://ov.mcp.ryzhkov.dev/mcp, with every document
+action the server offers. It is a separate mode and identity rather than a
+widening of the narrow `ov laptop` mode, which keeps its exact contract while
+the server and enrollment transition is pending. One identity per host serves
+both clients, as the managed Jocasta identity does; both have the same
+authority, so separate accounts would add enrollment without reducing it.
+
+homelab-infra's prepared full declaration
+(playbooks/vars/authentik-ov-http-full-interactive.yml, selected only with
+`-e ov_http_identities_full_interactive=true`) enrolls
+chaldea-laptop-ov-full-interactive and chaldea-omarchy-pc-ov-full-interactive
+under the same owned OV provider, issuer, client and signing key. Their signed
+grant is `ov_namespaces: [viking://resources]` with
+`ov_actions: [read, write, remove, maintain]`. The existing controller,
+limited and narrow interactive identities keep their grants and claims. Fleet
+never receives, reads, copies or checksums the delivered
+~/.config/chaldea/authentik/ov-full-interactive.app-password.
+
+Before any file access, the helper requires the host's actual machine and
+account: the kernel node name and real UID must be omarchy-macbook-air-igor
+and 1001 for laptop, or omarchy-pc and 1000 for omarchy-pc, as homelab-infra
+binds the delivery. It finds the file from the account database's home for its
+UID, ignoring HOME, and applies the same no-follow custody checks as the narrow
+mode. It requests scope `ov.read ov.write ov.remove ov.maintain` with the
+host's own username and the same fixed issuer, client, token and JWKS
+endpoints. The response must carry exactly those four scopes, each once in any
+order, and the token must pass the narrow mode's RS256, header, claim-count,
+issuer, audience, client, lifetime and subject checks. It must then carry
+exactly the resources-root namespace and exactly the four actions in canonical
+order. An old read-only grant shape, a partial or reordered action list, an
+unknown or duplicate action, a narrower or wider namespace and every foreign
+or case-folded claim are refused. The narrow mode refuses any token carrying
+an action claim, so neither mode accepts the other's token.
+
+The module's closed `helper_profile: ov-full` keeps the registration name `ov`
+and its exact URL, admits Claude and Codex only and approves only those two
+hosts. Selecting it replaces the host's `ov` entry by name instead of adding a
+second server with the same tools: on the laptop the narrow Codex entry is
+replaced in place, and returning to the narrow selection is the same in-place
+replacement. Any other profile, name, host, URL, provider, extra option or
+stdio transport is refused, and OAuth mode still refuses helpers and headers.
+
+Registration is a separate explicit opt-in, webmcp_interactive_ov_full_enabled,
+off by default and accepted only with webmcp_interactive_enabled on laptop or
+omarchy-pc, never together with webmcp_interactive_ov_enabled. The role then
+checks the full credential's ancestors, private directory and file metadata
+without reading it. No inventory selects it yet, and there is no helper pin
+for this mode: the artifact is built only once the source is accepted. The
+[inert activation example](examples/ov-full-interactive.yml) lists each
+host's exact entries, binding, credential and preconditions.
+
+Activation order per selected host: the server verifier that checks both
+scope family and signed action is deployed; the full declaration is enrolled
+with an identical repeat; the reviewed helper with this mode is staged and
+pinned for that host; then that host's inventory sets the opt-in (on the
+laptop removing webmcp_interactive_ov_enabled in the same change) and converges
+with CHECK, REAL and an identical repeat. The installed narrow helper refuses
+the full grant, so a consumer installed before the grant cannot silently
+accept a wider token. The stdio ov-memory registration is unchanged by this
+capability. After native parity is accepted for a host and provider, a
+separate reviewed change retires exactly that ov-memory registration and
+updates the fleet guidance to prefer the web tools. The stdio server tags
+notes with OV_AGENT PROVIDER-HOST; one shared host identity cannot tell the
+server which client wrote a note, so attribution is the server's own concern.
+
+Clearing the opt-in alone removes nothing. Rollback for one host first
+converges with the opt-in still set and an explicit `{name: ov, state: absent}`
+remote entry, which removes the `ov` entry from both clients. Only then does
+it clear the opt-in, restore the previous helper pin and, on the laptop,
+re-select the narrow Codex mode if wanted. To stop issuance,
+homelab-infra's full mode declares that host's full account absent; tokens
+already issued remain valid until they expire.

@@ -11,6 +11,8 @@
       - webmcp_interactive_credential_source is match('^/')
       - fleet_home == ansible_facts.user_dir
       - not (webmcp_interactive_ov_enabled | default(false) | bool) or inventory_hostname == 'laptop'
+      - not (webmcp_interactive_ov_full_enabled | default(false) | bool) or inventory_hostname in ['laptop', 'omarchy-pc']
+      - not (webmcp_interactive_ov_full_enabled | default(false) | bool and webmcp_interactive_ov_enabled | default(false) | bool)
     quiet: true
 
 - name: Inspect the public helper artifact on the controller
@@ -97,6 +99,38 @@
     index_var: index
     label: "{{ item.item }}"
   when: webmcp_interactive_ov_enabled | default(false) | bool
+
+# The full interactive account's own file, delivered by homelab-infra's full
+# declaration to this host's bound UID. Metadata only, exactly as above.
+- name: Inspect the separately delivered full interactive OV app password without reading it
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "{{ fleet_home }}"
+    - "{{ fleet_home }}/.config"
+    - "{{ fleet_home }}/.config/chaldea"
+    - "{{ fleet_home }}/.config/chaldea/authentik"
+    - "{{ fleet_home }}/.config/chaldea/authentik/ov-full-interactive.app-password"
+  register: webmcp_interactive_ov_full_credential
+  when: webmcp_interactive_ov_full_enabled | default(false) | bool
+
+- name: Require private full OV app-password custody before registering its helper
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and not item.stat.islnk
+      - item.stat.uid == ansible_facts.user_uid | int or (index < 3 and item.stat.uid == 0)
+      - item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - item.stat.isdir if index < 4 else (item.stat.isreg and item.stat.nlink == 1 and item.stat.mode == '0600' and 16 <= item.stat.size <= 256)
+      - index != 3 or item.stat.mode == '0700'
+    quiet: true
+  loop: "{{ webmcp_interactive_ov_full_credential.results | default([]) }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.item }}"
+  when: webmcp_interactive_ov_full_enabled | default(false) | bool
 
 - name: Stage only a protected per-host enrollment
   no_log: true

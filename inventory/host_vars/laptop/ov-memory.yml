@@ -1,0 +1,4 @@
+---
+# ov-mcp PR #3 refuses unsafe legacy overwrite and re-ingestion workflows.
+# The shared catalog and all other hosts retain their existing source pins.
+agent_tools_ov_memory_ref: 355a92adb0658853b7439e91d4429be3d0b270fc

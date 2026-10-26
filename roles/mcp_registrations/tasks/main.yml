@@ -64,6 +64,23 @@
     - webmcp_interactive_enabled | default(false) | bool
     - webmcp_interactive_ov_enabled | default(false) | bool
 
+# The full interactive OV successor keeps the name "ov" for Claude and Codex on
+# laptop or omarchy-pc, so it replaces the narrow laptop Codex entry instead of
+# duplicating its tools. Its own opt-in, never together with the narrow one.
+# The module refuses any other host; the staged role checks credential custody.
+- name: Select the full interactive OV entry only on its own explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'ov') | list)
+         + [{'name': 'ov', 'url': 'https://ov.mcp.ryzhkov.dev/mcp',
+             'providers': ['claude', 'codex'], 'auth_mode': 'managed_helper',
+             'helper_host': inventory_hostname, 'helper_profile': 'ov-full',
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'ov')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_ov_full_enabled | default(false) | bool
+
 - name: Check the opt-in remote MCP servers
   ansible.builtin.assert:
     that:
@@ -88,6 +105,7 @@
     transport: remote
     auth_mode: "{{ item.0.auth_mode | default('oauth') }}"
     helper_host: "{{ item.0.helper_host | default(omit) }}"
+    helper_profile: "{{ item.0.helper_profile | default(omit) }}"
     url: "{{ item.0.url | default(omit) }}"
     extra: "{{ item.0[item.1] | default({}) }}"
     claude_command: "{{ mcp_registrations_claude }}"
