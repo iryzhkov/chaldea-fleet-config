@@ -59,4 +59,4 @@ cohort, refusal and idempotence against a scratch home.
 
 Revert the host's `jocasta-cli-retirement.yml` on main first; otherwise the
 next agent_tools run removes the CLI again. Then restore the binary from the
-guarded backup with its original owner and mode 0755 and check its hash.
+guarded backup with the metadata it preserved and check its hash.

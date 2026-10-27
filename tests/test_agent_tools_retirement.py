@@ -27,10 +27,9 @@ SEED = {**{".local/bin/" + name: b"retired" for name in DEFAULT_RETIRED},
         ".local/bin/feed": b"homelab-cli command",
         ".local/share/agent-tools/older/.complete": b"",
         ".local/share/agent-tools/oldest/.complete": b""}
-UNRELATED = ("Check the SSH aliases", "Check whether the pinned release is already built",
-             "Point current at the pinned release", "Link homelab-cli commands",
-             "Link MCP server launchers", "Find agent tools releases",
-             "Check the credential files", "Generate installed custom tool discovery")
+# Every task the tag may run; any other agent_tools or role task fails the test.
+SELECTED = ["Gathering Facts", "Refuse to apply another host's configuration",
+            "agent_tools : Remove commands of retired tools"]
 
 
 def invoke(host, home, *, check=False, wrong_host=False):
@@ -44,6 +43,10 @@ def invoke(host, home, *, check=False, wrong_host=False):
     result = subprocess.run(argv, cwd=ROOT, text=True, capture_output=True,
                             env={**os.environ, "ANSIBLE_LOCAL_TEMP": str(base / "ansible")})
     return result.returncode, result.stdout + result.stderr
+
+
+def tasks(output):
+    return re.findall(r"^TASK \[(.+)\] \*+$", output, flags=re.MULTILINE)
 
 
 def seeded():
@@ -72,14 +75,12 @@ def test_tag_removes_only_retired_commands_and_repeats_unchanged(host):
     code, output = invoke(host, home, check=True)
     assert code == 0, output
     assert tree(home) == before
-    assert "Refuse to apply another host's configuration" in output
-    assert "Remove commands of retired tools" in output
-    for name in UNRELATED:
-        assert name not in output
+    assert tasks(output) == SELECTED, output
     expected = without(before, *DEFAULT_RETIRED, "jocasta")
     for _ in range(2):
         code, output = invoke(host, home)
         assert code == 0, output
+        assert tasks(output) == SELECTED, output
         assert tree(home) == expected
     assert re.search(host + r"\s+: ok=\d+\s+changed=0\s+unreachable=0\s+failed=0", output), output
 
@@ -90,6 +91,7 @@ def test_other_hosts_keep_the_jocasta_cli(host):
     before = tree(home)
     code, output = invoke(host, home)
     assert code == 0, output
+    assert tasks(output) == SELECTED, output
     assert tree(home) == without(before, *DEFAULT_RETIRED)
 
 
