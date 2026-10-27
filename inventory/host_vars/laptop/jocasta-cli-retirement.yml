@@ -1,0 +1,10 @@
+---
+# Retires the legacy Jocasta CLI binary on this host; see
+# docs/jocasta-cli-retirement.md. Ordinary agents use the Jocasta MCP server.
+# Keep every command of the role default and add only jocasta. Only the binary
+# in the user's bin directory is removed: ~/.config/jocasta (config and token)
+# and the backend's static-token map are untouched. Merging this file activates
+# removal at the next agent_tools run, so the root gates in the doc come first.
+agent_tools_retired_commands:
+  - local-file-llm-mcp
+  - jocasta
