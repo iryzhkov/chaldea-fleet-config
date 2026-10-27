@@ -19,8 +19,9 @@ is write; classify mixed commands conservatively. Discovery must exit before
 configuration, credentials, telemetry and backend dispatch.
 
 The default interactive operator sees all installed commands and the one-line
-OV and Jocasta WebMCP pointers. The legacy Jocasta CLI is not part of the default
-agent index. Replace the complete profile object for restricted sessions:
+OV pointer. Hosts that register Jocasta also grant its WebMCP pointer through
+their host profile. The legacy Jocasta CLI is not part of the default agent
+index. Replace the complete profile object for restricted sessions:
 
 ```yaml
 agent_config_fleet_tools_profile:
