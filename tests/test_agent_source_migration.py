@@ -734,7 +734,17 @@ MANAGED_WEB_MCP_CHANGES = {
     ]
 }
 
+# Explicit WebMCP-first and user-requested remote-caller guidance, October27.
+# Reverse only this new layer; keep every historical baseline and assertion.
+WEBMCP_FIRST_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_webmcp_first.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(WEBMCP_FIRST_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(MANAGED_WEB_MCP_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative

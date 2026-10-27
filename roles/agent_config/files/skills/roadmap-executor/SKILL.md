@@ -57,7 +57,7 @@ cancellation still wins.
   Reuse skills and references already read while their version and applicability
   remain valid; reload when they change or missing context requires it.
 - Fetch the full current document before every Jocasta update, reconcile and use
-  `--if-revision N` under `~/.config/agents/jocasta.md`. Full fetch is required
+  WebMCP `if_revision` under `~/.config/agents/jocasta.md`. Full fetch is required
   for safe editing; printing the full body into context is not.
 - Project tool results to needed fields and use one response channel when text
   and structured content duplicate each other. Scope catalog/schema discovery

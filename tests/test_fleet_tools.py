@@ -83,8 +83,8 @@ def test_jocasta_mcp_grant_adds_only_its_guidance_line():
     granted = fleet.render({}, profile({}, ["ov-memory", "jocasta"]))
     assert "jocasta" not in plain
     assert granted.startswith(plain)
-    assert granted[len(plain):] == ("\n## Working documents\n- `jocasta` MCP: shared working documents with your own "
-                                    "native login; read `~/.config/agents/jocasta.md` for outline, section and "
+    assert granted[len(plain):] == ("\n## Working documents\n- `jocasta` MCP: shared working documents through the enrolled "
+                                    "native registration; read `~/.config/agents/jocasta.md` for outline, section and "
                                     "guarded edit use.\n")
     for unknown in (["jocasta_tooling"], ["huyang"]):
         with pytest.raises(ValueError, match="unknown MCP grant"):
