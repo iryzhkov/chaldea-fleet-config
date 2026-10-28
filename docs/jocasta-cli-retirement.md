@@ -17,22 +17,40 @@ Unchanged by this selection:
   role default.
 - Every other agent_tools task and every other role.
 
-The fleet never installs the CLI; UpKeeper does. UpKeeper PR #71 removes the
-two hosts from its Jocasta consumer list, so ordinary updates stop
-reinstalling it there, and every later agent_tools run removes it again.
+Chaldea fleet-config manages the current agent environment and enforces this
+retirement. The old binary came from UpKeeper. No UpKeeper binary or units
+were present on the retirement targets or at the documented controller
+locations; its legacy manifest cleanup in PR #71 was independent of this
+rollout. Every later agent_tools run keeps the CLI absent.
 
-## Root gates before merge
+## Completed rollout and evidence
 
-Merging the host_vars files activates removal at the next agent_tools run on
-each host, full or narrow. Before merge, root:
+PR #130 merged as `34f1c853aa354fce2de7dd995efa68a432e8f868` on
+2026-10-28. Root reviewed the full CHECK diff on both targets: only `jocasta`
+would be removed. Each REAL reported `ok=3 changed=1 failed=0 unreachable=0`,
+and each repeat reported `changed=0`. Both executables were independently
+verified absent. Other bin entries, Jocasta credential metadata, profiles,
+current/previous links and waits service identities were preserved.
 
-1. Qualifies the installed UpKeeper capture behavior with PR #71 (or an
-   already supported explicit component selection), so no update reinstalls
-   the CLI on these hosts.
-2. Takes a guarded backup of the binary alone, preserving its metadata, and
-   validates its hash against the public Jocasta release asset it came from.
-   No config or token content is read or copied.
-3. Accepts review and hosted CI for the exact head.
+Before merge, root verified the active deployment owner and absence of a
+known automatic UpKeeper installer, accepted both final source reviews and
+all six hosted checks, and revalidated guarded binary-only rollback copies.
+The copies match exact installed bytes and the retained UpKeeper manifest
+pins. The original public release asset is unavailable: this is installed-state
+rollback evidence, not independent release provenance. Config and token
+contents were neither read nor copied.
+
+Execution `0010e140a7e8444483739845c3e6fc2d` completed its applies/repeats by
+14:03:45Z and closed with explicit shared-window release at 14:12:02Z,
+`remainingCleanup=[]`. The scoped decision check is
+`jocasta:2de2223c9a659e327f00b0783c34a357@1`; the operative checkpoint is
+`jocasta:405dc259d4563fba09a7f2aa9fa6d58e`. A/B were already CLI-absent;
+this rollout does not turn their deferred native/provider tests into passes.
+
+Merging a host's retirement selection activates removal at its next
+agent_tools run. A future rollout still needs actual installer/dependency
+checks, a guarded backup, source acceptance, fresh host admission and full
+CHECK review before applying; this closeout grants no additional authority.
 
 ## Narrow run
 
