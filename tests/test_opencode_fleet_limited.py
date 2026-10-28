@@ -222,11 +222,12 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
         # Exactly one preset, enrollment and profile: never Claude or Codex.
         assert {short: list(values["chaldea_client_session_" + short]) for short in ("presets", "enrollments", "profiles")} \
             == {"presets": [NAME], "enrollments": [NAME], "profiles": [NAME]}
-        # The laptop preset with only its bindings and the model changed.
+        # The laptop preset with only its bindings, the model and the explicit
+        # one-call form of the same two-read prompt changed.
         assert laptop["chaldea_client_session_presets"][NAME]["model"] == LAPTOP_MODEL
         assert values["chaldea_client_session_presets"][NAME] == dict(
             laptop["chaldea_client_session_presets"][NAME], projectId=bound["session_project"], destinations=destinations,
-            model=FLEET_MODEL)
+            model=FLEET_MODEL, prompt=fleet_prompt())
         assert "options" not in values["chaldea_client_session_presets"][NAME]
         assert values["chaldea_client_session_enrollments"][NAME] == dict(
             laptop["chaldea_client_session_enrollments"][NAME], username="chaldea-" + host + "-" + NAME)
@@ -451,3 +452,112 @@ def test_actual_role_delivers_the_composed_profile_and_its_launcher_checks_the_m
         # A native for another machine is refused before it runs.
         assert version.returncode != 0 and "bash" not in version.stdout, version
     assert list(case.runtime.iterdir()) == []
+
+
+# The reporter prompt for the three hosts is the laptop's finite two-read task
+# spelled out as one execute call: on agent-a the local model first guessed a
+# resource tool, a static import and a lines format before the global call
+# worked. The code below is the prompt's own text, run against fake tools.
+TOOLING_ID = "0039fc5e47f4ecf7f2aa5b02d3651b3c"
+OTHER_ID = "0004d615b73f2a91d0caa4e80b25cae3"
+REPORT_KEYS = ["v", "status", "toolingRead", "otherProject", "documentId", "revision", "issues"]
+SENTINEL = "SENTINEL-DOCUMENT-CONTENT"
+HARNESS = r"""
+const input = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const calls = [];
+const tools = {jocasta_tooling: {get: async (args) => {
+  calls.push(args);
+  const step = input.steps[calls.length - 1];
+  if (step === undefined) throw new Error("unexpected extra call");
+  if ("error" in step) throw new Error(step.error);
+  if ("raw" in step) throw step.raw;
+  return step.value;
+}}};
+const AsyncFunction = (async () => {}).constructor;
+new AsyncFunction("tools", input.code)(tools).then(
+  (result) => process.stdout.write(JSON.stringify({result, calls})),
+  (error) => process.stdout.write(JSON.stringify({error: String(error), calls})));
+"""
+
+
+def fleet_prompt():
+    return candidate()["selection"]["preset"]["prompt"]
+
+
+def prompt_code(prompt):
+    start = prompt.index("const r=")
+    return prompt[start:prompt.index("return r;", start) + len("return r;")]
+
+
+def document(revision=1):
+    return {"version": "jocasta/v1", "document": {
+        "id": TOOLING_ID, "revision": revision, "content": SENTINEL, "partial": True}}
+
+
+def test_fleet_prompt_is_one_exact_execute_call_and_the_laptop_prompt_is_unchanged():
+    prompt = fleet_prompt()
+    for host in HOSTS:
+        path = ROOT / "inventory/host_vars" / host / "chaldea-jocasta-tooling.yml"
+        assert yaml.safe_load(path.read_text())["chaldea_client_session_presets"][NAME]["prompt"] == prompt
+    laptop = effective_laptop()["chaldea_client_session_presets"]
+    assert laptop[NAME]["prompt"] == laptop["jocasta-tooling-claude"]["prompt"] != prompt
+    assert len(laptop[NAME]["prompt"].encode()) == 655
+    # Inventory strings are templated: no Jinja delimiter may appear.
+    assert not any(d in prompt for d in ("{{", "{%", "{#"))
+    assert "exactly one call to the existing execute tool and no other tool" in prompt
+    assert "no retry or repeat even after an error" in prompt
+    assert "If the execute call itself cannot run, do not call again" in prompt
+    assert "Never fabricate a result" in prompt
+    code = prompt_code(prompt)
+    assert prompt.count("tools.jocasta_tooling.get(") == code.count("tools.jocasta_tooling.get(") == 2
+    first = code.index('await tools.jocasta_tooling.get({id:"%s",lines:"1:3"})' % TOOLING_ID)
+    assert first < code.index('await tools.jocasta_tooling.get({id:"%s"})' % OTHER_ID)
+    assert code.count("try{") == code.count("catch(e){") == 2
+    for word in ("import", "require", "read_mcp_resource", "search", "fetch", "console", "project:",
+                 "for(", "while(", "allSettled", "Promise", "content"):
+        assert word not in code, word
+    # The reply template keeps the existing keys, ID and types.
+    template = prompt[prompt.index('{"v":1'):]
+    template = json.loads(template[:template.index("}") + 1])
+    assert list(template) == REPORT_KEYS
+    assert template["documentId"] == TOOLING_ID and template["revision"] == 1 and template["issues"] == []
+
+
+@pytest.mark.parametrize("steps,report", [
+    pytest.param([{"value": json.dumps(document())},
+                  {"error": "not_found: document or revision does not exist"}],
+                 {"status": "PASS", "toolingRead": "PASS", "otherProject": "DENIED", "revision": 1, "issues": []},
+                 id="json-text-and-not-found"),
+    pytest.param([{"value": document()}, {"error": "access denied for project homelab"}],
+                 {"status": "PASS", "toolingRead": "PASS", "otherProject": "DENIED", "revision": 1, "issues": []},
+                 id="object-and-access-denied"),
+    pytest.param([{"value": document()}, {"raw": "not_found"}],
+                 {"status": "PASS", "toolingRead": "PASS", "otherProject": "DENIED", "revision": 1, "issues": []},
+                 id="non-error-rejection"),
+    pytest.param([{"value": document()}, {"value": document()}],
+                 {"status": "FAIL", "toolingRead": "PASS", "otherProject": "FAIL", "revision": 1,
+                  "issues": ["other_project_readable"]}, id="forbidden-read-succeeds"),
+    pytest.param([{"value": document()}, {"error": "internal: upstream timeout"}],
+                 {"status": "FAIL", "toolingRead": "PASS", "otherProject": "FAIL", "revision": 1,
+                  "issues": ["other_project_unexpected_error"]}, id="unexpected-denial-error"),
+    pytest.param([{"error": "invalid_input: lines must be START:END"}, {"error": "not_found"}],
+                 {"status": "FAIL", "toolingRead": "FAIL", "otherProject": "DENIED", "revision": 0,
+                  "issues": ["tooling_read_error"]}, id="tooling-read-error-still-checks-denial"),
+    pytest.param([{"value": document(2)}, {"error": "not_found"}],
+                 {"status": "FAIL", "toolingRead": "FAIL", "otherProject": "DENIED", "revision": 0,
+                  "issues": ["tooling_unexpected_result"]}, id="wrong-revision"),
+    pytest.param([{"value": None}, {"error": "not_found"}],
+                 {"status": "FAIL", "toolingRead": "FAIL", "otherProject": "DENIED", "revision": 0,
+                  "issues": ["tooling_read_error"]}, id="empty-result"),
+])
+def test_fleet_prompt_code_makes_two_reads_and_returns_only_the_report(steps, report):
+    result = subprocess.run(["node", "-e", HARNESS], input=json.dumps({"code": prompt_code(fleet_prompt()),
+                            "steps": steps}), capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    outcome = json.loads(result.stdout)
+    # Exactly two sequential reads with only the supported fields, whatever happens.
+    assert outcome["calls"] == [{"id": TOOLING_ID, "lines": "1:3"}, {"id": OTHER_ID}], outcome
+    assert list(outcome["result"]) == REPORT_KEYS
+    assert outcome["result"] == {"v": 1, "documentId": TOOLING_ID} | report
+    reply = json.dumps(outcome["result"], separators=(",", ":"))
+    assert len(reply.encode()) < 1000 and SENTINEL not in reply

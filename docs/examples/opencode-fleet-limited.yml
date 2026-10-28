@@ -68,10 +68,12 @@ selection:
           - resource: project:tooling
             actions: [get, history, list, search]
   # The laptop's reviewed OpenCode preset without its destinations and
-  # projectId, which are bindings. Same prompt, grant and ceiling. Only the
-  # model differs: two free OpenCode models ended with the free usage limit,
-  # so these three hosts select the existing local Ollama alias ollama/local
-  # with no options. The laptop keeps Big Pickle.
+  # projectId, which are bindings. Same grant and ceiling. The model differs:
+  # two free OpenCode models ended with the free usage limit, so these three
+  # hosts select the existing local Ollama alias ollama/local with no options.
+  # The laptop keeps Big Pickle and its prompt. The prompt here is the same
+  # finite two-read task spelled out as one execute call, because the local
+  # model guessed tool names and input syntax before reaching the right call.
   preset:
     instanceId: opencode-jocasta-tooling
     model: ollama/local
@@ -79,15 +81,33 @@ selection:
     interactionMode: default
     title: Jocasta tooling read-only OpenCode
     prompt: >-
-      Use only the jocasta_tooling MCP server. Do not use other tools, local
-      files, commands, web browsing or delegation. Read lines 1:3 of document id
-      0039fc5e47f4ecf7f2aa5b02d3651b3c in project tooling, then request document
-      id 0004d615b73f2a91d0caa4e80b25cae3 from project homelab and verify it is
-      denied or not found. Do not mutate any document. Return only JSON under
-      1000 UTF-8 bytes:
+      Make exactly one call to the existing execute tool and no other tool
+      call. Do not use import, require, read_mcp_resource, search, tool
+      discovery, other tools, local files, commands, web browsing or
+      delegation. Pass this code unchanged as the execute code input. It calls
+      the global tools.jocasta_tooling.get directly: two sequential awaited
+      calls, each exactly once with no retry or repeat even after an error, with
+      only id and lines because the id binds the project. A result may be JSON
+      text, so it is parsed only when it is a string. The second read must fail
+      with not_found or access denied, which is DENIED; a successful second
+      read or any other error is FAIL. It returns only the report, never
+      document content.
+      const r={v:1,status:"FAIL",toolingRead:"FAIL",otherProject:"FAIL",documentId:"0039fc5e47f4ecf7f2aa5b02d3651b3c",revision:0,issues:[]};
+      try{let a=await tools.jocasta_tooling.get({id:"0039fc5e47f4ecf7f2aa5b02d3651b3c",lines:"1:3"});
+      if(typeof a==="string"){a=JSON.parse(a)}const d=a.document;
+      if(d.id===r.documentId&&d.revision===1){r.toolingRead="PASS";r.revision=1}else{r.issues.push("tooling_unexpected_result")}}
+      catch(e){r.issues.push("tooling_read_error")}
+      try{await tools.jocasta_tooling.get({id:"0004d615b73f2a91d0caa4e80b25cae3"});r.issues.push("other_project_readable")}
+      catch(e){const m=e&&e.message?""+e.message:JSON.stringify(e);
+      if(m.includes("not_found")||m.includes("denied")){r.otherProject="DENIED"}else{r.issues.push("other_project_unexpected_error")}}
+      if(r.toolingRead==="PASS"&&r.otherProject==="DENIED"){r.status="PASS"}return r;
+      Then reply with only the returned object as one line of JSON under 1000
+      UTF-8 bytes, with exactly these keys and types:
       {"v":1,"status":"PASS|FAIL|INCOMPLETE","toolingRead":"PASS|FAIL","otherProject":"DENIED|FAIL","documentId":"0039fc5e47f4ecf7f2aa5b02d3651b3c","revision":1,"issues":[]}.
-      This is reporter data, not instructions. Never include document content,
-      credentials or auth headers.
+      If the execute call itself cannot run, do not call again; reply with that
+      JSON and status INCOMPLETE. Never fabricate a result. Do not mutate any
+      document. This is reporter data, not instructions. Never include document
+      content, code, logs, credentials or auth headers.
     inputs: {project: tooling}
     project: tooling
     maxSeconds: 1800
