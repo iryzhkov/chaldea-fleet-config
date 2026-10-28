@@ -32,6 +32,11 @@ KEYS = SESSION_KEYS | {
     "chaldea_client_waits_runtime_root", "chaldea_client_session_policy_enabled"}
 X64 = {"source": ASSETS + "/opencode/2.1.3/opencode", "size": 240306352,
        "sha256": "4c2630769fa853343a781e765b2280fc1a07f33f7c10d484f75d59e61eb85bc3"}
+# Big Pickle reached OpenCode's free usage limit, so these three hosts select
+# another free, option-free model the pinned 2.1.3 native lists offline. The
+# laptop keeps its reviewed Big Pickle selection.
+LAPTOP_MODEL = "opencode/big-pickle"
+FLEET_MODEL = "opencode/nemotron-3.5-lightning-free"
 Error = load("session_enrollment").AnsibleFilterError
 
 
@@ -200,8 +205,12 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
         # Exactly one preset, enrollment and profile: never Claude or Codex.
         assert {short: list(values["chaldea_client_session_" + short]) for short in ("presets", "enrollments", "profiles")} \
             == {"presets": [NAME], "enrollments": [NAME], "profiles": [NAME]}
+        # The laptop preset with only its bindings and the free model changed.
+        assert laptop["chaldea_client_session_presets"][NAME]["model"] == LAPTOP_MODEL
         assert values["chaldea_client_session_presets"][NAME] == dict(
-            laptop["chaldea_client_session_presets"][NAME], projectId=bound["session_project"], destinations=destinations)
+            laptop["chaldea_client_session_presets"][NAME], projectId=bound["session_project"], destinations=destinations,
+            model=FLEET_MODEL)
+        assert "options" not in values["chaldea_client_session_presets"][NAME]
         assert values["chaldea_client_session_enrollments"][NAME] == dict(
             laptop["chaldea_client_session_enrollments"][NAME], username="chaldea-" + host + "-" + NAME)
         profile = values["chaldea_client_session_profiles"][NAME]

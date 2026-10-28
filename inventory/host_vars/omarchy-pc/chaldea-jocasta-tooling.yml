@@ -22,7 +22,7 @@ chaldea_client_session_ceilings:
 chaldea_client_session_presets:
   jocasta-tooling-opencode:
     instanceId: opencode-jocasta-tooling
-    model: opencode/big-pickle
+    model: opencode/nemotron-3.5-lightning-free
     runtimeMode: approval-required
     interactionMode: default
     title: Jocasta tooling read-only OpenCode

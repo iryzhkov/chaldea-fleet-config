@@ -59,10 +59,13 @@ selection:
           - resource: project:tooling
             actions: [get, history, list, search]
   # The laptop's reviewed OpenCode preset without its destinations and
-  # projectId, which are bindings. Same prompt, grant and ceiling.
+  # projectId, which are bindings. Same prompt, grant and ceiling. Only the
+  # model differs: Big Pickle reached its free usage limit, so these three
+  # hosts select another free, option-free model that the pinned 2.1.3 native
+  # lists offline from its bundled catalog. The laptop keeps Big Pickle.
   preset:
     instanceId: opencode-jocasta-tooling
-    model: opencode/big-pickle
+    model: opencode/nemotron-3.5-lightning-free
     runtimeMode: approval-required
     interactionMode: default
     title: Jocasta tooling read-only OpenCode

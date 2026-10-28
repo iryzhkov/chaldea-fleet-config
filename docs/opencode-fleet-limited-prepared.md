@@ -33,7 +33,10 @@ native architecture and workspace differ.
   user-to-system migration and its strict ownership guards are unchanged.
 - Policy keeps project `tooling`, 1800 seconds, `delegate: false`, audience
   `jocasta` and `get/history/list/search` on `project:tooling`. The preset uses
-  `opencode-jocasta-tooling`, model `opencode/big-pickle` and no options.
+  `opencode-jocasta-tooling`, model `opencode/nemotron-3.5-lightning-free` and
+  no options. It differs from the laptop's `opencode/big-pickle` only because
+  Big Pickle returned OpenCode's free usage limit on 2026-10-28; see the model
+  selection section below.
 - Enrollment uses the existing Jocasta tooling provider and one ordinary account
   per host, `chaldea-<host>-jocasta-tooling-opencode`, with 300-second tokens.
   homelab-infra owns enrollment and delivery to
@@ -60,6 +63,39 @@ Claude and Codex retain their full managed Jocasta selections. Helper and
 enrollment sources, laptop values, HoloNet profiles/provider/policy, OV and all
 other neighbors stay unchanged. The tool allowlist and prompt do not enforce
 authorization; the Jocasta verifier and token project claim do.
+
+## Model selection
+
+The launcher sets `OPENCODE_DISABLE_MODELS_FETCH=1` and supplies no OpenCode
+credential, so the protected native sees only its bundled models snapshot and
+enables only zero-cost `opencode/*` models. A model is usable here only if the
+pinned 2.1.3 native lists it in that state, independent of what a newer
+ordinary OpenCode shows.
+
+On 2026-10-28 a credential-free Chaldea job on agent-a downloaded
+`@opencode/cli-linux-x64` 2.1.3, matched both pins above and ran
+`opencode models --standalone` in scratch with the launcher's environment and
+the protected policies (Chaldea jobs `31a0bbd5-0aa9-4d68-9353-e2c6a2cfc274` and
+`e7cf290b-5e6d-4b68-89d3-ab89c195b3ce`). It listed 11 free models, matching the
+count from the earlier native readiness. `nemotron-3.5-lightning-free` is among
+them and is also active, zero-cost, tool-calling and option-free in the public
+catalog at `https://models.opencode.ai/api.json`. Its text-only input matches
+Big Pickle. `mimo-v2.6-flash-free` met the same checks and is the named
+alternative.
+
+These are listing facts only. No model turn ran. Whether OpenCode's free usage
+limit is pooled per model, per client or per network address is not published,
+so the replacement can still hit the same limit. Native tool calling, the
+reporter JSON and completion need the same native qualification as before.
+No paid provider, credential or automatic fallback is configured.
+
+The existing local Ollama provider on omarchy-pc was considered and not
+selected. The protected config defines only the Jocasta MCP server, so using it
+would add a provider block to the role template, a new validated profile field
+and an HTTP LAN destination that the profile URL rule refuses today. That
+changes every rendered `opencode.json` and launcher on these hosts. agent-a and
+agent-b would also depend on the gaming PC being awake and its GPU being free.
+It remains a separate, larger follow-up.
 
 ## Evidence and remaining gates
 
