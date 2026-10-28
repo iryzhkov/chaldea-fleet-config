@@ -157,8 +157,15 @@ review only when it is low risk and preserves reviewed behavior, acceptance and 
 Under about 50 lines alone grants no waiver for security, authority, acceptance or behavior
 changes. Required tests and CI still apply.
 
-T3 tools act only on the host's own T3 server. There is no agent-driven launch on another
-host yet; ask Igor to start work there from the T3 app.
+T3 tools act only on their host's T3 server. Do not infer cross-host launch from
+local tools. If Igor explicitly requests a fresh caller on another authorized host,
+the verified installed host-local `orchestration.launchThread` API can create that
+caller over approved SSH. Verify its actual schema, environment/project and least
+scopes, save exact IDs before dispatch, reconcile uncertainty without blind retry,
+and revoke the temporary control. Create only the requested caller; this is not
+blanket cross-host model/delegation authority. Do not add a generic remote bridge
+or replay an obsolete `t3-run` payload. Without a verified seam, ask Igor to start
+the thread in T3. Never resume a stopped or settled thread without authorization.
 
 FATE selects targets within the adopted review pair and role rules; explicit user
 model overrides still apply. Use the documented outage fallback when routing is unavailable. Sonnet is excluded; Haiku is
@@ -214,6 +221,7 @@ boundaries; the guide does not grant enrollment or deployment authority.
 
 ## Shared working documents
 
-Use Jocasta for shared plans, handoffs and research. Search with `jocasta search`, fetch
-the full document before an update, and use `--if-revision N`. Read
-**~/.config/agents/jocasta.md** before creating or changing documents.
+Use the registered Jocasta WebMCP tools for shared plans, handoffs and research.
+Search with `search`, fetch the full document before a whole-document update, and
+use `if_revision` plus an idempotency key. Respect the current identity's grants.
+Read **~/.config/agents/jocasta.md** before creating or changing documents.

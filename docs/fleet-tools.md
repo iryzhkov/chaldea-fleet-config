@@ -3,7 +3,7 @@
 Converge renders `fleet-tools/SKILL.md` after all installers finish. Claude reads
 `~/.claude/skills`, OpenCode and Codex share `~/.agents/skills`, and Codex also
 gets `~/.codex/skills`. The renderer checks the homelab-cli launchers selected
-by the agent_tools install list, plus installed Jocasta and Chaldea paths;
+by the agent_tools install list, plus the installed Chaldea path;
 override `agent_config_fleet_tools_directories` and
 `agent_config_fleet_tools_executables` for additional custom tools. No PATH scan
 or service command is used. Each included tool receives only `--describe`, with
@@ -19,7 +19,9 @@ is write; classify mixed commands conservatively. Discovery must exit before
 configuration, credentials, telemetry and backend dispatch.
 
 The default interactive operator sees all installed commands and the one-line
-OV MCP pointer. Replace the complete profile object for restricted sessions:
+OV pointer. Hosts that register Jocasta also grant its WebMCP pointer through
+their host profile. The legacy Jocasta CLI is not part of the default agent
+index. Replace the complete profile object for restricted sessions:
 
 ```yaml
 agent_config_fleet_tools_profile:
@@ -27,7 +29,6 @@ agent_config_fleet_tools_profile:
   tools:
     feed: [read]
     pve: [read]
-    jocasta: [read]
   mcp: [ov-memory]
 ```
 
