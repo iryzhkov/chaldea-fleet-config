@@ -81,6 +81,20 @@
     - webmcp_interactive_enabled | default(false) | bool
     - webmcp_interactive_ov_full_enabled | default(false) | bool
 
+# Ordinary HoloNet uses its own fixed helper/account, not session admission.
+- name: Select the closed laptop HoloNet Codex reader only on its own explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'holonet_catalog') | list)
+         + [{'name': 'holonet_catalog', 'url': 'https://media.mcp.ryzhkov.dev/mcp',
+             'providers': ['codex'], 'auth_mode': 'managed_helper',
+             'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_catalog')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_holonet_enabled | default(false) | bool
+
 - name: Check the opt-in remote MCP servers
   ansible.builtin.assert:
     that:

@@ -2,7 +2,7 @@
 // Trust: system HTTPS roots at fixed issuer/JWKS endpoints, then RS256 verification.
 // No CLI/config option can select another endpoint, resource, scope or client.
 // The only invocations are the fixed tuples "jocasta HOST", "ov laptop" and
-// "ov-full HOST" for laptop and omarchy-pc.
+// "ov-full HOST" for laptop and omarchy-pc, plus "holonet laptop".
 package main
 
 import (
@@ -109,6 +109,8 @@ func main() {
 		ov()
 	case "ov-full":
 		ovFullMode(os.Args[2])
+	case "holonet":
+		holonetMode()
 	default:
 		fail()
 	}
@@ -121,6 +123,9 @@ func selectMode(args []string) string {
 	}
 	if args[0] == "jocasta" && hosts[args[1]] {
 		return "jocasta"
+	}
+	if args[0] == "holonet" && args[1] == "laptop" {
+		return "holonet"
 	}
 	if args[0] == "ov" && args[1] == "laptop" {
 		return "ov"

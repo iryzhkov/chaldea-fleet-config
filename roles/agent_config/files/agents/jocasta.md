@@ -3,62 +3,73 @@
 Maintained in chaldea-fleet-config's roles/agent_config/files/agents/jocasta.md.
 Edit that source; installed copies are outputs.
 
+Use registered Jocasta WebMCP tools for shared plans, handoffs, research and prompts.
+Ordinary interactive and ordinary delegated T3 threads using the managed interactive
+identity have document access across projects. Protected Chaldea profiles retain
+their explicitly granted read-only project access. Delegation alone does not
+determine an identity or permission. Use the tools exposed to the current profile;
+never bypass a denial through another identity.
 
-Jocasta stores shared plans, handoffs, research and prompts. Use its CLI on any fleet host:
-`jocasta search 'rough plan name' --json`, then `jocasta get PROJECT/plans/FILE.md --output
-~/.cache/roadmap-work/plan.md --json`. Search is lexical, so a bounded search is not proof of absence. Use exact
-`jocasta:DOCUMENT_ID@REVISION` references in handoffs.
+## Find and read
 
-Create with `jocasta put PROJECT/handoffs/FILE.md --file ~/.cache/roadmap-work/handoff.md --create`. For updates,
-fetch the full document, reconcile changes, and use `--if-revision N`. Never write back a
-partial line range, guess a mutation target from search, or retry a conflict by replacing the
-newer revision.
+- Use `search` with `q` and optional `project`, or `list` with a bounded
+  `prefix`. Search is lexical; a bounded result is not proof of absence.
+- Use `get` with an exact `id` or `path`. Keep
+  `jocasta:DOCUMENT_ID@REVISION` references in handoffs.
+- `get` with `view: "outline"` returns headings, line ranges and the revision;
+  `levels` narrows heading depth. Use `section: {heading, heading_line}` for an
+  exact section or `lines` for a bounded range. Pin `revision` to read the same
+  snapshot. Duplicate headings require `heading_line`.
+- `search` with `include_excerpts` returns bounded excerpts of the exact revision.
+  Read the located passage before choosing an edit.
+- Use `history` for revision metadata and grant-bound pagination. Compare versions
+  through two revision-pinned `get` calls; rendering a diff is a client task.
+  For presence, `get` with an outline avoids returning the body; `not_found` can
+  mean absent or inaccessible, not unrestricted absence.
+- Save returned content in owned scratch when a file artifact is needed.
+  Repository source remains in Git and uses Huyang.
 
-Keep working documents current rather than append-only. Replace obsolete active/pending
-state when reconciling; do not leave contradictory stage summaries below a new update.
-Before removing detail still needed as evidence, retain an exact revision link or durable
-receipt. Jocasta revisions preserve history; do not duplicate it in every plan, checkpoint
-and handoff. Keep the plan's decisions and strategy separate from checkpoint task/run state.
-Fetch the whole document for a safe update, then inspect and print only the operative parts
-needed for the decision. Use readable sentences and normal spacing. Roadmap-executor owns
-the operative checkpoint shape and soft size target; this guidance adds no new report.
+## Change documents safely
 
-Jocasta is the shared working-document store: repository source stays in Git and is read and
-edited through Huyang and OV stays curated long-term memory.
-Do not automatically mirror working documents into OV. If Jocasta is unavailable, report the
-failure rather than writing mutable copies elsewhere. Documents are archived automatically after
-30 days without a read or update, remain searchable and retrievable, and keep their history.
+Every mutation requires a fresh `idempotency_key`. Reuse a key only for an identical
+request after an uncertain response; changed requests need new keys. The server's
+actual schema is authoritative.
 
-Credentials are per-host and must not be copied into prompts, logs, source or handoffs.
+- Create with `mutate`, `operation: "create"`, an exact project path and content.
+- Change one passage with `edit`: exact ID or path, observed `if_revision`,
+  unique nonempty `old`, `new`, optionally an exact `section`. Zero or multiple
+  matches and stale revisions refuse without a change. Reread and reconcile.
+- Before whole-document `mutate` with `operation: "put"`, fetch the FULL current
+  document, reconcile and pass its `if_revision`. Never write a section or
+  line-range response back as the whole document.
+- `mutate` also supports `move` with `destination`, `archive`, `unarchive`
+  and `restore` with `source_revision`. Read the full current document and guard
+  these changes with its `if_revision`. Restore preserves revision history.
+- Never guess a mutation target from search or overwrite a newer revision to evade
+  a conflict. Remaining CLI/REST/MCP consumers share these revision rules.
 
-## Web MCP
+Keep working documents current rather than append-only. Replace obsolete active
+state and retain an exact prior revision or durable receipt before removing evidence.
+Keep decisions in the plan, current task/run state in the checkpoint and details in
+linked receipts. Fetch the whole document for a safe update but print only relevant
+parts. Use normal spacing. Roadmap-executor owns checkpoint shape; this adds no report.
 
-Where the `jocasta` MCP server is registered (the laptop's ordinary interactive Claude
-and Codex sessions), it reads and changes the same documents and revisions as the CLI
-and REST API. The current public registration uses native OAuth. An explicitly
-enrolled managed registration instead obtains short-lived headers privately through
-the native client. Ask the operator to reconcile a managed enrollment failure;
-never run its headers helper in a tool whose output reaches the model. For the
-public OAuth mode, ask Igor to complete that client's MCP login when required.
-Never copy a token into a prompt, config or command. Protected Chaldea tooling sessions keep their
-read-only tooling access and do not get this server. The server's tool schemas are
-authoritative; if a field below differs, follow the schema.
+Documents inactive for 30 days archive automatically, remain retrievable/searchable
+with history, and reads reset inactivity without unarchiving. Do not mirror working
+documents into OV. If Jocasta is unavailable, report it rather than silently creating
+mutable copies elsewhere.
 
-- Read narrowly. `get` with `view: "outline"` lists headings with their line ranges and
-  the revision; `get` with `section: {heading, heading_line}` returns one exact section,
-  and `lines` a pinned range. Pass `revision` to keep reading the same snapshot. A
-  heading that occurs more than once is refused as ambiguous; add `heading_line`.
-- `search` with `include_excerpts` returns bounded excerpts of the exact returned
-  revision. An excerpt locates text; read it before choosing an edit target.
-- Change a passage with `edit`: exact path or ID, `if_revision` equal to the revision you
-  read, nonempty `old` text that occurs exactly once (optionally within one `section`),
-  `new`, and a fresh `idempotency_key`. Zero or several matches and stale revisions are
-  refused without a change; re-read, reconcile and retry with a new key. Reuse a key
-  only to retry the identical request.
-- Whole-document writes (`mutate` put) and create, move, archive, unarchive and restore
-  follow the update rules above: fetch the full current document, reconcile and pass
-  `if_revision`. A targeted `edit` is the only partial write.
-- CLI, REST and Web MCP may be mixed; every write needs the latest revision, whichever
-  path made it.
+## Authentication and availability
 
+Use the existing managed native registration and its private short-lived headers.
+Never run its headers helper as a model-visible command or print credentials,
+headers or auth caches. Never copy human/native auth caches. Reconcile a managed
+enrollment failure with its owner; do not request another browser login merely
+because an already-enrolled helper failed. Only an explicitly selected public OAuth
+registration uses that client's supported login flow.
 
+WebMCP is the normal agent path. Do not install or use the legacy CLI to escape an
+unavailable tool, restriction or grant. Offline import and operator recovery retain
+their separately approved procedures until migrated; they grant no broader runtime
+access. Preserve credentials required by remaining consumers during retirement.
+Registration, installed configuration and actual native acceptance are separate evidence.

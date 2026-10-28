@@ -104,7 +104,7 @@ never poll. Recorded decisions are checked for drift, not re-argued.
   reviewer thread IDs/models, numbers and delta against the previous audit,
   findings in audit-lens format, unknowns and proposed dispositions.
   Keep it to decisions, material findings and evidence links, not a diary.
-  Fetch an existing same-date report in full and use `--if-revision N`;
+  Fetch an existing same-date report in full and use WebMCP `if_revision`;
   create only if absent. Preserve earlier audit evidence and decisions.
 - The orchestrator judges each recommendation and adopts reasonable, evidence-backed
   improvements within the agreed outcome, scope, authority and cost without asking
@@ -118,7 +118,7 @@ never poll. Recorded decisions are checked for drift, not re-argued.
   authorized work that does not depend on the answer. Use the chaldea decision
   workflow when input is needed; no answer only defers dependent work.
 - Record orchestrator dispositions and any Igor decisions in the report, checkpoint
-  and plan with full fetch/reconcile/`--if-revision`. Close a completed audit and
+  and plan with full fetch/reconcile/WebMCP `if_revision`. Close a completed audit and
   update its reference and due status without waiting on unrelated proposals; only
   a comprehensive audit resets the comparable baseline and milestone counter.
   Unresolved blocking findings still gate the affected work.
