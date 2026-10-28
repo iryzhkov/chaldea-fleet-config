@@ -20,8 +20,10 @@ omarchy-pc keeps its existing waits environment
 
 Each host selects exactly one ceiling, preset, enrollment and profile named
 `jocasta-tooling-opencode`. The existing laptop selection supplies the reviewed
-shape, reporter prompt and read-only grant. Only host-local bindings, account,
-native architecture and workspace differ.
+shape and read-only grant. The unqualified agent-a, agent-b and omarchy-pc
+reporter prompts give the exact two-read Code Mode call syntax; the qualified
+laptop prompt is unchanged. Host-local bindings, account, native architecture,
+workspace and the fixed model destination also differ.
 
 - Waits uses persistent system mode with no deadline and the separately staged
   `/home/igor/.local/share/chaldea/releases/client-v0.4.20`. Published archive
