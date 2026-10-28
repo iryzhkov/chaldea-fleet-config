@@ -1,11 +1,22 @@
 {% set p = chaldea_client_profile.value %}
+{#- An approved Ollama endpoint adds one fixed provider for model ollama/local, with
+    no headers or API key, and denies every other provider. Without one the
+    config is exactly the MCP server and its policies. -#}
+{% set local = p.ollama_base_url is defined %}
 {% set policy = [{'action': 'tool.use', 'resource': '*', 'effect': 'deny'},
                  {'action': 'tool.use', 'resource': p.server ~ '_*', 'effect': 'allow'},
                  {'action': 'tool.use', 'resource': 't3-code-*', 'effect': 'allow'},
                  {'action': 'integration.use', 'resource': 'mcp:*', 'effect': 'deny'},
                  {'action': 'integration.use', 'resource': 'mcp:' ~ p.server, 'effect': 'allow'},
-                 {'action': 'integration.use', 'resource': 'mcp:t3-code-*', 'effect': 'allow'}] %}
-{{ {'$schema': 'https://opencode.ai/config.json',
-    'mcp': {p.server: {'type': 'remote', 'url': p.url, 'oauth': false, 'enabled': true,
-                       'headers': {'Authorization': '{file:' ~ chaldea_client_opencode_authorization ~ '}'}}},
-    'policies': policy} | to_nice_json(indent=2) }}
+                 {'action': 'integration.use', 'resource': 'mcp:t3-code-*', 'effect': 'allow'}]
+                + ([{'action': 'provider.use', 'resource': '*', 'effect': 'deny'},
+                    {'action': 'provider.use', 'resource': 'ollama', 'effect': 'allow'}] if local else []) %}
+{% set provider = {'provider': {'ollama': {
+    'npm': '@ai-sdk/openai-compatible',
+    'options': {'baseURL': p.ollama_base_url},
+    'models': {'local': {'tool_call': true, 'reasoning': true,
+                         'limit': {'context': 65536, 'output': 16384}}}}}} if local else {} %}
+{{ ({'$schema': 'https://opencode.ai/config.json',
+     'mcp': {p.server: {'type': 'remote', 'url': p.url, 'oauth': false, 'enabled': true,
+                        'headers': {'Authorization': '{file:' ~ chaldea_client_opencode_authorization ~ '}'}}},
+     'policies': policy} | combine(provider)) | to_nice_json(indent=2) }}

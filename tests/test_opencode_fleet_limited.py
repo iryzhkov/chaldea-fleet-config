@@ -9,6 +9,7 @@ import copy
 import json
 import os
 import re
+import runpy
 import subprocess
 from pathlib import Path
 
@@ -32,11 +33,25 @@ KEYS = SESSION_KEYS | {
     "chaldea_client_waits_runtime_root", "chaldea_client_session_policy_enabled"}
 X64 = {"source": ASSETS + "/opencode/2.1.3/opencode", "size": 240306352,
        "sha256": "4c2630769fa853343a781e765b2280fc1a07f33f7c10d484f75d59e61eb85bc3"}
-# Big Pickle reached OpenCode's free usage limit, so these three hosts select
-# another free, option-free model the pinned 2.1.3 native lists offline. The
-# laptop keeps its reviewed Big Pickle selection.
+# Two free OpenCode models ended with the free usage limit, so these three hosts
+# select the existing local Ollama alias with no options. The laptop keeps its
+# reviewed Big Pickle selection.
 LAPTOP_MODEL = "opencode/big-pickle"
-FLEET_MODEL = "opencode/nemotron-3.5-lightning-free"
+FLEET_MODEL = "ollama/local"
+PC_OLLAMA = "http://192.168.90.212:11434/v1"
+LOOPBACK_OLLAMA = "http://127.0.0.1:11434/v1"
+EXPECTED_OLLAMA = {"agent-a": PC_OLLAMA, "agent-b": PC_OLLAMA, "omarchy-pc": LOOPBACK_OLLAMA}
+# The only provider block an approved endpoint renders: no headers, key or variants.
+PROVIDER_POLICIES = [{"action": "provider.use", "resource": "*", "effect": "deny"},
+                     {"action": "provider.use", "resource": "ollama", "effect": "allow"}]
+
+
+def ollama_provider(base_url):
+    return {"ollama": {"npm": "@ai-sdk/openai-compatible", "options": {"baseURL": base_url},
+                       "models": {"local": {"tool_call": True, "reasoning": True,
+                                            "limit": {"context": 65536, "output": 16384}}}}}
+
+
 Error = load("session_enrollment").AnsibleFilterError
 
 
@@ -104,7 +119,8 @@ def compose(host, bindings, packet=None):
         selection["preset"], projectId=bindings["session_project"], services=services, destinations=destinations)}
     values["chaldea_client_session_enrollments"] = {NAME: dict(
         selection["enrollment"], username="chaldea-" + host + "-" + NAME)}
-    values["chaldea_client_session_profiles"] = {NAME: dict(selection["profile"], cwd=packet["workspaces"][host])}
+    values["chaldea_client_session_profiles"] = {NAME: dict(
+        selection["profile"], cwd=packet["workspaces"][host], ollama_base_url=packet["ollama_base_urls"][host])}
     return values
 
 
@@ -127,10 +143,11 @@ def validate(values):
 
 def test_real_inventory_equals_the_composition_with_exact_host_bindings():
     packet = candidate()
-    assert set(packet) == {"bindings", "workspaces", "selection"}
+    assert set(packet) == {"bindings", "workspaces", "ollama_base_urls", "selection"}
     assert list(packet["bindings"]) == list(HOSTS)
     assert packet["bindings"] == EXPECTED_BINDINGS
     assert packet["workspaces"] == EXPECTED_WORKSPACES
+    assert packet["ollama_base_urls"] == EXPECTED_OLLAMA
     selections = compose_all(packet["bindings"])
     for host, values in selections.items():
         path = ROOT / "inventory/host_vars" / host / "chaldea-jocasta-tooling.yml"
@@ -205,7 +222,7 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
         # Exactly one preset, enrollment and profile: never Claude or Codex.
         assert {short: list(values["chaldea_client_session_" + short]) for short in ("presets", "enrollments", "profiles")} \
             == {"presets": [NAME], "enrollments": [NAME], "profiles": [NAME]}
-        # The laptop preset with only its bindings and the free model changed.
+        # The laptop preset with only its bindings and the model changed.
         assert laptop["chaldea_client_session_presets"][NAME]["model"] == LAPTOP_MODEL
         assert values["chaldea_client_session_presets"][NAME] == dict(
             laptop["chaldea_client_session_presets"][NAME], projectId=bound["session_project"], destinations=destinations,
@@ -214,8 +231,9 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
         assert values["chaldea_client_session_enrollments"][NAME] == dict(
             laptop["chaldea_client_session_enrollments"][NAME], username="chaldea-" + host + "-" + NAME)
         profile = values["chaldea_client_session_profiles"][NAME]
+        assert "ollama_base_url" not in laptop["chaldea_client_session_profiles"][NAME]
         assert profile == dict(laptop["chaldea_client_session_profiles"][NAME], native=X64, elf_machine=62,
-                               cwd=EXPECTED_WORKSPACES[host])
+                               cwd=EXPECTED_WORKSPACES[host], ollama_base_url=EXPECTED_OLLAMA[host])
         assert profile["native"]["sha256"] != laptop["chaldea_client_session_profiles"][NAME]["native"]["sha256"]
         assert values["chaldea_client_session_enrollments"][NAME]["secretFile"] == (
             HOME + "/.config/chaldea/authentik/jocasta-tooling-opencode.app-password")
@@ -266,12 +284,64 @@ def _profile(**change):
     _profile(home=HOME),
     _profile(tmpdir=HOME + "/.local/state/chaldea/profiles/jocasta-tooling-opencode/home"),
     _profile(server="t3_code"),
+    # Only the two approved plain-HTTP Ollama endpoints, exactly.
+    _profile(ollama_base_url="http://192.168.90.213:11434/v1"),
+    _profile(ollama_base_url="https://192.168.90.212:11434/v1"),
+    _profile(ollama_base_url="http://192.168.90.212:11435/v1"),
+    _profile(ollama_base_url="http://192.168.90.212:11434/v1/"),
+    _profile(ollama_base_url="http://192.168.90.212:11434/api"),
+    _profile(ollama_base_url="http://user:secret@192.168.90.212:11434/v1"),
+    _profile(ollama_base_url="http://192.168.90.212:11434/v1?key=x"),
+    _profile(ollama_base_url="http://192.168.90.212:11434/v1#x"),
+    _profile(ollama_base_url="http://localhost:11434/v1"),
+    _profile(ollama_base_url="http://ollama.example.test/v1"),
+    _profile(ollama_base_url=[PC_OLLAMA]),
+    _profile(ollama_base_url=None),
+    # No other provider, credential or settings field exists.
+    _profile(ollama_api_key="synthetic"),
+    _profile(ollama_headers={"Authorization": "Bearer synthetic"}),
+    _profile(provider={"ollama": {"options": {"baseURL": PC_OLLAMA}}}),
+    _profile(model=FLEET_MODEL),
+    # The endpoint and the ollama/local preset model come together or not at all.
+    _preset(model="opencode/nemotron-3.5-lightning-free"),
+    _preset(model="ollama/local:latest"),
+    _preset(model="ollama/qwen3.5:35b-a3b-q4_K_M"),
+    lambda v: v["chaldea_client_session_profiles"][NAME].pop("ollama_base_url"),
 ])
 def test_role_validators_refuse_widened_composed_selections(mutate):
     values = compose_all(FIXTURE)["agent-a"]
     mutate(values)
     with pytest.raises(Error):
         validate(values)
+
+
+@pytest.mark.parametrize("url", [PC_OLLAMA, LOOPBACK_OLLAMA])
+def test_profile_validator_accepts_each_approved_ollama_endpoint(url):
+    values = compose_all(FIXTURE)["agent-a"]
+    values["chaldea_client_session_profiles"][NAME]["ollama_base_url"] = url
+    assert validate(values)
+
+
+def test_mcp_url_rule_stays_https_with_an_ollama_endpoint():
+    # Profile validation alone, with the enrollment resource moved too, so only
+    # the unchanged HTTPS MCP URL rule can refuse the plain-HTTP MCP server.
+    values = compose_all(FIXTURE)["agent-a"]
+    for url in (PC_OLLAMA, "http://jocasta.mcp.ryzhkov.dev/mcp"):
+        values["chaldea_client_session_profiles"][NAME]["url"] = url
+        values["chaldea_client_session_enrollments"][NAME]["resource"] = url
+        with pytest.raises(Error, match="url must equal its enrollment resource"):
+            load("session_profiles").chaldea_session_profiles(
+                values["chaldea_client_session_profiles"], values["chaldea_client_session_presets"],
+                values["chaldea_client_session_enrollments"], HOME, [])
+
+
+def test_profile_without_an_endpoint_keeps_its_existing_validation():
+    # The laptop selection names no endpoint and still validates unchanged.
+    laptop = effective_laptop()
+    assert all("ollama_base_url" not in p for p in laptop["chaldea_client_session_profiles"].values())
+    assert load("session_profiles").chaldea_session_profiles(
+        laptop["chaldea_client_session_profiles"], laptop["chaldea_client_session_presets"],
+        laptop["chaldea_client_session_enrollments"], HOME, [])
 
 
 @pytest.mark.parametrize("host", HOSTS)
@@ -366,6 +436,12 @@ def test_actual_role_delivers_the_composed_profile_and_its_launcher_checks_the_m
     assert config["mcp"] == {"jocasta_tooling": {
         "type": "remote", "url": RESOURCE, "oauth": False, "enabled": True,
         "headers": {"Authorization": "{file:jocasta.authorization}"}}}
+    # One fixed provider: the host's approved endpoint, no headers, key or
+    # variants, and every other provider denied after the existing policies.
+    assert set(config) == {"$schema", "mcp", "policies", "provider"}
+    assert config["provider"] == ollama_provider(EXPECTED_OLLAMA[host])
+    assert config["policies"][-2:] == PROVIDER_POLICIES and len(config["policies"]) == 8
+    assert runpy.run_path(str(directory / "exec"))["CONFIG"] == config
     assert list(case.opencode_home.iterdir()) == [] and list(case.runtime.iterdir()) == []
     version = subprocess.run([str(directory / "exec"), "--version"], cwd=case.home, env={"PATH": "/usr/bin:/bin"},
                              capture_output=True, text=True, timeout=30)

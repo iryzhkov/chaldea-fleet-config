@@ -616,6 +616,14 @@ OPENCODE_REFUSALS = {
     "ungranted tool": (mutate(lambda p, c: p.update(tools=TOOLS + ["put"])), FILTER),
     "url differs": (mutate(lambda p, c: p.update(url="https://other.example.test/mcp")), FILTER),
     "native over limit": (mutate(lambda p, c: p["native"].update(size=400000001)), FILTER),
+    "ollama endpoint not approved": (mutate(lambda p, c: p.update(ollama_base_url="http://192.0.2.1:11434/v1")),
+                                     FILTER),
+    "ollama endpoint over https": (mutate(lambda p, c: p.update(ollama_base_url="https://127.0.0.1:11434/v1")),
+                                   FILTER),
+    "ollama endpoint without its model": (mutate(lambda p, c: p.update(ollama_base_url="http://127.0.0.1:11434/v1")),
+                                          FILTER),
+    "ollama model without an endpoint": (lambda c: c.variables["chaldea_client_session_presets"][PRESET].update(
+        model="ollama/local"), FILTER),
     "retired opencode with home": (lambda c: c.variables.update(chaldea_client_session_profiles_absent=[
         {"name": "old", "driver": "opencode", "home": str(c.opencode_home)}]), FILTER),
     "native hash": (mutate(lambda p, c: p["native"].update(sha256="0" * 64)), "pinned size"),

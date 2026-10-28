@@ -31,6 +31,15 @@ workspaces:
   agent-b: /home/igor
   omarchy-pc: /home/igor/.local/state/chaldea/session-workspaces/jocasta-tooling-opencode
 
+# The existing Ollama on omarchy-pc, by its LAN address from agent-a and
+# agent-b and by loopback on the PC itself. These are the only two endpoints the
+# role's profile validator accepts. Source only: no reachability, GPU, wake or
+# model readiness is implied.
+ollama_base_urls:
+  agent-a: http://192.168.90.212:11434/v1
+  agent-b: http://192.168.90.212:11434/v1
+  omarchy-pc: http://127.0.0.1:11434/v1
+
 # Identical on all three hosts apart from the bindings, workspace and account name
 # chaldea-<host>-jocasta-tooling-opencode. The values not listed here keep
 # their current inventory values, in particular chaldea_node_version 26.10.0
@@ -60,12 +69,12 @@ selection:
             actions: [get, history, list, search]
   # The laptop's reviewed OpenCode preset without its destinations and
   # projectId, which are bindings. Same prompt, grant and ceiling. Only the
-  # model differs: Big Pickle reached its free usage limit, so these three
-  # hosts select another free, option-free model that the pinned 2.1.3 native
-  # lists offline from its bundled catalog. The laptop keeps Big Pickle.
+  # model differs: two free OpenCode models ended with the free usage limit,
+  # so these three hosts select the existing local Ollama alias ollama/local
+  # with no options. The laptop keeps Big Pickle.
   preset:
     instanceId: opencode-jocasta-tooling
-    model: opencode/nemotron-3.5-lightning-free
+    model: ollama/local
     runtimeMode: approval-required
     interactionMode: default
     title: Jocasta tooling read-only OpenCode
@@ -102,7 +111,8 @@ selection:
   # c251bb3962813919d5eb8c0f43cd1cb3ab1d7a0cd28b2e556985706413005cb0, member
   # package/bin/opencode), staged by the operator under provider-assets. Never
   # the ordinary installed OpenCode, a download or a mise path. home and tmpdir
-  # are operator-provisioned, private 0700 and never read by the role.
+  # are operator-provisioned, private 0700 and never read by the role. Each
+  # host's profile also takes its ollama_base_urls entry as ollama_base_url.
   profile:
     driver: opencode
     native:

@@ -22,7 +22,7 @@ chaldea_client_session_ceilings:
 chaldea_client_session_presets:
   jocasta-tooling-opencode:
     instanceId: opencode-jocasta-tooling
-    model: opencode/nemotron-3.5-lightning-free
+    model: ollama/local
     runtimeMode: approval-required
     interactionMode: default
     title: Jocasta tooling read-only OpenCode
@@ -78,3 +78,4 @@ chaldea_client_session_profiles:
     url: https://jocasta.mcp.ryzhkov.dev/mcp
     tools: [get, history, list, search]
     cwd: /home/igor/.local/state/chaldea/session-workspaces/jocasta-tooling-opencode
+    ollama_base_url: http://127.0.0.1:11434/v1
