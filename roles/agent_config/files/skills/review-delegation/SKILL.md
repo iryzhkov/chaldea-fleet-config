@@ -1,6 +1,6 @@
 ---
 name: review-delegation
-description: Review cadence, fan-out reviews and delegation patterns for an interactive T3 session carrying out an agreed plan. Use when a milestone is ready for review, when writing a worker or reviewer brief for delegate_task, when deciding whether a review finding blocks, or when splitting work across child tasks.
+description: Review cadence and bounded delegation for interactive T3 work, including open-ended investigations and adopted plans. Use when preparing substantial child work, writing worker or reviewer briefs, reviewing an integration batch, or deciding whether a finding blocks. Quick lookups and tightly coupled decisions stay direct.
 ---
 
 # Reviews and delegation in T3 sessions
@@ -31,8 +31,9 @@ create a PR or review pair. Group related work before review and CI as below:
   bounded target, such as data safety or credential handling. No default review swarm. Conserve
   Claude; avoid optional Claude fan-outs.
 
-OpenCode models are not used for reviews. Reviews stay within the brief. Report
-each reviewer's thread ID, model and verdict in the reply and as a PR comment.
+OpenCode models are not used for reviews. Reviews stay within the brief. Preserve
+each reviewer's exact task/thread IDs, model, verdict and reviewed commit under
+"Preserve review notes". Give a short verdict and receipt link in chat.
 
 ## How to run a round
 
@@ -95,9 +96,10 @@ Call FATE before every delegation. Route the main other-provider review with
 `authorProvider` first. If that strict filter has no candidate under evidenced
 quota pressure, record the exception, then resolve an appropriate available
 target and effort from `orchestrator_capabilities`. Do not weaken the router's
-filter or change routing code. Report each reviewer's thread ID, model, verdict
-and exact reviewed commit in the reply and PR comment; record exception evidence
-and review details in the checkpoint too.
+filter or change routing code. Preserve each reviewer's exact task/thread IDs,
+model, verdict and reviewed commit in the PR comment or linked durable receipt;
+record exception evidence and review details in any existing checkpoint too.
+Give a short verdict and receipt link in chat.
 No spending, reset redemption or authentication changes are authorized.
 
 The exact reviewed commit, clean-tree acceptance, citation/location blocking
@@ -106,17 +108,32 @@ other provider continue.
 
 ## Check necessity and complexity
 
-Ask whether the change is needed as well as whether it is correct. Before accepting
-a new process, account, state store or publication path, trace the existing producer
-and consumer and compare a configuration, version-pin or enrollment change.
-Cite the exact missing capability or constraint that rules out reuse. Separate
-verified facts, assumptions and optional improvements; check the premise independently
-rather than accepting the brief's proposed architecture as a requirement.
-Keep useful improvements outside the requested outcome as notes. Evidence of needless
-complexity uses the existing citation/location blocking rule. Use existing authorized
-evidence and report gaps; this check adds no review round or approval step.
-For a plan review, also weigh information gained per time and token, and whether a
-bounded spike could settle a question before any deployment.
+Separate explicit or established requirements, actual current constraints and optional
+design ideas. Optional improvements and imagined future scale do not become acceptance
+criteria. Choose the smallest sufficient implementation for the current outcome, reusing
+existing paths. Better design is welcome when it simplifies present use or improves correctness.
+Extra layers, generalization or optimization need an unmet current requirement, measured
+bottleneck or specific evidence-backed failure risk, not generic future-proofing.
+
+Before accepting a new process, account, state store or publication path, trace the existing
+producer and consumer. Compare configuration, version-pin or enrollment changes, and cite
+the exact missing capability or constraint that rules out reuse. Check the premise
+independently rather than treating the brief's proposed architecture as a requirement.
+For plan reviews, weigh information gained per time and token and whether a bounded spike
+could settle a question before deployment.
+
+Tie validation and qualification to a stated behavior or risk at the actual blast radius.
+Use existing evidence and the cheapest sufficient proof. Stop expanding proof once the
+required claims are established; avoid a generic "production ready" campaign or repeated
+qualification without a remaining concrete question. If support or qualification machinery
+starts dominating the feature or no longer changes decisions, reassess, simplify or defer
+optional work within authority. Preserve explicit requirements, required tests and CI,
+security, data protection and honest unresolved evidence.
+
+Apply these rules during execution and the existing review; they add no gate or approval
+step. Reviewers treat unsupported complexity as a defect when concrete evidence and a
+location satisfy "What blocks". Imagined future requirements remain nonblocking notes.
+Keep optional discoveries as separate follow-ups, without expanding scope or blocking delivery.
 
 ## Group related work before review and CI
 
@@ -148,20 +165,31 @@ linked PRs across repositories. Batching never waives exact-head review or requi
 
 ## Preserve review notes
 
-At review completion, the root/worker preserves notes and verdict links in the PR and
-existing Jocasta checkpoint/backlog, with exact reviewed heads, task/thread IDs, models,
-citations/locations and source links. Publish native Akasha review notes/verdicts only
-through a known authorized producer/path and retain its committed receipt. Schema support
+At review completion, preserve notes and verdict links in the PR and any existing
+Jocasta checkpoint/backlog, with exact reviewed commits, task/thread IDs, models, verdicts,
+citations/locations and source links. If there is no PR or checkpoint, use a linked durable
+artifact. Keep commands, receipts and detailed review history there; chat needs a short
+verdict and receipt link. Concise chat never removes required evidence.
+Publish native Akasha review notes/verdicts only through a known authorized producer/path and retain its committed receipt. Schema support
 alone does not prove delivery. If that path is unavailable, retain PR/Jocasta references
 and report the collection gap. Never add grants silently or treat generic `feed_post`
 as `review_note`. This guidance does not implement a collection pipeline.
 
 ## Delegating work
 
+Keep the evolving objective, decisions and integration in the parent. Delegate substantial
+searches, log analysis, independent investigations or separable implementation when their
+detail would crowd parent context. Sequential delegation is useful too. Weigh launch and
+integration overhead; keep quick lookups and tightly coupled decisions direct. Do not
+automatically fan out. An open-ended parent can assign a bounded child without adopting a
+roadmap. Keep objective, accepted decisions, active task IDs and next action; use Jocasta
+when durable continuation or handoff needs it, without checkpoint ceremony for short work.
+
 - Workers get no conversation history. Write a minimal self-contained brief:
   objective, repository path, branch and base, allowed files, the agreed interface,
-  accepted decisions and exact evidence references the task needs, constraints,
-  acceptance checks and what to report. Leave out the transcript and the global
+  accepted decisions and exact evidence references the task needs, authority,
+  constraints, acceptance checks, stopping condition and deliverable. Specify owned
+  files and interfaces where needed. Leave out the transcript and the global
   roadmap; do not prepend executor skills or require a full plan or checkpoint
   fetch for ordinary workers. The worker loads only its task's skills and relevant
   references. The parent owns integration and checkpoint unless the brief explicitly
@@ -171,19 +199,31 @@ as `review_note`. This guidance does not implement a collection pipeline.
   bodies, tool catalogs or prior failure diaries. Keep authority, interfaces,
   safety constraints and unresolved review findings explicit; brevity never
   removes them. Use normal spacing and readable sentences.
-- Ask for concise results: verdict, exact head and tree state, actual check
-  outcomes with job IDs, remaining gaps and artifact links. No diary, raw logs or
-  tool catalog; raw logs stay retrievable on request.
+- Ask for relevant findings, uncertainties, evidence links, actual changed files and
+  commits, tree state and check outcomes with job IDs. Project parent tool results to
+  the fields needed for the decision too. Keep raw logs and catalogs retrievable outside
+  chat. The parent verifies applicable evidence and integrates results rather than
+  accepting a claimed verdict.
 - Use `isolation: "worktree"` for code changes in a registered T3 project. A
   worktree starts from the parent's local commit; uncommitted edits are not
   copied.
 - Split independent parts into parallel children only when their files do not
-  overlap.
+  overlap. Useful sequential children do not require parallel work.
+- Promptly propagate user direction changes to affected running children using native
+  T3 steering for ordinary workers. Cancel superseded work, mark obsolete results and
+  reconcile in-flight mutations before replacement or retry. Stop/cancel permits no
+  speculative auto-restart. Independent review rounds still require a fresh
+  `delegate_task` with the original brief, prior findings and responses.
 - Keep fix rounds focused, while retaining the original brief, prior findings,
   responses and unresolved objections in each new `delegate_task` prompt.
-- Report implemented, reviewed, merged, deployed and verified as separate
-  states. A passing task is not an accepted review, and a merge is not a
-  deployment.
+- Batch routine child/CI notifications into meaningful milestone updates. Surface
+  material failures, blockers, needed decisions and changed plans promptly; answer
+  user-requested status promptly. A wake should advance or reconcile work, not trigger
+  an automatic "still waiting" reply. Keep long work visibly interactive and honor
+  higher-priority runtime communication requirements.
+- Distinguish waiting from completion and implemented, reviewed, merged, installed and
+  verified states. A passing task is not an accepted review, and a merge is not an
+  installation.
 
 ## Bounded sub-executor briefs
 
