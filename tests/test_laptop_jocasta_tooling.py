@@ -183,7 +183,8 @@ def test_inventory_merge_applies_the_activation_only_to_the_laptop():
     for host in OTHER_HOSTS:
         other = inventory_vars(host)
         assert other["chaldea_node_version"] == "26.10.0", host
-        assert other["chaldea_client_version"] == "client-v0.4.11", host
+        assert other["chaldea_client_version"] == (
+            "client-v0.4.22" if host == "omarchy-pc" else "client-v0.4.11"), host
         for key in (KEYS | set(JOCASTA_INPUTS.values())) - {
                 "chaldea_node_version", "chaldea_client_waits_enabled", "chaldea_client_waits_environment"}:
             assert key not in other, (host, key)
