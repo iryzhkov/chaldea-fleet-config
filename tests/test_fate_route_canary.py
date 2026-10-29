@@ -1,4 +1,4 @@
-"""The approved FATE canary changes exactly two route scopes and one client."""
+"""The approved FATE canary limits score transport to its exact route scopes."""
 import json
 from pathlib import Path
 import subprocess
@@ -6,7 +6,7 @@ import subprocess
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-CLIENT_SHA = "61213c3347c23d45604196cfc47853a1161de4bc4a2f88068905e916237f49e4"
+CLIENT_SHA = "b96c928d050d81e7be96841baf8ce0204927cd14fbd43b62cc0d4ac058fb9c82"
 
 
 def test_signed_route_ceilings_are_only_homelab_append_and_pc_read():
@@ -30,14 +30,13 @@ def test_helper_additions_bind_exact_uid_host_kind_and_action():
             profile="route-service", project="chaldea")]
 
 
-def test_actual_inventory_limits_client_and_score_transport_to_pc():
+def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
     result = subprocess.run(["ansible-inventory", "-i", str(ROOT / "inventory/hosts.yml"), "--list"],
                             check=True, text=True, capture_output=True)
     hosts = json.loads(result.stdout)["_meta"]["hostvars"]
     for host in ["agent-a", "agent-b", "laptop", "omarchy-pc"]:
         values = hosts[host]
-        assert values["chaldea_client_version"] == (
-            "client-v0.4.22" if host == "omarchy-pc" else "client-v0.4.11")
+        assert values["chaldea_client_version"] == "client-v0.4.23"
         if host != "omarchy-pc":
             assert not values.get("chaldea_client_route_targets", {}).get("scores", {}).get("enabled", False)
     pc = hosts["omarchy-pc"]
@@ -60,9 +59,9 @@ def test_actual_managed_pc_rollback_releases_remain_explicitly_retained():
         "client-v0.4.0", "client-v0.4.2", "client-v0.4.7", "client-v0.4.8", "client-v0.4.20"}
 
 
-def test_baseline_floors_and_default_release_are_not_lowered():
+def test_baseline_floors_and_qualified_default_release_are_preserved():
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
-    assert common["chaldea_client_version"] == "client-v0.4.11"
+    assert common["chaldea_client_version"] == "client-v0.4.23"
     targets = yaml.safe_load((ROOT / "inventory/host_vars/omarchy-pc/fate-route.yml").read_text())[
         "chaldea_client_route_targets"]
     assert "floors" not in targets

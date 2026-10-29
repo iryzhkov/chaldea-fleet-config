@@ -178,13 +178,12 @@ def test_inventory_merge_applies_the_activation_only_to_the_laptop():
     # No declared profile is retired as a side effect.
     assert "mcp_registrations_chaldea_waits_enabled" not in laptop
     assert "chaldea_client_session_profiles_absent" not in laptop
-    assert laptop["chaldea_client_version"] == "client-v0.4.11"
+    assert laptop["chaldea_client_version"] == "client-v0.4.23"
     assert laptop["chaldea_client_quota_enabled"] is True
     for host in OTHER_HOSTS:
         other = inventory_vars(host)
         assert other["chaldea_node_version"] == "26.10.0", host
-        assert other["chaldea_client_version"] == (
-            "client-v0.4.22" if host == "omarchy-pc" else "client-v0.4.11"), host
+        assert other["chaldea_client_version"] == "client-v0.4.23", host
         for key in (KEYS | set(JOCASTA_INPUTS.values())) - {
                 "chaldea_node_version", "chaldea_client_waits_enabled", "chaldea_client_waits_environment"}:
             assert key not in other, (host, key)

@@ -1,6 +1,6 @@
 # chaldea-fleet-config
 
-The [Chaldea client role](docs/chaldea-client.md) manages pinned client releases, migration, quota and waits user services, and the explicit Codex balance binding. Activation waits for the first published client release.
+The [Chaldea client role](docs/chaldea-client.md) manages pinned client releases, migration, quota and waits user services, and the explicit Codex balance binding. The desired ordinary-client pin is client-v0.4.23. Agent-a's management hold and the laptop's system mode leave their ordinary current links unchanged; their observer-only repairs use manually pinned immutable runtimes and quota unit drop-ins. The [migration owner must preserve and retire those exceptions](docs/chaldea-client.md#current-client-pin-and-operator-exceptions).
 
 Restricted fleet compute roles are opt-in. See [job-host enrollment, policy, quotas and exact apply steps](docs/job-host.md).
 
