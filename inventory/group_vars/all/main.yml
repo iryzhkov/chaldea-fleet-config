@@ -121,7 +121,7 @@ chaldea_job_client_targets:
   - {name: laptop, address: 192.168.90.163, port: 2222}
 
 t3_enabled: true
-t3_version: 0.1.0
+t3_version: 0.1.5
 # Set true for one run to move T3 to t3_version. t3 update restarts the
 # service, which interrupts running sessions, so it never happens implicitly.
 t3_allow_upgrade: false
