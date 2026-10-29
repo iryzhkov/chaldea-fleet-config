@@ -20,8 +20,9 @@ a long-lived local service.
 When working on agent tooling (Huyang, shared AGENTS.md/CLAUDE.md files, skills or MCP
 configuration), finish a validated change by running its checks, pushing the source and
 confirming its GitHub CI within the assignment's authority. Merging fleet guidance to main
-can activate it through active pull timers. Source-only authority does not authorize that
-activation. Retain approved deployment scope without asking again for routine convergence.
+can activate it through active pull timers. Requested publication includes routine
+activation and convergence under the standing host/homelab authority. An explicit
+source-only or no-deploy instruction excludes activation.
 Check live timer/service state and report source, merge/activation, installed and verified
 states separately for each host. An explicit instruction to keep work local takes precedence.
 
@@ -74,17 +75,17 @@ External checks cannot supply Huyang prepared-revision evidence or grant trust; 
 checks are not passes. A trusted atomic command-gated change has no demonstrated remote
 interface today. Retain that dependency and continue independent work.
 
-Run builds, tests, linters and code generators through `chaldea exec --host agent-a -- ...`
+Run builds, tests, linters and code generators through `chaldea exec -- ...`
 using a Git-independent make target or selected command. Set `HUYANG_FRICTION=0` inside
 the job for every `go test`, for example:
-`chaldea exec --host agent-a -- env HUYANG_FRICTION=0 go test ./...`.
+`chaldea exec -- env HUYANG_FRICTION=0 go test ./...`.
 Huyang handles source reads and guarded edits; Chaldea supplies build/test execution.
 The `chaldea` skill covers snapshots, scratch and job outcomes.
 
 Chaldea jobs omit `.git`. Run Git-dependent selection/planning locally only when it does
 no build or test, for example `TEST_AFFECTED_LIST=1 make test-affected BASE=<pinned>`.
 Keep the approved pinned base; pass selected packages, flags and required checks to the
-job, for example `chaldea exec --host agent-a -- env HUYANG_FRICTION=0 go test -race <pkgs>`.
+job, for example `chaldea exec -- env HUYANG_FRICTION=0 go test -race <pkgs>`.
 Split selection from execution for Git-dependent targets such as `test-affected`,
 `check-fast` and `check-review` before dispatch. Actual builds/tests run only in Chaldea;
 local selection is not verification.
@@ -99,7 +100,7 @@ Shell still runs these jobs, and only these:
 - Git, including `git status`, `git diff`, `git log`, `git add`, commits and pushes.
 - Local Git-dependent selection/planning that performs no build or test, as above.
 - Chaldea jobs for builds, tests, linters, formatters, generated-code tools and variant
-  checks, using `chaldea exec --host agent-a -- ...`.
+  checks, using `chaldea exec -- ...`.
 - Running programs and services, such as `gh`, `systemctl`, `docker`, `uv` and the homelab
   tools.
 - Locating a file across directories that are not one repository, such as `find` or `grep`
@@ -162,15 +163,15 @@ there. Use these without experimenting.
   numbered lines, which replaces `grep -rn -C` and the read after it. Hits carry handles
   for `edit_apply kind=replace_range` when a target cannot be named by content.
 - Build and test: use a Git-independent make target or selected test command through
-  `chaldea exec --host agent-a -- ...`. For every `go test`, set `HUYANG_FRICTION=0`
+  `chaldea exec -- ...`. For every `go test`, set `HUYANG_FRICTION=0`
   inside the job, for example:
-  `chaldea exec --host agent-a -- env HUYANG_FRICTION=0 go test ./...`.
+  `chaldea exec -- env HUYANG_FRICTION=0 go test ./...`.
   Read the `chaldea` skill for snapshot, scratch and job-result rules. Huyang handles
   source reads and guarded edits; Chaldea supplies build/test execution.
   Chaldea jobs omit `.git`. Run Git-dependent selection/planning locally only when it does
   no build or test, for example `TEST_AFFECTED_LIST=1 make test-affected BASE=<pinned>`.
   Keep the approved pinned base; pass selected packages, flags and required checks to the
-  job, for example `chaldea exec --host agent-a -- env HUYANG_FRICTION=0 go test -race <pkgs>`.
+  job, for example `chaldea exec -- env HUYANG_FRICTION=0 go test -race <pkgs>`.
   Split selection from execution for Git-dependent targets such as `test-affected`,
   `check-fast` and `check-review` before dispatch. Actual builds/tests run only in Chaldea;
   local selection is not verification.

@@ -24,7 +24,10 @@ Record existing authority once: scope, accepted outcomes, repositories, integrat
 merge/publication and deployment rights, targets, cost limits and exclusions. Carry
 it through resumes and handoffs without reauthorization, including approved operator
 or multi-host scope. Ask only about concrete new authority or material unresolved
-direction. A plan does not grant rights missing from the conversation or assignment.
+direction. Apply the standing host/homelab authority in the shared instructions to
+requested outcomes. Routine deployment, multi-host changes and necessary service restarts need
+no new permission. Explicit task restrictions still win. A plan does not grant
+rights missing from the conversation, assignment or standing shared policy.
 
 ## Retain native executor ownership
 
@@ -82,9 +85,10 @@ citations/locations and links, revalidate against current code, and rank by road
 fit, concrete benefit/risk, effort and dependencies. Record each disposition and the
 adopted work's link in the existing checkpoint or backlog, with the last triage
 reference so history is not reread. Notes do not reopen accepted reviews or block a
-milestone by default. New milestones, out-of-scope work, large cost,
-security/credential changes or multi-host work need separate authority when not
-already authorized. No polling, cron or new tracking database.
+milestone by default. Ask about material new direction, substantial new cost or
+access/security changes beyond the task. Routine host and multi-host work for the
+requested outcome uses the standing authority in the shared instructions.
+No polling, cron or new tracking database.
 
 ## Follow the adopted plan
 
@@ -119,7 +123,7 @@ Do not expand the assignment just to stay busy. Stop only affected work at its s
 boundary; end the execution turn when no useful authorized independent work remains,
 with the exact decision, evidence and resumable state checkpointed. Silence, a deadline
 or an audit recommendation never grants permission. Existing safety blockers and
-source/review/deployment gates remain binding.
+source, review and deployment verification requirements remain binding.
 
 ## Delegate and follow work
 
@@ -169,9 +173,9 @@ source/review/deployment gates remain binding.
 - Merge only the exact accepted head on a clean tree with required CI green
   and prior findings resolved under review-delegation. Link each PR in T3.
   Report implemented, reviewed, merged, deployed and verified separately.
-- Ask Igor before changes to multiple hosts, credentials, homelab or Normandy
-  deployments, or UDM/NAS work, unless that exact scope is already authorized.
-  Source implementation is not deployment authority. Never expose secrets.
+- Apply the standing host/homelab authority to the requested outcome. Do not add
+  approval gates for deployment, multi-host convergence or existing administrative
+  access. Honor explicit source-only/read-only limits and never expose secrets.
 - Load fleet-rollout for authorized deployments; it owns the converge procedure.
   Report verification evidence per host.
 - Run long converges in native delegated tasks and use their completion wake.
@@ -179,11 +183,11 @@ source/review/deployment gates remain binding.
   retain its owner, exact gap and next authorized recovery instead of substituting
   an external wake requiring Stop preservation. Preserve command, target, log
   and outcome; reconcile a disconnect or reboot before any retry.
-- Any host may reboot without breaking the rest. Do not reboot as a routine
-  recovery action. `chaldea t3 restart` exists; inspect installed help and host
-  capability when needed. Command presence grants no restart authority. Use it
-  only within explicit authorization; otherwise defer the restart to the root
-  or Igor. Do not substitute a raw service restart.
+- Prefer the least disruptive effective recovery. Necessary service restarts for
+  requested work use standing host authority. For T3, use `chaldea t3 restart`
+  after inspecting installed help and capability; preserve continuation evidence.
+  Reboot only when needed for the requested outcome and after checking running
+  work and recovery. Do not substitute a raw T3 service restart.
 
 ## Keep the next milestone resumable
 
