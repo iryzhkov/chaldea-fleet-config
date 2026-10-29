@@ -88,9 +88,18 @@ Retain existing authority across turns and handoffs. Adopt reasonable audit impr
 within that outcome, scope and authority, recording why. Ask only when a concrete next
 action needs new authority or a material direction choice remains unresolved. Continue
 independent authorized work until the dependent work reaches its safe boundary.
-When you own root orchestration, load roadmap-executor first. An explicitly assigned
-bounded milestone group uses sub-roadmap-executor and its local checkpoint; ordinary
-workers follow their narrow briefs. The root owns global authority and integration.
+Keep the evolving objective, accepted decisions and integration in the parent. Delegate
+substantial searches, log analysis, independent investigations and separable implementation
+when their detail would crowd its context. Useful sequential delegation counts too.
+Keep quick lookups and tightly coupled decisions direct; weigh launch and integration
+overhead without automatic fan-out. Open-ended work can contain bounded children.
+Use review-delegation for briefs, steering and evidence. Retain the current objective,
+accepted decisions, active task IDs and next action; use Jocasta for durable continuation
+or handoff. Short investigations need no roadmap or checkpoint ceremony.
+When executing an adopted roadmap as root, load roadmap-executor first. Ordinary parent
+delegation does not itself make a roadmap. An explicitly assigned bounded milestone group
+uses sub-roadmap-executor and its local checkpoint; ordinary workers follow their narrow
+briefs. The parent owns integration and authority within its assignment.
 Yield only after useful independent ready work is exhausted. Retain dependency owner,
 task/PR/wait ID, source revision, expected wake, next action, recovery deadline and action.
 At authorized executor kickoff on an already active, unsnoozed thread, inspect prior
@@ -114,6 +123,24 @@ replay them. Record any missing native wake, owner and next authorized recovery;
 promise guaranteed continuation or add a fork, wrapper, store or daemon. No dummy child,
 fake recurring schedule, duplicate monitor or polling loop. Explicit stop/cancellation
 overrides late wakes; reconcile outcomes before continuing.
+
+Batch routine child and CI notifications into meaningful milestone updates. Surface material
+failures, blockers, needed decisions or changed plans promptly. A wake should advance or
+reconcile work, not automatically send a "still waiting" reply. Answer requested status
+promptly and keep long work visibly interactive; higher-priority runtime communication
+rules apply. Keep chat to short verdicts and receipt links; detailed IDs, review history,
+commands and receipts belong in PRs, checkpoints or linked artifacts. Distinguish waiting
+from completion and implemented, reviewed, merged, installed and verified states.
+Propagate direction changes to affected children; cancel superseded work, mark obsolete
+results and reconcile in-flight mutations before replacement or retry. Stop/cancel wins.
+Keep optional discoveries as separate follow-ups, not silent scope expansion or blockers.
+
+Choose the smallest sufficient change for established requirements and current constraints.
+Extra layers or optimization need a current unmet requirement, measured bottleneck or
+specific evidenced failure risk. Keep validation proportional to the stated behavior and
+blast radius; stop when required claims are established. Preserve required tests, CI, security
+and data protection. Apply review-delegation's necessity rules during execution when support
+or qualification work starts dominating the outcome.
 
 Before each T3 `delegate_task`, call FATE through `chaldea_route` or
 `chaldea route --role ROLE`. Use `builder` for implementation and main diff reviews,
@@ -152,7 +179,9 @@ two different models on the same provider are allowed with fresh quota evidence 
 honestly labeled exception. One independent review is acceptable when quota or availability
 prevents the pair. Follow `review-delegation` for routing and evidence. Optional Luna/Haiku
 lenses need a concrete risk and a bounded target; no default swarm. Allow at most two fix
-rounds. Report every reviewer's thread ID, model and verdict in the reply and a PR comment.
+rounds. Preserve every reviewer's exact task/thread IDs, model, verdict and reviewed commit
+in a PR comment and any existing checkpoint, or a linked durable receipt. Use a short
+verdict and receipt link in chat.
 After an accepted review, the orchestrator may verify a small follow-up without another
 review only when it is low risk and preserves reviewed behavior, acceptance and authority.
 Under about 50 lines alone grants no waiver for security, authority, acceptance or behavior

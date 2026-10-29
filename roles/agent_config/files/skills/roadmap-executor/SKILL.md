@@ -10,10 +10,11 @@ description: >-
 
 # Execute the adopted roadmap
 
-Use this while you own root orchestration: global priorities, shared interfaces,
-cross-group integration, authority and the global checkpoint. Explicitly assigned
-bounded milestone groups use sub-roadmap-executor; ordinary workers follow their
-briefs and task skills.
+Use this while executing an adopted roadmap as its root orchestrator, owning global
+priorities, shared interfaces, cross-group integration, authority and the global checkpoint.
+Ordinary interactive parent work does not require this skill merely because it delegates
+bounded children. Explicitly assigned bounded milestone groups use sub-roadmap-executor;
+ordinary workers follow their briefs and task skills.
 
 Pursue the assigned outcome across milestones until observable acceptance, explicit
 stop or cancellation, an agreed budget limit, or a true blocker with no useful
@@ -98,8 +99,9 @@ evidence changes it; reshaping milestones or settling new unknowns uses
 roadmap-planner. Source, review and merge are intermediate states of an observable
 outcome. Keep one root owner for cross-group integration; explicitly bounded
 sub-executors own integration within their assigned groups. Batch related ready
-changes for final review and CI. Apply review-delegation's necessity check in the
-existing review.
+changes for final review and CI. Apply review-delegation's necessity and proportional
+validation rules during execution and the existing review. Do not turn optional design
+ideas or imagined future scale into acceptance criteria.
 
 Reuse exact accepted reviews and passing checks rather than repeating them; add
 tests only for changed behavior. Measure source-to-useful-result time from retained

@@ -46,6 +46,21 @@ The exact changed guidance blocks are recorded in agent_config_operator_autonomy
 source migration reverses this layer first and retains all historical fixtures.
 This change does not implement remote Huyang atomic verification or alter access ACLs.
 
+## Lightweight interactive delegation
+
+Igor adopted lightweight delegation and proportional execution guidance on 2026-10-29.
+All three entry points keep evolving objectives, decisions and integration with the parent,
+while bounded children contain detail-heavy work. Ordinary delegation does not select the
+roadmap lifecycle. Review-delegation owns the mechanics, direction changes, durable review
+evidence and the necessity check applied during execution. Optional design and qualification
+work must serve a current requirement or evidenced risk; required checks remain binding.
+Routine notifications are batched, with material changes and requested status surfaced
+promptly. Claude's no-progress-note rule was narrowed to permit these approved updates;
+its other style preferences are unchanged. Exact review IDs, models, verdicts and commits
+remain in durable receipts, with short verdicts and links in chat.
+The exact reversible layer is agent_config_interactive_delegation.json. Historical
+fixtures stay unchanged. This layer adds no runtime, scheduler or access changes.
+
 ## Byte compatibility
 
 tests/fixtures/agent_config_before.json records all source hashes from fleet
