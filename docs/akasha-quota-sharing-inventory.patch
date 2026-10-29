@@ -1,11 +1,14 @@
 diff --git a/inventory/hosts.yml b/inventory/hosts.yml
 --- a/inventory/hosts.yml
 +++ b/inventory/hosts.yml
-@@ -35,6 +35,7 @@
-           # Conservative operator pins, not AA admission. Never spill to Claude.
-           # Activate only with the reviewed FATE client release pin.
-           chaldea_client_route_targets:
+@@ -36,1 +36,3 @@
+           # Qualified FATE reader settings are in host_vars/omarchy-pc/fate-route.yml.
++          chaldea_client_route_targets:
 +            quotaConfigFile: "{{ fleet_home }}/.config/chaldea/quota-fleet-reader.json"
-             scores: {enabled: false}
-             pins:
-               builder: {model: gpt-6.1-sol, providerInstanceId: codex}
+diff --git a/inventory/host_vars/omarchy-pc/fate-route.yml b/inventory/host_vars/omarchy-pc/fate-route.yml
+--- a/inventory/host_vars/omarchy-pc/fate-route.yml
++++ b/inventory/host_vars/omarchy-pc/fate-route.yml
+@@ -6,2 +6,3 @@
+ chaldea_client_route_targets:
++  quotaConfigFile: "{{ fleet_home }}/.config/chaldea/quota-fleet-reader.json"
+   scores:
