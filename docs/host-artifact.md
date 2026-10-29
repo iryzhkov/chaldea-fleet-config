@@ -12,7 +12,7 @@ payload files. After a successful apply, Ansible retains the configured release
 plus the most recently installed prior release and their archive/manifest cache
 files. It removes other managed version directories and cache files without
 following symlinks; unrelated cache files are preserved. Check mode never prunes.
-`chaldea_host_artifact_preserve_versions` additionally keeps at most seven unique
+`chaldea_host_artifact_preserve_versions` additionally keeps at most eight unique
 exact older releases that already exist; it never installs a missing one.
 
 The job-host, retention, timer-reporting, access-trust and collector roles consume

@@ -1,0 +1,26 @@
+{
+  "homelab": [
+    {
+      "uid": 0,
+      "audience": "akasha",
+      "action": "append",
+      "source": "route",
+      "host": "homelab",
+      "kind": "route_score_snapshot",
+      "profile": "route-service",
+      "project": "chaldea"
+    }
+  ],
+  "omarchy-pc": [
+    {
+      "uid": 1000,
+      "audience": "akasha",
+      "action": "read",
+      "source": "route",
+      "host": "omarchy-pc",
+      "kind": "route_score_snapshot",
+      "profile": "route-service",
+      "project": "chaldea"
+    }
+  ]
+}
