@@ -199,8 +199,8 @@ when durable continuation or handoff needs it, without checkpoint ceremony for s
   bodies, tool catalogs or prior failure diaries. Keep authority, interfaces,
   safety constraints and unresolved review findings explicit; brevity never
   removes them. Use normal spacing and readable sentences.
-- Ask for relevant findings, uncertainties, evidence links, actual changed files and
-  commits, tree state and check outcomes with job IDs. Project parent tool results to
+- Ask for concise results: relevant findings, uncertainties, evidence links, actual
+  changed files and commits, tree state and check outcomes with job IDs. No diary. Project parent tool results to
   the fields needed for the decision too. Keep raw logs and catalogs retrievable outside
   chat. The parent verifies applicable evidence and integrates results rather than
   accepting a claimed verdict.

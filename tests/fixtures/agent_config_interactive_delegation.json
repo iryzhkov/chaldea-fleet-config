@@ -76,7 +76,7 @@
     ],
     [
       "- Ask for concise results: verdict, exact head and tree state, actual check\n  outcomes with job IDs, remaining gaps and artifact links. No diary, raw logs or\n  tool catalog; raw logs stay retrievable on request.",
-      "- Ask for relevant findings, uncertainties, evidence links, actual changed files and\n  commits, tree state and check outcomes with job IDs. Project parent tool results to\n  the fields needed for the decision too. Keep raw logs and catalogs retrievable outside\n  chat. The parent verifies applicable evidence and integrates results rather than\n  accepting a claimed verdict."
+      "- Ask for concise results: relevant findings, uncertainties, evidence links, actual\n  changed files and commits, tree state and check outcomes with job IDs. No diary. Project parent tool results to\n  the fields needed for the decision too. Keep raw logs and catalogs retrievable outside\n  chat. The parent verifies applicable evidence and integrates results rather than\n  accepting a claimed verdict."
     ],
     [
       "- Split independent parts into parallel children only when their files do not\n  overlap.",
