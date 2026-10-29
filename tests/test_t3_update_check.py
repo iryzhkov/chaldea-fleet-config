@@ -20,6 +20,11 @@ ROOT = Path(__file__).resolve().parents[1]
     ({"tag_name": "v0.1.6", "prerelease": False, "draft": True}, 200, "0.1.5", "unavailable"),
     ({"message": "rate limited"}, 503, "0.1.5", "unavailable"),
     (["invalid metadata"], 200, "0.1.5", "unavailable"),
+    ({"tag_name": "v00.1.6", "prerelease": False, "draft": False}, 200, "0.1.5", "unavailable"),
+    ({"tag_name": "v0.1.6", "prerelease": False, "draft": False}, 200, "00.1.5", "unsupported_installed_version"),
+    ({"tag_name": "v0.1.6\n", "prerelease": False, "draft": False}, 200, "0.1.5", "unavailable"),
+    ({"tag_name": "v0.1.6", "prerelease": False, "draft": False}, 200, "0.1.5\n", "unsupported_installed_version"),
+    ({"tag_name": "v" + "9" * 80 + ".1.6", "prerelease": False, "draft": False}, 200, "0.1.5", "unavailable"),
     ({"tag_name": "v0.1.6", "prerelease": False, "draft": False}, 200, "0.1.5-nightly.1", "unsupported_installed_version"),
 ])
 def test_release_discovery_is_read_only(tmp_path, release, http_status, installed, expected):
@@ -41,6 +46,14 @@ def test_release_discovery_is_read_only(tmp_path, release, http_status, installe
     thread.start()
     home = tmp_path / "home"
     home.mkdir()
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    journal_record = tmp_path / "journal.json"
+    logger = fake_bin / "logger"
+    logger.write_text('#!/usr/bin/env python3\nimport json, os, pathlib, sys\n'
+                      'assert sys.argv[1:4] == ["--tag", "chaldea-t3-release", "--"]\n'
+                      'pathlib.Path(os.environ["T3_TEST_JOURNAL"]).write_text(sys.argv[4])\n')
+    logger.chmod(0o755)
     play = tmp_path / "discovery.yml"
     discovery = next(task for task in yaml.safe_load(
         (ROOT / "roles/t3/tasks/main.yml").read_text()
@@ -57,7 +70,8 @@ def test_release_discovery_is_read_only(tmp_path, release, http_status, installe
         "tasks": [discovery],
     }], sort_keys=False))
     env = dict(os.environ, HOME=str(home), ANSIBLE_LOCAL_TEMP=str(tmp_path / "ansible"),
-               ANSIBLE_NOCOLOR="1")
+               ANSIBLE_NOCOLOR="1", PATH=str(fake_bin) + os.pathsep + os.environ["PATH"],
+               T3_TEST_JOURNAL=str(journal_record))
     assert Path(env["HOME"]) == home
     try:
         command = ["ansible-playbook", "-i", "localhost,", "-c", "local", str(play)]
@@ -65,11 +79,16 @@ def test_release_discovery_is_read_only(tmp_path, release, http_status, installe
                                 capture_output=True, timeout=45)
         assert result.returncode == 0, result.stdout + result.stderr
         assert requests == []
+        assert not journal_record.exists()
         result = subprocess.run(command, cwd=ROOT, env=env, text=True,
                                 capture_output=True, timeout=45)
         assert result.returncode == 0, result.stdout + result.stderr
         assert requests == ["/releases/latest"]
-        assert f'"status": "{expected}"' in result.stdout, result.stdout
+        record = json.loads(journal_record.read_text())
+        assert record["status"] == expected
+        assert record["installed"] == installed
+        assert record["pinned"] == "0.1.5"
+        assert record["component"] == "t3"
         assert "changed=0" in result.stdout
         assert not (home / ".t3").exists()
     finally:

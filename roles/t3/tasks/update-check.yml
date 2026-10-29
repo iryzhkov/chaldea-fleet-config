@@ -17,13 +17,14 @@
       {{ t3_release_lookup.status | default(-1) == 200
          and t3_release_lookup.json | default(none) is mapping
          and t3_release_lookup.json.tag_name | default('') is string
-         and t3_release_lookup.json.tag_name | default('') is match('^v[0-9]+[.][0-9]+[.][0-9]+$')
+         and t3_release_lookup.json.tag_name | default('') is match('^v(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)\Z')
+         and t3_release_lookup.json.tag_name | length <= 64
          and t3_release_lookup.json.prerelease | default(none) is sameas false
          and t3_release_lookup.json.draft | default(none) is sameas false }}
 
-- name: Report automatic T3 release discovery
-  ansible.builtin.debug:
-    msg:
+- name: Prepare the safe T3 discovery record
+  ansible.builtin.set_fact:
+    t3_update_report:
       component: t3
       installed: "{{ t3_active_version }}"
       pinned: "{{ t3_version }}"
@@ -33,8 +34,19 @@
            if t3_release_metadata_valid else none }}
       status: >-
         {{ 'unavailable' if not t3_release_metadata_valid
-           else 'unsupported_installed_version' if t3_active_version is not match('^[0-9]+[.][0-9]+[.][0-9]+$')
+           else 'unsupported_installed_version' if t3_active_version | length > 64 or t3_active_version is not match('^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)\Z')
            else 'update_available' if t3_active_version is version(t3_release_lookup.json.tag_name | regex_replace('^v', ''), '<', version_type='semver')
            else 'current' if t3_active_version == (t3_release_lookup.json.tag_name | regex_replace('^v', ''))
            else 'installed_ahead' }}
       lookup_status: "{{ t3_release_lookup.status | default(-1) }}"
+
+# The fleet wrapper suppresses child stdout; publish to the existing journal.
+- name: Record automatic T3 discovery independently of playbook output
+  ansible.builtin.command:
+    argv:
+      - logger
+      - --tag
+      - chaldea-t3-release
+      - --
+      - "{{ t3_update_report | to_json }}"
+  changed_when: false
