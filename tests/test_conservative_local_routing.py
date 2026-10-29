@@ -8,12 +8,13 @@ from test_chaldea_client import ROOT, fixture, provision, run, success
 
 
 def test_omarchy_native_quota_reader_uses_unpinned_role_policy(tmp_path, monkeypatch):
-    variables = fixture(tmp_path, monkeypatch)
+    variables = fixture(tmp_path, monkeypatch, version="client-v0.4.22")
     inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
-    host = common | inventory["all"]["children"]["agent_hosts"]["hosts"]["omarchy-pc"]
-    assert host["chaldea_client_version"] == "client-v0.4.11"
-    assert host["chaldea_client_sha256"] == "e9ae469524ecd4498801a3386c1aeb0d3d317b821fe98fbdf510c532c4a3c006"
+    host_vars = yaml.safe_load((ROOT / "inventory/host_vars/omarchy-pc/fate-route.yml").read_text())
+    host = common | inventory["all"]["children"]["agent_hosts"]["hosts"]["omarchy-pc"] | host_vars
+    assert host["chaldea_client_version"] == "client-v0.4.22"
+    assert host["chaldea_client_sha256"] == "61213c3347c23d45604196cfc47853a1161de4bc4a2f88068905e916237f49e4"
     for key in ("chaldea_client_claude_usage_enabled", "chaldea_client_claude_usage_source",
                 "chaldea_client_claude_contexts", "chaldea_client_route_targets",
                 "chaldea_client_analytics_max_age_ms"):
@@ -30,7 +31,11 @@ def test_omarchy_native_quota_reader_uses_unpinned_role_policy(tmp_path, monkeyp
     quota = json.loads((home / ".config/chaldea/quota.json").read_text())
     assert route["claudeUsage"] == {"enabled": False, "providerInstanceId": "claudeAgent"}
     assert "claudeContexts" not in quota
-    assert route["scores"] == {"enabled": False}
+    assert route["scores"] == {
+        "enabled": True, "url": "https://akasha.ryzhkov.dev",
+        "tokenHelper": "/usr/local/bin/chaldea-token-helper", "host": "omarchy-pc"}
+    assert route["benchmark"] == host_vars["chaldea_client_route_targets"]["benchmark"]
+    assert route["announceHost"] == "homelab"
     assert route["analyticsMaxAgeMs"] == 7776000000
     assert route["pins"] == {}
     assert route["failureMargin"] == 0.10
