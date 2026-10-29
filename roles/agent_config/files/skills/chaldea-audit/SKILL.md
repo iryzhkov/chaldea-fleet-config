@@ -115,8 +115,9 @@ never poll. Recorded decisions are checked for drift, not re-argued.
   actions beyond existing authority. Existing deployment, credential and security
   boundaries still apply; routine adoption grants no additional permissions.
 - Use roadmap-executor to identify the latest safe decision point and continue
-  authorized work that does not depend on the answer. Use the chaldea decision
-  workflow when input is needed; no answer only defers dependent work.
+  authorized work that does not depend on the answer. Ask in the conversation;
+  use the Chaldea decision inbox only for material direction questions needing
+  durable tracking or when Igor requests it. No answer only defers dependent work.
 - Record orchestrator dispositions and any Igor decisions in the report, checkpoint
   and plan with full fetch/reconcile/WebMCP `if_revision`. Close a completed audit and
   update its reference and due status without waiting on unrelated proposals; only

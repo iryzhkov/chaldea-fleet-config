@@ -112,14 +112,17 @@ policy takes precedence. Report distribution per host.
 From inside a Git worktree, use:
 
 ```sh
-chaldea exec [--host H] [--artifact PATH] [--gpu] -- CMD ARG...
+chaldea exec [--artifact PATH] [--gpu] -- CMD ARG...
 ```
 
-Use `chaldea exec` for builds and test suites instead of running them on omarchy-pc,
-Igor's gaming PC. `--host` is optional: without it, `~/.config/chaldea/exec-hosts`
-tries agent-a, agent-b, omarchy-pc when its game gate allows, then laptop when awake.
-It moves on only after a refusal or an unreachable host before the request was sent.
-Hosts run several jobs concurrently: agent-a 3, omarchy-pc 2, agent-b 1 and laptop 1; when all reachable hosts are busy, exec queues for up to one hour (--queue-timeout, --no-queue to refuse), so never add a retry loop.
+Use `chaldea exec -- CMD ARG...` for builds and tests and let Chaldea select the
+job host from its configured policy. Omit `--host` unless Igor requests a specific
+host or a verified task requirement needs one. Host selection is separate from
+provider/model routing. Let Chaldea handle admission and queueing; add no retry loop.
+Chaldea moves to another host only after a refusal or an unreachable host before
+submission; recover an uncertain submitted job before considering another run.
+When all reachable hosts are busy, exec queues for up to one hour by default;
+`--queue-timeout` sets the bound and `--no-queue` refuses instead.
 
 `--gpu` requests the job host's configured NVIDIA devices. Tests must never
 write outside a scratch HOME. Assert that HOME is the intended scratch directory
@@ -246,13 +249,14 @@ Use a separate saved request key for each registration.
 
 ## Ask Igor, then keep working
 
-Existing authority persists, including approved operator and multi-host scope.
-Ask only about concrete new authority or a material unresolved direction. Avoid
-optional preference questions that stall authorized work; use a safe in-scope
-assumption and continue. A true authority question leaves only its dependent action
-pending, while useful independent work proceeds.
+Apply standing host/homelab authority from the shared instructions. Ask only when
+material direction, substantial new cost or an action beyond the requested outcome
+needs Igor's choice. Ask ordinary clarifications directly in the conversation;
+optional preferences do not block authorized work. Use the decision inbox below only
+for material direction questions needing durable tracking or when Igor requests it.
+Only the dependent action waits; useful independent work continues.
 
-Before asking Igor through native T3 user input, call
+When using the decision inbox with a native T3 direction question, call
 `chaldea_decision_prepare({threadId, requestId, dependentAction, defaultAction, deadline})`
 with your own thread ID and saved retry key. Then ask in T3; the preparation binds
 the next native user-input request within ten minutes. For a known native request,
@@ -261,10 +265,10 @@ Read policy, binding and outcome through `chaldea_decision_status` with `id`.
 Native answers stay in T3 and add no Chaldea wake. A native question's deadline
 guarantees neither an answer nor a continuation wake. Retain the native request ID,
 owner and recovery action for the next continuation; a deadline only skips or
-defers dependent work. It never authorizes it. Never track or answer permission
-or approval requests through these tools.
+defers dependent work. It never authorizes it. Runtime security approval requests
+stay in the runtime's approval mechanism; never track or answer them through these tools.
 
-For providers without native input, use the fallback `chaldea_decision_ask` with
+For a durable direction question without native input, use `chaldea_decision_ask` with
 your `threadId`, a saved `requestId`,
 `question`, two to eight `options`, a concrete `dependentAction`,
 `defaultAction: "skip" | "defer"`, and a `deadline` in RFC3339 with an offset.
@@ -281,8 +285,8 @@ as `mcp:<thread>`, never as Igor's consent. Read state, answer source and the
 deadline outcome with `chaldea_decision_status` (`id`).
 
 ```sh
-chaldea decision ask --thread "$thread_id" --question 'Run the dependent step?' \
-  --option Defer --option Run --dependent-action 'run the dependent step' \
+chaldea decision ask --thread "$thread_id" --question 'Which retention policy should the service use?' \
+  --option '30 days' --option '90 days' --dependent-action 'configure retention' \
   --default-action defer --deadline "$deadline" --request-id "$decision_request_id"
 chaldea decision status "$question_id"
 ```

@@ -132,6 +132,7 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     select = next(t for t in tasks if t["name"].startswith("Select explicit"))
     select_ov = next(t for t in tasks if t["name"].startswith("Select the closed laptop OV"))
+    select_holonet = next(t for t in tasks if t["name"].startswith("Select the closed laptop HoloNet"))
     homes = {host: str(tmp_path / host) if distinct_homes else "/home/igor" for host in HOSTS}
     architectures = {host: "aarch64" if host == "laptop" else "x86_64" for host in HOSTS}
     # Shared architecture pins, except the held laptop's own pin for the
@@ -141,14 +142,16 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
         "x86_64": "667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed",
     }
     host_pins = {host: pins[architectures[host]] for host in HOSTS}
-    host_pins["laptop"] = "ff9ccff552680ce1e86b3bed4c68c1a7902a0a0e7a0b5f9de174bc3d74b568fc"
+    host_pins["laptop"] = "dafb0ec33a28e969b8b344c2815e47cfdc1894f4e8a5ec7db3f992dbed6d56bc"
     ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["codex"],
                 "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}
+    holonet_entry = {"name": "holonet_catalog", "url": "https://media.mcp.ryzhkov.dev/mcp",
+                     "providers": ["codex"], "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}
     play = tmp_path / "inventory-selection.yml"
     play.write_text(yaml.safe_dump([{
         "hosts": "agent_hosts", "gather_facts": False,
         "vars": {"homes": homes, "architectures": architectures, "host_pins": host_pins, "ov_entry": ov_entry,
-                 "ansible_facts": {
+                 "holonet_entry": holonet_entry, "ansible_facts": {
                      "user_dir": "{{ homes[inventory_hostname] }}",
                      "architecture": "{{ architectures[inventory_hostname] }}"}},
         "tasks": [
@@ -156,9 +159,12 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
                 "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
             {**select_ov, "vars": {"mcp_registrations_remote_servers":
                 "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
+            {**select_holonet, "vars": {"mcp_registrations_remote_servers":
+                "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
             {"ansible.builtin.assert": {"that": [
                 "mcp_registrations_effective_remote_servers == expected + "
-                "([ov_entry] if inventory_hostname == 'laptop' else [])",
+                "([ov_entry, holonet_entry] if inventory_hostname == 'laptop' else [])",
+                "(webmcp_interactive_holonet_enabled | default(false) | bool) == (inventory_hostname == 'laptop')",
                 "(webmcp_interactive_ov_enabled | default(false) | bool) == (inventory_hostname == 'laptop')",
                 "webmcp_interactive_helper_sha256 == host_pins[inventory_hostname]",
                 "webmcp_interactive_helper_checksums == pins",
@@ -191,7 +197,7 @@ def test_inventory_refuses_unready_hosts_before_delivery(tmp_path, failure):
     play.write_text(yaml.safe_dump([{
         "hosts": "agent_hosts", "gather_facts": False,
         "vars": {
-            "ansible_facts": {"user_dir": str(tmp_path),
+            "ansible_facts": {"user_dir": str(tmp_path), "user_uid": 1001,
                               "architecture": "unsupported" if failure == "unsupported_architecture" else "x86_64"},
             "webmcp_interactive_helper_source": str(tmp_path / "missing-helper")},
         "tasks": tasks[:3]}]))

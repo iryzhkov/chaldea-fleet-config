@@ -24,7 +24,9 @@ selection:
   webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
   webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
 
-# Reviewed helper pin. The held laptop inventory sets it as the laptop-only
+# Historical OV build receipt. A later shared helper may supersede this pin;
+# use current inventory and fresh staging guards, never replay these inputs.
+# The original held laptop inventory set it as the laptop-only
 # webmcp_interactive_helper_sha256 from build receipt
 # 031e3362-b931-43e3-9da3-be31383e22dc; the shared architecture checksums and the
 # other three hosts stay on their existing artifact. For the one staged upgrade

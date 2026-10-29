@@ -17,9 +17,10 @@ sequencing, separate branch/worktree, local checkpoint, tests and reviews.
 Proceed between routine milestones without parent approval until the group's
 observable acceptance, explicit stop, agreed budget limit or a blocker with no useful
 authorized ready work left. Milestone/review completion and monitor registration
-are intermediate states. Preserve assigned authority across turns; integration,
-merge, publication and deployment rights must be explicit or remain with the root.
-Do not infer global authority from this role.
+are intermediate states. Preserve assigned authority across turns. Apply standing
+host/homelab authority within the delegated outcome unless the root reserves those
+actions. Cross-group integration, merge and publication remain with the root unless
+assigned. Do not infer global authority from this role.
 
 ## Retain native executor ownership
 

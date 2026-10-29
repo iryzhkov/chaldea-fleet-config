@@ -38,7 +38,8 @@ def test_removed_tools_and_execution_handoff():
             execution_guidance = execution_guidance.replace(prohibition, "")
         assert "verify_run" not in execution_guidance, path
         assert "debug_" not in text, path
-        assert "chaldea exec --host agent-a" in text, path
+        assert "chaldea exec --" in text, path
+        assert "chaldea exec --host" not in text, path
         assert "HUYANG_FRICTION=0" in text, path
         assert "workspace_open" in text and "guarded edits" in text, path
 
@@ -56,7 +57,7 @@ def test_removed_tools_and_execution_handoff():
 
 def test_local_selection_precedes_remote_execution():
     local_selector = "TEST_AFFECTED_LIST=1 make test-affected BASE=<pinned>"
-    remote_tests = ("chaldea exec --host agent-a -- env "
+    remote_tests = ("chaldea exec -- env "
                     "HUYANG_FRICTION=0 go test -race <pkgs>")
     for path in ("agents/AGENTS.md", "codex/AGENTS.md", "agents/huyang.md",
                  "claude/omarchy-setup/CLAUDE.md", "skills/huyang/SKILL.md"):
