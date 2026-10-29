@@ -14,7 +14,8 @@
 #    and narrow interactive identities unchanged.
 # 3. A helper artifact built from accepted source with the "ov-full HOST" mode
 #    has a recorded build receipt per architecture. That receipt, not this
-#    file, supplies the pin; none exists yet.
+#    file, supplies the pins below. See docs/ov-full-interactive-activation.md
+#    for the merge/convergence hold, protected PC staging and owned rollback.
 #
 # Selecting a host replaces its "ov" entry by name: on the laptop the narrow
 # Codex entry ("ov laptop") becomes the full one and webmcp_interactive_ov_enabled
@@ -47,10 +48,12 @@ hosts:
       claude: {name: ov, type: http, url: "https://ov.mcp.ryzhkov.dev/mcp",
                headersHelper: /usr/local/libexec/webmcp-interactive-headers ov-full omarchy-pc}
 
-# Built later from accepted source; never a placeholder default.
+# Accepted host artifacts, not shared architecture defaults or a staging path.
 helper_pin:
-  sha256: null
-  status: pending accepted-source build
+  status: accepted-source builds
+  sha256_by_host:
+    laptop: dafb0ec33a28e969b8b344c2815e47cfdc1894f4e8a5ec7db3f992dbed6d56bc
+    omarchy-pc: acefaa482584d26ce8cd471edc10577ee925c0a6c36c9e97e000ba3ce8ffb7be
 
 # Signed contract the helper checks after RS256 verification, for root's
 # acceptance check. The server applies its own ACL independently.

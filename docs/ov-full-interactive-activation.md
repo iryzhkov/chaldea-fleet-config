@@ -20,7 +20,14 @@ The operator verified all six build-source hashes against base
 Before merging or converging this activation, the operator must complete the
 protected backend transition, select the accepted full HTTP artifact/profile,
 and deliver each host's own `ov-full-interactive.app-password` through
-homelab-infra's owned OV identity role. Keep the controller, limited laptop and
+homelab-infra's owned OV identity role. Before the PC can converge its new pin,
+protected-stage the returned amd64 helper with its real staged-source path and
+the one-time private previous-pin guard
+`webmcp_interactive_previous_helper_sha256=667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed`.
+The role otherwise uses the old installed helper as its source and correctly
+refuses its mismatch. Verify PC Jocasta through its existing native registration
+after this shared-helper upgrade. Keep staging paths and previous-pin inputs in
+protected operator files, not inventory. Keep the controller, limited laptop and
 narrow interactive identities unchanged. Broader claims follow qualified
 consumers. No browser/model login, copied model credentials or custom refresher
 is needed. The fleet role checks protected credential custody before native
@@ -38,6 +45,13 @@ evidence. Do not retire stdio based only on configuration or SDK initialization.
 After four-client acceptance and the required roadmap audit, a separate reviewed
 change can remove only these hosts' duplicate interactive stdio registrations
 and update agent guidance. Keep the backend maintenance CLI, unrelated consumers
-and their credentials. Rollback of this registration selection restores the
-prior narrow laptop entry and PC HTTP absence; it does not roll document data
-backward or authorize an old backend writer after new writes.
+and their credentials. Clearing or reverting an opt-in alone removes nothing.
+Follow [the owned rollback procedure](managed-interactive-webmcp.md): first
+converge with the full opt-in still set and an explicit remote entry
+`{name: ov, state: absent}` to remove OV from both native clients. Only then
+clear the full opt-in and, if wanted, restore the laptop's narrow Codex entry.
+Restoring an older helper requires its actual protected staged source and the
+private previous-pin guard naming the currently installed helper; verify
+Jocasta after the shared-helper change. Do not put inverse/staging inputs in
+inventory. This procedure does not roll document data backward or authorize
+an old backend writer after new writes.

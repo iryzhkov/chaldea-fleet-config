@@ -275,7 +275,7 @@ def test_capability_defaults_off_and_only_selected_interactive_hosts_opt_in():
     assert [s for s in servers if s["name"] == "ov-memory"][0].get("enabled", True) is True
 
 
-def test_inert_activation_example_is_exact_and_invents_no_hash():
+def test_inert_activation_example_is_exact_and_uses_accepted_host_artifacts():
     example = yaml.safe_load((ROOT / "docs/examples/ov-full-interactive.yml").read_text())
     assert set(example["hosts"]) == set(FULL_HOSTS)
     for host, item in example["hosts"].items():
@@ -288,7 +288,13 @@ def test_inert_activation_example_is_exact_and_invents_no_hash():
             "username": "chaldea-" + host + "-ov-full-interactive"}
     assert example["hosts"]["laptop"]["binding"] == {"node": "omarchy-macbook-air-igor", "uid": 1001}
     assert example["hosts"]["omarchy-pc"]["binding"] == {"node": "omarchy-pc", "uid": 1000}
-    # No artifact pin exists until the reviewed helper is built from accepted source.
-    assert example["helper_pin"] == {"sha256": None, "status": "pending accepted-source build"}
+    # Artifact pins are host-specific; the reference is never loaded as inventory.
+    assert example["helper_pin"] == {
+        "status": "accepted-source builds",
+        "sha256_by_host": {
+            "laptop": "dafb0ec33a28e969b8b344c2815e47cfdc1894f4e8a5ec7db3f992dbed6d56bc",
+            "omarchy-pc": "acefaa482584d26ce8cd471edc10577ee925c0a6c36c9e97e000ba3ce8ffb7be",
+        },
+    }
     text = (ROOT / "docs/examples/ov-full-interactive.yml").read_text()
     assert "previous_helper_sha256" not in text
