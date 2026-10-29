@@ -1,0 +1,19 @@
+---
+# Qualified client and protected reader canary, omarchy-pc only.
+# PR98 merge a0412350; release/workflow40916504045 and reproduced archive verified.
+chaldea_client_version: client-v0.4.22
+chaldea_client_sha256: 61213c3347c23d45604196cfc47853a1161de4bc4a2f88068905e916237f49e4
+chaldea_client_route_targets:
+  scores:
+    enabled: true
+    url: https://akasha.ryzhkov.dev
+    tokenHelper: /usr/local/bin/chaldea-token-helper
+    host: omarchy-pc
+  # This canary has read permission only. Homelab publishes snapshots.
+  announceHost: homelab
+  pins: {}
+  benchmark:
+    indexVersion: "5"
+    anchors:
+      bulk-read: [gpt-6.1-sol, claude-opus-5-5]
+      critical-review: [gpt-6.1-sol, claude-opus-5-5]

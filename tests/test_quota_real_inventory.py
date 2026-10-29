@@ -10,9 +10,21 @@ def test_real_inventory_patch_resolves_pc_reader_and_account_bindings(tmp_path):
     inventory = tmp_path / "inventory"
     inventory.mkdir()
     shutil.copyfile(ROOT / "inventory/hosts.yml", inventory / "hosts.yml")
+    host_vars = inventory / "host_vars/omarchy-pc"
+    host_vars.mkdir(parents=True)
+    shutil.copyfile(ROOT / "inventory/host_vars/omarchy-pc/fate-route.yml", host_vars / "fate-route.yml")
     patch = subprocess.run(["patch", "-p1", "-i", str(ROOT / "docs/akasha-quota-sharing-inventory.patch")],
                            cwd=tmp_path, capture_output=True, text=True)
     assert patch.returncode == 0, patch.stdout + patch.stderr
+    # The legacy enrollment guard reads hosts.yml; ordinary pulls also load host_vars.
+    # The optional patch must select the same quota reader through both paths.
+    effective = subprocess.run(["ansible-inventory", "-i", str(inventory / "hosts.yml"),
+                                "--host", "omarchy-pc"], check=True, capture_output=True, text=True)
+    targets = json.loads(effective.stdout)["chaldea_client_route_targets"]
+    assert targets["quotaConfigFile"].endswith("/.config/chaldea/quota-fleet-reader.json")
+    assert targets["scores"]["enabled"] is True
+    assert targets["benchmark"]["indexVersion"] == "5"
+    assert targets["announceHost"] == "homelab"
     role = tmp_path / "roles/chaldea_client"
     shutil.copytree(ROOT / "roles/chaldea_client/templates", role / "templates")
     directory = tmp_path / ".config/chaldea"
