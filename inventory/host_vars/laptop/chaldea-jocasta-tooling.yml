@@ -62,25 +62,42 @@ chaldea_client_waits_legacy_user_node_version: "26.10.0"
 
 chaldea_client_session_policy_enabled: true
 
-# The role reads only the effective chaldea_client_session_* maps below. Each
-# is the literal Jocasta input that follows, plus the HoloNet catalog input
-# from host_vars/laptop/chaldea-holonet-catalog.yml only while
-# chaldea_laptop_holonet_catalog_enabled is true. Disabled, every map equals
-# its Jocasta input exactly, so the rendered policy and the delivered profiles
-# keep their bytes. Jocasta entries are combined last, so a HoloNet name can
-# never replace one of them.
+# Ordinary Claude/Codex now use enrolled interactive WebMCP. Keep the qualified
+# definitions below as explicit rollback inputs, but admit only OpenCode by default.
+# An operator must remove the three exact T3 instances after proving no consumers
+# and before activating the guarded profile-file inverse. Never reroute a retired
+# preset to an ordinary provider, and never remove its login HOME or credentials.
+chaldea_laptop_jocasta_legacy_sessions_enabled: false
+
+# The role reads only the effective chaldea_client_session_* maps below.
+# Defaults admit only the existing OpenCode Jocasta input. The two legacy flags
+# deliberately restore the old Jocasta Claude/Codex and HoloNet inputs; false
+# selects their explicit owned-file retirement, not a byte-preserving pause.
+# Jocasta entries are combined last, so HoloNet cannot replace one of them.
 chaldea_client_session_ceilings: >-
   {{ chaldea_laptop_jocasta_ceilings + (chaldea_laptop_holonet_catalog_ceilings
      if chaldea_laptop_holonet_catalog_enabled | bool else []) }}
 chaldea_client_session_presets: >-
   {{ (chaldea_laptop_holonet_catalog_presets if chaldea_laptop_holonet_catalog_enabled | bool else {})
-     | combine(chaldea_laptop_jocasta_presets) }}
+     | combine(chaldea_laptop_jocasta_presets if chaldea_laptop_jocasta_legacy_sessions_enabled | bool
+       else {'jocasta-tooling-opencode': chaldea_laptop_jocasta_presets['jocasta-tooling-opencode']}) }}
 chaldea_client_session_enrollments: >-
   {{ (chaldea_laptop_holonet_catalog_enrollments if chaldea_laptop_holonet_catalog_enabled | bool else {})
-     | combine(chaldea_laptop_jocasta_enrollments) }}
+     | combine(chaldea_laptop_jocasta_enrollments if chaldea_laptop_jocasta_legacy_sessions_enabled | bool
+       else {'jocasta-tooling-opencode': chaldea_laptop_jocasta_enrollments['jocasta-tooling-opencode']}) }}
 chaldea_client_session_profiles: >-
   {{ (chaldea_laptop_holonet_catalog_profiles if chaldea_laptop_holonet_catalog_enabled | bool else {})
-     | combine(chaldea_laptop_jocasta_profiles) }}
+     | combine(chaldea_laptop_jocasta_profiles if chaldea_laptop_jocasta_legacy_sessions_enabled | bool
+       else {'jocasta-tooling-opencode': chaldea_laptop_jocasta_profiles['jocasta-tooling-opencode']}) }}
+
+# Existing role-owned inverse only. Provider/admission quiescence is an operator
+# prerequisite; source merge and fleet activation must be sequenced with it.
+chaldea_client_session_profiles_absent: >-
+  {{ ([{'name': 'holonet-movies-catalog-claude', 'driver': 'claude'}]
+      if not chaldea_laptop_holonet_catalog_enabled | bool else [])
+     + ([{'name': 'jocasta-tooling-claude', 'driver': 'claude'},
+         {'name': 'jocasta-tooling-codex', 'home': '/home/igor/.cache/acl-codex-startup-f73bc687/home'}]
+        if not chaldea_laptop_jocasta_legacy_sessions_enabled | bool else []) }}
 
 chaldea_laptop_jocasta_ceilings:
   - project: tooling
