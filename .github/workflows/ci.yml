@@ -15,13 +15,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        phase: [pytest-skills, pytest-roles, pytest-rest, converge]
+        phase: [pytest-skills, pytest-roles, pytest-rest-1, pytest-rest-2, pytest-rest-3, converge]
     # GitHub-hosted: the repository is public, and a self-hosted runner would
     # run pull requests from forks on a fleet host.
     runs-on: ubuntu-24.04
     # Pytest and synthetic convergence are independent; retain every gate.
-    # The remainder reached 82% without failures before the observed 45m limit.
-    timeout-minutes: ${{ matrix.phase == 'pytest-rest' && 60 || 45 }}
+    # Whole-file remainder shards each have their own runner and scratch HOME.
+    timeout-minutes: 45
     env:
       ANSIBLE_FORKS: "1"
       TMPDIR: ${{ github.workspace }}/../chaldea-fleet-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.phase }}

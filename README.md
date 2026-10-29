@@ -229,6 +229,16 @@ always-run cleanup. This does not install Node on the host. The runner still nee
 `curl`, `sha256sum`, `tar` with xz support, and the existing Python/venv prerequisites.
 For direct `tools/ci.sh` runs, supply Node on PATH; the script fails early if absent.
 
+CI runs `pytest-skills`, `pytest-roles`, three whole-file remainder shards
+`pytest-rest-1` through `pytest-rest-3`, and `converge` on independent runners.
+Each gets its own disk scratch and HOME. The required `ci` check requires every
+lane and the managed helper to succeed, including when a lane fails or is cancelled.
+The third remainder shard recursively includes future test files and directories.
+The first two split expensive role files observed in run 40952835783; this is a
+static split, not an automatic timing balancer. `pytest-rest` still runs the complete
+remainder for diagnosis. Synthetic release inputs used only by convergence are
+prepared after pytest phases exit.
+
 `bash tools/ci.sh` runs every gate locally and in CI: it builds a virtualenv from
 the hashed lock `requirements-ci.txt`, then runs the unit tests, `ansible-lint`,
 a syntax check and a `--check --diff` run for the synthetic host in
