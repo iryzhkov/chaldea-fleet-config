@@ -746,7 +746,17 @@ OPERATOR_AUTONOMY_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_operator_autonomy.json").read_text())
 
 
+# Lightweight interactive delegation and proportional execution adopted by Igor,
+# 2026-10-29. Reverse this exact layer first; never rewrite historical fixtures.
+INTERACTIVE_DELEGATION_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_interactive_delegation.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(INTERACTIVE_DELEGATION_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(OPERATOR_AUTONOMY_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
@@ -892,6 +902,16 @@ def assert_delegation_contract(read):
     execution = [text.split("Work happens in interactive T3 sessions.", 1)[1]
                  .split("Before each T3 `delegate_task`", 1)[0] for text in instructions]
     assert execution[0] == execution[1] == execution[2]
+    # Delegation alone must not select the roadmap lifecycle or demand a checkpoint.
+    for text in instructions:
+        assert "When you own root orchestration, load roadmap-executor first." not in text
+        assert "When executing an adopted roadmap as root, load roadmap-executor first." in text
+    reporting = [text.split("rounds. Preserve every reviewer's", 1)[1]
+                 .split("After an accepted review", 1)[0] for text in instructions]
+    assert reporting[0] == reporting[1] == reporting[2]
+    for field in ("task/thread IDs", "model", "verdict", "reviewed commit",
+                  "durable receipt", "receipt link in chat"):
+        assert field in reporting[0]
     authority = [text.split("Igor grants standing authority", 1)[1]
                  .split("\n\n", 1)[0] for text in instructions]
     assert authority[0] == authority[1] == authority[2]
@@ -903,6 +923,17 @@ def assert_delegation_contract(read):
     # roadmap-executor defers to the shared section instead of carrying a copy that could drift.
     roadmap = read("skills/roadmap-executor/SKILL.md")
     assert "`providerInstanceId`" not in roadmap and "FATE before every `delegate_task`" in roadmap
+    assert "Use this while executing an adopted roadmap as its root orchestrator" in roadmap
+    review_description = yaml.safe_load(skills[1].split("---", 2)[1])["description"]
+    assert "interactive T3 work" in review_description
+    assert "carrying out an agreed plan" not in review_description
+    # The shorter chat rule must retain durable review evidence, including quota exceptions.
+    review_reporting = skills[1].split("## Quota exception", 1)[1].split(
+        "## Check necessity", 1)[0]
+    for field in ("task/thread IDs", "model", "verdict", "reviewed commit",
+                  "durable receipt", "receipt link in chat"):
+        assert field in review_reporting
+    assert "in the reply and PR comment" not in skills[1]
     for text in instructions + skills:
         text = " ".join(text.split())
         for field in ("`providerInstanceId`", "`model`", "`options`"):
