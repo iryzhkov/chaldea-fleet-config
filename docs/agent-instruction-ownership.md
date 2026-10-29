@@ -36,6 +36,16 @@ The laptop/reaper utilities, Claude settings and third-party skills list are
 preserved under tooling/legacy-bootstrap/. No task installs them in this change.
 Their historical tests and laptop isolation document travel with them.
 
+## Standing operator authority
+
+Igor adopted standing authority for agents to modify existing hosts and homelab
+infrastructure for requested outcomes on 2026-10-29. The shared entry points own
+that policy; executor, planning, rollout and Chaldea skills refer to it. Explicit
+task restrictions still win. Ordinary Chaldea exec examples omit host selection.
+The exact changed guidance blocks are recorded in agent_config_operator_autonomy.json;
+source migration reverses this layer first and retains all historical fixtures.
+This change does not implement remote Huyang atomic verification or alter access ACLs.
+
 ## Byte compatibility
 
 tests/fixtures/agent_config_before.json records all source hashes from fleet
@@ -58,9 +68,9 @@ and existing budgets. Render tests exercise the real role and inventory for
 all four hosts and check the installed delegation contract in both skill trees.
 
 Merging guidance to main can activate it through active fleet pull timers.
-Source-only authority does not authorize activation. Keep source preparation draft
-with auto-merge off until activation is authorized. Retain prior approved deployment
-scope without another routine approval; check current timer/service state. Report reviewed, merged, distributed and verified separately,
+Standing host/homelab authority covers routine activation for requested outcomes.
+An explicit source-only or no-deploy instruction excludes activation; keep such work
+draft with auto-merge off. Check current timer/service state before publication. Report reviewed, merged, distributed and verified separately,
 with distribution evidence for each host. This source change does not deploy
 a client, restart T3 or activate AA, shared quota or automatic switching.
 

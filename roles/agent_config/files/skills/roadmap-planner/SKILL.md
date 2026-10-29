@@ -22,10 +22,11 @@ description: >-
 - Executing an adopted plan: roadmap-executor. Routine or trivial changes with a
   known path: do them directly.
 
-A new plan or significant change of direction needs Igor's adoption. Routine,
-evidence-backed adjustments within an adopted outcome, scope, authority and cost
-can be adopted by the orchestrator under roadmap-executor without another approval.
-A plan is not additional deployment or spending authority.
+A request to complete work authorizes planning and routine implementation decisions
+within that outcome. Present a plan for adoption only when a material unresolved
+direction or substantial new cost needs Igor's choice. Apply standing host/homelab
+authority from the shared instructions; do not add a separate deployment gate.
+Honor explicit task limits and continue independent work while a choice is pending.
 
 ## Start from the outcome and what exists
 
@@ -45,7 +46,7 @@ Known or already-qualified seams need neither.
 A spike is a legitimate milestone with an exact question, bounded scope and effort,
 runnable proof with a retained artifact, a success/failure decision and a stop
 condition. Prefer real producer output through the actual validator, ingest path or
-consumer in an isolated agent-a Chaldea job; it can exercise schema, auth, ingest,
+consumer in an isolated Chaldea job; it can exercise schema, auth, ingest,
 reads and data budget. Its result updates, reorders or removes dependent work; a
 failed spike is no reason to build the planned machinery unchanged.
 
