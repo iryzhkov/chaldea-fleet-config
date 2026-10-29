@@ -233,8 +233,11 @@ def test_laptop_migration_and_current_only_retirement(tmp_path):
     # The canonical guards run with a scratch home and the laptop's public
     # selection. Verify migration admission before the current-only follow-up.
     system = tmp_path / "system.service"
+    # Rebase both inventory runtimes to the scratch Chaldea root so the real
+    # path-containment guard is exercised without touching installed paths.
+    selected, retired = str(releases() / NEW), str(releases() / OLD)
     laptop = variables(tmp_path, system) | public | {"chaldea_client_waits_resolved_runtime": selected}
-    laptop[OVERRIDE] = inventory[OVERRIDE]
+    laptop[OVERRIDE] = retired
     stale = render(tmp_path, laptop, retired, system)
     admitted = guards(tmp_path, laptop)
     assert admitted.returncode == 0, admitted.stdout + admitted.stderr
