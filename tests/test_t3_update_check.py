@@ -42,6 +42,10 @@ def test_release_discovery_is_read_only(tmp_path, release, http_status, installe
     home = tmp_path / "home"
     home.mkdir()
     play = tmp_path / "discovery.yml"
+    discovery = next(task for task in yaml.safe_load(
+        (ROOT / "roles/t3/tasks/main.yml").read_text()
+    ) if task.get("ansible.builtin.include_tasks") == "update-check.yml")
+    discovery["ansible.builtin.include_tasks"] = str(ROOT / "roles/t3/tasks/update-check.yml")
     play.write_text(yaml.safe_dump([{
         "hosts": "localhost", "gather_facts": False,
         "vars": {
@@ -50,11 +54,7 @@ def test_release_discovery_is_read_only(tmp_path, release, http_status, installe
             "t3_update_check_enabled": True,
             "t3_release_metadata_url": f"http://127.0.0.1:{server.server_port}/releases/latest",
         },
-        "tasks": [{
-            "ansible.builtin.include_tasks": str(ROOT / "roles/t3/tasks/update-check.yml"),
-            # Same production inclusion condition: check mode must never fetch.
-            "when": "t3_update_check_enabled | bool and not ansible_check_mode",
-        }],
+        "tasks": [discovery],
     }], sort_keys=False))
     env = dict(os.environ, HOME=str(home), ANSIBLE_LOCAL_TEMP=str(tmp_path / "ansible"),
                ANSIBLE_NOCOLOR="1")
