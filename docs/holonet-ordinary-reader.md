@@ -1,47 +1,54 @@
 # Ordinary HoloNet catalog reader
 
-This candidate adds ordinary laptop Codex questions about the Movies catalog.
-It is separate from the admitted Chaldea preset `holonet-movies-catalog-claude`.
-That preset, its credentials and six-call qualification remain unchanged.
+The laptop Codex reader is released. This extension also selects ordinary
+laptop Claude through the same maintained Ansible role used for Jocasta.
+Claude installation and actual native qualification are reported separately
+from source support. The admitted Chaldea preset
+`holonet-movies-catalog-claude`, its identity and fixed prompt remain separate.
 
-The managed tuple is exactly `holonet_catalog`, remote URL
+The closed tuple is `holonet_catalog`, URL
 `https://media.mcp.ryzhkov.dev/mcp`, `auth_mode: managed_helper`,
-`helper_host: laptop`, and provider `codex`. The registration writes the native
-`http_headers_helper` setting. Claude and OpenCode are not selected by this
-first release. Extra headers, helpers, scopes, hosts and URLs refuse.
+`helper_host: laptop`, with approved providers `claude` and `codex`.
+Claude receives native `type: http` and `headersHelper`; Codex receives
+`http_headers_helper`. Both invoke exactly
+`/usr/local/libexec/webmcp-interactive-headers holonet laptop`.
+OpenCode and other hosts remain excluded. Extra headers, helpers, scopes,
+hosts and URLs refuse.
 
-The helper command is
-`/usr/local/libexec/webmcp-interactive-headers holonet laptop`. It checks the
-actual host and UID, derives home from the account database, and reads only
-`~/.config/chaldea/authentik/holonet-interactive.app-password` through the
-existing private-file guards. It never reads the limited preset's password.
-The fixed ordinary account is `chaldea-laptop-holonet-interactive`.
+The unchanged public helper verifies actual host/UID, derives home from the
+account database and reads only the private single-link ordinary
+`~/.config/chaldea/authentik/holonet-interactive.app-password`.
+The fixed identity is `chaldea-laptop-holonet-interactive`; it is not the
+limited preset credential. Each invocation privately obtains and verifies
+a bounded RS256 token for the exact issuer/client/resource/scope/Movies
+catalog grant. No new password, account, token store or authentication
+mechanism is needed for the second ordinary native client. Neither password
+nor JWT belongs in chat, tool arguments or logs.
 
-Each invocation exchanges that password at the fixed Authentik endpoint,
-verifies the RS256 signature and exact issuer, client, audience, scope, lifetime
-and Movies-only catalog grant, and returns only the native authorization-header
-object. There is no persisted JWT, token selector, endpoint override or arbitrary
-credential path. The helper has an eight-second total deadline. Neither the
-password nor JWT belongs in chat, tool arguments or logs.
+`webmcp_interactive_holonet_enabled` defaults off and additionally requires
+the existing managed-interactive opt-in, laptop UID1001, protected credential
+metadata and the accepted public helper pin. Only laptop inventory selects it.
+The provider list defaults to both approved clients. An explicit
+`mcp_registrations_remote_servers` entry named `holonet_catalog` can select
+an approved provider subset and state. For a Claude-only inverse, preserve the
+original remote-server declarations and add that entry with
+`providers: [claude]`, `state: absent`. The role then removes only the
+Claude HoloNet entry and leaves installed Codex HoloNet and other servers
+unchanged. OpenCode in that list refuses before native registration.
+Disabling an opt-in alone does not remove an existing native entry.
 
-`webmcp_interactive_holonet_enabled` defaults to false. It requires the existing
-`webmcp_interactive_enabled`, laptop UID1001, private separately delivered
-credential metadata and a reviewed helper artifact pin before activation.
-Only laptop inventory selects it. Keep the activation candidate unmerged until
-guarded staging, exact artifact/native/lifetime acceptance and rollback readiness
-pass. Merging activates it through normal pulls. Existing Jocasta and OV helper
-modes and registrations remain available. Removing only this named native entry
-is the registration inverse; do not withdraw unrelated servers or the preset.
+Use the canonical pinned laptop `site.yml --tags mcp_registrations`,
+review the complete CHECK before REAL and require repeat changed0. Main
+merges activate ordinary pulls, so serialize guarded staging/merge/rollout
+inside a fresh safe timer gap. Verify each newly selected native client with
+actual allowed/denied catalog calls before retaining its entry. On failure
+perform the exact own-client inverse and reconcile the owning source.
 
-The service candidate supports title search, exact director/composer credit
-filters and bounded optional year, genre and credit projection. These remain
-under the same fixed user/library/catalog.read ACL. History, UserData and writes
-are excluded from this mode.
-
-Source tests are not deployment or native acceptance. Before enabling ordinary
-access, qualify the live Emby fields and filters, the exact packaged service,
-the new identity and private custody, native allowed/refused calls, and a
-same-backend native call after the 300-second JWT lifetime plus 30-second tail.
-Record ordinary helper renewal separately from admission-bound native renewal,
-which the existing short preset did not exercise. Preserve the working preset
-and all other helper modes during guarded rollout and rollback.
+The service supports bounded title search and Director/Composer credit filters
+under fixed Movies/catalog.read ACLs. History, UserData, writes and mutation
+tools are excluded. Composer-positive coverage remains dependent on real
+credits. Igor adopted the initial reader release with long-session renewal,
+identical backend/MCP connection continuity, failed renewal and revocation
+explicitly unqualified. Initial read proof does not establish those lifecycle
+properties. Keep them as separate follow-ups; do not inspect headers, invent
+dummy turns or label synthetic helper checks as native renewal.
