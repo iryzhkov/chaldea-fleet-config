@@ -3,13 +3,14 @@ import copy
 import json
 import os
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
 
-from test_mcp_registration import Failed, FakeModule, call, module_code
+from test_mcp_registration import FAKE_CLAUDE, Failed, FakeModule, call, module_code
 from test_mcp_remote_registration import CODEX_CONFIG, SECRET
 from test_webmcp_managed_ov import selection_tasks
 
@@ -26,7 +27,7 @@ def reader(**change):
 
 def test_closed_holonet_tuple_and_native_config_inverse_preserve_neighbors(tmp_path):
     assert module_code.MANAGED_SERVERS["holonet_catalog"] == {
-        "url": URL, "providers": frozenset({"codex"}), "commands": {"laptop": HELPER}}
+        "url": URL, "providers": frozenset({"claude", "codex"}), "commands": {"laptop": HELPER}}
     path = tmp_path / "config.toml"
     path.write_text(CODEX_CONFIG)
     before = tomllib.loads(path.read_text())
@@ -42,6 +43,34 @@ def test_closed_holonet_tuple_and_native_config_inverse_preserve_neighbors(tmp_p
     assert tomllib.loads(path.read_text()) == before
 
 
+def test_claude_native_helper_roundtrip_and_inverse_keep_codex_and_private_state(tmp_path):
+    path = tmp_path / "claude.json"
+    before = {"private": SECRET, "mcpServers": {
+        "jocasta": {"type": "http", "url": "https://jocasta.mcp.ryzhkov.dev/mcp",
+                    "headersHelper": "/usr/local/libexec/webmcp-interactive-headers jocasta laptop"},
+        "other": {"type": "http", "url": "https://other.invalid/mcp",
+                  "headers": {"Authorization": SECRET}}}}
+    path.write_text(json.dumps(before))
+    codex = tmp_path / "config.toml"
+    codex.write_text(CODEX_CONFIG)
+    call("codex", codex_config=str(codex), **reader())
+    codex_bytes = codex.read_bytes()
+    params = dict(claude_config=str(path),
+                  claude_command=[sys.executable, FAKE_CLAUDE, "--user-config", str(path)])
+    preview = call("claude", check_mode=True, **params, **reader())
+    assert preview["changed"] and json.loads(path.read_text()) == before
+    result = call("claude", **params, **reader())
+    assert result["changed"] and SECRET not in json.dumps(result)
+    expected = copy.deepcopy(before)
+    expected["mcpServers"]["holonet_catalog"] = {"type": "http", "url": URL, "headersHelper": HELPER}
+    assert json.loads(path.read_text()) == expected
+    assert not call("claude", **params, **reader())["changed"]
+    assert call("claude", **params, **reader(state="absent"))["changed"]
+    assert json.loads(path.read_text()) == before
+    assert codex.read_bytes() == codex_bytes
+
+
+@pytest.mark.parametrize("provider", ["codex", "claude"])
 @pytest.mark.parametrize("change", [
     {"helper_host": "agent-a"}, {"helper_host": "omarchy-pc"}, {"helper_host": None},
     {"name": "holonet"}, {"name": "Holonet_catalog"}, {"url": URL + "/"},
@@ -51,15 +80,18 @@ def test_closed_holonet_tuple_and_native_config_inverse_preserve_neighbors(tmp_p
     {"extra": {"http_headers_helper": HELPER + " --user=other"}},
     {"extra": {"scopes": ["holonet.read"]}},
 ])
-def test_holonet_tuple_drift_refuses_before_native_write(tmp_path, change):
-    path = tmp_path / "config.toml"
+def test_holonet_tuple_drift_refuses_before_native_write(tmp_path, provider, change):
+    path = tmp_path / ("config.toml" if provider == "codex" else "claude.json")
+    kwargs = {"codex_config": str(path)} if provider == "codex" else {
+        "claude_config": str(path),
+        "claude_command": [sys.executable, FAKE_CLAUDE, "--user-config", str(path)]}
     with pytest.raises(Failed):
-        call("codex", codex_config=str(path), **reader(**change))
+        call(provider, **kwargs, **reader(**change))
     assert not path.exists()
 
 
-def test_holonet_does_not_select_other_native_clients(tmp_path):
-    for provider, field in (("claude", "claude_config"), ("opencode", "opencode_config")):
+def test_holonet_does_not_select_opencode(tmp_path):
+    for provider, field in (("opencode", "opencode_config"),):
         path = tmp_path / (provider + ".json")
         with pytest.raises(Failed):
             module_code.remote_definition(FakeModule(False), provider, {"extra": {}, **reader()})
@@ -86,7 +118,7 @@ def test_actual_selection_defaults_off_preserves_entries_and_absent_intent(tmp_p
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     selection = next(t for t in tasks if t["name"].startswith("Select the closed laptop HoloNet"))
     unrelated = {"name": "other", "url": "https://other.invalid/mcp", "providers": ["codex"]}
-    target = {"name": "holonet_catalog", "url": URL, "providers": ["codex"],
+    target = {"name": "holonet_catalog", "url": URL, "providers": ["claude", "codex"],
               "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}
     fixed_jocasta = {"name": "jocasta", "url": "https://jocasta.mcp.ryzhkov.dev/mcp",
                      "providers": ["claude", "codex"], "auth_mode": "managed_helper",
@@ -98,6 +130,8 @@ def test_actual_selection_defaults_off_preserves_entries_and_absent_intent(tmp_p
         (False, True, [unrelated], [unrelated]),
         (True, True, [{"name": "holonet_catalog", "state": "absent"}],
          [fixed_jocasta, target | {"state": "absent"}]),
+        (True, True, [{"name": "holonet_catalog", "state": "absent", "providers": ["claude"]}],
+         [fixed_jocasta, target | {"state": "absent", "providers": ["claude"]}]),
     ]):
         values = {"webmcp_interactive_enabled": enabled, FLAG: flag,
                   "mcp_registrations_remote_servers": initial}
@@ -105,6 +139,24 @@ def test_actual_selection_defaults_off_preserves_entries_and_absent_intent(tmp_p
                    {**selection, "vars": values, "name": f"Select {index}"},
                    {"ansible.builtin.assert": {"that": ["mcp_registrations_effective_remote_servers == expected"]},
                     "vars": {"expected": expected}}]
+    result = _ansible(tmp_path, checks)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_actual_selection_refuses_unqualified_provider_subset_before_native_writes(tmp_path):
+    tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
+    jocasta, _ = selection_tasks()
+    selection = next(t for t in tasks if t["name"].startswith("Select the closed laptop HoloNet"))
+    guard = next(t for t in tasks if t["name"] == "Check the opt-in remote MCP servers")
+    checks = []
+    for index, providers in enumerate([["opencode"], ["claude", "opencode"], ["codex", "opencode"]]):
+        values = {"webmcp_interactive_enabled": True, FLAG: True,
+                  "mcp_registrations_remote_servers": [{"name": "holonet_catalog", "providers": providers}],
+                  "mcp_registrations_servers": [], "mcp_registrations_retired": []}
+        checks += [{**jocasta, "vars": values, "name": f"Baseline invalid {index}"},
+                   {**selection, "vars": values, "name": f"Select invalid {index}"},
+                   {**guard, "vars": values, "ignore_errors": True, "register": "observed"},
+                   {"ansible.builtin.assert": {"that": ["observed.failed | default(false)"]}}]
     result = _ansible(tmp_path, checks)
     assert result.returncode == 0, result.stdout + result.stderr
 
