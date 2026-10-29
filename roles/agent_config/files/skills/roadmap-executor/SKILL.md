@@ -26,7 +26,8 @@ it through resumes and handoffs without reauthorization, including approved oper
 or multi-host scope. Ask only about concrete new authority or material unresolved
 direction. Apply the standing host/homelab authority in the shared instructions to
 requested outcomes. Routine deployment, multi-host changes and necessary service restarts need
-no new permission. Explicit task restrictions still win.
+no new permission. Explicit task restrictions still win. A plan does not grant
+rights missing from the conversation, assignment or standing shared policy.
 
 ## Retain native executor ownership
 
@@ -122,7 +123,7 @@ Do not expand the assignment just to stay busy. Stop only affected work at its s
 boundary; end the execution turn when no useful authorized independent work remains,
 with the exact decision, evidence and resumable state checkpointed. Silence, a deadline
 or an audit recommendation never grants permission. Existing safety blockers and
-source/review/deployment gates remain binding.
+source, review and deployment verification requirements remain binding.
 
 ## Delegate and follow work
 

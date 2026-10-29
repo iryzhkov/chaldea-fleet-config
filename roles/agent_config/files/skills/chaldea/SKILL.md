@@ -119,6 +119,8 @@ Use `chaldea exec -- CMD ARG...` for builds and tests and let Chaldea select the
 job host from its configured policy. Omit `--host` unless Igor requests a specific
 host or a verified task requirement needs one. Host selection is separate from
 provider/model routing. Let Chaldea handle admission and queueing; add no retry loop.
+Chaldea moves to another host only after a refusal or an unreachable host before
+submission; recover an uncertain submitted job before considering another run.
 When all reachable hosts are busy, exec queues for up to one hour by default;
 `--queue-timeout` sets the bound and `--no-queue` refuses instead.
 

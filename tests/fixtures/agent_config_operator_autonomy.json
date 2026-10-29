@@ -53,10 +53,6 @@
   ],
   "claude/omarchy-setup/CLAUDE.md": [
     [
-      "units, technical terms, code, API names, CLI commands, file paths, and error strings stay exact.\n\nNo tool-call narration. Fire calls direct, no preamble or progress note between them. Text before\na call only to warn about something destructive or resolve real ambiguity.\n\nNo decorative tables or emoji. Do not dump long raw logs — quote the shortest decisive line.\n",
-      "units, technical terms, code, API names, CLI commands, file paths, and error strings stay exact.\n\nKeep tool narration brief. State the intended action before starting and give concise\nprogress updates during sustained work, especially when findings or direction change.\n\nNo decorative tables or emoji. Do not dump long raw logs — quote the shortest decisive line.\n"
-    ],
-    [
       "\nWork happens in interactive T3 sessions. Stay interactive while exploring, designing and\nmaking decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta and execute\nassigned milestones through observable completion, explicit stop, an agreed budget limit,\nor a blocker with no useful authorized ready work left. Milestone or review completion,\n",
       "\nWork happens in interactive T3 sessions. Stay interactive while exploring, designing and\nmaking decisions turn by turn. For requested work, record the plan in Jocasta when needed and execute\nassigned milestones through observable completion, explicit stop, an agreed budget limit,\nor a blocker with no useful authorized ready work left. Milestone or review completion,\n"
     ],
@@ -131,6 +127,10 @@
     [
       "defers dependent work. It never authorizes it. Runtime security approval requests stay in the runtime's approval mechanism;\nnever track or answer them through these tools.",
       "defers dependent work. It never authorizes it. Runtime security approval requests\nstay in the runtime's approval mechanism; never track or answer them through these tools."
+    ],
+    [
+      "When all reachable hosts are busy, exec queues for up to one hour by default;",
+      "Chaldea moves to another host only after a refusal or an unreachable host before\nsubmission; recover an uncertain submitted job before considering another run.\nWhen all reachable hosts are busy, exec queues for up to one hour by default;"
     ]
   ],
   "skills/huyang/SKILL.md": [
@@ -167,6 +167,14 @@
     [
       "requested outcome uses the standing authority in the shared instructions. No polling, cron or new tracking database.",
       "requested outcome uses the standing authority in the shared instructions.\nNo polling, cron or new tracking database."
+    ],
+    [
+      "no new permission. Explicit task restrictions still win.",
+      "no new permission. Explicit task restrictions still win. A plan does not grant\nrights missing from the conversation, assignment or standing shared policy."
+    ],
+    [
+      "source/review/deployment gates remain binding.",
+      "source, review and deployment verification requirements remain binding."
     ]
   ],
   "skills/roadmap-planner/SKILL.md": [
@@ -189,6 +197,12 @@
     [
       "observable acceptance, explicit stop, agreed budget limit or a blocker with no useful\nauthorized ready work left. Milestone/review completion and monitor registration\nare intermediate states. Preserve assigned authority across turns; integration,\nmerge, publication and deployment rights must be explicit or remain with the root.\nDo not infer global authority from this role.\n\n## Retain native executor ownership\n",
       "observable acceptance, explicit stop, agreed budget limit or a blocker with no useful\nauthorized ready work left. Milestone/review completion and monitor registration\nare intermediate states. Preserve assigned authority across turns. Apply standing\nhost/homelab authority within the delegated outcome unless the root reserves those\nactions. Cross-group integration, merge and publication remain with the root unless\nassigned. Do not infer global authority from this role.\n\n## Retain native executor ownership\n"
+    ]
+  ],
+  "skills/chaldea-audit/SKILL.md": [
+    [
+      "  authorized work that does not depend on the answer. Use the chaldea decision\n  workflow when input is needed; no answer only defers dependent work.",
+      "  authorized work that does not depend on the answer. Ask in the conversation;\n  use the Chaldea decision inbox only for material direction questions needing\n  durable tracking or when Igor requests it. No answer only defers dependent work."
     ]
   ]
 }

@@ -22,8 +22,8 @@ compressed phrasing is not actually shorter, use plain phrasing.
 Never drop not/never/no/only/except — flipping meaning is worse than any token saved. Numbers,
 units, technical terms, code, API names, CLI commands, file paths, and error strings stay exact.
 
-Keep tool narration brief. State the intended action before starting and give concise
-progress updates during sustained work, especially when findings or direction change.
+No tool-call narration. Fire calls direct, no preamble or progress note between them. Text before
+a call only to warn about something destructive or resolve real ambiguity.
 
 No decorative tables or emoji. Do not dump long raw logs — quote the shortest decisive line.
 
