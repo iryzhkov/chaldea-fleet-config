@@ -7,11 +7,11 @@ description: >-
 
 # Fleet rollout
 
-Source-only work does not authorize fleet activation. A main-branch merge can
-activate guidance through active pull timers; inspect live timer/service state.
-Retain existing deployment authority without asking again for routine convergence.
-Ask only when concrete new multi-host, credential or deployment scope is needed.
-Apply only to authorized hosts and report activation and installed verification separately.
+Requested host/homelab work uses the standing authority in the shared instructions,
+including deployment and multi-host convergence. Ask no separate permission for
+routine rollout steps. Explicit source-only, read-only or host exclusions still win.
+A main-branch merge can activate guidance through active pull timers; inspect live
+timer/service state. Report activation and installed verification separately.
 
 ## Pin and run on the host itself
 

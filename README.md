@@ -55,7 +55,13 @@ session; it only keeps the tools and shared files those sessions use in place.
   public fields in `~/.claude.json` and changes Claude registration through its CLI.
 - `t3`: asserts that T3 runs the pinned version and its user service is active.
   It upgrades only when `t3_allow_upgrade=true` is passed, because `t3 update`
-  restarts the service and interrupts running sessions.
+  restarts the service and interrupts running sessions. After the pin/service
+  assertions and earlier roles succeed, a pull checks GitHub's latest stable
+  release and writes installed/pinned/latest versions and discovery status directly
+  to the local journal under tag `chaldea-t3-release`, including unavailable
+  lookups. The existing four-hour timer supplies unattended checks with the UI
+  closed; discovery does not install or restart T3. Check mode makes no release request. Set
+  `t3_update_check_enabled: false` to disable discovery.
 - `data_disk`: on hosts with `data_disk_root`, keeps T3 worktrees, `~/.cache/tmp`
   and the Go build cache on the data disk. It refuses to run unless a filesystem
   is mounted exactly at `data_disk_root` (optionally of `data_disk_fstype` and

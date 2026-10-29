@@ -740,7 +740,17 @@ WEBMCP_FIRST_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_webmcp_first.json").read_text())
 
 
+# Standing host/homelab authority and Chaldea host selection adopted by Igor,
+# 2026-10-29. Reverse this layer before all historical compatibility layers.
+OPERATOR_AUTONOMY_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_operator_autonomy.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(OPERATOR_AUTONOMY_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(WEBMCP_FIRST_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
@@ -882,6 +892,9 @@ def assert_delegation_contract(read):
     execution = [text.split("Work happens in interactive T3 sessions.", 1)[1]
                  .split("Before each T3 `delegate_task`", 1)[0] for text in instructions]
     assert execution[0] == execution[1] == execution[2]
+    authority = [text.split("Igor grants standing authority", 1)[1]
+                 .split("\n\n", 1)[0] for text in instructions]
+    assert authority[0] == authority[1] == authority[2]
     routing = [text.split("Before each T3 `delegate_task`", 1)[1]
                .split("Delegate through T3", 1)[0] for text in instructions]
     assert routing[0] == routing[1] == routing[2]
