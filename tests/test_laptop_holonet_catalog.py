@@ -128,9 +128,12 @@ def test_bindings_are_actual_and_share_nothing_with_jocasta():
     for short in SESSION_MAPS[1:]:
         key = "chaldea_client_session_" + short
         assert not set(holonet[key]) & set(jocasta[key])
-    # Only the laptop carries the input; no other inventory value names it.
+    # The separate ordinary reader selects only its laptop flag, not this preset.
+    ordinary = ROOT / "inventory/host_vars/laptop/holonet-interactive.yml"
+    assert yaml.safe_load(ordinary.read_text()) == {"webmcp_interactive_holonet_enabled": True}
+    # Only the laptop carries either HoloNet input.
     for path in (ROOT / "inventory").rglob("*.yml"):
-        if path not in {INPUT, ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml"}:
+        if path not in {INPUT, ordinary, ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml"}:
             assert "holonet" not in json.dumps(yaml.safe_load(path.read_text())).lower(), path
     assert inventory_vars("laptop")[FLAG] is True
     for host in ("agent-a", "agent-b", "omarchy-pc", "normandy", "homelab"):

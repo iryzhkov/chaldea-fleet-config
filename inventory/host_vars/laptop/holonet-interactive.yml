@@ -1,0 +1,6 @@
+---
+# Ordinary laptop Codex Movies catalog reader, independent of the limited
+# Chaldea preset. HELD until exact artifact/native/lifetime acceptance and
+# guarded staging are complete. Merging activates this selection on pulls.
+# The issuer-delivered credential is metadata-checked only, never copied here.
+webmcp_interactive_holonet_enabled: true

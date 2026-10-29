@@ -78,7 +78,10 @@ def _ansible(tmp_path, tasks):
 def test_actual_selection_defaults_off_preserves_entries_and_absent_intent(tmp_path):
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults[FLAG] is False
-    assert all(FLAG not in p.read_text(errors="replace") for p in (ROOT / "inventory").rglob("*.yml"))
+    owner = ROOT / "inventory/host_vars/laptop/holonet-interactive.yml"
+    assert yaml.safe_load(owner.read_text()) == {FLAG: True}
+    for path in (ROOT / "inventory").rglob("*.yml"):
+        assert (FLAG in path.read_text(errors="replace")) is (path == owner)
     jocasta, _ = selection_tasks()
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     selection = next(t for t in tasks if t["name"].startswith("Select the closed laptop HoloNet"))
