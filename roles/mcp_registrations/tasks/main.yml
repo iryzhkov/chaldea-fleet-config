@@ -82,12 +82,15 @@
     - webmcp_interactive_ov_full_enabled | default(false) | bool
 
 # Ordinary HoloNet uses its own fixed helper/account, not session admission.
-- name: Select the closed laptop HoloNet Codex reader only on its own explicit opt-in
+- name: Select the closed laptop HoloNet reader only on its own explicit opt-in
   ansible.builtin.set_fact:
     mcp_registrations_effective_remote_servers: >-
       {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'holonet_catalog') | list)
          + [{'name': 'holonet_catalog', 'url': 'https://media.mcp.ryzhkov.dev/mcp',
-             'providers': ['codex'], 'auth_mode': 'managed_helper',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_catalog')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper',
              'helper_host': inventory_hostname,
              'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_catalog')
                        | map(attribute='state', default='present') | first | default('present'))}] }}
@@ -107,6 +110,9 @@
         mcp_registrations_effective_remote_servers | map(attribute='providers') | flatten
         | difference(['claude', 'codex', 'opencode']) | length == 0
       - mcp_registrations_effective_remote_servers | map(attribute='state', default='present') | difference(['present', 'absent']) | length == 0
+      - >-
+        mcp_registrations_effective_remote_servers | selectattr('name', 'equalto', 'holonet_catalog')
+        | map(attribute='providers') | flatten | difference(['claude', 'codex']) | length == 0
     fail_msg: Each remote MCP server needs a unique name of its own, a providers list and state present or absent.
     quiet: true
   when: mcp_registrations_effective_remote_servers | length > 0

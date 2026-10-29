@@ -146,7 +146,7 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
     ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["codex"],
                 "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}
     holonet_entry = {"name": "holonet_catalog", "url": "https://media.mcp.ryzhkov.dev/mcp",
-                     "providers": ["codex"], "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}
+                     "providers": ["claude", "codex"], "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}
     play = tmp_path / "inventory-selection.yml"
     play.write_text(yaml.safe_dump([{
         "hosts": "agent_hosts", "gather_facts": False,
