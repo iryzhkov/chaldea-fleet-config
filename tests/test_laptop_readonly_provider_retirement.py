@@ -48,6 +48,18 @@ def test_actual_defaults_remove_only_superseded_admissions_and_profiles():
         assert name not in presets
 
 
+def test_actual_default_policy_renders_without_any_retired_admission(tmp_path):
+    from test_laptop_holonet_catalog import render
+    result, policy = render(tmp_path, defaults())
+    assert result.returncode == 0, result.stdout + result.stderr
+    actual = json.loads(policy.read_text())
+    assert set(actual["presets"]) == {OPENCODE}
+    assert set(actual["enrollments"]) == {OPENCODE}
+    assert all(c["project"] == "tooling" for c in actual["ceilings"])
+    for name in (HNAME, "jocasta-tooling-claude", "jocasta-tooling-codex"):
+        assert name not in actual["presets"] and name not in actual["enrollments"]
+
+
 def test_explicit_rollback_inputs_never_deliver_and_retire_the_same_profile():
     rollback = effective_session_maps({LEGACY: True, HOLO: True}, include_retired=True)
     assert rollback["chaldea_client_session_profiles_absent"] == []

@@ -394,7 +394,10 @@ def test_explicit_off_inventory_restores_the_jocasta_policy_bytes_through_the_ro
     previous = tmp_path / "previous.json"
     play.write_text(play.read_text().replace(str(policy), str(previous)))
     literal = tmp_path / "literal.json"
-    literal.write_text(json.dumps({"fleet_home": HOME} | {key: values[key] for key in JOCASTA_INPUTS}))
+    literal.write_text(json.dumps({"fleet_home": HOME,
+                                   "chaldea_laptop_jocasta_legacy_sessions_enabled": True,
+                                   "chaldea_laptop_holonet_catalog_enabled": False}
+                                  | {key: values[key] for key in JOCASTA_INPUTS}))
     result = subprocess.run([
         "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", "laptop", str(play),
         "--extra-vars", "@" + str(literal)], text=True, capture_output=True, env=env, cwd=ROOT)
