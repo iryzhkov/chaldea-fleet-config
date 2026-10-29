@@ -37,7 +37,7 @@ REAL, then repeat REAL and require changed=0, failed=0, unreachable=0. Preserve
 the separate admitted exec wrapper and prior client releases. The ordinary user
 waits service follows current and restarts onto 0.4.23; verify its health after REAL.
 The original read-only PC preflight found current and previous both at client-v0.4.11. Managed
-old versions 0.4.0/0.4.2/0.4.7/0.4.8/0.4.20 are explicitly retained; 0.4.9 is absent.
+old versions 0.4.0/0.4.2/0.4.7/0.4.8/0.4.11/0.4.20 are explicitly retained; 0.4.9 is absent.
 Unversioned client directories are outside the role's managed cleanup pattern.
 Recheck actual membership before applying rather than inferring release history.
 Agent-a's management hold and the laptop's system mode preserve their ordinary

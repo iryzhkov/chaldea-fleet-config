@@ -56,7 +56,7 @@ def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
 def test_actual_managed_pc_rollback_releases_remain_explicitly_retained():
     values = yaml.safe_load((ROOT / "inventory/host_vars/omarchy-pc/chaldea-staging-retention.yml").read_text())
     assert set(values["chaldea_client_retained_versions"]) == {
-        "client-v0.4.0", "client-v0.4.2", "client-v0.4.7", "client-v0.4.8", "client-v0.4.20"}
+        "client-v0.4.0", "client-v0.4.2", "client-v0.4.7", "client-v0.4.8", "client-v0.4.11", "client-v0.4.20"}
 
 
 def test_baseline_floors_and_qualified_default_release_are_preserved():

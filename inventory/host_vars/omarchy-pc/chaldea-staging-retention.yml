@@ -8,4 +8,6 @@ chaldea_client_retained_versions:
   - client-v0.4.2
   - client-v0.4.7
   - client-v0.4.8
+  # Preserve the observed previous release when 0.4.23 makes 0.4.22 previous.
+  - client-v0.4.11
   - client-v0.4.20
