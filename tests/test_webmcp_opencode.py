@@ -168,7 +168,7 @@ def test_fresh_check_mode_creates_nothing(tmp_path):
     assert not (home / ".config/opencode").exists()
 
 
-def test_selection_is_explicit_standalone_and_laptop_only():
+def test_selection_is_explicit_standalone_and_canonical_hosts_only():
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults["webmcp_interactive_opencode_state"] == ""
     assert defaults["webmcp_interactive_enabled"] is False
@@ -186,7 +186,12 @@ def test_selection_is_explicit_standalone_and_laptop_only():
     selections = {path.relative_to(inventory).as_posix()
                   for path in inventory.rglob("*.yml")
                   if "webmcp_interactive_opencode_state" in path.read_text()}
-    assert selections == {"host_vars/laptop/jocasta-interactive.yml"}
+    assert selections == {f"host_vars/{host}/jocasta-interactive.yml" for host in HOSTS}
+    for host in HOSTS:
+        selected = yaml.safe_load((inventory / f"host_vars/{host}/jocasta-interactive.yml").read_text())
+        assert selected["webmcp_interactive_opencode_state"] == "present"
+        assert selected["webmcp_interactive_enabled"] is True
+        assert selected["mcp_registrations_remote_servers"][0]["providers"] == ["claude", "codex"]
     laptop = yaml.safe_load((inventory / "host_vars/laptop/jocasta-interactive.yml").read_text())
     assert laptop["webmcp_interactive_enabled"] is True
     assert laptop["webmcp_interactive_opencode_state"] == "present"

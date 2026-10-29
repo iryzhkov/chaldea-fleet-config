@@ -459,6 +459,20 @@ policies: every tool denied except `<server>_*` and T3's own `t3-code-*`, and
 every MCP integration removed except those two. The T3 OpenCode provider
 instance points `binaryPath` at `exec`; ACP is not used.
 
+An OpenCode profile may also set `ollama_base_url` to select the existing
+Ollama on omarchy-pc. The validator accepts exactly two values,
+`http://192.168.90.212:11434/v1` (its LAN address) and
+`http://127.0.0.1:11434/v1` (loopback on the PC), and then requires the
+preset model `ollama/local`; without the field an `ollama/*` preset model is
+refused. This is a separate closed list: the MCP `url` rule stays HTTPS-only.
+The field adds one fixed `ollama` provider to `opencode.json`
+(`@ai-sdk/openai-compatible`, that `baseURL`, model `local` with tool calls,
+reasoning and a 65536/16384 limit, and no headers, API key, variants or
+options) and appends `provider.use` policies that deny every provider except
+`ollama`. The endpoint receives prompts and authorized tool results in
+plaintext; the Jocasta bearer header stays in the MCP entry only. Without the
+field `opencode.json` and `exec` render byte for byte as before.
+
 The launcher admits only `serve --hostname=127.0.0.1 --port=N` and `--version`.
 It stays the foreground parent of one native child in T3's process group, with
 a fixed environment: the private home as HOME and XDG roots, project, Claude

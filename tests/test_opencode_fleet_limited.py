@@ -1,18 +1,15 @@
-"""Prepared limited OpenCode selections for agent-a, agent-b and omarchy-pc.
+"""Source selections for limited OpenCode on agent-a, agent-b and omarchy-pc.
 
-The prepared data (docs/examples/opencode-fleet-limited.yml) is outside
-inventory. These tests check that it stays inert, that composing a host's
-selection refuses unpopulated, malformed, shared or laptop-copied bindings,
-that the composed selection is the laptop's reviewed OpenCode shape with only
-the host-local facts changed, and that the role's own validators, policy
-render and profile delivery accept it. The bindings used here are explicit
-test-only IDs, never real host metadata. Nothing here reads a credential,
-contacts an issuer or touches a host.
+Check real inventory against the existing composition and independently recorded
+public bindings. Synthetic bindings exercise refusals. Role validation, policy
+render and profile delivery run only in scratch; they do not qualify live hosts.
+Nothing here reads a credential or contacts an issuer.
 """
 import copy
 import json
 import os
 import re
+import runpy
 import subprocess
 from pathlib import Path
 
@@ -36,6 +33,25 @@ KEYS = SESSION_KEYS | {
     "chaldea_client_waits_runtime_root", "chaldea_client_session_policy_enabled"}
 X64 = {"source": ASSETS + "/opencode/2.1.3/opencode", "size": 240306352,
        "sha256": "4c2630769fa853343a781e765b2280fc1a07f33f7c10d484f75d59e61eb85bc3"}
+# Two free OpenCode models ended with the free usage limit, so these three hosts
+# select the existing local Ollama alias with no options. The laptop keeps its
+# reviewed Big Pickle selection.
+LAPTOP_MODEL = "opencode/big-pickle"
+FLEET_MODEL = "ollama/local"
+PC_OLLAMA = "http://192.168.90.212:11434/v1"
+LOOPBACK_OLLAMA = "http://127.0.0.1:11434/v1"
+EXPECTED_OLLAMA = {"agent-a": PC_OLLAMA, "agent-b": PC_OLLAMA, "omarchy-pc": LOOPBACK_OLLAMA}
+# The only provider block an approved endpoint renders: no headers, key or variants.
+PROVIDER_POLICIES = [{"action": "provider.use", "resource": "*", "effect": "deny"},
+                     {"action": "provider.use", "resource": "ollama", "effect": "allow"}]
+
+
+def ollama_provider(base_url):
+    return {"ollama": {"npm": "@ai-sdk/openai-compatible", "options": {"baseURL": base_url},
+                       "models": {"local": {"tool_call": True, "reasoning": True,
+                                            "limit": {"context": 65536, "output": 16384}}}}}
+
+
 Error = load("session_enrollment").AnsibleFilterError
 
 
@@ -44,10 +60,32 @@ def fixture_id(host, slot, prefix=""):
     return prefix + "00000000-0000-4000-8000-%012x" % (HOSTS.index(host) * 16 + slot + 0xf1000)
 
 
-# Test-only bindings. Real values come from each host's own T3 server at root
-# integration and replace these nowhere in source except that host's inventory.
+# Synthetic bindings remain separate from the independently recorded public IDs.
 FIXTURE = {host: {"caller_destination": fixture_id(host, 1), "session_project": fixture_id(host, 2, "mcp:")}
            | ({} if host == "omarchy-pc" else {"waits_environment": fixture_id(host, 0)}) for host in HOSTS}
+
+
+# HOST-BINDINGS-CURRENT.json, independently reread on each host, 2026-10-26.
+EXPECTED_BINDINGS = {
+    "agent-a": {
+        "waits_environment": "dc3566f7-d27c-43b5-8ea1-73e132e53679",
+        "caller_destination": "cd6771e9-9294-4d56-9270-8cefff423bf8",
+        "session_project": "ff2f9e9e-78ac-4dc1-87b5-09f96d6790ba"
+    },
+    "agent-b": {
+        "waits_environment": "3bdbb18e-1b99-468a-a408-b6a37eb992a0",
+        "caller_destination": "6da35bb8-30b0-495d-9d27-a515a8104cae",
+        "session_project": "78efc077-aaef-4e2d-99eb-c655f4acdd63"
+    },
+    "omarchy-pc": {
+        "caller_destination": "mcp:3468b34a-e7fa-4438-9de8-3ca0911f148c",
+        "session_project": "cbddbdc3-07f6-4089-ad38-19cae918fc8d"
+    }
+}
+EXPECTED_WORKSPACES = {
+    "agent-a": HOME, "agent-b": HOME,
+    "omarchy-pc": HOME + "/.local/state/chaldea/session-workspaces/jocasta-tooling-opencode",
+}
 
 
 class Unbound(ValueError):
@@ -81,7 +119,8 @@ def compose(host, bindings, packet=None):
         selection["preset"], projectId=bindings["session_project"], services=services, destinations=destinations)}
     values["chaldea_client_session_enrollments"] = {NAME: dict(
         selection["enrollment"], username="chaldea-" + host + "-" + NAME)}
-    values["chaldea_client_session_profiles"] = {NAME: selection["profile"]}
+    values["chaldea_client_session_profiles"] = {NAME: dict(
+        selection["profile"], cwd=packet["workspaces"][host], ollama_base_url=packet["ollama_base_urls"][host])}
     return values
 
 
@@ -102,26 +141,33 @@ def validate(values):
         values["chaldea_client_session_enrollments"], HOME, [])
 
 
-def test_prepared_data_is_inert_and_every_binding_is_unpopulated():
+def test_real_inventory_equals_the_composition_with_exact_host_bindings():
     packet = candidate()
-    assert set(packet) == {"bindings", "selection"}
+    assert set(packet) == {"bindings", "workspaces", "ollama_base_urls", "selection"}
     assert list(packet["bindings"]) == list(HOSTS)
-    assert {host: set(packet["bindings"][host]) for host in HOSTS} == {host: set(FIXTURE[host]) for host in HOSTS}
-    assert all(value is None for host in HOSTS for value in packet["bindings"][host].values())
-    for host in HOSTS:
-        with pytest.raises(Unbound):
-            compose(host, packet["bindings"][host], packet)
-    for path in (ROOT / "inventory").rglob("*"):
-        if path.is_file() and path != ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml":
-            assert NAME not in path.read_text(errors="replace"), path
-    for host in HOSTS:
-        assert not (ROOT / "inventory/host_vars" / host / "chaldea-jocasta-tooling.yml").exists()
+    assert packet["bindings"] == EXPECTED_BINDINGS
+    assert packet["workspaces"] == EXPECTED_WORKSPACES
+    assert packet["ollama_base_urls"] == EXPECTED_OLLAMA
+    selections = compose_all(packet["bindings"])
+    for host, values in selections.items():
+        path = ROOT / "inventory/host_vars" / host / "chaldea-jocasta-tooling.yml"
+        assert yaml.safe_load(path.read_text()) == values
         current = inventory_vars(host)
-        assert current["chaldea_node_version"] == "26.10.0" and current["chaldea_client_version"] == "client-v0.4.11"
-        for key in SESSION_KEYS | {"chaldea_client_waits_service_mode", "chaldea_client_waits_runtime_root",
-                                   "chaldea_client_session_policy_enabled",
-                                   "chaldea_client_waits_legacy_user_node_version", "retention_mise_prune"}:
+        assert all(current[key] == value for key, value in values.items())
+        assert current["chaldea_node_version"] == "26.10.0"
+        assert current["chaldea_client_version"] == "client-v0.4.11"
+        for key in ("chaldea_client_waits_legacy_user_node_version", "retention_mise_prune",
+                    "chaldea_client_session_profiles_absent"):
             assert key not in current, (host, key)
+        interactive = yaml.safe_load((path.parent / "jocasta-interactive.yml").read_text())
+        assert interactive["webmcp_interactive_enabled"] is True
+        assert interactive["webmcp_interactive_opencode_state"] == "present"
+        assert interactive["mcp_registrations_remote_servers"] == [{
+            "name": "jocasta", "state": "{{ mcp_registrations_jocasta_interactive_state }}",
+            "url": RESOURCE, "providers": ["claude", "codex"]}]
+        assert interactive["webmcp_interactive_helper_source"] == "/usr/local/libexec/webmcp-interactive-headers"
+        assert interactive["webmcp_interactive_credential_source"] == (
+            "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json")
     # The laptop keeps its three Jocasta profiles plus qualified HoloNet.
     laptop = effective_laptop()
     for short in ("presets", "enrollments", "profiles"):
@@ -136,7 +182,7 @@ def _set(host, key, value):
 
 
 @pytest.mark.parametrize("change", [
-    pytest.param(None, id="prepared-nulls"),
+    pytest.param(None, id="unpopulated-bindings"),
     pytest.param(_set("agent-a", "waits_environment", ""), id="empty-environment"),
     pytest.param(_set("agent-b", "caller_destination", "TODO"), id="placeholder-caller"),
     pytest.param(_set("agent-a", "session_project", "mcp:" + "0" * 31), id="malformed-project"),
@@ -152,7 +198,7 @@ def _set(host, key, value):
 ])
 def test_composition_refuses_unpopulated_shared_or_copied_bindings(change):
     if change is None:
-        bindings = candidate()["bindings"]
+        bindings = {host: {key: None for key in values} for host, values in FIXTURE.items()}
     else:
         bindings = copy.deepcopy(FIXTURE)
         change(bindings)
@@ -176,12 +222,19 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
         # Exactly one preset, enrollment and profile: never Claude or Codex.
         assert {short: list(values["chaldea_client_session_" + short]) for short in ("presets", "enrollments", "profiles")} \
             == {"presets": [NAME], "enrollments": [NAME], "profiles": [NAME]}
+        # The laptop preset with only its bindings, the model and the explicit
+        # one-call form of the same two-read prompt changed.
+        assert laptop["chaldea_client_session_presets"][NAME]["model"] == LAPTOP_MODEL
         assert values["chaldea_client_session_presets"][NAME] == dict(
-            laptop["chaldea_client_session_presets"][NAME], projectId=bound["session_project"], destinations=destinations)
+            laptop["chaldea_client_session_presets"][NAME], projectId=bound["session_project"], destinations=destinations,
+            model=FLEET_MODEL, prompt=fleet_prompt())
+        assert "options" not in values["chaldea_client_session_presets"][NAME]
         assert values["chaldea_client_session_enrollments"][NAME] == dict(
             laptop["chaldea_client_session_enrollments"][NAME], username="chaldea-" + host + "-" + NAME)
         profile = values["chaldea_client_session_profiles"][NAME]
-        assert profile == dict(laptop["chaldea_client_session_profiles"][NAME], native=X64, elf_machine=62)
+        assert "ollama_base_url" not in laptop["chaldea_client_session_profiles"][NAME]
+        assert profile == dict(laptop["chaldea_client_session_profiles"][NAME], native=X64, elf_machine=62,
+                               cwd=EXPECTED_WORKSPACES[host], ollama_base_url=EXPECTED_OLLAMA[host])
         assert profile["native"]["sha256"] != laptop["chaldea_client_session_profiles"][NAME]["native"]["sha256"]
         assert values["chaldea_client_session_enrollments"][NAME]["secretFile"] == (
             HOME + "/.config/chaldea/authentik/jocasta-tooling-opencode.app-password")
@@ -203,7 +256,7 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
 
 @pytest.mark.parametrize("host", HOSTS)
 def test_role_closed_validators_accept_each_composed_host(host):
-    assert validate(compose_all(FIXTURE)[host])
+    assert validate(compose_all(candidate()["bindings"])[host])
 
 
 def _preset(**change):
@@ -232,6 +285,29 @@ def _profile(**change):
     _profile(home=HOME),
     _profile(tmpdir=HOME + "/.local/state/chaldea/profiles/jocasta-tooling-opencode/home"),
     _profile(server="t3_code"),
+    # Only the two approved plain-HTTP Ollama endpoints, exactly.
+    _profile(ollama_base_url="http://192.168.90.213:11434/v1"),
+    _profile(ollama_base_url="https://192.168.90.212:11434/v1"),
+    _profile(ollama_base_url="http://192.168.90.212:11435/v1"),
+    _profile(ollama_base_url="http://192.168.90.212:11434/v1/"),
+    _profile(ollama_base_url="http://192.168.90.212:11434/api"),
+    _profile(ollama_base_url="http://user:secret@192.168.90.212:11434/v1"),
+    _profile(ollama_base_url="http://192.168.90.212:11434/v1?key=x"),
+    _profile(ollama_base_url="http://192.168.90.212:11434/v1#x"),
+    _profile(ollama_base_url="http://localhost:11434/v1"),
+    _profile(ollama_base_url="http://ollama.example.test/v1"),
+    _profile(ollama_base_url=[PC_OLLAMA]),
+    _profile(ollama_base_url=None),
+    # No other provider, credential or settings field exists.
+    _profile(ollama_api_key="synthetic"),
+    _profile(ollama_headers={"Authorization": "Bearer synthetic"}),
+    _profile(provider={"ollama": {"options": {"baseURL": PC_OLLAMA}}}),
+    _profile(model=FLEET_MODEL),
+    # The endpoint and the ollama/local preset model come together or not at all.
+    _preset(model="opencode/nemotron-3.5-lightning-free"),
+    _preset(model="ollama/local:latest"),
+    _preset(model="ollama/qwen3.5:35b-a3b-q4_K_M"),
+    lambda v: v["chaldea_client_session_profiles"][NAME].pop("ollama_base_url"),
 ])
 def test_role_validators_refuse_widened_composed_selections(mutate):
     values = compose_all(FIXTURE)["agent-a"]
@@ -240,10 +316,39 @@ def test_role_validators_refuse_widened_composed_selections(mutate):
         validate(values)
 
 
+@pytest.mark.parametrize("url", [PC_OLLAMA, LOOPBACK_OLLAMA])
+def test_profile_validator_accepts_each_approved_ollama_endpoint(url):
+    values = compose_all(FIXTURE)["agent-a"]
+    values["chaldea_client_session_profiles"][NAME]["ollama_base_url"] = url
+    assert validate(values)
+
+
+def test_mcp_url_rule_stays_https_with_an_ollama_endpoint():
+    # Profile validation alone, with the enrollment resource moved too, so only
+    # the unchanged HTTPS MCP URL rule can refuse the plain-HTTP MCP server.
+    values = compose_all(FIXTURE)["agent-a"]
+    for url in (PC_OLLAMA, "http://jocasta.mcp.ryzhkov.dev/mcp"):
+        values["chaldea_client_session_profiles"][NAME]["url"] = url
+        values["chaldea_client_session_enrollments"][NAME]["resource"] = url
+        with pytest.raises(Error, match="url must equal its enrollment resource"):
+            load("session_profiles").chaldea_session_profiles(
+                values["chaldea_client_session_profiles"], values["chaldea_client_session_presets"],
+                values["chaldea_client_session_enrollments"], HOME, [])
+
+
+def test_profile_without_an_endpoint_keeps_its_existing_validation():
+    # The laptop selection names no endpoint and still validates unchanged.
+    laptop = effective_laptop()
+    assert all("ollama_base_url" not in p for p in laptop["chaldea_client_session_profiles"].values())
+    assert load("session_profiles").chaldea_session_profiles(
+        laptop["chaldea_client_session_profiles"], laptop["chaldea_client_session_presets"],
+        laptop["chaldea_client_session_enrollments"], HOME, [])
+
+
 @pytest.mark.parametrize("host", HOSTS)
 def test_real_inventory_renders_each_host_policy_through_the_role(tmp_path, host):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).resolve())
-    values = compose_all(FIXTURE)[host]
+    values = compose_all(candidate()["bindings"])[host]
     policy = tmp_path / "policy.json"
     play = tmp_path / "validate.yml"
     play.write_text(yaml.safe_dump([{
@@ -261,7 +366,7 @@ def test_real_inventory_renders_each_host_policy_through_the_role(tmp_path, host
         ],
     }]))
     extra_path = tmp_path / "selection.json"
-    extra_path.write_text(json.dumps({"fleet_home": HOME} | values))
+    extra_path.write_text(json.dumps({"fleet_home": HOME}))
     env = dict(os.environ, ANSIBLE_ROLES_PATH=str(ROOT / "roles"))
     result = subprocess.run([
         "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", host, str(play),
@@ -277,10 +382,10 @@ def test_real_inventory_renders_each_host_policy_through_the_role(tmp_path, host
 
 
 def test_inventory_render_refuses_a_selection_without_a_waits_environment(tmp_path):
-    # agent-a declares no environment in source: an unbound selection stops the
+    # An explicitly empty environment overrides inventory and must stop the
     # role's own public validation before any write.
     values = compose_all(FIXTURE)["agent-a"]
-    values.pop("chaldea_client_waits_environment")
+    values["chaldea_client_waits_environment"] = ""
     play = tmp_path / "validate.yml"
     play.write_text(yaml.safe_dump([{
         "name": "Validate an unbound selection", "hosts": "agent-a", "gather_facts": False,
@@ -296,16 +401,21 @@ def test_inventory_render_refuses_a_selection_without_a_waits_environment(tmp_pa
     assert "needs waits enabled with its environment" in result.stdout, result.stdout[-6000:]
 
 
+@pytest.mark.parametrize("host", HOSTS)
 @pytest.mark.parametrize("machine,launches", [(62, True), (183, False)])
 def test_actual_role_delivers_the_composed_profile_and_its_launcher_checks_the_machine(
-        tmp_path, monkeypatch, machine, launches):
+        tmp_path, monkeypatch, host, machine, launches):
     from test_chaldea_session_profiles import ok, run
     from test_chaldea_session_profiles_opencode import opencode_layout
 
     case = opencode_layout(tmp_path, monkeypatch)
     if case.opencode["elf_machine"] != 62:
         pytest.skip("needs an x86-64 job host: the scratch native is the host's bash")
-    values = compose_all(FIXTURE)["agent-a"]
+    values = compose_all(candidate()["bindings"])[host]
+    if host == "omarchy-pc":
+        cwd = case.home / ".local/state/chaldea/session-workspaces/jocasta-tooling-opencode"
+        cwd.mkdir(parents=True, mode=0o700)
+        case.opencode["cwd"] = str(cwd)
     variables = case.variables
     # The scratch fixture supplies the native bytes, private directories and
     # T3 server directory; preset, grant, enrollment, server, URL and tools are
@@ -327,6 +437,12 @@ def test_actual_role_delivers_the_composed_profile_and_its_launcher_checks_the_m
     assert config["mcp"] == {"jocasta_tooling": {
         "type": "remote", "url": RESOURCE, "oauth": False, "enabled": True,
         "headers": {"Authorization": "{file:jocasta.authorization}"}}}
+    # One fixed provider: the host's approved endpoint, no headers, key or
+    # variants, and every other provider denied after the existing policies.
+    assert set(config) == {"$schema", "mcp", "policies", "provider"}
+    assert config["provider"] == ollama_provider(EXPECTED_OLLAMA[host])
+    assert config["policies"][-2:] == PROVIDER_POLICIES and len(config["policies"]) == 8
+    assert runpy.run_path(str(directory / "exec"))["CONFIG"] == config
     assert list(case.opencode_home.iterdir()) == [] and list(case.runtime.iterdir()) == []
     version = subprocess.run([str(directory / "exec"), "--version"], cwd=case.home, env={"PATH": "/usr/bin:/bin"},
                              capture_output=True, text=True, timeout=30)
@@ -336,3 +452,112 @@ def test_actual_role_delivers_the_composed_profile_and_its_launcher_checks_the_m
         # A native for another machine is refused before it runs.
         assert version.returncode != 0 and "bash" not in version.stdout, version
     assert list(case.runtime.iterdir()) == []
+
+
+# The reporter prompt for the three hosts is the laptop's finite two-read task
+# spelled out as one execute call: on agent-a the local model first guessed a
+# resource tool, a static import and a lines format before the global call
+# worked. The code below is the prompt's own text, run against fake tools.
+TOOLING_ID = "0039fc5e47f4ecf7f2aa5b02d3651b3c"
+OTHER_ID = "0004d615b73f2a91d0caa4e80b25cae3"
+REPORT_KEYS = ["v", "status", "toolingRead", "otherProject", "documentId", "revision", "issues"]
+SENTINEL = "SENTINEL-DOCUMENT-CONTENT"
+HARNESS = r"""
+const input = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const calls = [];
+const tools = {jocasta_tooling: {get: async (args) => {
+  calls.push(args);
+  const step = input.steps[calls.length - 1];
+  if (step === undefined) throw new Error("unexpected extra call");
+  if ("error" in step) throw new Error(step.error);
+  if ("raw" in step) throw step.raw;
+  return step.value;
+}}};
+const AsyncFunction = (async () => {}).constructor;
+new AsyncFunction("tools", input.code)(tools).then(
+  (result) => process.stdout.write(JSON.stringify({result, calls})),
+  (error) => process.stdout.write(JSON.stringify({error: String(error), calls})));
+"""
+
+
+def fleet_prompt():
+    return candidate()["selection"]["preset"]["prompt"]
+
+
+def prompt_code(prompt):
+    start = prompt.index("const r=")
+    return prompt[start:prompt.index("return r;", start) + len("return r;")]
+
+
+def document(revision=1):
+    return {"version": "jocasta/v1", "document": {
+        "id": TOOLING_ID, "revision": revision, "content": SENTINEL, "partial": True}}
+
+
+def test_fleet_prompt_is_one_exact_execute_call_and_the_laptop_prompt_is_unchanged():
+    prompt = fleet_prompt()
+    for host in HOSTS:
+        path = ROOT / "inventory/host_vars" / host / "chaldea-jocasta-tooling.yml"
+        assert yaml.safe_load(path.read_text())["chaldea_client_session_presets"][NAME]["prompt"] == prompt
+    laptop = effective_laptop()["chaldea_client_session_presets"]
+    assert laptop[NAME]["prompt"] == laptop["jocasta-tooling-claude"]["prompt"] != prompt
+    assert len(laptop[NAME]["prompt"].encode()) == 655
+    # Inventory strings are templated: no Jinja delimiter may appear.
+    assert not any(d in prompt for d in ("{{", "{%", "{#"))
+    assert "exactly one call to the existing execute tool and no other tool" in prompt
+    assert "no retry or repeat even after an error" in prompt
+    assert "If the execute call itself cannot run, do not call again" in prompt
+    assert "Never fabricate a result" in prompt
+    code = prompt_code(prompt)
+    assert prompt.count("tools.jocasta_tooling.get(") == code.count("tools.jocasta_tooling.get(") == 2
+    first = code.index('await tools.jocasta_tooling.get({id:"%s",lines:"1:3"})' % TOOLING_ID)
+    assert first < code.index('await tools.jocasta_tooling.get({id:"%s"})' % OTHER_ID)
+    assert code.count("try{") == code.count("catch(e){") == 2
+    for word in ("import", "require", "read_mcp_resource", "search", "fetch", "console", "project:",
+                 "for(", "while(", "allSettled", "Promise", "content"):
+        assert word not in code, word
+    # The reply template keeps the existing keys, ID and types.
+    template = prompt[prompt.index('{"v":1'):]
+    template = json.loads(template[:template.index("}") + 1])
+    assert list(template) == REPORT_KEYS
+    assert template["documentId"] == TOOLING_ID and template["revision"] == 1 and template["issues"] == []
+
+
+@pytest.mark.parametrize("steps,report", [
+    pytest.param([{"value": json.dumps(document())},
+                  {"error": "not_found: document or revision does not exist"}],
+                 {"status": "PASS", "toolingRead": "PASS", "otherProject": "DENIED", "revision": 1, "issues": []},
+                 id="json-text-and-not-found"),
+    pytest.param([{"value": document()}, {"error": "access denied for project homelab"}],
+                 {"status": "PASS", "toolingRead": "PASS", "otherProject": "DENIED", "revision": 1, "issues": []},
+                 id="object-and-access-denied"),
+    pytest.param([{"value": document()}, {"raw": "not_found"}],
+                 {"status": "PASS", "toolingRead": "PASS", "otherProject": "DENIED", "revision": 1, "issues": []},
+                 id="non-error-rejection"),
+    pytest.param([{"value": document()}, {"value": document()}],
+                 {"status": "FAIL", "toolingRead": "PASS", "otherProject": "FAIL", "revision": 1,
+                  "issues": ["other_project_readable"]}, id="forbidden-read-succeeds"),
+    pytest.param([{"value": document()}, {"error": "internal: upstream timeout"}],
+                 {"status": "FAIL", "toolingRead": "PASS", "otherProject": "FAIL", "revision": 1,
+                  "issues": ["other_project_unexpected_error"]}, id="unexpected-denial-error"),
+    pytest.param([{"error": "invalid_input: lines must be START:END"}, {"error": "not_found"}],
+                 {"status": "FAIL", "toolingRead": "FAIL", "otherProject": "DENIED", "revision": 0,
+                  "issues": ["tooling_read_error"]}, id="tooling-read-error-still-checks-denial"),
+    pytest.param([{"value": document(2)}, {"error": "not_found"}],
+                 {"status": "FAIL", "toolingRead": "FAIL", "otherProject": "DENIED", "revision": 0,
+                  "issues": ["tooling_unexpected_result"]}, id="wrong-revision"),
+    pytest.param([{"value": None}, {"error": "not_found"}],
+                 {"status": "FAIL", "toolingRead": "FAIL", "otherProject": "DENIED", "revision": 0,
+                  "issues": ["tooling_read_error"]}, id="empty-result"),
+])
+def test_fleet_prompt_code_makes_two_reads_and_returns_only_the_report(steps, report):
+    result = subprocess.run(["node", "-e", HARNESS], input=json.dumps({"code": prompt_code(fleet_prompt()),
+                            "steps": steps}), capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    outcome = json.loads(result.stdout)
+    # Exactly two sequential reads with only the supported fields, whatever happens.
+    assert outcome["calls"] == [{"id": TOOLING_ID, "lines": "1:3"}, {"id": OTHER_ID}], outcome
+    assert list(outcome["result"]) == REPORT_KEYS
+    assert outcome["result"] == {"v": 1, "documentId": TOOLING_ID} | report
+    reply = json.dumps(outcome["result"], separators=(",", ":"))
+    assert len(reply.encode()) < 1000 and SENTINEL not in reply

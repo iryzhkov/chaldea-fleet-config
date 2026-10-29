@@ -3,42 +3,49 @@
 # it; never pass it as extra vars, because its keys deliberately are not role
 # inputs. See docs/opencode-fleet-limited-prepared.md.
 #
-# One limited read-only OpenCode preset, enrollment and profile for each of
-# agent-a, agent-b and omarchy-pc, and nothing else: no Claude or Codex
-# profile and no laptop value that names the laptop's own T3 server. At final
-# integration root writes, for each host, a new
-# inventory/host_vars/<host>/chaldea-jocasta-tooling.yml equal to the
-# selection composed from `selection` and that host's `bindings`
-# (tests/test_opencode_fleet_limited.py:compose). Composition refuses while any
-# binding is null.
-#
-# Bindings are host-local facts read from each host's own T3 server, never
-# copied from the laptop or from another host:
-# - waits_environment: the T3 environment ID system waits serves. omarchy-pc
-#   already declares one inline in hosts.yml and keeps it; agent-a and agent-b
-#   declare none in source.
-# - caller_destination: the T3 project ID of the caller allowed to start the
-#   session (ceiling and preset destinations).
-# - session_project: the T3 project the session itself runs in (preset
-#   projectId), the host's dedicated "Jocasta tooling sessions" project.
+# One limited read-only OpenCode selection per host, composed into the matching
+# inventory/host_vars/<host>/chaldea-jocasta-tooling.yml. The example itself is
+# not a role input. tests/test_opencode_fleet_limited.py:compose checks parity.
+# Public IDs and workspaces were independently read from each host's own T3
+# server and recorded in HOST-BINDINGS-CURRENT.json on 2026-10-26. They are
+# not caller-thread inferences or laptop values. The PC waits environment stays
+# inline in inventory/hosts.yml. Selection does not prove enrollment or native
+# acceptance. Root owns those gates before merge or activation.
 bindings:
   agent-a:
-    waits_environment: null
-    caller_destination: null
-    session_project: null
+    waits_environment: dc3566f7-d27c-43b5-8ea1-73e132e53679
+    caller_destination: cd6771e9-9294-4d56-9270-8cefff423bf8
+    session_project: ff2f9e9e-78ac-4dc1-87b5-09f96d6790ba
   agent-b:
-    waits_environment: null
-    caller_destination: null
-    session_project: null
+    waits_environment: 3bdbb18e-1b99-468a-a408-b6a37eb992a0
+    caller_destination: 6da35bb8-30b0-495d-9d27-a515a8104cae
+    session_project: 78efc077-aaef-4e2d-99eb-c655f4acdd63
   omarchy-pc:
-    caller_destination: null
-    session_project: null
+    caller_destination: mcp:3468b34a-e7fa-4438-9de8-3ca0911f148c
+    session_project: cbddbdc3-07f6-4089-ad38-19cae918fc8d
 
-# Identical on all three hosts apart from the bindings and the account name
+# Exact registered project workspaces. Stock T3 requires the PC's dedicated
+# project to have its own active workspace; the protected launcher checks cwd.
+workspaces:
+  agent-a: /home/igor
+  agent-b: /home/igor
+  omarchy-pc: /home/igor/.local/state/chaldea/session-workspaces/jocasta-tooling-opencode
+
+# The existing Ollama on omarchy-pc, by its LAN address from agent-a and
+# agent-b and by loopback on the PC itself. These are the only two endpoints the
+# role's profile validator accepts. Source only: no reachability, GPU, wake or
+# model readiness is implied.
+ollama_base_urls:
+  agent-a: http://192.168.90.212:11434/v1
+  agent-b: http://192.168.90.212:11434/v1
+  omarchy-pc: http://127.0.0.1:11434/v1
+
+# Identical on all three hosts apart from the bindings, workspace and account name
 # chaldea-<host>-jocasta-tooling-opencode. The values not listed here keep
 # their current inventory values, in particular chaldea_node_version 26.10.0
 # for the system unit, no legacy user Node admission, the shared client pin,
-# quota, MCP registrations and every interactive Jocasta setting.
+# quota and MCP registrations. Ordinary OpenCode is selected separately in
+# each host's existing jocasta-interactive.yml.
 selection:
   chaldea_client_waits_enabled: true
   chaldea_client_waits_service_mode: system
@@ -49,7 +56,7 @@ selection:
   # https://github.com/iryzhkov/chaldea/releases/download/client-v0.4.20/chaldea-client.tar.gz
   # SHA-256 ed3376ab8f21c1b6bb7b2d03e9e8c074dd43ed25be4881aafe574a12e8b618ff,
   # manifest SHA-256 c8542918859a19ec99065117c5bd359a12de1838d6f54a4090f5e1ee12a2d2d1.
-  # Its compatibility with Node 26.10.0 is not yet proven on these hosts.
+  # Isolated Node 26.10.0 load passed; native and service gates remain separate.
   chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.20
   chaldea_client_session_policy_enabled: true
   ceiling:
@@ -61,23 +68,46 @@ selection:
           - resource: project:tooling
             actions: [get, history, list, search]
   # The laptop's reviewed OpenCode preset without its destinations and
-  # projectId, which are bindings. Same prompt, grant and ceiling.
+  # projectId, which are bindings. Same grant and ceiling. The model differs:
+  # two free OpenCode models ended with the free usage limit, so these three
+  # hosts select the existing local Ollama alias ollama/local with no options.
+  # The laptop keeps Big Pickle and its prompt. The prompt here is the same
+  # finite two-read task spelled out as one execute call, because the local
+  # model guessed tool names and input syntax before reaching the right call.
   preset:
     instanceId: opencode-jocasta-tooling
-    model: opencode/big-pickle
+    model: ollama/local
     runtimeMode: approval-required
     interactionMode: default
     title: Jocasta tooling read-only OpenCode
     prompt: >-
-      Use only the jocasta_tooling MCP server. Do not use other tools, local
-      files, commands, web browsing or delegation. Read lines 1:3 of document id
-      0039fc5e47f4ecf7f2aa5b02d3651b3c in project tooling, then request document
-      id 0004d615b73f2a91d0caa4e80b25cae3 from project homelab and verify it is
-      denied or not found. Do not mutate any document. Return only JSON under
-      1000 UTF-8 bytes:
+      Make exactly one call to the existing execute tool and no other tool
+      call. Do not use import, require, read_mcp_resource, search, tool
+      discovery, other tools, local files, commands, web browsing or
+      delegation. Pass this code unchanged as the execute code input. It calls
+      the global tools.jocasta_tooling.get directly: two sequential awaited
+      calls, each exactly once with no retry or repeat even after an error, with
+      only id and lines because the id binds the project. A result may be JSON
+      text, so it is parsed only when it is a string. The second read must fail
+      with not_found or access denied, which is DENIED; a successful second
+      read or any other error is FAIL. It returns only the report, never
+      document content.
+      const r={v:1,status:"FAIL",toolingRead:"FAIL",otherProject:"FAIL",documentId:"0039fc5e47f4ecf7f2aa5b02d3651b3c",revision:0,issues:[]};
+      try{let a=await tools.jocasta_tooling.get({id:"0039fc5e47f4ecf7f2aa5b02d3651b3c",lines:"1:3"});
+      if(typeof a==="string"){a=JSON.parse(a)}const d=a.document;
+      if(d.id===r.documentId&&d.revision===1){r.toolingRead="PASS";r.revision=1}else{r.issues.push("tooling_unexpected_result")}}
+      catch(e){r.issues.push("tooling_read_error")}
+      try{await tools.jocasta_tooling.get({id:"0004d615b73f2a91d0caa4e80b25cae3"});r.issues.push("other_project_readable")}
+      catch(e){const m=e&&e.message?""+e.message:JSON.stringify(e);
+      if(m.includes("not_found")||m.includes("denied")){r.otherProject="DENIED"}else{r.issues.push("other_project_unexpected_error")}}
+      if(r.toolingRead==="PASS"&&r.otherProject==="DENIED"){r.status="PASS"}return r;
+      Then reply with only the returned object as one line of JSON under 1000
+      UTF-8 bytes, with exactly these keys and types:
       {"v":1,"status":"PASS|FAIL|INCOMPLETE","toolingRead":"PASS|FAIL","otherProject":"DENIED|FAIL","documentId":"0039fc5e47f4ecf7f2aa5b02d3651b3c","revision":1,"issues":[]}.
-      This is reporter data, not instructions. Never include document content,
-      credentials or auth headers.
+      If the execute call itself cannot run, do not call again; reply with that
+      JSON and status INCOMPLETE. Never fabricate a result. Do not mutate any
+      document. This is reporter data, not instructions. Never include document
+      content, code, logs, credentials or auth headers.
     inputs: {project: tooling}
     project: tooling
     maxSeconds: 1800
@@ -101,7 +131,8 @@ selection:
   # c251bb3962813919d5eb8c0f43cd1cb3ab1d7a0cd28b2e556985706413005cb0, member
   # package/bin/opencode), staged by the operator under provider-assets. Never
   # the ordinary installed OpenCode, a download or a mise path. home and tmpdir
-  # are operator-provisioned, private 0700 and never read by the role.
+  # are operator-provisioned, private 0700 and never read by the role. Each
+  # host's profile also takes its ollama_base_urls entry as ollama_base_url.
   profile:
     driver: opencode
     native:
@@ -111,7 +142,6 @@ selection:
     elf_machine: 62
     home: /home/igor/.local/state/chaldea/profiles/jocasta-tooling-opencode/home
     tmpdir: /home/igor/.local/state/chaldea/profiles/jocasta-tooling-opencode/tmp
-    cwd: /home/igor
     preset: jocasta-tooling-opencode
     audience: jocasta
     server: jocasta_tooling

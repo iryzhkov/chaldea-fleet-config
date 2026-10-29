@@ -3,6 +3,8 @@
 A profile names already-installed official binaries by explicit path, SHA-256 and
 size, and the protected preset whose enrollment authorizes its single HTTP MCP
 server. A Codex or OpenCode profile also names a private profile HOME by path only.
+An OpenCode profile may also name one approved local Ollama endpoint; that is a
+separate closed list, never a relaxation of the HTTPS MCP URL rule.
 The role renders the launcher and public files from this data; nothing here is
 inferred from a target file. Each driver has its own exact field set.
 """
@@ -25,6 +27,11 @@ OPENCODE_FIELDS = {"driver", "native", "elf_machine", "home", "tmpdir", "cwd", "
 # OpenCode names MCP tools <server>_<tool>; its policies allow T3's injected
 # t3-code-* servers, so a profile server name may not overlap them.
 OPENCODE_SERVER = r"[a-z][a-z0-9_]{0,47}"
+# The existing Ollama on omarchy-pc, by its LAN address or by loopback on the PC
+# itself. The template renders a fixed provider block for model ollama/local with
+# no headers or API key, and denies every other provider. Nothing else is accepted.
+OLLAMA_BASE_URLS = {"http://192.168.90.212:11434/v1", "http://127.0.0.1:11434/v1"}
+OLLAMA_MODEL = "ollama/local"
 NAME = r"[a-z0-9][a-z0-9-]{0,47}"
 PATH = r"/([A-Za-z0-9._@+-]+/)*[A-Za-z0-9._@+-]+"
 SERVER = r"[A-Za-z0-9_-]{1,64}"
@@ -112,8 +119,19 @@ def codex_profile(field, value, presets, fleet_home):
     require(value["server"] not in value["disabled_servers"], field + ".server cannot also be disabled")
 
 
-def opencode_profile(field, value, fleet_home):
-    require(set(value) == OPENCODE_FIELDS, field + " needs exactly the opencode profile fields")
+def opencode_profile(field, value, presets, fleet_home):
+    local = "ollama_base_url" in value
+    require(set(value) == OPENCODE_FIELDS | ({"ollama_base_url"} if local else set()),
+            field + " needs exactly the opencode profile fields and optional ollama_base_url")
+    preset = presets.get(value["preset"]) if isinstance(value["preset"], str) else None
+    model = preset.get("model") if isinstance(preset, Mapping) else None
+    if local:
+        require(isinstance(value["ollama_base_url"], str) and value["ollama_base_url"] in OLLAMA_BASE_URLS,
+                field + ".ollama_base_url must be an approved local Ollama endpoint")
+        require(model == OLLAMA_MODEL, field + " with an Ollama endpoint needs preset model " + OLLAMA_MODEL)
+    else:
+        require(not (isinstance(model, str) and model.startswith("ollama/")),
+                field + " needs ollama_base_url to select an Ollama model")
     pin(value["native"], CLAUDE_NATIVE_LIMIT, field + ".native")
     require(integer(value["elf_machine"]) and value["elf_machine"] in MACHINES, field + ".elf_machine")
     under(value["home"], fleet_home, field + ".home")
@@ -144,7 +162,7 @@ def profile(name, value, presets, enrollments, fleet_home):
     if value["driver"] == "codex":
         codex_profile(field, value, presets, fleet_home)
     elif value["driver"] == "opencode":
-        opencode_profile(field, value, fleet_home)
+        opencode_profile(field, value, presets, fleet_home)
     else:
         claude_profile(field, value)
     preset_id = value["preset"]
