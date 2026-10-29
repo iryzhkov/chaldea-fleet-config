@@ -20,7 +20,8 @@ jobs:
     # run pull requests from forks on a fleet host.
     runs-on: ubuntu-24.04
     # Pytest and synthetic convergence are independent; retain every gate.
-    timeout-minutes: 45
+    # The remainder reached 82% without failures before the observed 45m limit.
+    timeout-minutes: ${{ matrix.phase == 'pytest-rest' && 60 || 45 }}
     env:
       ANSIBLE_FORKS: "1"
       TMPDIR: ${{ github.workspace }}/../chaldea-fleet-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.phase }}
