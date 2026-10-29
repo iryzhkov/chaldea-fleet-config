@@ -248,6 +248,20 @@
             ]
           }
         ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "route-service",
+        "project": "chaldea",
+        "source": "route",
+        "grants": [
+          {
+            "resource": "route",
+            "actions": [
+              "read"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -397,6 +411,20 @@
         "grants": [
           {
             "resource": "homelab.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "route-service",
+        "project": "chaldea",
+        "source": "route",
+        "grants": [
+          {
+            "resource": "route",
             "actions": [
               "append"
             ]
