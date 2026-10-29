@@ -132,6 +132,7 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     select = next(t for t in tasks if t["name"].startswith("Select explicit"))
     select_ov = next(t for t in tasks if t["name"].startswith("Select the closed laptop OV"))
+    select_full = next(t for t in tasks if t["name"].startswith("Select the full interactive OV"))
     select_holonet = next(t for t in tasks if t["name"].startswith("Select the closed laptop HoloNet"))
     homes = {host: str(tmp_path / host) if distinct_homes else "/home/igor" for host in HOSTS}
     architectures = {host: "aarch64" if host == "laptop" else "x86_64" for host in HOSTS}
@@ -143,8 +144,10 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
     }
     host_pins = {host: pins[architectures[host]] for host in HOSTS}
     host_pins["laptop"] = "dafb0ec33a28e969b8b344c2815e47cfdc1894f4e8a5ec7db3f992dbed6d56bc"
-    ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["codex"],
-                "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}
+    host_pins["omarchy-pc"] = "acefaa482584d26ce8cd471edc10577ee925c0a6c36c9e97e000ba3ce8ffb7be"
+    ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["claude", "codex"],
+                "auth_mode": "managed_helper", "helper_host": "{{ inventory_hostname }}",
+                "helper_profile": "ov-full", "state": "present"}
     holonet_entry = {"name": "holonet_catalog", "url": "https://media.mcp.ryzhkov.dev/mcp",
                      "providers": ["claude", "codex"], "auth_mode": "managed_helper", "helper_host": "laptop", "state": "present"}
     play = tmp_path / "inventory-selection.yml"
@@ -159,13 +162,18 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
                 "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
             {**select_ov, "vars": {"mcp_registrations_remote_servers":
                 "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
+            {**select_full, "vars": {"mcp_registrations_remote_servers":
+                "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
             {**select_holonet, "vars": {"mcp_registrations_remote_servers":
                 "{{ hostvars[inventory_hostname].mcp_registrations_remote_servers | default([]) }}"}},
             {"ansible.builtin.assert": {"that": [
                 "mcp_registrations_effective_remote_servers == expected + "
-                "([ov_entry, holonet_entry] if inventory_hostname == 'laptop' else [])",
+                "([ov_entry] if inventory_hostname in ['laptop', 'omarchy-pc'] else []) + "
+                "([holonet_entry] if inventory_hostname == 'laptop' else [])",
                 "(webmcp_interactive_holonet_enabled | default(false) | bool) == (inventory_hostname == 'laptop')",
-                "(webmcp_interactive_ov_enabled | default(false) | bool) == (inventory_hostname == 'laptop')",
+                "not (webmcp_interactive_ov_enabled | default(false) | bool)",
+                "(webmcp_interactive_ov_full_enabled | default(false) | bool) == "
+                "(inventory_hostname in ['laptop', 'omarchy-pc'])",
                 "webmcp_interactive_helper_sha256 == host_pins[inventory_hostname]",
                 "webmcp_interactive_helper_checksums == pins",
                 "webmcp_interactive_enabled | bool",

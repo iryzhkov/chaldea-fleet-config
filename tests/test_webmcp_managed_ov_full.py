@@ -254,14 +254,22 @@ def test_full_credential_custody_is_checked_without_reading_it(tmp_path, unsafe)
     assert custody_play(tmp_path, tmp_path / "absent", enabled=False).returncode == 0
 
 
-def test_capability_is_off_and_no_host_selects_it_yet():
+def test_capability_defaults_off_and_only_selected_interactive_hosts_opt_in():
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults["webmcp_interactive_ov_full_enabled"] is False
+    owners = {
+        ROOT / "inventory/host_vars/laptop/jocasta-interactive.yml",
+        ROOT / "inventory/host_vars/omarchy-pc/ov-memory.yml",
+    }
+    selected = set()
     for path in (ROOT / "inventory").rglob("*"):
-        if path.is_file():
-            text = path.read_text(errors="replace")
-            assert "webmcp_interactive_ov_full_enabled" not in text, path
-            assert "ov-full" not in text, path
+        if path.is_file() and path.suffix in (".yml", ".yaml"):
+            values = yaml.safe_load(path.read_text())
+            if isinstance(values, dict) and "webmcp_interactive_ov_full_enabled" in values:
+                assert path in owners and values["webmcp_interactive_ov_full_enabled"] is True
+                assert not values.get("webmcp_interactive_ov_enabled", False)
+                selected.add(path)
+    assert selected == owners
     # The stdio ov-memory registration stays for every host and provider.
     servers = yaml.safe_load((ROOT / "roles/mcp_registrations/defaults/main.yml").read_text())["mcp_registrations_servers"]
     assert [s for s in servers if s["name"] == "ov-memory"][0].get("enabled", True) is True

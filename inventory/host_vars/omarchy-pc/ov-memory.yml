@@ -2,3 +2,10 @@
 # ov-mcp PR #3 refuses unsafe legacy overwrite and re-ingestion workflows.
 # The shared catalog and all other hosts retain their existing source pins.
 agent_tools_ov_memory_ref: 355a92adb0658853b7439e91d4429be3d0b270fc
+
+# Full interactive OV uses the protected infra enrollment. Keep stdio until
+# both ordinary clients pass native acceptance. Other hosts retain their pins.
+webmcp_interactive_ov_full_enabled: true
+# Accepted superset helper source6c265640, Go1.25.0 Linux/amd64 build
+# a408f479-053d-4715-8bfa-611bc158ca9c; all helper tests passed.
+webmcp_interactive_helper_sha256: acefaa482584d26ce8cd471edc10577ee925c0a6c36c9e97e000ba3ce8ffb7be
