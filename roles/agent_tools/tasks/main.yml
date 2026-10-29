@@ -57,11 +57,14 @@
   loop_control:
     label: "{{ item.key }}"
 
+# The only agent_tools task with its own tag: --tags agent_tools_retired_commands
+# runs this removal alone (plus the always-tagged host identity check).
 - name: Remove commands of retired tools
   ansible.builtin.file:
     path: "{{ agent_tools_bin_dir }}/{{ item }}"
     state: absent
   loop: "{{ agent_tools_retired_commands }}"
+  tags: [agent_tools_retired_commands]
 
 - name: Find agent tools releases
   ansible.builtin.find:
