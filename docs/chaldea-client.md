@@ -567,15 +567,18 @@ preserves the persistent unit bytes and ordinary restart-intent recovery.
 ## Laptop persistent activation
 
 `inventory/host_vars/laptop/chaldea-jocasta-tooling.yml` is the laptop's desired
-state for its first persistent read-only Jocasta tooling sessions, so the normal
-pull converges the qualified state the reviewed maintenance left. It sets system
+state for its protected tooling runtime. After ordinary Claude/Codex WebMCP
+qualification, the default policy retains only the separate OpenCode preset.
+The superseded fixed Claude/Codex inputs remain explicit rollback definitions;
+see [read-only provider retirement](laptop-readonly-provider-retirement.md) for
+mandatory quiescence, exact provider removal and guarded file cleanup. It sets system
 waits with the separately installed `client-v0.4.20` runtime (`client-v0.4.18`
 plus only the session-bound headers helper the OpenCode driver needs; stage it
 before this file reaches the laptop), an empty deadline,
-the protected policy, the `jocasta-tooling-claude` preset (`claude-opus-5`, the
-model the pinned Claude 2.1.276 accepts) with its Authentik enrollment and
-fixed Claude profile, and the matching Codex and OpenCode presets, enrollments
-and profiles. The grant is `get`, `history`, `list` and `search` on
+the protected policy and the existing `jocasta-tooling-opencode` preset,
+enrollment and profile. `chaldea_laptop_jocasta_legacy_sessions_enabled: true`
+explicitly selects the retained qualified Claude/Codex definitions as well;
+it defaults false and selects their owned-file retirement. The retained grant is `get`, `history`, `list` and `search` on
 `project:tooling`, 1800 seconds, `delegate: false`, destination the root caller's
 T3 project. Each profile native comes from the operator-staged
 `~/.local/share/chaldea/provider-assets/` copy. No other host and no interactive
@@ -603,10 +606,12 @@ The file keeps its literal Jocasta inputs under `chaldea_laptop_jocasta_ceilings
 `chaldea_client_session_*` maps are composed from them in the same file, adding
 the HoloNet Movies catalog input from
 `inventory/host_vars/laptop/chaldea-holonet-catalog.yml` only while
-`chaldea_laptop_holonet_catalog_enabled` is true. The qualified laptop input now
-selects it. An explicit false override restores exactly the Jocasta-only maps.
-Jocasta entries are combined last, so a HoloNet name cannot
-replace one. `ansible-inventory` shows the composition expressions
+`chaldea_laptop_holonet_catalog_enabled` is true. It now defaults false,
+removing the fixed HoloNet admissions and selecting its owned-file retirement.
+The separate Jocasta legacy flag also defaults false, selecting only OpenCode.
+A deliberate rollback needs the corresponding explicit legacy flag plus guarded
+profile delivery and provider creation; disabling a flag is not a byte-preserving
+pause. Jocasta entries are combined last, so a HoloNet name cannot replace one. `ansible-inventory` shows the composition expressions
 unevaluated; read effective values through a play, as the tests do.
 
 The HoloNet input is one `holonet-movies-catalog-claude` preset, enrollment and

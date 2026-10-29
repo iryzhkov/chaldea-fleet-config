@@ -178,7 +178,10 @@ def test_real_inventory_renders_the_merged_policy_through_the_role(tmp_path):
                  "dest": str(policy), "mode": "0600"}},
         ],
     }]))
-    extra = {"fleet_home": HOME} | {key: values[key] for key in (
+    # This inert candidate fixture deliberately renders the historical Jocasta
+    # inputs, not the current retirement defaults used by the production pull.
+    extra = {"fleet_home": HOME, "chaldea_laptop_jocasta_legacy_sessions_enabled": True,
+             "chaldea_laptop_holonet_catalog_enabled": False} | {key: values[key] for key in (
         "chaldea_client_session_ceilings", "chaldea_client_session_presets",
         "chaldea_client_session_enrollments", "chaldea_client_session_profiles")}
     extra_path = tmp_path / "candidate.json"

@@ -74,16 +74,16 @@ def validate(values):
 
 def enabled_extra(holonet=None):
     """Extra vars that enable the input, optionally replacing its maps."""
-    extra = {FLAG: True}
+    extra = {FLAG: True, "chaldea_laptop_jocasta_legacy_sessions_enabled": True}
     for key, value in (holonet or {}).items():
         extra[PREFIX + key.removeprefix("chaldea_client_session_")] = value
     return extra
 
 
-def test_input_is_enabled_and_binds_the_exact_catalog_only_values():
+def test_retired_input_retains_the_exact_catalog_only_rollback_values():
     values = yaml.safe_load(INPUT.read_text())
     assert set(values) == {FLAG} | {PREFIX + short for short in SESSION_MAPS}
-    assert values[FLAG] is True
+    assert values[FLAG] is False
     holonet = packet()
     assert all(set(holonet["chaldea_client_session_" + short]) == {NAME} for short in SESSION_MAPS[1:])
     assert holonet["chaldea_client_session_ceilings"] == [
@@ -135,7 +135,7 @@ def test_bindings_are_actual_and_share_nothing_with_jocasta():
     for path in (ROOT / "inventory").rglob("*.yml"):
         if path not in {INPUT, ordinary, ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml"}:
             assert "holonet" not in json.dumps(yaml.safe_load(path.read_text())).lower(), path
-    assert inventory_vars("laptop")[FLAG] is True
+    assert inventory_vars("laptop")[FLAG] is False
     for host in ("agent-a", "agent-b", "omarchy-pc", "normandy", "homelab"):
         assert not any(key.startswith(PREFIX) for key in inventory_vars(host)), host
 
