@@ -45,6 +45,7 @@ KEYS = {
     "chaldea_client_waits_legacy_user_node_version", "chaldea_client_session_policy_enabled",
     "chaldea_client_session_ceilings", "chaldea_client_session_presets",
     "chaldea_client_session_enrollments", "chaldea_client_session_profiles", "retention_mise_prune",
+    "chaldea_laptop_jocasta_legacy_sessions_enabled", "chaldea_client_session_profiles_absent",
 }
 SESSION_MAPS = ("ceilings", "presets", "enrollments", "profiles")
 # Each effective session map and the literal Jocasta input it equals while HoloNet is off.
@@ -59,17 +60,24 @@ def source():
 def activation():
     """The effective values with HoloNet disabled: each session map is its Jocasta input."""
     values = source()
+    # Historical qualification inputs remain useful validator fixtures, not admission.
+    values["chaldea_laptop_jocasta_legacy_sessions_enabled"] = True
+    values["chaldea_client_session_profiles_absent"] = []
     for effective, literal in JOCASTA_INPUTS.items():
         values[effective] = values.pop(literal)
     return values
 
 
-def effective_session_maps(extra=None):
-    """The laptop's session maps as Ansible templates them from the real inventory."""
+def effective_session_maps(extra=None, *, include_retired=False):
+    """Render the real inventory, explicitly selecting historical qualification inputs.
+
+    Callers testing default retirement must supply both actual default flags.
+    """
     with tempfile.TemporaryDirectory() as scratch:
         output = Path(scratch) / "effective.json"
         play = Path(scratch) / "effective.yml"
-        expression = ", ".join(f"'{key}': {key}" for key in JOCASTA_INPUTS)
+        fields = list(JOCASTA_INPUTS) + (["chaldea_client_session_profiles_absent"] if include_retired else [])
+        expression = ", ".join(f"'{key}': {key}" for key in fields)
         play.write_text(yaml.safe_dump([{
             "name": "Write the laptop's effective session maps", "hosts": "laptop", "gather_facts": False,
             "tasks": [{"name": "Write them in order", "ansible.builtin.copy": {
@@ -77,7 +85,8 @@ def effective_session_maps(extra=None):
                 "mode": "0600"}}]}]))
         result = subprocess.run([
             "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", "laptop", str(play),
-            "--extra-vars", json.dumps({"fleet_home": HOME} | (extra or {}))],
+            "--extra-vars", json.dumps({"fleet_home": HOME, "chaldea_laptop_jocasta_legacy_sessions_enabled": True,
+                                       "chaldea_laptop_holonet_catalog_enabled": True} | (extra or {}))],
             text=True, capture_output=True, cwd=ROOT)
         assert result.returncode == 0, result.stdout + result.stderr
         return json.loads(output.read_text())
@@ -89,7 +98,7 @@ def _effective_laptop():
 
 
 def effective_laptop():
-    """The laptop's real effective session maps, HoloNet as configured."""
+    """Historical qualified session maps, selected explicitly in scratch only."""
     return json.loads(_effective_laptop())
 
 
@@ -175,9 +184,10 @@ def test_inventory_merge_applies_the_activation_only_to_the_laptop():
     for key, value in inline.items():
         assert laptop[key] == value, key
     # Interactive Chaldea MCP stays on its previous config; shared pins stay shared.
-    # No declared profile is retired as a side effect.
+    # Retirement is explicit in the laptop source, never a default role side effect.
     assert "mcp_registrations_chaldea_waits_enabled" not in laptop
-    assert "chaldea_client_session_profiles_absent" not in laptop
+    assert laptop["chaldea_client_session_profiles_absent"] == source()["chaldea_client_session_profiles_absent"]
+    assert laptop["chaldea_laptop_jocasta_legacy_sessions_enabled"] is False
     assert laptop["chaldea_client_version"] == "client-v0.4.11"
     assert laptop["chaldea_client_quota_enabled"] is True
     for host in OTHER_HOSTS:
@@ -369,7 +379,8 @@ def test_explicit_off_inventory_restores_the_jocasta_policy_bytes_through_the_ro
     env = dict(os.environ, ANSIBLE_ROLES_PATH=str(ROOT / "roles"))
     result = subprocess.run([
         "ansible-playbook", "-i", str(ROOT / "inventory"), "--limit", "laptop", str(play),
-        "--extra-vars", json.dumps({"fleet_home": HOME, "chaldea_laptop_holonet_catalog_enabled": False}),
+        "--extra-vars", json.dumps({"fleet_home": HOME, "chaldea_laptop_holonet_catalog_enabled": False,
+                                  "chaldea_laptop_jocasta_legacy_sessions_enabled": True}),
     ], text=True, capture_output=True, env=env, cwd=ROOT)
     assert result.returncode == 0, result.stdout + result.stderr
     values = activation()

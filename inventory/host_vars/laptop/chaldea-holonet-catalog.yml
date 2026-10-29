@@ -20,7 +20,9 @@
 # with empty history and target users, so no UserData, history or mutation.
 # Destination is the root caller's T3 project; the session runs in the
 # dedicated "HoloNet Movies catalog sessions" T3 project.
-chaldea_laptop_holonet_catalog_enabled: true
+# Ordinary Claude and Codex now have HoloNet through the managed interactive
+# registration. The fixed reporter remains a qualified rollback input only.
+chaldea_laptop_holonet_catalog_enabled: false
 
 chaldea_laptop_holonet_catalog_ceilings:
   - project: holonet-movies
