@@ -31,7 +31,12 @@ AA key. Verify a committed route_score_snapshot receipt before enabling PC reads
 On PC use pinned ansible-pull at the reviewed fleet commit, canonical site.yml
 --tags chaldea_client. Review CHECK against exact prior versions/configs before
 REAL, then repeat REAL and require changed=0, failed=0, unreachable=0. Preserve
-the separate admitted exec wrapper, user waits service and prior client releases.
+the separate admitted exec wrapper and prior client releases. The ordinary user
+waits service follows current and restarts onto 0.4.22; verify its health after REAL.
+Read-only PC preflight found current and previous both at client-v0.4.11. Managed
+old versions 0.4.0/0.4.2/0.4.7/0.4.8/0.4.20 are explicitly retained; 0.4.9 is absent.
+Unversioned client directories are outside the role's managed cleanup pattern.
+Recheck actual membership before applying rather than inferring release history.
 Activation order matters: do not let the ordinary pull select the reader until
 the protected snapshot path is ready. Root records any temporary timer hold and
 restores its prior state within the same controlled canary.
