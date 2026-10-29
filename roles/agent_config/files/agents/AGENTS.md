@@ -30,17 +30,17 @@ tools overrides this for a path inside a repository. The shell runs Git, local G
 selection/planning that performs no build or test, Chaldea jobs, other programs whose output
 is the point, and searches across directories that are not one repository.
 
-Run builds, tests, linters and code generators through `chaldea exec --host agent-a -- ...`
+Run builds, tests, linters and code generators through `chaldea exec -- ...`
 using a Git-independent make target or selected command. Set `HUYANG_FRICTION=0` inside
 the job for every `go test`, for example:
-`chaldea exec --host agent-a -- env HUYANG_FRICTION=0 go test ./...`.
+`chaldea exec -- env HUYANG_FRICTION=0 go test ./...`.
 Huyang handles source reads and guarded edits; Chaldea supplies build/test execution.
 The `chaldea` skill covers snapshots, scratch and job outcomes.
 
 Chaldea jobs omit `.git`. Run Git-dependent selection/planning locally only when it does
 no build or test, for example `TEST_AFFECTED_LIST=1 make test-affected BASE=<pinned>`.
 Keep the approved pinned base; pass selected packages, flags and required checks to the
-job, for example `chaldea exec --host agent-a -- env HUYANG_FRICTION=0 go test -race <pkgs>`.
+job, for example `chaldea exec -- env HUYANG_FRICTION=0 go test -race <pkgs>`.
 Split selection from execution for Git-dependent targets such as `test-affected`,
 `check-fast` and `check-review` before dispatch. Actual builds/tests run only in Chaldea;
 local selection is not verification.
@@ -71,15 +71,16 @@ Tool mapping, the cheapest correct call for each need, and the evidence rules: t
 When working on agent tooling (Huyang, shared AGENTS.md/CLAUDE.md files, skills or MCP
 configuration), finish a validated change by running its checks, pushing the source and
 confirming its GitHub CI within the assignment's authority. Merging fleet guidance to main
-can activate it through active pull timers. Source-only authority does not authorize that
-activation. Retain approved deployment scope without asking again for routine convergence.
+can activate it through active pull timers. Requested publication includes routine
+activation and convergence under the standing host/homelab authority. An explicit
+source-only or no-deploy instruction excludes activation.
 Check live timer/service state and report source, merge/activation, installed and verified
 states separately for each host. An explicit instruction to keep work local takes precedence.
 
 ## Interactive work and delegation
 
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
-making decisions turn by turn. Once Igor has agreed a plan, write it to Jocasta and execute
+making decisions turn by turn. For requested work, record the plan in Jocasta when needed and execute
 assigned milestones through observable completion, explicit stop, an agreed budget limit,
 or a blocker with no useful authorized ready work left. Milestone or review completion,
 context compaction and monitor registration do not end the assignment.
@@ -178,28 +179,35 @@ its version and applicability remain valid. Project tool output to needed fields
 and read one channel when text and structured responses duplicate each other.
 Reduce context by selecting relevant material, not by packing words together.
 
-Ask before a concrete action adds large cost, operator-level access or multiple hosts
-outside existing authority. Do not request authorization again for that approved scope.
+Igor grants standing authority to modify existing hosts and homelab infrastructure
+as needed to complete requested work. This includes configuration, deployment,
+multi-host convergence, necessary service restarts and routine recovery using
+existing administrative access. Do not ask again solely because a step uses SSH,
+sudo, changes a host or touches homelab, Normandy, UDM or NAS infrastructure.
+Carry this authority through turns, handoffs and delegated briefs within their scope.
+Explicit read-only, source-only, host exclusions and Stop/cancel instructions win.
+Ask only for a material unresolved direction, substantial new cost, destructive
+data loss outside the requested outcome, or access/security changes beyond the task.
+Tool availability does not grant additional credentials or bypass access controls.
+Routine implementation choices, verification and fixes within the requested outcome
+need no separate approval. Continue independent work while a real question is pending.
 
 ## Chaldea and scratch
 
 Use the `chaldea` skill for builds and heavy runs on job hosts, explicitly requested
 non-executor waits and the decision inbox, with its availability/cancellation limits.
 Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
-Before asking Igor through native T3 user input, call
-`chaldea_decision_prepare({threadId, requestId, dependentAction, defaultAction, deadline})`.
-Use `chaldea_decision_track` for a known native request and `chaldea_decision_status`
-to read its state. Providers without native input use `chaldea_decision_ask` and
-`chaldea_decision_answer` with the answering thread's `answeringThreadId`.
-Defaults only skip or defer the dependent action; they never grant approval.
-Native question deadlines guarantee neither an answer nor a continuation wake. Optional
-preference questions must not block authorized work; use an in-scope assumption when safe.
+Ask ordinary clarifying questions directly in the current conversation. Optional
+preferences do not block work; use a reasonable in-scope assumption when safe.
+Use the Chaldea decision inbox only when a material direction question needs durable
+tracking or Igor requests it; follow the `chaldea` skill for that path. Runtime
+security approval requests stay in the runtime's own approval mechanism. A deadline
+or unanswered question never grants permission.
 
-Use `chaldea exec` for builds and test suites instead of running them on omarchy-pc,
-Igor's gaming PC. `--host` is optional: without it, `~/.config/chaldea/exec-hosts`
-tries agent-a, agent-b, omarchy-pc when its game gate allows, then laptop when awake.
-It moves on only after a refusal or an unreachable host before the request was sent.
-Hosts run several jobs concurrently: agent-a 3, omarchy-pc 2, agent-b 1 and laptop 1.
+Use `chaldea exec -- CMD ARG...` for builds and tests and let Chaldea select the
+job host from its configured policy. Omit `--host` unless Igor requests a specific
+host or a verified task requirement needs one. Host selection is separate from
+provider/model routing. Let Chaldea handle admission and queueing; add no retry loop.
 
 On a quota stop, the session needs to do nothing: T3 resumes at reset; when enabled,
 Chaldea's provider switch continues the same thread on an equivalent model. Never tell
