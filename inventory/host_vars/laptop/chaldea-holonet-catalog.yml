@@ -1,10 +1,10 @@
 ---
-# Laptop's qualified HoloNet Movies catalog-only limited Claude session. While
-# chaldea_laptop_holonet_catalog_enabled is false, nothing below reaches the
-# effective session maps composed in chaldea-jocasta-tooling.yml, so the
-# rendered policy, the delivered profiles and the pull's inputs stay exactly
-# the Jocasta ones. Public values only: the credential is named by path and
-# only ever inspected with stat; none is stored here.
+# Qualified HoloNet Movies catalog-only Claude rollback input. With its flag
+# false, no HoloNet admission reaches the effective session maps, and the
+# existing owned-file inverse retires this profile. Jocasta selection has its
+# own legacy flag; defaults retain only its separate OpenCode profile.
+# Public values only: the credential is named by path and inspected with stat;
+# no credential is stored here. See docs/laptop-readonly-provider-retirement.md.
 #
 # Qualified 2026-10-26: initial native ACL/result/wake PASS; renewal untested.
 # Receipt: jocasta:58bc525cb4458d74f21df2a57573a0e9@2.

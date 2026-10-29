@@ -69,13 +69,11 @@ chaldea_client_session_policy_enabled: true
 # preset to an ordinary provider, and never remove its login HOME or credentials.
 chaldea_laptop_jocasta_legacy_sessions_enabled: false
 
-# The role reads only the effective chaldea_client_session_* maps below. Each
-# is the literal Jocasta input that follows, plus the HoloNet catalog input
-# from host_vars/laptop/chaldea-holonet-catalog.yml only while
-# chaldea_laptop_holonet_catalog_enabled is true. Disabled, every map equals
-# its Jocasta input exactly, so the rendered policy and the delivered profiles
-# keep their bytes. Jocasta entries are combined last, so a HoloNet name can
-# never replace one of them.
+# The role reads only the effective chaldea_client_session_* maps below.
+# Defaults admit only the existing OpenCode Jocasta input. The two legacy flags
+# deliberately restore the old Jocasta Claude/Codex and HoloNet inputs; false
+# selects their explicit owned-file retirement, not a byte-preserving pause.
+# Jocasta entries are combined last, so HoloNet cannot replace one of them.
 chaldea_client_session_ceilings: >-
   {{ chaldea_laptop_jocasta_ceilings + (chaldea_laptop_holonet_catalog_ceilings
      if chaldea_laptop_holonet_catalog_enabled | bool else []) }}

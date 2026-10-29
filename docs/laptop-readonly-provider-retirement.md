@@ -18,7 +18,9 @@ This inventory selects only the existing OpenCode Jocasta input by default.
 HoloNet's fixed reporter flag is false. Both qualified raw input sets remain
 available for a deliberate guarded rollback, not default admission. The existing
 chaldea_client_session_profiles_absent path removes only its listed owned files
-and empty profile directory, preserving credentials and auth HOME contents.
+and empty profile directory. The Codex inverse removes its role-written
+<home>/.codex/config.toml, but preserves login/credential files and all other
+HOME contents.
 
 Do not merge or activate this retirement before the exact provider-removal gate.
 The root operator must:
