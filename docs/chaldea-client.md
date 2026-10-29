@@ -572,9 +572,8 @@ qualification, the default policy retains only the separate OpenCode preset.
 The superseded fixed Claude/Codex inputs remain explicit rollback definitions;
 see [read-only provider retirement](laptop-readonly-provider-retirement.md) for
 mandatory quiescence, exact provider removal and guarded file cleanup. It sets system
-waits with the separately installed `client-v0.4.20` runtime (`client-v0.4.18`
-plus only the session-bound headers helper the OpenCode driver needs; stage it
-before this file reaches the laptop), an empty deadline,
+waits with the separately installed `client-v0.4.23` runtime for T3 0.1.5
+compatibility, an empty deadline,
 the protected policy and the existing `jocasta-tooling-opencode` preset,
 enrollment and profile. `chaldea_laptop_jocasta_legacy_sessions_enabled: true`
 explicitly selects the retained qualified Claude/Codex definitions as well;
@@ -584,11 +583,12 @@ T3 project. Each profile native comes from the operator-staged
 `~/.local/share/chaldea/provider-assets/` copy. No other host and no interactive
 provider, model or Chaldea MCP registration is configured by it.
 
-The laptop's move from `client-v0.4.18` used a one-time admission of the exact
-`client-v0.4.18` system unit (`chaldea_client_waits_legacy_system_runtime`, see
-[system waits preflight](waits-system-preflight.md)). That admission is retired:
-this file admits only the current `client-v0.4.20` unit and refuses the
-`client-v0.4.18` one, so it must reach the laptop only after that migration.
+The laptop now explicitly admits its exact prior `client-v0.4.20` system unit
+through `chaldea_client_waits_legacy_system_runtime` to select `.23`. The older
+`.18` admission remains retired. Remove the `.20` admission only after verified
+convergence in a checked current-only follow-up. See the
+[compatibility rollout packet](laptop-waits-t3-015-compat.md) for provenance,
+expected changes and recovery limits.
 
 Codex's first actual T3 launch exited 78; the operator traced it to the
 launcher's fixed `cwd` naming the session workspace, while it must equal the T3
