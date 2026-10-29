@@ -1,0 +1,40 @@
+---
+- name: Read the latest published stable T3 release
+  ansible.builtin.uri:
+    url: "{{ t3_release_metadata_url }}"
+    headers:
+      Accept: application/vnd.github+json
+    timeout: 10
+    follow_redirects: none
+    status_code: 200
+  register: t3_release_lookup
+  changed_when: false
+  failed_when: false
+
+- name: Validate the release metadata before comparing versions
+  ansible.builtin.set_fact:
+    t3_release_metadata_valid: >-
+      {{ t3_release_lookup.status | default(-1) == 200
+         and t3_release_lookup.json | default(none) is mapping
+         and t3_release_lookup.json.tag_name | default('') is string
+         and t3_release_lookup.json.tag_name | default('') is match('^v[0-9]+[.][0-9]+[.][0-9]+$')
+         and t3_release_lookup.json.prerelease | default(none) is sameas false
+         and t3_release_lookup.json.draft | default(none) is sameas false }}
+
+- name: Report automatic T3 release discovery
+  ansible.builtin.debug:
+    msg:
+      component: t3
+      installed: "{{ t3_active_version }}"
+      pinned: "{{ t3_version }}"
+      source: "{{ t3_release_metadata_url }}"
+      latest_stable: >-
+        {{ t3_release_lookup.json.tag_name | regex_replace('^v', '')
+           if t3_release_metadata_valid else none }}
+      status: >-
+        {{ 'unavailable' if not t3_release_metadata_valid
+           else 'unsupported_installed_version' if t3_active_version is not match('^[0-9]+[.][0-9]+[.][0-9]+$')
+           else 'update_available' if t3_active_version is version(t3_release_lookup.json.tag_name | regex_replace('^v', ''), '<', version_type='semver')
+           else 'current' if t3_active_version == (t3_release_lookup.json.tag_name | regex_replace('^v', ''))
+           else 'installed_ahead' }}
+      lookup_status: "{{ t3_release_lookup.status | default(-1) }}"
