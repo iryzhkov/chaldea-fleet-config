@@ -89,6 +89,9 @@ def test_release_discovery_is_read_only(tmp_path, release, http_status, installe
         assert record["installed"] == installed
         assert record["pinned"] == "0.1.5"
         assert record["component"] == "t3"
+        assert record["latest_stable"] == (None if expected == "unavailable" else release["tag_name"][1:])
+        assert record["lookup_status"] == http_status
+        assert record["source"] == f"http://127.0.0.1:{server.server_port}/releases/latest"
         assert "changed=0" in result.stdout
         assert not (home / ".t3").exists()
     finally:

@@ -58,10 +58,9 @@ session; it only keeps the tools and shared files those sessions use in place.
   restarts the service and interrupts running sessions. After the pin/service
   assertions and earlier roles succeed, a pull checks GitHub's latest stable
   release and writes installed/pinned/latest versions and discovery status directly
-  to the local journal under tag \x60chaldea-t3-release\x60, including unavailable lookups.
-  The existing four-hour timer supplies unattended checks with the UI closed;
-  discovery does not install
-  or restart T3. Check mode makes no release request. Set
+  to the local journal under tag `chaldea-t3-release`, including unavailable
+  lookups. The existing four-hour timer supplies unattended checks with the UI
+  closed; discovery does not install or restart T3. Check mode makes no release request. Set
   `t3_update_check_enabled: false` to disable discovery.
 - `data_disk`: on hosts with `data_disk_root`, keeps T3 worktrees, `~/.cache/tmp`
   and the Go build cache on the data disk. It refuses to run unless a filesystem
