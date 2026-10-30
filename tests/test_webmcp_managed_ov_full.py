@@ -270,9 +270,21 @@ def test_capability_defaults_off_and_only_selected_interactive_hosts_opt_in():
                 assert not values.get("webmcp_interactive_ov_enabled", False)
                 selected.add(path)
     assert selected == owners
-    # The stdio ov-memory registration stays for every host and provider.
+    # Default stdio remains available; only the two migrated hosts select absence.
+    from jinja2 import Environment
+    env = Environment()
+    env.filters["bool"] = bool
     servers = yaml.safe_load((ROOT / "roles/mcp_registrations/defaults/main.yml").read_text())["mcp_registrations_servers"]
-    assert [s for s in servers if s["name"] == "ov-memory"][0].get("enabled", True) is True
+    selected = [s for s in servers if s["name"] == "ov-memory"][0]
+    assert yaml.safe_load(env.from_string(selected["enabled"]).render()) is True
+    assert yaml.safe_load(env.from_string(selected["enabled"]).render(mcp_registrations_ov_memory_enabled=False)) is False
+    disabled = set()
+    for path in (ROOT / "inventory").rglob("*.yml"):
+        values = yaml.safe_load(path.read_text())
+        if isinstance(values, dict) and "mcp_registrations_ov_memory_enabled" in values:
+            assert values["mcp_registrations_ov_memory_enabled"] is False
+            disabled.add(path.parent.name)
+    assert disabled == {"laptop", "omarchy-pc"}
 
 
 def test_inert_activation_example_is_exact_and_uses_accepted_host_artifacts():

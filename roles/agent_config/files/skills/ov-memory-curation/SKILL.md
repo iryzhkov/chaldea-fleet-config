@@ -14,6 +14,16 @@ description: >
 A maintenance pass, run on request. Normal reading and writing is the
 [ov-memory] skill; this one is about the shape of the store as a whole.
 
+## Native HTTP ov
+
+When native `ov` is registered, follow the native section of `ov-memory` and the
+exposed schemas. Use scoped audit and dry runs; preserve acknowledged/unknown
+outcomes and response limits. Native move transfers index records and refreshes
+parents without legacy re-ingestion. Reindex is vectors-only, not a chunk rebuild.
+Do not apply the legacy compensating repair sequence below to native `ov`.
+
+## Legacy stdio procedures
+
 ## Moving and deleting are safe now
 
 Both were once one-way doors, and older notes in this store still say so. As of

@@ -1,0 +1,56 @@
+{
+  "codex/AGENTS.md": [
+    [
+      "through the `ov-memory` MCP server. Search it before answering questions about past work,\ninfrastructure or decisions; write to it only when asked.",
+      "through the registered OV tools. Claude and Codex use native HTTP server `ov` when\npresent; other clients and hosts retain `ov-memory` stdio where registered. Follow the\ntransport-specific procedure in the `ov-memory` skill; never use stdio to bypass an HTTP\nrefusal. Search before answering past-work, infrastructure or decision questions; write\nonly when asked."
+    ]
+  ],
+  "agents/AGENTS.md": [
+    [
+      "through the `ov-memory` MCP server. Search it before answering questions about past work,\ninfrastructure or decisions; write to it only when asked.",
+      "through the registered OV tools. Claude and Codex use native HTTP server `ov` when\npresent; other clients and hosts retain `ov-memory` stdio where registered. Follow the\ntransport-specific procedure in the `ov-memory` skill; never use stdio to bypass an HTTP\nrefusal. Search before answering past-work, infrastructure or decision questions; write\nonly when asked."
+    ]
+  ],
+  "claude/omarchy-setup/CLAUDE.md": [
+    [
+      "Long-term notes live in OpenViking (OV) on homelab, reached through the `ov-memory` MCP tools\nand shared by every agent on every machine.",
+      "Long-term notes live in OpenViking (OV) on homelab and are shared across agents.\nUse native HTTP server `ov` when registered; otherwise use existing `ov-memory` stdio.\nFollow the transport-specific `ov-memory` skill, and never bypass an HTTP refusal through stdio."
+    ]
+  ],
+  "skills/ov-memory/SKILL.md": [
+    [
+      "  and reached through the ov-memory MCP tools. Use when the user refers to past",
+      "  and reached through registered native ov or legacy ov-memory tools. Use when the user refers to past"
+    ],
+    [
+      "## Search before you assume\n",
+      "## Registered transport\n\nClaude and Codex on the migrated PC and laptop use native HTTP server `ov`.\nUse its exposed schemas and the native procedure below. OpenCode and other\nhosts keep legacy `ov-memory` where registered. Do not install a legacy client,\ncopy credentials or switch transport to bypass a refusal.\n\n## Native HTTP ov\n\n- Search before answering past-work or infrastructure questions. Use\n  `memory_search`/`memory_find`, then abstract/read; grep/glob and paged ls/tree\n  provide bounded browsing. Only `viking://resources`, including archives, is\n  granted. User, agent and session stores remain unavailable.\n- Write only when requested. Store durable facts and reasons, with credential\n  pointers rather than secrets. Reuse an existing namespace.\n- Default `memory_write` ingests a document directory. For overwrite, create the\n  authorized destination's `archive` parent first and set `overwrite=true`.\n  The service observes typed state for CAS. Caller `expected_sha256` is\n  unsupported in this mode. `reason` is a processing instruction.\n- `storage=file-deferred-v1` stores raw bytes with indexing deferred. Its\n  create/overwrite requires the exposed absence or actual returned SHA contract.\n  It does not accept `reason`. Use the actual schema, not legacy options.\n- A committed response acknowledges stored content. Processing accepted,\n  verification unavailable/inconclusive, and indexing not revision-bound do not\n  establish searchable completion. Read back when verification matters.\n- `archived=true` writes under the supplied `to/archive`; that authorized parent\n  must already exist. Search/find hide archive paths unless\n  `include_archived=true`. Ancestor summaries may still mention archives.\n- Move uses no-clobber native transfer and parent refresh, without re-ingesting\n  the moved target. Scoped reindex is vectors-only. Audit and prune are bounded;\n  relations do not promise the legacy stored-link graph. Inspect response limits.\n- For requested maintenance, inspect scope and use dry runs before removal or\n  prune. Remove covers resources only, not extracted memories.\n- Processing can temporarily hold a shared resource lease. Busy/not_started\n  means no new mutation dispatched, not permission for an automatic retry.\n  Reconcile and observe fresh state before a new explicitly authorized operation.\n  An unknown dispatched outcome must be reconciled before replay or cleanup.\n  JWT expiry still bounds an operation; never add a token refresher or read headers.\n\nFor native `ov`, stop here. The remaining procedures describe legacy stdio.\n\n## Legacy stdio ov-memory\n\n## Search before you assume\n"
+    ],
+    [
+      "An OpenViking store in the homelab (`https://ov.ryzhkov.dev`, through the edge\nVIP), exposed by the `ov-memory` MCP server. It is memory for *agents*, not a chat log: durable facts\nabout infrastructure, decisions and projects.",
+      "OpenViking on homelab holds durable facts about infrastructure, decisions and\nprojects. Select the procedure for the server actually registered below."
+    ]
+  ],
+  "skills/ov-memory-curation/SKILL.md": [
+    [
+      "## Moving and deleting are safe now\n",
+      "## Native HTTP ov\n\nWhen native `ov` is registered, follow the native section of `ov-memory` and the\nexposed schemas. Use scoped audit and dry runs; preserve acknowledged/unknown\noutcomes and response limits. Native move transfers index records and refreshes\nparents without legacy re-ingestion. Reindex is vectors-only, not a chunk rebuild.\nDo not apply the legacy compensating repair sequence below to native `ov`.\n\n## Legacy stdio procedures\n\n## Moving and deleting are safe now\n"
+    ]
+  ],
+  "agents/ov-memory.md": [
+    [
+      "# OV memory\n\nAn OpenViking store",
+      "# OV memory\n\nClaude/Codex with registered native HTTP `ov` must use the native section of the\n`ov-memory` skill, including its write/CAS, processing and maintenance limits.\nOpenCode and other hosts retain legacy `ov-memory` where registered. Do not use\nlegacy procedures to bypass an HTTP refusal. The remaining reference describes\nlegacy stdio only; native curation uses the native skill section too.\n\nAn OpenViking store"
+    ]
+  ],
+  "fleet_tools.py": [
+    [
+      "    \"jocasta\": (\"Working documents\",",
+      "    \"ov\": (\"Native OV memory\", \"- `ov` MCP: native HTTP document memory for migrated Claude/Codex sessions; \"\n           \"use the native section of `ov-memory`. OpenCode keeps legacy stdio where registered.\"),\n    \"jocasta\": (\"Working documents\","
+    ],
+    [
+      "\"ov-memory\": (\"Memory\", \"- `ov-memory` MCP: shared long-term memory; use the `ov-memory` skill for its read/write procedures.\")",
+      "\"ov-memory\": (\"Memory\", \"- `ov-memory` MCP where registered: legacy shared memory; use the legacy section of `ov-memory`.\")"
+    ]
+  ]
+}

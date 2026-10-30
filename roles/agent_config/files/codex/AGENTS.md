@@ -15,8 +15,11 @@ read when a task needs them rather than loaded into every session.
 ## OV memory
 
 This machine's agents share a long-term memory store (OpenViking on homelab), reached
-through the `ov-memory` MCP server. Search it before answering questions about past work,
-infrastructure or decisions; write to it only when asked. Record the fact and why it is
+through the registered OV tools. Claude and Codex use native HTTP server `ov` when
+present; other clients and hosts retain `ov-memory` stdio where registered. Follow the
+transport-specific procedure in the `ov-memory` skill; never use stdio to bypass an HTTP
+refusal. Search before answering past-work, infrastructure or decision questions; write
+only when asked. Record the fact and why it is
 true; store a pointer to a credential, never the secret.
 
 Namespaces, document shape and curation: the `ov-memory` and `ov-memory-curation` skills,

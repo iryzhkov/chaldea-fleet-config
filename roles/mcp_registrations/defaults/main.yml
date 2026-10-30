@@ -22,6 +22,7 @@ mcp_registrations_servers:
     claude: {alwaysLoad: true}
     codex: {env_vars: [XDG_RUNTIME_DIR, HUYANG_SOCKET]}
   - name: ov-memory
+    enabled: "{{ mcp_registrations_ov_memory_enabled | default(true) | bool }}"
     command: "{{ fleet_home }}/.local/bin/ov-memory-mcp"
     env: {OV_BASE_URL: "https://ov.ryzhkov.dev"}
     agent_env: OV_AGENT

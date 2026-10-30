@@ -181,7 +181,10 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
                 "webmcp_interactive_helper_source == '/usr/local/libexec/webmcp-interactive-headers'",
                 "webmcp_interactive_credential_source == homes[inventory_hostname] ~ "
                 "'/.config/webmcp-interactive/enrollment.json'",
-                "agent_config_fleet_tools_profile.mcp == ['ov-memory', 'jocasta']"]},
+                "agent_config_fleet_tools_profile.mcp == ['ov-memory'] + "
+                "(['ov'] if inventory_hostname in ['laptop', 'omarchy-pc'] else []) + ['jocasta']",
+                "(mcp_registrations_ov_memory_enabled | default(true) | bool) == "
+                "(inventory_hostname not in ['laptop', 'omarchy-pc'])"]},
              "vars": {"pins": pins, "expected": [
                  {"name": "jocasta", "url": URL, "providers": ["claude", "codex"],
                   "auth_mode": "managed_helper", "helper_host": "{{ inventory_hostname }}",

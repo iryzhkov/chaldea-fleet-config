@@ -2,7 +2,7 @@
 name: ov-memory
 description: >
   Long-term memory shared by this machine's agents, held in OpenViking on homelab
-  and reached through the ov-memory MCP tools. Use when the user refers to past
+  and reached through registered native ov or legacy ov-memory tools. Use when the user refers to past
   work, decisions, infrastructure or credentials that are not in the current repo
   or conversation ("how did we set up X", "what did I decide about Y", "where does
   Z live"), when a question touches the homelab, and whenever the user asks you to
@@ -12,9 +12,51 @@ description: >
 
 # OV memory
 
-An OpenViking store in the homelab (`https://ov.ryzhkov.dev`, through the edge
-VIP), exposed by the `ov-memory` MCP server. It is memory for *agents*, not a chat log: durable facts
-about infrastructure, decisions and projects.
+OpenViking on homelab holds durable facts about infrastructure, decisions and
+projects. Select the procedure for the server actually registered below.
+
+## Registered transport
+
+Claude and Codex on the migrated PC and laptop use native HTTP server `ov`.
+Use its exposed schemas and the native procedure below. OpenCode and other
+hosts keep legacy `ov-memory` where registered. Do not install a legacy client,
+copy credentials or switch transport to bypass a refusal.
+
+## Native HTTP ov
+
+- Search before answering past-work or infrastructure questions. Use
+  `memory_search`/`memory_find`, then abstract/read; grep/glob and paged ls/tree
+  provide bounded browsing. Only `viking://resources`, including archives, is
+  granted. User, agent and session stores remain unavailable.
+- Write only when requested. Store durable facts and reasons, with credential
+  pointers rather than secrets. Reuse an existing namespace.
+- Default `memory_write` ingests a document directory. For overwrite, create the
+  authorized destination's `archive` parent first and set `overwrite=true`.
+  The service observes typed state for CAS. Caller `expected_sha256` is
+  unsupported in this mode. `reason` is a processing instruction.
+- `storage=file-deferred-v1` stores raw bytes with indexing deferred. Its
+  create/overwrite requires the exposed absence or actual returned SHA contract.
+  It does not accept `reason`. Use the actual schema, not legacy options.
+- A committed response acknowledges stored content. Processing accepted,
+  verification unavailable/inconclusive, and indexing not revision-bound do not
+  establish searchable completion. Read back when verification matters.
+- `archived=true` writes under the supplied `to/archive`; that authorized parent
+  must already exist. Search/find hide archive paths unless
+  `include_archived=true`. Ancestor summaries may still mention archives.
+- Move uses no-clobber native transfer and parent refresh, without re-ingesting
+  the moved target. Scoped reindex is vectors-only. Audit and prune are bounded;
+  relations do not promise the legacy stored-link graph. Inspect response limits.
+- For requested maintenance, inspect scope and use dry runs before removal or
+  prune. Remove covers resources only, not extracted memories.
+- Processing can temporarily hold a shared resource lease. Busy/not_started
+  means no new mutation dispatched, not permission for an automatic retry.
+  Reconcile and observe fresh state before a new explicitly authorized operation.
+  An unknown dispatched outcome must be reconciled before replay or cleanup.
+  JWT expiry still bounds an operation; never add a token refresher or read headers.
+
+For native `ov`, stop here. The remaining procedures describe legacy stdio.
+
+## Legacy stdio ov-memory
 
 ## Search before you assume
 
