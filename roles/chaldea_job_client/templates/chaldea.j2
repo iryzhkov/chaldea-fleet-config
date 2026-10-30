@@ -19,6 +19,16 @@ fi
 {% endif %}
 chaldea_entry="$HOME/.local/share/chaldea/{{ 'current' if chaldea_client_enabled | default(false) else 'app' }}/bin/chaldea"
 chaldea_node="$HOME/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
+{% if chaldea_client_route_entry | default('') | length > 0 %}
+# Route alone uses the admitted compatibility client, preserving current/previous.
+if [ "${1-}" = route ]; then
+    chaldea_entry='{{ chaldea_client_route_entry }}'
+    if [ ! -f "$chaldea_entry" ]; then
+        printf '%s\n' "chaldea: the selected routing client is missing at $chaldea_entry; refusing to fall back to current." >&2
+        exit 69
+    fi
+fi
+{% endif %}
 if [ ! -f "$chaldea_entry" ]; then
     printf '%s\n' "chaldea: {{ 'client release' if chaldea_client_enabled | default(false) else 'app checkout' }} is missing at ${chaldea_entry%/bin/chaldea}; converge the pinned client before running chaldea." >&2
     exit 69

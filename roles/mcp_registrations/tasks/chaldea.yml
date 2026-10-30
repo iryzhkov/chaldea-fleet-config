@@ -1,4 +1,7 @@
 ---
+- name: Validate the routing selection before registering Chaldea
+  ansible.builtin.import_tasks: ../../chaldea_job_client/tasks/route-selector.yml
+
 # The client migration must update its registration before retiring app/.
 - name: Register only the Chaldea client MCP server
   mcp_registration:
