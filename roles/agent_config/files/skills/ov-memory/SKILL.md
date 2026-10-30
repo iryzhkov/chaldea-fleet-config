@@ -58,8 +58,8 @@ copy credentials or switch transport to bypass a refusal.
 Personal access, when enabled, is the shared `default/default` owner with only
 its signed actions. Use `personal_memory_browse`/`personal_memory_find` and
 `personal_memory_read` for owned memory. `personal_memory_create` requires
-absence. Replace only after a fresh read returns `safe_replaceable=true` and a
-replacement hash; pass that exact hash as `expected_sha256` to
+absence. Replace only after a fresh read returns `replaceable=true` and a
+non-null `sha256`; pass that exact hash as `expected_sha256` to
 `personal_memory_replace`. Never hash displayed text to manufacture a guard.
 If no safe hash is returned, stop. These tools do not extract memories.
 Use `personal_session_list`/`personal_session_read` for owned sessions.

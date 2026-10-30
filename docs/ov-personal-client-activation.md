@@ -69,8 +69,8 @@ signed grant refuse. No general user/agent/session namespace grant follows.
 
 Use the dedicated `personal_memory_read`, absence-conditional
 `personal_memory_create` and hash-conditional `personal_memory_replace`.
-Replace only when a fresh read reports `safe_replaceable=true` and supplies the
-replacement hash, passed unchanged as `expected_sha256`. Never synthesize it
+Replace only when a fresh read reports `replaceable=true` and supplies a
+non-null `sha256`, passed unchanged as `expected_sha256`. Never synthesize it
 from displayed text. `personal_session_create` disables automatic commit;
 `personal_session_append` appends only an explicitly requested message.
 No personal data capture, extraction or session autocommit is authorized.
