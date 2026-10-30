@@ -42,6 +42,10 @@ def test_agent_clients_use_native_t3_quota():
 # The laptop and omarchy-pc stdio OV safety pins are checked for every host in
 # test_ov_source_selection.py.
 HOST_RELEASE_SELECTIONS = {
+    # Routing alone uses the installed T3 0.1.5-compatible client, preserving
+    # current/previous and waits. Exact pin and laptop-only scope are asserted
+    # by test_chaldea_launcher.py::test_only_laptop_selects_the_routing_client.
+    "inventory/host_vars/laptop/chaldea-routing.yml": frozenset({"chaldea_client_route_entry"}),
     "inventory/host_vars/omarchy-pc/fate-route.yml": frozenset({"chaldea_client_version", "chaldea_client_sha256"}),
     "inventory/host_vars/laptop/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({
