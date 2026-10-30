@@ -42,7 +42,6 @@ SERVICES = [{"audience": "jocasta", "grants": [{"resource": "project:tooling", "
 KEYS = {
     "chaldea_client_waits_enabled", "chaldea_client_waits_service_mode", "chaldea_client_waits_deadline",
     "chaldea_client_waits_environment", "chaldea_client_waits_runtime_root", "chaldea_node_version",
-    "chaldea_client_waits_legacy_system_runtime",
     "chaldea_client_waits_legacy_user_node_version", "chaldea_client_session_policy_enabled",
     "chaldea_client_session_ceilings", "chaldea_client_session_presets",
     "chaldea_client_session_enrollments", "chaldea_client_session_profiles", "retention_mise_prune",
@@ -213,7 +212,7 @@ def test_activation_binds_the_exact_qualified_claude_configuration():
     assert values["chaldea_client_waits_deadline"] == ""
     assert values["chaldea_client_waits_environment"] == "943bead7-d804-4e04-984e-63d230303796"
     assert values["chaldea_client_waits_runtime_root"] == HOME + "/.local/share/chaldea/releases/client-v0.4.23"
-    assert values["chaldea_client_waits_legacy_system_runtime"] == HOME + "/.local/share/chaldea/releases/client-v0.4.20"
+    assert "chaldea_client_waits_legacy_system_runtime" not in values
     assert values["chaldea_node_version"] == "26.12.0"
     assert values["chaldea_client_waits_legacy_user_node_version"] == "26.10.0"
     assert values["retention_mise_prune"] is False

@@ -1,9 +1,35 @@
 # Laptop waits compatibility with T3 0.1.5
 
-This source selects the already staged client-v0.4.23 for the laptop's sole
-system waits owner. The exact .20 unit is admitted by the existing guarded
-legacy_system_runtime mechanism. No role framework or deployment is added.
-The parent owns independent review, merge and all runtime actions.
+The laptop's sole system waits owner has converged to client-v0.4.23.
+Current inventory pins that exact runtime and has no legacy system runtime
+admission. Canonical ownership guards admit the .23 unit and refuse stale .20.
+This follow-up changes source only. The parent owns independent review, merge
+and checked convergence; it introduces no role implementation or runtime action.
+
+## Convergence receipt and current-only expectation
+
+The owning receipt is `jocasta:b1e851c7f4b16b41ee898bb1375b4966@1`.
+Fleet [PR139](https://github.com/iryzhkov/chaldea-fleet-config/pull/139), head
+`5e721b4b84088559cc70e5115485de076605e96f`, merged as
+`c493aa209943ce9b071dea18e2d826c9688a8ede`. Its laptop rollout recorded
+CHECK 109/13, REAL 125/15 and repeat 124/0. The sole waits process was PID
+1379171, invocation `c451f61320f34a1a9e1525a09e0778a3`, on .23 and Node 26.12.0.
+These are retained historical observations, not new probes from this follow-up.
+
+Removing admission should produce no persistent canonical CHECK diff and require
+no restart. Actual task probe counts may vary; this does not promise whole-role
+`changed=0`. Preserve installed .20 files and backups. Ordinary current .11,
+previous .9, protected OpenCode, auth and readers stay as converged. Other hosts
+remain on .20; their inventory is unchanged.
+
+Functional daemon observer reattachment remains **UNQUALIFIED**. Standalone
+metadata and historical session reads do not establish it. No new probe, restart
+or dummy work is part of this source follow-up. File cleanup was installed and
+accepted separately.
+
+The following provenance and rollout/recovery packet is historical to PR139's
+exact head above. Its temporary .20 admission is now retired from inventory;
+explicit historical test fixtures retain migration, refusal and repeat coverage.
 
 ## Release provenance
 
@@ -28,7 +54,7 @@ passes on .23 against current T3 0.1.5. .20 rejects the expanded keybindings
 during getConfig, before observer attachment. These are inherited qualification
 receipts, not new live continuity checks.
 
-## Expected canonical rollout scope
+## Historical PR139 canonical rollout scope
 
 Relative to the installed .20 state, expect the system unit's single runtime
 path to change to .23, its backup and persisted restart intent, and normal
@@ -49,7 +75,7 @@ Any additional canonical diff needs explanation before runtime convergence.
 System mode skips client release retention. Preserve staged .23 and .20
 explicitly before any separately scheduled release pruning is enabled.
 
-## Recovery and finite acceptance
+## Historical PR139 recovery and finite acceptance
 
 Do not restart unchanged .20 against T3 0.1.5. There is no compatible .20
 operational fallback. Its compatible persistent schema does not make its

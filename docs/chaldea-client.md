@@ -624,12 +624,13 @@ T3 project. Each profile native comes from the operator-staged
 `~/.local/share/chaldea/provider-assets/` copy. No other host and no interactive
 provider, model or Chaldea MCP registration is configured by it.
 
-The laptop now explicitly admits its exact prior `client-v0.4.20` system unit
-through `chaldea_client_waits_legacy_system_runtime` to select `.23`. The older
-`.18` admission remains retired. Remove the `.20` admission only after verified
-convergence in a checked current-only follow-up. See the
-[compatibility rollout packet](laptop-waits-t3-015-compat.md) for provenance,
-expected changes and recovery limits.
+The laptop has converged to its exact `client-v0.4.23` system waits runtime.
+Its inventory is current-only: `.20` and `.18` system runtime admissions are
+retired, so stale `.20` units fail ownership checks. Installed `.20` release
+files and backups remain preserved. See the
+[compatibility rollout packet](laptop-waits-t3-015-compat.md) for the historical
+PR139 receipt, expected empty persistent CHECK diff and recovery limits.
+Functional daemon observer reattachment remains unqualified.
 
 Codex's first actual T3 launch exited 78; the operator traced it to the
 launcher's fixed `cwd` naming the session workspace, while it must equal the T3
