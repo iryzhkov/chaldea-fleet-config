@@ -118,8 +118,7 @@ def test_prepared_data_is_inert_and_every_binding_is_unpopulated():
         assert not (ROOT / "inventory/host_vars" / host / "chaldea-jocasta-tooling.yml").exists()
         current = inventory_vars(host)
         assert current["chaldea_node_version"] == "26.10.0"
-        assert current["chaldea_client_version"] == (
-            "client-v0.4.22" if host == "omarchy-pc" else "client-v0.4.11")
+        assert current["chaldea_client_version"] == "client-v0.4.23"
         for key in SESSION_KEYS | {"chaldea_client_waits_service_mode", "chaldea_client_waits_runtime_root",
                                    "chaldea_client_session_policy_enabled",
                                    "chaldea_client_waits_legacy_user_node_version", "retention_mise_prune"}:
@@ -171,7 +170,8 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
         assert (values["chaldea_client_waits_enabled"], values["chaldea_client_waits_service_mode"],
                 values["chaldea_client_waits_deadline"], values["chaldea_client_session_policy_enabled"]) == (
             True, "system", "", True)
-        assert values["chaldea_client_waits_runtime_root"] == laptop["chaldea_client_waits_runtime_root"]
+        # Other hosts retain their qualified runtime during the laptop-only migration.
+        assert values["chaldea_client_waits_runtime_root"] == HOME + "/.local/share/chaldea/releases/client-v0.4.20"
         destinations = [bound["caller_destination"]]
         assert values["chaldea_client_session_ceilings"] == [
             {"project": "tooling", "maxSeconds": 1800, "destinations": destinations, "services": SERVICES}]

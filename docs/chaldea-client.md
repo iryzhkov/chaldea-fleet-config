@@ -4,9 +4,50 @@ The `chaldea_client` role installs a checksum-pinned Node client without Git or 
 
 The client release is separate from the host release. The host tarball has bundled host entry points and cannot run the client CLI. Client releases contain `bin`, `src`, vendored T3 contracts, the exec protocol definition and locked production dependencies. They need the inventory-pinned Node runtime, currently 26.10.0. No compiler or npm install runs during convergence.
 
+## Current client pin and operator exceptions
+
+The desired ordinary-client release is `client-v0.4.23` from Chaldea source
+`2a9aec02d003969af1a1fa19e995a4934288c75b`, PR99 merge `354206a`.
+[Release workflow 40964375069](https://github.com/iryzhkov/chaldea/actions/runs/40964375069)
+succeeded. The archive SHA-256 is
+`b96c928d050d81e7be96841baf8ce0204927cd14fbd43b62cc0d4ac058fb9c82`;
+the manifest SHA-256 is
+`443cdf3598fb146e03ff1010bda6753ff1780d78a5d860182eedf185ac89b41a`.
+The operator qualified agent-b on T3 0.1.5 with this client: current and streaming
+quota were fresh, CHECK/REAL/repeat reported 2/10/0 changes and zero errors,
+43 protected files were unchanged, and all 3211 manifest files verified.
+The shared desired pin and matching PC override prevent ordinary pulls from
+restoring an older client. The PC's FATE policy is unchanged.
+
+Desired inventory does not describe installed state on every host. Agent-a keeps
+`chaldea_client_manage: false` and `chaldea_client_enabled: true`, preserving its
+installed-client MCP selection and operator-managed system waits. The laptop
+already uses canonical system mode, whose role path does not activate the
+ordinary client. At the 2026-10-29 preflight both ordinary `current` links were
+`client-v0.4.11`, and both system waits runtimes were immutable
+`client-v0.4.20`. The laptop's waits Node was 26.12 and its ordinary quota
+Node was 26.10. Changing the shared pin alone converges neither observer there.
+
+The operator's approved repair on agent-a and laptop installs only the immutable
+`client-v0.4.23` payload and pins each existing quota unit to it with a manual
+drop-in. It preserves ordinary `current`/`previous`, system waits runtime and
+process, policy, profiles, credentials and helpers. This source change does not
+install or activate those exceptions; the parent operator owns their live
+verification. No new role, bridge or quota sharing is introduced.
+
+The ACL/Jocasta migration owner must preserve both quota drop-ins through any
+normal source convergence. Before retiring either exception, qualify that
+host's persistent inventory, observer runtime and protected waits/profile
+behavior, then remove its manual drop-in only during that reviewed migration.
+Do not clear agent-a's hold or change the laptop's system mode as part of this
+pin update. Preserve the accepted rollback lists and separately protected
+helper, profile and runtime pins; retention never installs a missing version.
+
 ## First release and activation
 
-This change does not publish a release or change any host. Inventory leaves `chaldea_client_enabled: false` and the version/checksum empty until a real artifact exists. That preserves the existing checkout launcher and MCP registration during bootstrap.
+The following bootstrap procedure predates the current pin. Initially inventory
+left `chaldea_client_enabled: false` and the version/checksum empty until a real
+artifact existed, preserving the checkout launcher and MCP registration.
 
 1. Merge the Chaldea client artifact PR into main. From an updated main checkout, tag the merged commit `client-v0.1.0` and push that tag. The client workflow accepts only `client-vX.Y.Z` tags whose commit is reachable from main. It installs production dependencies with scripts disabled, builds twice, compares both tarballs and manifests, verifies every archived file and smoke-tests extracted entry points before publishing.
 2. Fetch `manifest.json` and `chaldea-client.tar.gz` from that GitHub release. Verify the tarball SHA-256 equals the manifest. Record `chaldea_client_version` and `chaldea_client_sha256` in `inventory/group_vars/all/main.yml`, and set `chaldea_client_enabled: true` in the same reviewed inventory change.
@@ -572,9 +613,8 @@ qualification, the default policy retains only the separate OpenCode preset.
 The superseded fixed Claude/Codex inputs remain explicit rollback definitions;
 see [read-only provider retirement](laptop-readonly-provider-retirement.md) for
 mandatory quiescence, exact provider removal and guarded file cleanup. It sets system
-waits with the separately installed `client-v0.4.20` runtime (`client-v0.4.18`
-plus only the session-bound headers helper the OpenCode driver needs; stage it
-before this file reaches the laptop), an empty deadline,
+waits with the separately installed `client-v0.4.23` runtime for T3 0.1.5
+compatibility, an empty deadline,
 the protected policy and the existing `jocasta-tooling-opencode` preset,
 enrollment and profile. `chaldea_laptop_jocasta_legacy_sessions_enabled: true`
 explicitly selects the retained qualified Claude/Codex definitions as well;
@@ -584,11 +624,13 @@ T3 project. Each profile native comes from the operator-staged
 `~/.local/share/chaldea/provider-assets/` copy. No other host and no interactive
 provider, model or Chaldea MCP registration is configured by it.
 
-The laptop's move from `client-v0.4.18` used a one-time admission of the exact
-`client-v0.4.18` system unit (`chaldea_client_waits_legacy_system_runtime`, see
-[system waits preflight](waits-system-preflight.md)). That admission is retired:
-this file admits only the current `client-v0.4.20` unit and refuses the
-`client-v0.4.18` one, so it must reach the laptop only after that migration.
+The laptop has converged to its exact `client-v0.4.23` system waits runtime.
+Its inventory is current-only: `.20` and `.18` system runtime admissions are
+retired, so stale `.20` units fail ownership checks. Installed `.20` release
+files and backups remain preserved. See the
+[compatibility rollout packet](laptop-waits-t3-015-compat.md) for the historical
+PR139 receipt, expected empty persistent CHECK diff and recovery limits.
+Functional daemon observer reattachment remains unqualified.
 
 Codex's first actual T3 launch exited 78; the operator traced it to the
 launcher's fixed `cwd` naming the session workspace, while it must equal the T3

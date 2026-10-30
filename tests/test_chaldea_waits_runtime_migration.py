@@ -17,15 +17,16 @@ from test_chaldea_client import safe
 from test_chaldea_session_profiles import ok, run
 from test_chaldea_session_profiles_claude import CLAUDE, claude_layout
 from test_chaldea_session_profiles import PROFILE
+from test_chaldea_session_profiles_opencode import opencode_layout
 from test_chaldea_waits_legacy import system_owner_metadata, task_sources
 from test_chaldea_waits_system import ROLE, TEMPLATES, context, owners, play
 
 OVERRIDE = "chaldea_client_waits_legacy_system_runtime"
-OLD = "client-v0.4.18"
-NEW = "client-v0.4.20"
+OLD = "client-v0.4.20"
+NEW = "client-v0.4.23"
 SYSTEM_TEMPLATE = str(TEMPLATES / "chaldea-waits-system.service.j2")
-# Read-only operator evidence: the laptop's installed root-owned 0644 unit.
-LAPTOP_UNIT_SHA256 = "9ef58ab4148b275744124cd66e3e0b9e1f38ce6f0cd725d559bcdc14f4b1387a"
+# Historical pre-migration evidence: the laptop's root-owned 0644 .20 unit.
+LAPTOP_OLD_UNIT_SHA256 = "143379905e8637b801f824f9e5a550b3faf82d5d0dbf60195cbe708178060113"
 
 
 def releases():
@@ -33,6 +34,7 @@ def releases():
 
 
 def variables(tmp_path, system, case="legacy"):
+    """Historical .20 -> .23 migration fixture, never live inventory admission."""
     safe(tmp_path)
     home = Path.home()
     rows = owners()
@@ -210,16 +212,13 @@ def test_migration_installs_the_current_unit_then_repeats_without_change(tmp_pat
     assert system.read_bytes() == old_bytes
 
 
-def test_laptop_current_only_state_refuses_the_retired_runtime_unit(tmp_path):
-    """The laptop's final public values admit only the client-v0.4.20 unit.
-
-    The retired client-v0.4.18 rendering, which reproduces the digest observed
-    before the migration, is refused before any write.
-    """
+def test_laptop_migration_and_current_only_retirement(tmp_path):
+    """Current inventory admits .23 and refuses .20; migration stays historical."""
     safe(tmp_path)
     inventory = yaml.safe_load((Path(__file__).resolve().parents[1]
                                 / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml").read_text())
     assert OVERRIDE not in inventory
+    assert inventory["chaldea_client_waits_runtime_root"] == "/home/igor/.local/share/chaldea/releases/" + NEW
     selected = inventory["chaldea_client_waits_runtime_root"]
     retired = selected.replace(NEW, OLD)
     assert retired != selected
@@ -230,20 +229,27 @@ def test_laptop_current_only_state_refuses_the_retired_runtime_unit(tmp_path):
     real = {"ansible_facts": {"user_uid": 1001, "user_gid": 1001}, "fleet_home": "/home/igor"} | public
     old = render(tmp_path, real, retired, tmp_path / "old.service")
     new = render(tmp_path, real, selected, tmp_path / "new.service")
-    assert hashlib.sha256(old).hexdigest() == LAPTOP_UNIT_SHA256
-    assert hashlib.sha256(new).hexdigest() != LAPTOP_UNIT_SHA256
+    assert hashlib.sha256(old).hexdigest() == LAPTOP_OLD_UNIT_SHA256
+    assert hashlib.sha256(new).hexdigest() != LAPTOP_OLD_UNIT_SHA256
     assert old.replace(OLD.encode(), NEW.encode()) == new
     # The canonical guards run with a scratch home and the laptop's public
-    # selection, declaring no legacy admission, as the inventory now does.
+    # selection. Its absent override must refuse the historical .20 unit.
     system = tmp_path / "system.service"
+    # Rebase both inventory runtimes to the scratch Chaldea root so the real
+    # path-containment guard is exercised without touching installed paths.
+    selected, retired = str(releases() / NEW), str(releases() / OLD)
     laptop = variables(tmp_path, system) | public | {"chaldea_client_waits_resolved_runtime": selected}
     laptop.pop(OVERRIDE)
     stale = render(tmp_path, laptop, retired, system)
     refused(guards(tmp_path, laptop), "Refusing unknown waits ownership")
     assert system.read_bytes() == stale
-    render(tmp_path, laptop, selected, system)
-    result = guards(tmp_path, laptop)
-    assert result.returncode == 0, result.stdout + result.stderr
+    current = render(tmp_path, laptop, selected, system)
+    assert current == stale.replace(OLD.encode(), NEW.encode())
+    for _ in range(2):
+        result = guards(tmp_path, laptop, after=[install_task(system)])
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "changed=0" in result.stdout, result.stdout
+        assert system.read_bytes() == current
 
 
 def test_codex_and_claude_profiles_change_only_their_helper_runtime(tmp_path, monkeypatch):
@@ -291,3 +297,22 @@ def test_codex_and_claude_profiles_change_only_their_helper_runtime(tmp_path, mo
     ok(repeat)
     assert "changed=0" in repeat.stdout, repeat.stdout
     assert snapshot() == after
+
+
+def test_protected_opencode_changes_only_helper_runtime(tmp_path, monkeypatch):
+    case = opencode_layout(tmp_path, monkeypatch)
+    old, new = str(releases() / OLD), str(releases() / NEW)
+    case.extra["chaldea_client_waits_resolved_runtime"] = old
+    ok(run(case))
+    before = {p.name: p.read_bytes() for p in case.opencode_dir.iterdir()}
+    case.extra["chaldea_client_waits_resolved_runtime"] = new
+    ok(run(case))
+    after = {p.name: p.read_bytes() for p in case.opencode_dir.iterdir()}
+    assert before.keys() == after.keys()
+    assert any(old.encode() in raw for raw in before.values())
+    for name, raw in before.items():
+        assert raw.replace(old.encode(), new.encode()) == after[name], name
+    repeat = run(case)
+    ok(repeat)
+    assert "changed=0" in repeat.stdout, repeat.stdout
+    assert {p.name: p.read_bytes() for p in case.opencode_dir.iterdir()} == after

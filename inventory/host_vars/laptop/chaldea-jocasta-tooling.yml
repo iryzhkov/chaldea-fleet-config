@@ -32,19 +32,17 @@ chaldea_client_waits_service_mode: system
 # Persistent service: no bounded canary window and no status-read restart.
 chaldea_client_waits_deadline: ""
 chaldea_client_waits_environment: 943bead7-d804-4e04-984e-63d230303796
-# The separately installed waits runtime. Shared current/previous and the
-# shared client pin in group_vars/all are unchanged. client-v0.4.20 is
-# client-v0.4.18 plus only the session-bound headers helper (--context and
-# --expect-*); legacy helper calls behave as before. The operator stages it
-# from the published release before this file reaches the laptop: archive
-# https://github.com/iryzhkov/chaldea/releases/download/client-v0.4.20/chaldea-client.tar.gz
-# SHA-256 ed3376ab8f21c1b6bb7b2d03e9e8c074dd43ed25be4881aafe574a12e8b618ff,
-# manifest SHA-256 c8542918859a19ec99065117c5bd359a12de1838d6f54a4090f5e1ee12a2d2d1.
-# The role only selects an installed runtime; a missing one stops the pull here.
-chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.20
-# No legacy system runtime admission: only the current client-v0.4.20 system
-# unit is admitted. The one-time client-v0.4.18 admission that moved waits here
-# is retired, so this file must reach the laptop only after that migration.
+# Waits-only T3 0.1.5 compatibility selection; shared current .11/previous .9
+# and the shared client pin stay unchanged. Published client-v0.4.23 at
+# 2a9aec02d003969af1a1fa19e995a4934288c75b includes merged Chaldea PR99.
+# https://github.com/iryzhkov/chaldea/releases/download/client-v0.4.23/chaldea-client.tar.gz
+# SHA-256 b96c928d050d81e7be96841baf8ce0204927cd14fbd43b62cc0d4ac058fb9c82,
+# manifest SHA-256 443cdf3598fb146e03ff1010bda6753ff1780d78a5d860182eedf185ac89b41a.
+# The role selects an installed runtime; a missing one stops the pull.
+chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.23
+# Current-only after verified .23 convergence: no legacy system runtime admission.
+# Preserve the installed .20 release and backup; .20 is not an operational fallback.
+# See docs/laptop-waits-t3-015-compat.md for the historical migration and limits.
 # The system unit runs the installed Node 26.12.0. This host-wide override also
 # moves the laptop's other Chaldea Node consumers (MCP registration command,
 # job-client launcher, collector and retention) to 26.12.0.

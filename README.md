@@ -1,6 +1,6 @@
 # chaldea-fleet-config
 
-The [Chaldea client role](docs/chaldea-client.md) manages pinned client releases, migration, quota and waits user services, and the explicit Codex balance binding. Activation waits for the first published client release.
+The [Chaldea client role](docs/chaldea-client.md) manages pinned client releases, migration, quota and waits user services, and the explicit Codex balance binding. The desired ordinary-client pin is client-v0.4.23. Agent-a's management hold and the laptop's system mode leave their ordinary current links unchanged; their observer-only repairs use manually pinned immutable runtimes and quota unit drop-ins. The [migration owner must preserve and retire those exceptions](docs/chaldea-client.md#current-client-pin-and-operator-exceptions).
 
 Restricted fleet compute roles are opt-in. See [job-host enrollment, policy, quotas and exact apply steps](docs/job-host.md).
 
@@ -55,7 +55,13 @@ session; it only keeps the tools and shared files those sessions use in place.
   public fields in `~/.claude.json` and changes Claude registration through its CLI.
 - `t3`: asserts that T3 runs the pinned version and its user service is active.
   It upgrades only when `t3_allow_upgrade=true` is passed, because `t3 update`
-  restarts the service and interrupts running sessions.
+  restarts the service and interrupts running sessions. After the pin/service
+  assertions and earlier roles succeed, a pull checks GitHub's latest stable
+  release and writes installed/pinned/latest versions and discovery status directly
+  to the local journal under tag `chaldea-t3-release`, including unavailable
+  lookups. The existing four-hour timer supplies unattended checks with the UI
+  closed; discovery does not install or restart T3. Check mode makes no release request. Set
+  `t3_update_check_enabled: false` to disable discovery.
 - `data_disk`: on hosts with `data_disk_root`, keeps T3 worktrees, `~/.cache/tmp`
   and the Go build cache on the data disk. It refuses to run unless a filesystem
   is mounted exactly at `data_disk_root` (optionally of `data_disk_fstype` and
@@ -222,6 +228,16 @@ Node lives only in that run's disk-backed `TMPDIR` and is removed by the existin
 always-run cleanup. This does not install Node on the host. The runner still needs
 `curl`, `sha256sum`, `tar` with xz support, and the existing Python/venv prerequisites.
 For direct `tools/ci.sh` runs, supply Node on PATH; the script fails early if absent.
+
+CI runs `pytest-skills`, `pytest-roles`, three whole-file remainder shards
+`pytest-rest-1` through `pytest-rest-3`, and `converge` on independent runners.
+Each gets its own disk scratch and HOME. The required `ci` check requires every
+lane and the managed helper to succeed, including when a lane fails or is cancelled.
+The third remainder shard recursively includes future test files and directories.
+The first two split expensive role files observed in run 40952835783; this is a
+static split, not an automatic timing balancer. `pytest-rest` still runs the complete
+remainder for diagnosis. Synthetic release inputs used only by convergence are
+prepared after pytest phases exit.
 
 `bash tools/ci.sh` runs every gate locally and in CI: it builds a virtualenv from
 the hashed lock `requirements-ci.txt`, then runs the unit tests, `ansible-lint`,
