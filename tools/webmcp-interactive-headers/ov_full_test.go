@@ -194,7 +194,7 @@ func TestOVFullExchangeContract(t *testing.T) {
 						}
 						f := req.PostForm
 						if f.Get("password") != secret || f.Get("username") != "chaldea-"+host+"-ov-full-interactive" ||
-							f.Get("scope") != ovFullScopes || f.Get("client_id") != ovClientID ||
+							f.Get("scope") != ovFullRequestScopes || f.Get("client_id") != ovClientID ||
 							f.Get("grant_type") != "client_credentials" || f.Has("resource") || len(f) != 5 {
 							t.Fatal("exchange drift")
 						}

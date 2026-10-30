@@ -60,6 +60,10 @@ const ovNamespace = "viking://resources/homeassistant-api/rest-api.md"
 // Ordinary Codex and Claude on that host share it. It never reads the narrow
 // interactive or limited preset credentials, and they never read its file.
 const ovFullScopes = "ov.read ov.write ov.remove ov.maintain"
+const ovFullRequestScopes = ovFullScopes + " ov.personal.memory.read ov.personal.memory.write ov.personal.session.read ov.personal.session.create ov.personal.session.append"
+
+var ovPersonalActions = []string{"memory.read", "memory.write", "session.read", "session.create", "session.append"}
+
 const ovFullCredential = ".config/chaldea/authentik/ov-full-interactive.app-password"
 const ovFullNamespace = "viking://resources"
 
@@ -80,7 +84,7 @@ var ovKid = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 // managed Jocasta identity claims. Matching is on the lowercased name.
 var ovForeign = []string{"jocasta_projects", "jocasta_operator", "webmcp_identity", "grants", "project",
 	"source", "homelab_services", "homelab_hosts", "ha_entities", "ha_actions"}
-var ovChecked = []string{"iss", "sub", "aud", "azp", "scope", "iat", "exp", "nbf", "ov_namespaces", "ov_actions"}
+var ovChecked = []string{"iss", "sub", "aud", "azp", "scope", "iat", "exp", "nbf", "ov_namespaces", "ov_actions", "ov_personal"}
 
 // ovContract is one closed OV mode's signed grant. A nil actions list means
 // the token must carry no ov_actions claim at all.
@@ -454,14 +458,64 @@ func exactScopes(s string) bool {
 	return len(f) == 2 && ((f[0] == "jocasta.read" && f[1] == "jocasta.write") || (f[1] == "jocasta.read" && f[0] == "jocasta.write"))
 }
 
-// exactOVFullScopes admits exactly the four OV families once each, in any
-// order, separated by single spaces.
+// Full tokens retain all four resource scopes and may add personal scopes.
+// Only signed personal actions confer authority; known extra scopes are inert.
 func exactOVFullScopes(s string) bool {
 	got := strings.Split(s, " ")
-	want := strings.Split(ovFullScopes, " ")
-	slices.Sort(got)
-	slices.Sort(want)
-	return slices.Equal(got, want)
+	required := strings.Split(ovFullScopes, " ")
+	allowed := strings.Split(ovFullRequestScopes, " ")
+	seen := make(map[string]bool)
+	for _, scope := range got {
+		if seen[scope] || !slices.Contains(allowed, scope) {
+			return false
+		}
+		seen[scope] = true
+	}
+	for _, scope := range required {
+		if !seen[scope] {
+			return false
+		}
+	}
+	return true
+}
+
+// No personal scopes or claim is valid in narrow mode. Old full tokens
+// remain valid; personal tokens require a closed, exact-owner ordered subset.
+func validOVPersonal(c map[string]json.RawMessage, scope string, full bool) bool {
+	raw, present := c["ov_personal"]
+	if !present {
+		return !strings.Contains(scope, "ov.personal.")
+	}
+	if !full {
+		return false
+	}
+	var grant map[string]json.RawMessage
+	if strictJSON(raw, &grant) != nil || len(grant) != 3 {
+		return false
+	}
+	var account, user string
+	var actions []string
+	if !text(grant["account"], &account) || account != "default" ||
+		!text(grant["user"], &user) || user != "default" ||
+		json.Unmarshal(grant["actions"], &actions) != nil ||
+		len(actions) == 0 || len(actions) > len(ovPersonalActions) {
+		return false
+	}
+	last := -1
+	for _, action := range actions {
+		index := slices.Index(ovPersonalActions, action)
+		if index <= last {
+			return false
+		}
+		last = index
+	}
+	scopes := strings.Split(scope, " ")
+	for _, action := range actions {
+		if !slices.Contains(scopes, "ov.personal."+action) {
+			return false
+		}
+	}
+	return true
 }
 
 func acquireOV(ctx context.Context, client *http.Client, password string, now func() time.Time) (string, error) {
@@ -472,7 +526,7 @@ func acquireOVFull(ctx context.Context, client *http.Client, host, password stri
 	if _, ok := ovFullHosts[host]; !ok {
 		return "", denied
 	}
-	return exchangeOV(ctx, client, "chaldea-"+host+"-ov-full-interactive", password, ovFullScopes, ovFull, now)
+	return exchangeOV(ctx, client, "chaldea-"+host+"-ov-full-interactive", password, ovFullRequestScopes, ovFull, now)
 }
 
 func exchangeOV(ctx context.Context, client *http.Client, username, password, scope string, contract ovContract, now func() time.Time) (string, error) {
@@ -672,6 +726,9 @@ func validateOVContract(token string, keys []byte, now, start, expires int64, co
 	if !text(c["iss"], &iss) || iss != ovIssuer || !text(c["aud"], &aud) || aud != ovResource ||
 		!text(c["azp"], &azp) || azp != ovClientID || !text(c["scope"], &scope) || !contract.scope(scope) ||
 		!text(c["sub"], &sub) || !subject(sub) {
+		return denied
+	}
+	if !validOVPersonal(c, scope, contract.actions != nil) {
 		return denied
 	}
 	var namespaces []string
