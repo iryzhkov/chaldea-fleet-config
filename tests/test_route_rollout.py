@@ -47,7 +47,8 @@ HOST_RELEASE_SELECTIONS = {
     "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml": frozenset({
         "chaldea_node_version", "chaldea_client_waits_legacy_user_node_version",
-        "chaldea_client_waits_runtime_root", "chaldea_laptop_jocasta_profiles"}),
+        "chaldea_client_waits_runtime_root", "chaldea_client_waits_legacy_system_runtime",
+        "chaldea_laptop_jocasta_profiles"}),
     "inventory/host_vars/laptop/chaldea-holonet-catalog.yml": frozenset({"chaldea_laptop_holonet_catalog_profiles"}),
     "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
     # Inactive-runtime retention only; bounded histories and cleanup preservation

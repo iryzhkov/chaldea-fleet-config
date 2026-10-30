@@ -170,7 +170,8 @@ def test_composed_selection_is_the_laptop_opencode_shape_with_only_host_facts_ch
         assert (values["chaldea_client_waits_enabled"], values["chaldea_client_waits_service_mode"],
                 values["chaldea_client_waits_deadline"], values["chaldea_client_session_policy_enabled"]) == (
             True, "system", "", True)
-        assert values["chaldea_client_waits_runtime_root"] == laptop["chaldea_client_waits_runtime_root"]
+        # Other hosts retain their qualified runtime during the laptop-only migration.
+        assert values["chaldea_client_waits_runtime_root"] == HOME + "/.local/share/chaldea/releases/client-v0.4.20"
         destinations = [bound["caller_destination"]]
         assert values["chaldea_client_session_ceilings"] == [
             {"project": "tooling", "maxSeconds": 1800, "destinations": destinations, "services": SERVICES}]

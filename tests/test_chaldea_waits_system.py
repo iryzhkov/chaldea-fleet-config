@@ -18,7 +18,7 @@ TEMPLATES = ROLE / "templates"
 def context():
     return {"ansible_facts": {"user_uid": 1001, "user_gid": 1001},
             "fleet_home": "/home/fleet", "chaldea_client_root": "/home/fleet/.local/share/chaldea",
-            "chaldea_client_waits_resolved_runtime": "/home/fleet/.local/share/chaldea/releases/client-v9.0.0",
+            "chaldea_client_waits_resolved_runtime": "/home/fleet/.local/share/chaldea/releases/client-v0.4.23",
             "chaldea_node_version": "26.12.0", "chaldea_client_session_policy_enabled": True,
             "chaldea_client_session_policy_path": "/etc/chaldea/sessions/policy.json",
             "chaldea_client_waits_environment": "fixture"}
