@@ -25,8 +25,8 @@ OVERRIDE = "chaldea_client_waits_legacy_system_runtime"
 OLD = "client-v0.4.20"
 NEW = "client-v0.4.23"
 SYSTEM_TEMPLATE = str(TEMPLATES / "chaldea-waits-system.service.j2")
-# Read-only operator evidence: the laptop's installed root-owned 0644 unit.
-LAPTOP_UNIT_SHA256 = "143379905e8637b801f824f9e5a550b3faf82d5d0dbf60195cbe708178060113"
+# Historical pre-migration evidence: the laptop's root-owned 0644 .20 unit.
+LAPTOP_OLD_UNIT_SHA256 = "143379905e8637b801f824f9e5a550b3faf82d5d0dbf60195cbe708178060113"
 
 
 def releases():
@@ -34,6 +34,7 @@ def releases():
 
 
 def variables(tmp_path, system, case="legacy"):
+    """Historical .20 -> .23 migration fixture, never live inventory admission."""
     safe(tmp_path)
     home = Path.home()
     rows = owners()
@@ -212,11 +213,12 @@ def test_migration_installs_the_current_unit_then_repeats_without_change(tmp_pat
 
 
 def test_laptop_migration_and_current_only_retirement(tmp_path):
-    """Admit the observed .20 unit once, then retire its explicit admission."""
+    """Current inventory admits .23 and refuses .20; migration stays historical."""
     safe(tmp_path)
     inventory = yaml.safe_load((Path(__file__).resolve().parents[1]
                                 / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml").read_text())
-    assert inventory[OVERRIDE].endswith('/' + OLD)
+    assert OVERRIDE not in inventory
+    assert inventory["chaldea_client_waits_runtime_root"] == "/home/igor/.local/share/chaldea/releases/" + NEW
     selected = inventory["chaldea_client_waits_runtime_root"]
     retired = selected.replace(NEW, OLD)
     assert retired != selected
@@ -227,27 +229,27 @@ def test_laptop_migration_and_current_only_retirement(tmp_path):
     real = {"ansible_facts": {"user_uid": 1001, "user_gid": 1001}, "fleet_home": "/home/igor"} | public
     old = render(tmp_path, real, retired, tmp_path / "old.service")
     new = render(tmp_path, real, selected, tmp_path / "new.service")
-    assert hashlib.sha256(old).hexdigest() == LAPTOP_UNIT_SHA256
-    assert hashlib.sha256(new).hexdigest() != LAPTOP_UNIT_SHA256
+    assert hashlib.sha256(old).hexdigest() == LAPTOP_OLD_UNIT_SHA256
+    assert hashlib.sha256(new).hexdigest() != LAPTOP_OLD_UNIT_SHA256
     assert old.replace(OLD.encode(), NEW.encode()) == new
     # The canonical guards run with a scratch home and the laptop's public
-    # selection. Verify migration admission before the current-only follow-up.
+    # selection. Its absent override must refuse the historical .20 unit.
     system = tmp_path / "system.service"
     # Rebase both inventory runtimes to the scratch Chaldea root so the real
     # path-containment guard is exercised without touching installed paths.
     selected, retired = str(releases() / NEW), str(releases() / OLD)
     laptop = variables(tmp_path, system) | public | {"chaldea_client_waits_resolved_runtime": selected}
-    laptop[OVERRIDE] = retired
-    stale = render(tmp_path, laptop, retired, system)
-    admitted = guards(tmp_path, laptop)
-    assert admitted.returncode == 0, admitted.stdout + admitted.stderr
-    assert system.read_bytes() == stale
     laptop.pop(OVERRIDE)
+    stale = render(tmp_path, laptop, retired, system)
     refused(guards(tmp_path, laptop), "Refusing unknown waits ownership")
     assert system.read_bytes() == stale
-    render(tmp_path, laptop, selected, system)
-    result = guards(tmp_path, laptop)
-    assert result.returncode == 0, result.stdout + result.stderr
+    current = render(tmp_path, laptop, selected, system)
+    assert current == stale.replace(OLD.encode(), NEW.encode())
+    for _ in range(2):
+        result = guards(tmp_path, laptop, after=[install_task(system)])
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "changed=0" in result.stdout, result.stdout
+        assert system.read_bytes() == current
 
 
 def test_codex_and_claude_profiles_change_only_their_helper_runtime(tmp_path, monkeypatch):

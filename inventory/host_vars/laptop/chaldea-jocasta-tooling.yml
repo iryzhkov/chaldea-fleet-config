@@ -40,11 +40,9 @@ chaldea_client_waits_environment: 943bead7-d804-4e04-984e-63d230303796
 # manifest SHA-256 443cdf3598fb146e03ff1010bda6753ff1780d78a5d860182eedf185ac89b41a.
 # The role selects an installed runtime; a missing one stops the pull.
 chaldea_client_waits_runtime_root: /home/igor/.local/share/chaldea/releases/client-v0.4.23
-# Admit only the exact prior .20 unit through the existing guarded migration.
-# Retire this override in a checked current-only follow-up after convergence.
-# .20 cannot decode current T3 config and is NOT an operational fallback.
-# See docs/laptop-waits-t3-015-compat.md for rollout scope and recovery limits.
-chaldea_client_waits_legacy_system_runtime: /home/igor/.local/share/chaldea/releases/client-v0.4.20
+# Current-only after verified .23 convergence: no legacy system runtime admission.
+# Preserve the installed .20 release and backup; .20 is not an operational fallback.
+# See docs/laptop-waits-t3-015-compat.md for the historical migration and limits.
 # The system unit runs the installed Node 26.12.0. This host-wide override also
 # moves the laptop's other Chaldea Node consumers (MCP registration command,
 # job-client launcher, collector and retention) to 26.12.0.
