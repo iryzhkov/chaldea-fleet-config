@@ -177,8 +177,18 @@ def gone(pid):
     """No live process: absent, or only a zombie awaiting its new parent."""
     try:
         return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] == "Z"
-    except FileNotFoundError:
+    except (FileNotFoundError, ProcessLookupError):
         return True
+
+
+@pytest.mark.parametrize("error", [FileNotFoundError, ProcessLookupError])
+def test_gone_accepts_process_disappearing_during_stat_read(monkeypatch, error):
+    def disappeared(path):
+        raise error("process exited during proc stat read")
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(Path, "read_text", disappeared)
+        assert gone(12345)
 
 
 def wait_for(condition, timeout=10):

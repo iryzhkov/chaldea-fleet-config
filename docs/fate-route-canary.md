@@ -2,12 +2,15 @@
 
 Igor approved the homelab publisher/Akasha validator and omarchy-pc reader, then
 explicitly approved the existing Normandy signer publishing the two route scopes.
-No other client is selected. The shared client default stays 0.4.11. Source
+Score transport remains selected only on the PC. The shared desired client pin
+and explicit PC override now select 0.4.23 for T3 0.1.5 compatibility. Source
 review and CI must pass before main merge, which can activate fleet pulls and
 the existing six-hour trust publisher.
 
-The PC-only inventory file selects reproduced client-v0.4.22 from Chaldea
-a0412350. Exact archive SHA is in that file. Its route policy uses index 5,
+The PC-only inventory file selects client-v0.4.23 from Chaldea
+2a9aec02, published by successful workflow 40964375069. Exact archive SHA is in
+that file and the [client release record](chaldea-client.md#current-client-pin-and-operator-exceptions).
+Its route policy uses index 5,
 unchanged quality floors, and explicit Sol/Opus baselines for reader and critical
 roles. Sol high clears executor48/builder50; Sol medium does not. Quota admission
 and pacing remain active. Reader transport is source-bound, and announceHost is
@@ -32,11 +35,15 @@ On PC use pinned ansible-pull at the reviewed fleet commit, canonical site.yml
 --tags chaldea_client. Review CHECK against exact prior versions/configs before
 REAL, then repeat REAL and require changed=0, failed=0, unreachable=0. Preserve
 the separate admitted exec wrapper and prior client releases. The ordinary user
-waits service follows current and restarts onto 0.4.22; verify its health after REAL.
-Read-only PC preflight found current and previous both at client-v0.4.11. Managed
-old versions 0.4.0/0.4.2/0.4.7/0.4.8/0.4.20 are explicitly retained; 0.4.9 is absent.
+waits service follows current and restarts onto 0.4.23; verify its health after REAL.
+The original read-only PC preflight found current and previous both at client-v0.4.11. Managed
+old versions 0.4.0/0.4.2/0.4.7/0.4.8/0.4.11/0.4.20 are explicitly retained; 0.4.9 is absent.
 Unversioned client directories are outside the role's managed cleanup pattern.
 Recheck actual membership before applying rather than inferring release history.
+Agent-a's management hold and the laptop's system mode preserve their ordinary
+current links and immutable system waits. Their manual quota drop-ins and migration
+cleanup obligations are recorded in the client release record above; this shared
+pin does not activate their observer repairs.
 Activation order matters: do not let the ordinary pull select the reader until
 the protected snapshot path is ready. Root records any temporary timer hold and
 restores its prior state within the same controlled canary.

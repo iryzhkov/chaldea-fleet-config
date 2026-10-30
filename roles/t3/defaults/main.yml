@@ -3,3 +3,7 @@ t3_version: ""
 t3_allow_upgrade: false
 t3_home: "{{ fleet_home }}/.t3"
 t3_service: t3code.service
+# Runs during the existing fleet pull; discovery never installs or restarts.
+t3_update_check_enabled: true
+# Override only for isolated fixtures or an explicitly reviewed release source.
+t3_release_metadata_url: https://api.github.com/repos/pingdotgg/t3code/releases/latest
