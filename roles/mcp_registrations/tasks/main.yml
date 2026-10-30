@@ -98,6 +98,22 @@
     - webmcp_interactive_enabled | default(false) | bool
     - webmcp_interactive_holonet_enabled | default(false) | bool
 
+# A separate entry retains the ordinary catalog reader and its narrow grant.
+- name: Select the closed laptop HoloNet recommendation writer on explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'holonet_recommendations') | list)
+         + [{'name': 'holonet_recommendations', 'url': 'https://media.mcp.ryzhkov.dev/mcp',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_recommendations')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper', 'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_recommendations')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_holonet_writer_enabled | default(false) | bool
+
 - name: Check the opt-in remote MCP servers
   ansible.builtin.assert:
     that:
@@ -112,6 +128,9 @@
       - mcp_registrations_effective_remote_servers | map(attribute='state', default='present') | difference(['present', 'absent']) | length == 0
       - >-
         mcp_registrations_effective_remote_servers | selectattr('name', 'equalto', 'holonet_catalog')
+        | map(attribute='providers') | flatten | difference(['claude', 'codex']) | length == 0
+      - >-
+        mcp_registrations_effective_remote_servers | selectattr('name', 'equalto', 'holonet_recommendations')
         | map(attribute='providers') | flatten | difference(['claude', 'codex']) | length == 0
     fail_msg: Each remote MCP server needs a unique name of its own, a providers list and state present or absent.
     quiet: true

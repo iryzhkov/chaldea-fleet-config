@@ -2,7 +2,8 @@
 // Trust: system HTTPS roots at fixed issuer/JWKS endpoints, then RS256 verification.
 // No CLI/config option can select another endpoint, resource, scope or client.
 // The only invocations are the fixed tuples "jocasta HOST", "ov laptop" and
-// "ov-full HOST" for laptop and omarchy-pc, plus "holonet laptop".
+// "ov-full HOST" for laptop and omarchy-pc, plus "holonet laptop" and
+// "holonet-writer laptop" with its separate root-owned recipient policy.
 package main
 
 import (
@@ -111,6 +112,8 @@ func main() {
 		ovFullMode(os.Args[2])
 	case "holonet":
 		holonetMode()
+	case "holonet-writer":
+		holonetWriterMode()
 	default:
 		fail()
 	}
@@ -126,6 +129,9 @@ func selectMode(args []string) string {
 	}
 	if args[0] == "holonet" && args[1] == "laptop" {
 		return "holonet"
+	}
+	if args[0] == "holonet-writer" && args[1] == "laptop" {
+		return "holonet-writer"
 	}
 	if args[0] == "ov" && args[1] == "laptop" {
 		return "ov"
@@ -219,6 +225,12 @@ func fail() {
 // Hold each directory FD through openat. No ancestor or leaf symlink is followed.
 // Root/this UID may own ancestors; only this UID may own the private leaf.
 func readPrivate(path string, uid int, limit int64) ([]byte, error) {
+	return readOwned(path, uid, 0600, true, limit)
+}
+
+// The public writer policy has a root-owned readable leaf and parent. Private
+// credential callers retain their original exact 0600 leaf and private parent.
+func readOwned(path string, uid int, mode os.FileMode, privateParent bool, limit int64) ([]byte, error) {
 	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
 		return nil, denied
 	}
@@ -241,7 +253,7 @@ func readPrivate(path string, uid int, limit int64) ([]byte, error) {
 		fd = next
 	}
 	var parent syscall.Stat_t
-	if syscall.Fstat(fd, &parent) != nil || int(parent.Uid) != uid || parent.Mode&0077 != 0 {
+	if syscall.Fstat(fd, &parent) != nil || int(parent.Uid) != uid || parent.Mode&0022 != 0 || privateParent && parent.Mode&0077 != 0 {
 		return nil, denied
 	}
 	leaf, err := syscall.Openat(fd, parts[len(parts)-1], syscall.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
@@ -255,7 +267,7 @@ func readPrivate(path string, uid int, limit int64) ([]byte, error) {
 		return nil, denied
 	}
 	st, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || int(st.Uid) != uid || st.Nlink != 1 || info.Size() < 1 || info.Size() > limit {
+	if !ok || !info.Mode().IsRegular() || info.Mode().Perm() != mode || int(st.Uid) != uid || st.Nlink != 1 || info.Size() < 1 || info.Size() > limit {
 		return nil, denied
 	}
 	data, err := io.ReadAll(io.LimitReader(file, limit+1))
