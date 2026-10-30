@@ -7,9 +7,9 @@ agent_tools_ov_memory_ref: 355a92adb0658853b7439e91d4429be3d0b270fc
 # Merge/convergence hold: docs/ov-interactive-stdio-retirement.md.
 mcp_registrations_ov_memory_enabled: false
 
-# Full interactive OV uses the protected infra enrollment. Keep stdio until
-# both ordinary clients pass native acceptance. Other hosts retain their pins.
+# Preserve full HTTPS OV and retired Claude/Codex stdio registrations.
 webmcp_interactive_ov_full_enabled: true
-# Accepted superset helper source6c265640, Go1.25.0 Linux/amd64 build
-# a408f479-053d-4715-8bfa-611bc158ca9c; all helper tests passed.
-webmcp_interactive_helper_sha256: acefaa482584d26ce8cd471edc10577ee925c0a6c36c9e97e000ba3ce8ffb7be
+# HOLD MERGE: docs/ov-personal-client-activation.md. Shared helper source d6e08f41,
+# Go1.27.0 Linux/amd64 build 2bab960a-881d-469a-b186-417dec2233e8.
+# Protected staging and previous-pin guard are rollout-only inputs.
+webmcp_interactive_helper_sha256: f88abf558d9c6b7b49987b276633a03cb3e3353990f4fd156d3e83a13ffabbf7

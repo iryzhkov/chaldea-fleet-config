@@ -9,6 +9,8 @@ Edit those sources; installed copies are outputs.
 
 Claude/Codex with registered native HTTP `ov` must use the native section of the
 `ov-memory` skill, including its write/CAS, processing and maintenance limits.
+Its dedicated personal tools require an explicit signed owner/action grant;
+session capture and automatic commit are never implied.
 OpenCode and other hosts retain legacy `ov-memory` where registered. Do not use
 legacy procedures to bypass an HTTP refusal. The remaining reference describes
 legacy stdio only; native curation uses the native skill section too.

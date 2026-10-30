@@ -1,0 +1,18 @@
+{
+  "skills/ov-memory/SKILL.md": [
+    [
+      "  granted. User, agent and session stores remain unavailable.",
+      "  granted by the resource tools. Personal memory and sessions use the separate\n  tools below only when an explicit signed personal grant is enabled."
+    ],
+    [
+      "For native `ov`, stop here. The remaining procedures describe legacy stdio.",
+      "Personal access, when enabled, is the shared `default/default` owner with only\nits signed actions. Use `personal_memory_browse`/`personal_memory_find` and\n`personal_memory_read` for owned memory. `personal_memory_create` requires\nabsence. Replace only after a fresh read returns `replaceable=true` and a\nnon-null `sha256`; pass that exact hash as `expected_sha256` to\n`personal_memory_replace`. Never hash displayed text to manufacture a guard.\nIf no safe hash is returned, stop. These tools do not extract memories.\nUse `personal_session_list`/`personal_session_read` for owned sessions.\n`personal_session_create` disables automatic commit; `personal_session_append`\nadds only an explicitly requested message. Never capture conversations,\nautomatically commit sessions or infer a general user/agent/session namespace\ngrant. Personal creates, replacements and session writes require user intent.\n\nFor native `ov`, stop here. The remaining procedures describe legacy stdio."
+    ]
+  ],
+  "agents/ov-memory.md": [
+    [
+      "`ov-memory` skill, including its write/CAS, processing and maintenance limits.",
+      "`ov-memory` skill, including its write/CAS, processing and maintenance limits.\nIts dedicated personal tools require an explicit signed owner/action grant;\nsession capture and automatic commit are never implied."
+    ]
+  ]
+}

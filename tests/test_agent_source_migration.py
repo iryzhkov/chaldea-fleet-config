@@ -756,7 +756,15 @@ OV_NATIVE_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_ov_native.json").read_text())
 
 
+OV_PERSONAL_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_ov_personal.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(OV_PERSONAL_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(OV_NATIVE_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
