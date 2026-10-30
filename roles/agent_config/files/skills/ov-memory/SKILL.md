@@ -27,7 +27,8 @@ copy credentials or switch transport to bypass a refusal.
 - Search before answering past-work or infrastructure questions. Use
   `memory_search`/`memory_find`, then abstract/read; grep/glob and paged ls/tree
   provide bounded browsing. Only `viking://resources`, including archives, is
-  granted. User, agent and session stores remain unavailable.
+  granted by the resource tools. Personal memory and sessions use the separate
+  tools below only when an explicit signed personal grant is enabled.
 - Write only when requested. Store durable facts and reasons, with credential
   pointers rather than secrets. Reuse an existing namespace.
 - Default `memory_write` ingests a document directory. For overwrite, create the
@@ -53,6 +54,19 @@ copy credentials or switch transport to bypass a refusal.
   Reconcile and observe fresh state before a new explicitly authorized operation.
   An unknown dispatched outcome must be reconciled before replay or cleanup.
   JWT expiry still bounds an operation; never add a token refresher or read headers.
+
+Personal access, when enabled, is the shared `default/default` owner with only
+its signed actions. Use `personal_memory_browse`/`personal_memory_find` and
+`personal_memory_read` for owned memory. `personal_memory_create` requires
+absence. Replace only after a fresh read returns `safe_replaceable=true` and a
+replacement hash; pass that exact hash as `expected_sha256` to
+`personal_memory_replace`. Never hash displayed text to manufacture a guard.
+If no safe hash is returned, stop. These tools do not extract memories.
+Use `personal_session_list`/`personal_session_read` for owned sessions.
+`personal_session_create` disables automatic commit; `personal_session_append`
+adds only an explicitly requested message. Never capture conversations,
+automatically commit sessions or infer a general user/agent/session namespace
+grant. Personal creates, replacements and session writes require user intent.
 
 For native `ov`, stop here. The remaining procedures describe legacy stdio.
 

@@ -22,15 +22,14 @@ webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interacti
 
 # Full resource-document OV for ordinary Claude and Codex. Infra delivers the
 # separate protected full credential before this selection can converge.
-# The narrow selection is superseded; stdio remains until native acceptance.
+# The narrow selection is superseded; Claude/Codex stdio remains retired.
 webmcp_interactive_ov_enabled: false
 webmcp_interactive_ov_full_enabled: true
-# Laptop-only shared helper pin adding the closed HoloNet reader while keeping
-# Jocasta, narrow OV and OV-full modes unchanged. Accepted source6c265640,
-# Go1.25 Linux/ARM64 build454596af-5198-40c5-aa0a-5d08b352a3ba.
-# Other hosts retain their architecture pins. A previous digest is supplied
-# only as an exact private staging/inverse input, never through inventory.
-webmcp_interactive_helper_sha256: dafb0ec33a28e969b8b344c2815e47cfdc1894f4e8a5ec7db3f992dbed6d56bc
+# HOLD MERGE: docs/ov-personal-client-activation.md. Shared helper source d6e08f41,
+# Go1.27.0 Linux/ARM64 build 2bab960a-881d-469a-b186-417dec2233e8.
+# Other hosts retain their architecture pins. Protected staging and the exact
+# previous-pin guard are private rollout inputs, never inventory selections.
+webmcp_interactive_helper_sha256: de4df4e7c8ffaffa9f327d16283c35f2c649bf57d8e336e7fbb3d7598afe92e6
 
 mcp_registrations_jocasta_interactive_state: present
 

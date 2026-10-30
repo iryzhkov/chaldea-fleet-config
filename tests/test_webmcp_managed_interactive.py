@@ -136,15 +136,15 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
     select_holonet = next(t for t in tasks if t["name"].startswith("Select the closed laptop HoloNet"))
     homes = {host: str(tmp_path / host) if distinct_homes else "/home/igor" for host in HOSTS}
     architectures = {host: "aarch64" if host == "laptop" else "x86_64" for host in HOSTS}
-    # Shared architecture pins, except the held laptop's own pin for the
-    # reviewed aarch64 helper with the OV mode (build 031e3362).
+    # Shared architecture pins stay fixed; only the two personal OV hosts
+    # select the qualified shared helper from build 2bab960a.
     pins = {
         "aarch64": "f936deea9705fa4237f5c74760ccd51e1ab473fffa498836002f68b8c05036ba",
         "x86_64": "667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed",
     }
     host_pins = {host: pins[architectures[host]] for host in HOSTS}
-    host_pins["laptop"] = "dafb0ec33a28e969b8b344c2815e47cfdc1894f4e8a5ec7db3f992dbed6d56bc"
-    host_pins["omarchy-pc"] = "acefaa482584d26ce8cd471edc10577ee925c0a6c36c9e97e000ba3ce8ffb7be"
+    host_pins["laptop"] = "de4df4e7c8ffaffa9f327d16283c35f2c649bf57d8e336e7fbb3d7598afe92e6"
+    host_pins["omarchy-pc"] = "f88abf558d9c6b7b49987b276633a03cb3e3353990f4fd156d3e83a13ffabbf7"
     ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["claude", "codex"],
                 "auth_mode": "managed_helper", "helper_host": "{{ inventory_hostname }}",
                 "helper_profile": "ov-full", "state": "present"}
