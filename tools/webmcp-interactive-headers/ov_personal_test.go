@@ -30,7 +30,8 @@ func TestOVPersonalSignedContract(t *testing.T) {
 	if check(old) != nil {
 		t.Fatal("old resources-only full token refused")
 	}
-	// Every nonempty canonical subset is valid, with exactly its own scopes.
+	// Every nonempty canonical subset is valid with its own or all requested
+	// scopes. Extra known scopes never add actions to the signed grant.
 	for mask := 1; mask < 1<<len(ovPersonalActions); mask++ {
 		var actions []string
 		for i, action := range ovPersonalActions {
@@ -40,9 +41,11 @@ func TestOVPersonalSignedContract(t *testing.T) {
 		}
 		c := copyClaims(old)
 		c["ov_personal"] = personalFixture(actions)
-		c["scope"] = personalScope(actions)
-		if check(c) != nil {
-			t.Fatalf("canonical subset refused: %v", actions)
+		for _, scope := range []string{personalScope(actions), ovFullRequestScopes} {
+			c["scope"] = scope
+			if check(c) != nil {
+				t.Fatalf("canonical subset refused: %v with %s", actions, scope)
+			}
 		}
 	}
 	valid := copyClaims(old)
@@ -74,7 +77,6 @@ func TestOVPersonalSignedContract(t *testing.T) {
 	}
 	for name, scope := range map[string]string{
 		"missing-action-scope": ovFullScopes,
-		"unclaimed-scope":      personalScope([]string{"memory.read", "memory.write"}),
 		"unknown-scope":        ovFullRequestScopes + " ov.personal.admin",
 		"duplicate-scope":      ovFullRequestScopes + " ov.personal.memory.read",
 		"missing-resource":     strings.Replace(ovFullRequestScopes, "ov.remove ", "", 1),
@@ -85,6 +87,14 @@ func TestOVPersonalSignedContract(t *testing.T) {
 		if check(c) == nil {
 			t.Fatalf("%s admitted", name)
 		}
+	}
+	// This is the issuer contract: requested scopes may exceed the operator's
+	// signed action subset. Only memory.read is granted by this token.
+	inert := copyClaims(valid)
+	inert["ov_personal"] = personalFixture([]string{"memory.read"})
+	inert["scope"] = personalScope([]string{"memory.read", "memory.write"})
+	if check(inert) != nil {
+		t.Fatal("known extra scope with a signed grant refused")
 	}
 	unclaimed := copyClaims(old)
 	unclaimed["scope"] = ovFullRequestScopes
@@ -141,7 +151,7 @@ func TestOVPersonalExchange(t *testing.T) {
 			c := copyClaims(old)
 			scope := ovFullScopes
 			if len(actions) != 0 {
-				scope = personalScope(actions)
+				scope = ovFullRequestScopes
 				c["scope"] = scope
 				c["ov_personal"] = personalFixture(actions)
 			}

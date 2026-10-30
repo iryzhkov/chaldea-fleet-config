@@ -10,9 +10,12 @@ ov.personal.session.create ov.personal.session.append`. Returned tokens may
 retain the old four-scope full resources contract with no personal claim, or
 add a nonempty personal grant for exactly account default and user default.
 Actions must be unique and follow memory.read, memory.write, session.read,
-session.create, session.append order. Reduced grants are accepted only with
-exactly their matching personal scopes. Unclaimed personal scopes, extra grant
-fields, foreign owners, nulls, duplicate keys and case-folded claim aliases refuse.
+session.create, session.append order. Every claimed action requires its matching
+personal scope. Known extra scopes are inert: only the signed action subset
+confers authority. This permits reduced operator grants with the fixed expanded
+scope request, matching HTTP af26. Personal scopes without any signed personal
+claim still refuse, as do unknown or duplicate scopes, extra grant fields,
+foreign owners, nulls, duplicate keys and case-folded claim aliases.
 
 This is one broadened request, with no retry or issuer negotiation. An old
 issuer that filters unsupported scopes and returns a valid old full token

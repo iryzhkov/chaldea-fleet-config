@@ -459,7 +459,7 @@ func exactScopes(s string) bool {
 }
 
 // Full tokens retain all four resource scopes and may add personal scopes.
-// The signed personal claim below must account for every added scope.
+// Only signed personal actions confer authority; known extra scopes are inert.
 func exactOVFullScopes(s string) bool {
 	got := strings.Split(s, " ")
 	required := strings.Split(ovFullScopes, " ")
@@ -510,8 +510,8 @@ func validOVPersonal(c map[string]json.RawMessage, scope string, full bool) bool
 		last = index
 	}
 	scopes := strings.Split(scope, " ")
-	for _, action := range ovPersonalActions {
-		if slices.Contains(actions, action) != slices.Contains(scopes, "ov.personal."+action) {
+	for _, action := range actions {
+		if !slices.Contains(scopes, "ov.personal."+action) {
 			return false
 		}
 	}
