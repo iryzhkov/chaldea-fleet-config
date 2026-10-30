@@ -12,7 +12,7 @@ mcp_registrations_servers:
     enabled: "{{ chaldea_client_enabled | default(false) | bool or mcp_registrations_chaldea_waits_enabled | bool }}"
     command: "{{ fleet_home }}/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
     args:
-      - "{{ fleet_home }}/.local/share/chaldea/{{ 'current/bin/chaldea' if chaldea_client_enabled | default(false) else 'app/src/cli.ts' }}"
+      - "{{ chaldea_client_route_entry if chaldea_client_route_entry | default('') | length > 0 and not mcp_registrations_chaldea_waits_enabled | bool else fleet_home ~ '/.local/share/chaldea/' ~ ('current/bin/chaldea' if chaldea_client_enabled | default(false) else 'app/src/cli.ts') }}"
       - mcp
       - --config
       - "{{ fleet_home }}/.config/chaldea/{{ 'waits' if mcp_registrations_chaldea_waits_enabled | bool else 'mcp' }}.json"

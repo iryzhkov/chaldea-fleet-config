@@ -308,6 +308,7 @@ def test_launcher_tag_converges_only_validation_and_the_launcher(tmp_path):
     tasks = {line.split("[", 1)[1].rsplit("]", 1)[0] for line in result.stdout.splitlines()
              if line.startswith("TASK [")}
     assert tasks == {"Gathering Facts", "Refuse to apply another host's configuration",
+                     "chaldea_job_client : Validate the optional routing client selection",
                      "chaldea_job_client : Validate the optional exec-only client selection",
                      "chaldea_job_client : Create the local CLI directory",
                      "chaldea_job_client : Install the pinned Chaldea launcher"}, result.stdout
@@ -350,3 +351,72 @@ def test_only_omarchy_pc_enrolls_the_admitted_exec_client(tmp_path):
     assert lines[:2] == base[:2] and lines[len(lines) - len(base) + 2:] == base[2:]
     assert f"    chaldea_entry='{ENROLLED['chaldea_job_client_exec_entry']}'\n" in lines
     assert f"    chaldea_node='{ENROLLED['chaldea_job_client_exec_node']}'\n" in lines
+
+
+@pytest.mark.parametrize("args", [
+    ["route", "--role", "builder", "--author-provider", "codex", "", "$literal"],
+    ["wait", "--help"], ["decision", "--help"], ["quota", "status"],
+    ["mcp"], ["--help"], ["ROUTE"], ["--config", "route"],
+    ["exec", "--", "true"],
+])
+def test_route_selection_preserves_other_commands_and_exec_selection(tmp_path, args):
+    paths = runtimes(tmp_path)
+    result = invoke(tmp_path, *args, chaldea_client_route_entry=str(paths["entry"]),
+                    **selection(paths))
+    assert result.returncode == 23
+    expected = paths["entry"] if args[0] in ("route", "exec") else paths["pinned_entry"]
+    report = json.loads(result.stdout)
+    assert report["argv"] == [str(expected), *args]
+    assert report["node"] == ("selected" if args[0] == "exec" else "pinned")
+
+
+def test_missing_route_selection_refuses_without_using_current(tmp_path):
+    paths = runtimes(tmp_path, entry=False)
+    result = invoke(tmp_path, "route", "--role", "builder",
+                    chaldea_client_enabled=True, chaldea_client_route_entry=str(paths["entry"]))
+    assert result.returncode == 69
+    assert str(paths["entry"]) in result.stderr
+    assert ran(paths) == []
+
+
+@pytest.mark.parametrize("entry", ["relative", "/opt/../cli", "/opt/it's/cli",
+                                   "/opt/$HOME/cli", "/opt/node\n", None, ["/opt/cli"]])
+def test_role_refuses_unsafe_route_selection_before_writes(tmp_path, entry):
+    home = tmp_path / "home"
+    result = playbook(tmp_path, {"fleet_home": str(home), "chaldea_client_route_entry": entry}, ROLE)
+    assert result.returncode != 0
+    assert "chaldea_client_route_entry must be empty" in result.stdout
+    assert not home.exists()
+
+
+@pytest.mark.parametrize("waits", [False, True])
+@pytest.mark.parametrize("entry", ["", "/opt/releases/client-v0.4.23/bin/chaldea"])
+def test_mcp_route_selection_keeps_waits_registration(tmp_path, waits, entry):
+    output = tmp_path / "registration.json"
+    result = playbook(tmp_path, {"fleet_home": str(tmp_path / "home"),
+                                "chaldea_client_enabled": True,
+                                "chaldea_client_route_entry": entry,
+                                "mcp_registrations_chaldea_waits_enabled": waits}, [
+        {"name": "Load MCP defaults", "ansible.builtin.include_vars":
+         {"file": str(ROOT / "roles/mcp_registrations/defaults/main.yml"), "name": "mcp_defaults"}},
+        {"name": "Render Chaldea registration", "ansible.builtin.copy":
+         {"content": "{{ mcp_defaults.mcp_registrations_servers[0] | to_json }}",
+          "dest": str(output), "mode": "0600"}},
+    ])
+    assert result.returncode == 0, result.stdout + result.stderr
+    server = json.loads(output.read_text())
+    expected = entry if entry and not waits else str(tmp_path / "home/.local/share/chaldea/current/bin/chaldea")
+    assert server["args"] == [expected, "mcp", "--config",
+                              str(tmp_path / f"home/.config/chaldea/{'waits' if waits else 'mcp'}.json")]
+    assert server["command"] == str(tmp_path / f"home/.local/share/mise/installs/node/{NODE_VERSION}/bin/node")
+
+
+def test_only_laptop_selects_the_routing_client():
+    listed = subprocess.run(["ansible-inventory", "-i", str(ROOT / "inventory"), "--list"],
+                            cwd=ROOT, capture_output=True, text=True)
+    assert listed.returncode == 0, listed.stderr
+    hosts = json.loads(listed.stdout)["_meta"]["hostvars"]
+    for host, values in hosts.items():
+        assert values.get("chaldea_client_route_entry", "") == (
+            "{{ fleet_home }}/.local/share/chaldea/releases/client-v0.4.23/bin/chaldea"
+            if host == "laptop" else "")

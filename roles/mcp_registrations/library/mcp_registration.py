@@ -106,6 +106,8 @@ MANAGED_SERVERS = {
                 "commands": {host: HELPER + host for host in MANAGED_HOSTS}},
     "holonet_catalog": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
                         "commands": {"laptop": HELPER_PATH + " holonet laptop"}},
+    "holonet_recommendations": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+                                "commands": {"laptop": HELPER_PATH + " holonet-writer laptop"}},
     "ov": {"url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": frozenset({"codex"}),
            "commands": {"laptop": HELPER_PATH + " ov laptop"}},
 }

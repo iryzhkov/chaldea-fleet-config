@@ -1,0 +1,13 @@
+---
+- name: Validate the optional routing client selection
+  ansible.builtin.assert:
+    that:
+      - chaldea_client_route_entry | default('') is string
+      - >-
+        chaldea_client_route_entry | default('') == '' or
+        (chaldea_client_route_entry is match('^(/[A-Za-z0-9._-]+)+\\Z') and
+         chaldea_client_route_entry is not search('(^|/)[.][.]?(/|$)'))
+    fail_msg: >-
+      chaldea_client_route_entry must be empty or an absolute path of letters,
+      digits, '.', '_', '-' and '/', with no '.' or '..' segment.
+    quiet: true

@@ -17,6 +17,11 @@ webmcp_interactive_ov_enabled: false
 # Separate ordinary Movies catalog reader on laptop Codex; never the limited
 # session credential. Infra delivers holonet-interactive.app-password first.
 webmcp_interactive_holonet_enabled: false
+# Independent writer capability; no inventory opts in. The root-owned public
+# policy supplies the exact cohort and never contains a password or token.
+webmcp_interactive_holonet_writer_enabled: false
+webmcp_interactive_holonet_writer_targets: []
+webmcp_interactive_holonet_writer_previous_policy_sha256: ""
 # Full interactive OV for ordinary Claude and Codex on laptop and omarchy-pc:
 # the helper's "ov-full HOST" mode with homelab-infra's separately delivered
 # ov-full-interactive credential (docs/managed-interactive-webmcp.md, "Full

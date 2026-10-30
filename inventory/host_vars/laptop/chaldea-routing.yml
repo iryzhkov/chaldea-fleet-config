@@ -1,0 +1,4 @@
+---
+# Installed and verified by the operator; never advance current/previous or waits.
+# Both CLI route and routing-only stdio MCP use the existing Node pin.
+chaldea_client_route_entry: "{{ fleet_home }}/.local/share/chaldea/releases/client-v0.4.23/bin/chaldea"
