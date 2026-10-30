@@ -53,8 +53,9 @@ when the task is subtle and precision matters more than speed.
 
 # Memory
 
-Long-term notes live in OpenViking (OV) on homelab, reached through the `ov-memory` MCP tools
-and shared by every agent on every machine. Search OV before answering anything about past work,
+Long-term notes live in OpenViking (OV) on homelab and are shared across agents.
+Use native HTTP server `ov` when registered; otherwise use existing `ov-memory` stdio.
+Follow the transport-specific `ov-memory` skill, and never bypass an HTTP refusal through stdio. Search OV before answering anything about past work,
 past decisions, infrastructure, a homelab service, a machine you cannot see, or "how did we set
 this up last time": `memory_search` for the concept, `memory_abstract` to triage a hit,
 `memory_read` only for what earns it.

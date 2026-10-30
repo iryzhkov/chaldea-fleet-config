@@ -19,4 +19,4 @@ mcp_registrations_remote_servers:
 agent_config_fleet_tools_profile:
   name: interactive-operator
   tools: {"*": [read, write]}
-  mcp: "{{ ['ov-memory'] + (['jocasta'] if mcp_registrations_jocasta_interactive_state == 'present' else []) }}"
+  mcp: "{{ ['ov-memory'] + (['ov'] if webmcp_interactive_ov_full_enabled | default(false) | bool else []) + (['jocasta'] if mcp_registrations_jocasta_interactive_state == 'present' else []) }}"

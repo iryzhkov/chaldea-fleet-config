@@ -7,6 +7,12 @@ Edit those sources; installed copies are outputs.
 
 # OV memory
 
+Claude/Codex with registered native HTTP `ov` must use the native section of the
+`ov-memory` skill, including its write/CAS, processing and maintenance limits.
+OpenCode and other hosts retain legacy `ov-memory` where registered. Do not use
+legacy procedures to bypass an HTTP refusal. The remaining reference describes
+legacy stdio only; native curation uses the native skill section too.
+
 An OpenViking store in the homelab (`https://ov.ryzhkov.dev`, through the edge
 VIP), exposed by the `ov-memory` MCP server. It is memory for *agents*, not a chat log: durable facts
 about infrastructure, decisions and projects.

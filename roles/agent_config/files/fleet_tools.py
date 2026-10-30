@@ -18,7 +18,9 @@ NAME = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.-]*")
 # one only where it registers that server. Ordinary managed profiles may include
 # Jocasta; restricted profiles still need their own explicit MCP selection.
 MCP = {
-    "ov-memory": ("Memory", "- `ov-memory` MCP: shared long-term memory; use the `ov-memory` skill for its read/write procedures."),
+    "ov-memory": ("Memory", "- `ov-memory` MCP where registered: legacy shared memory; use the legacy section of `ov-memory`."),
+    "ov": ("Native OV memory", "- `ov` MCP: native HTTP document memory for migrated Claude/Codex sessions; "
+           "use the native section of `ov-memory`. OpenCode keeps legacy stdio where registered."),
     "jocasta": ("Working documents", "- `jocasta` MCP: shared working documents through the enrolled native registration; "
                 "read `~/.config/agents/jocasta.md` for outline, section and guarded edit use."),
 }
