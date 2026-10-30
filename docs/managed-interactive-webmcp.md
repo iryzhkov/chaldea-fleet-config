@@ -272,10 +272,14 @@ Registration is a separate explicit opt-in, webmcp_interactive_ov_full_enabled,
 off by default and accepted only with webmcp_interactive_enabled on laptop or
 omarchy-pc, never together with webmcp_interactive_ov_enabled. The role then
 checks the full credential's ancestors, private directory and file metadata
-without reading it. No inventory selects it yet, and there is no helper pin
-for this mode: the artifact is built only once the source is accepted. The
-[inert activation example](examples/ov-full-interactive.yml) lists each
-host's exact entries, binding, credential and preconditions.
+without reading it. Laptop and omarchy-pc now select this profile subject to
+an activation hold: backend/full HTTP readiness, protected enrollment and the
+accepted helper staged on each host must precede merge/convergence. The laptop
+ARM64 pin is dafb0ec33a28e969b8b344c2815e47cfdc1894f4e8a5ec7db3f992dbed6d56bc;
+the PC amd64 pin is acefaa482584d26ce8cd471edc10577ee925c0a6c36c9e97e000ba3ce8ffb7be.
+[Activation and rollback](ov-full-interactive-activation.md) names the receipts
+and PC staging guard. The [reference example](examples/ov-full-interactive.yml)
+remains outside inventory and lists the exact entries and artifact pins.
 
 Activation order per selected host: the server verifier that checks both
 scope family and signed action is deployed; the full declaration is enrolled

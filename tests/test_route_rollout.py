@@ -44,7 +44,8 @@ def test_agent_clients_use_native_t3_quota():
 HOST_RELEASE_SELECTIONS = {
     "inventory/host_vars/omarchy-pc/fate-route.yml": frozenset({"chaldea_client_version", "chaldea_client_sha256"}),
     "inventory/host_vars/laptop/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
-    "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
+    "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({
+        "agent_tools_ov_memory_ref", "webmcp_interactive_helper_sha256"}),
     "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml": frozenset({
         "chaldea_node_version", "chaldea_client_waits_legacy_user_node_version",
         "chaldea_client_waits_runtime_root",

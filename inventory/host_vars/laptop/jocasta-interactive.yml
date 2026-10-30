@@ -20,13 +20,11 @@ webmcp_interactive_opencode_state: present
 webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
 webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
 
-# HELD laptop OV selection for ordinary Codex only (docs/managed-interactive-webmcp.md,
-# "Laptop OV for ordinary Codex"). Do not merge until the separate ordinary OV
-# credential is accepted, the reviewed helper below is protected-staged, root
-# has accepted the full CHECK and one bounded staging/merge/convergence interval
-# is ready. The helper and Jocasta enrollment keep their installed self-sources;
-# the OV credential is infra-delivered and fleet only checks its custody.
-webmcp_interactive_ov_enabled: true
+# Full resource-document OV for ordinary Claude and Codex. Infra delivers the
+# separate protected full credential before this selection can converge.
+# The narrow selection is superseded; stdio remains until native acceptance.
+webmcp_interactive_ov_enabled: false
+webmcp_interactive_ov_full_enabled: true
 # Laptop-only shared helper pin adding the closed HoloNet reader while keeping
 # Jocasta, narrow OV and OV-full modes unchanged. Accepted source6c265640,
 # Go1.25 Linux/ARM64 build454596af-5198-40c5-aa0a-5d08b352a3ba.
