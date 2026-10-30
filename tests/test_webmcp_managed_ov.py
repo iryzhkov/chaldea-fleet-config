@@ -29,7 +29,7 @@ def ov(**change):
 
 def test_closed_tuple_set_preserves_jocasta_and_laptop_ov():
     servers = module_code.MANAGED_SERVERS
-    assert set(servers) == {"jocasta", "ov", "holonet_catalog"}
+    assert set(servers) == {"jocasta", "ov", "holonet_catalog", "holonet_recommendations"}
     assert servers["ov"] == {"url": OV_URL, "providers": frozenset({"codex"}), "commands": {"laptop": OV_HELPER}}
     assert servers["jocasta"]["url"] == URL and servers["jocasta"]["providers"] == {"claude", "codex"}
     assert servers["jocasta"]["commands"] == {h: module_code.HELPER + h for h in ("laptop", "agent-a", "agent-b", "omarchy-pc")}

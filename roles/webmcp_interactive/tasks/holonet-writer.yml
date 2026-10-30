@@ -1,0 +1,107 @@
+---
+# Public cohort policy and metadata only. Infra separately delivers the password.
+- name: Require a bounded explicit writer cohort before policy staging
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'laptop'
+      - ansible_facts.user_uid | int == 1001
+      - webmcp_interactive_holonet_writer_targets is sequence
+      - webmcp_interactive_holonet_writer_targets is not string
+      - webmcp_interactive_holonet_writer_targets is not mapping
+      - 1 <= webmcp_interactive_holonet_writer_targets | length <= 16
+      - webmcp_interactive_holonet_writer_targets | unique | list | length == webmcp_interactive_holonet_writer_targets | length
+      - webmcp_interactive_holonet_writer_targets | select('string') | list | length == webmcp_interactive_holonet_writer_targets | length
+      - webmcp_interactive_holonet_writer_targets | map('length') | difference([32]) | length == 0
+      - webmcp_interactive_holonet_writer_targets | select('match', '^[0-9a-f]{32}$') | list | length == webmcp_interactive_holonet_writer_targets | length
+      - webmcp_interactive_holonet_writer_previous_policy_sha256 == '' or webmcp_interactive_holonet_writer_previous_policy_sha256 is match('^[0-9a-f]{64}$')
+    quiet: true
+
+- name: Inspect the separately delivered HoloNet writer credential without reading it
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "{{ fleet_home }}"
+    - "{{ fleet_home }}/.config"
+    - "{{ fleet_home }}/.config/chaldea"
+    - "{{ fleet_home }}/.config/chaldea/authentik"
+    - "{{ fleet_home }}/.config/chaldea/authentik/holonet-recommendations.app-password"
+  register: webmcp_interactive_holonet_writer_credential
+
+- name: Require private HoloNet writer credential custody before policy staging
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and not item.stat.islnk
+      - item.stat.uid == ansible_facts.user_uid | int or (index < 3 and item.stat.uid == 0)
+      - item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - item.stat.isdir if index < 4 else (item.stat.isreg and item.stat.nlink == 1 and item.stat.mode == '0600' and 16 <= item.stat.size <= 256)
+      - index != 3 or item.stat.mode == '0700'
+    quiet: true
+  loop: "{{ webmcp_interactive_holonet_writer_credential.results }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.item }}"
+
+- name: Render only the public fixed writer policy
+  ansible.builtin.set_fact:
+    webmcp_interactive_holonet_writer_policy_public: "{{ {'version': 1, 'owner': 'chaldea-fleet-config holonet recommendations', 'target_users': webmcp_interactive_holonet_writer_targets | sort} | to_nice_json }}\n"
+
+- name: Inspect writer policy custody without reading unqualified files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - /etc
+    - /etc/webmcp-interactive
+    - /etc/webmcp-interactive/holonet-recommendations.json
+  register: webmcp_interactive_holonet_writer_policy_metadata
+
+- name: Refuse foreign writer policy files or unsafe parents
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (not item.stat.islnk and item.stat.uid == 0 and item.stat.gid == 0)
+      - not item.stat.exists or (item.stat.isdir and item.stat.mode == '0755' if index < 2 else (item.stat.isreg and item.stat.nlink == 1 and item.stat.mode == '0644' and 1 <= item.stat.size <= 8192))
+      - index != 0 or item.stat.exists
+    quiet: true
+  loop: "{{ webmcp_interactive_holonet_writer_policy_metadata.results }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.item }}"
+
+- name: Hash the qualified public writer policy for exact replacement admission
+  ansible.builtin.stat:
+    path: /etc/webmcp-interactive/holonet-recommendations.json
+    follow: false
+    checksum_algorithm: sha256
+    get_mime: false
+  register: webmcp_interactive_holonet_writer_policy_existing
+
+- name: Require current or explicitly supplied previous public policy bytes
+  ansible.builtin.assert:
+    that:
+      - not webmcp_interactive_holonet_writer_policy_existing.stat.exists or webmcp_interactive_holonet_writer_policy_existing.stat.checksum in [webmcp_interactive_holonet_writer_policy_public | hash('sha256'), webmcp_interactive_holonet_writer_previous_policy_sha256]
+    quiet: true
+
+- name: Create the root-owned public writer policy directory
+  ansible.builtin.file:
+    path: /etc/webmcp-interactive
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Install the exact root-owned public writer cohort
+  ansible.builtin.copy:
+    content: "{{ webmcp_interactive_holonet_writer_policy_public }}"
+    dest: /etc/webmcp-interactive/holonet-recommendations.json
+    owner: root
+    group: root
+    mode: '0644'
+    follow: false
+    backup: false
+  become: true

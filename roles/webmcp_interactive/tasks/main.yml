@@ -13,6 +13,7 @@
       - not (webmcp_interactive_ov_enabled | default(false) | bool) or inventory_hostname == 'laptop'
       - not (webmcp_interactive_holonet_enabled | default(false) | bool) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001)
       - not (webmcp_interactive_ov_full_enabled | default(false) | bool) or inventory_hostname in ['laptop', 'omarchy-pc']
+      - not (webmcp_interactive_holonet_writer_enabled | default(false) | bool) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001)
       - not (webmcp_interactive_ov_full_enabled | default(false) | bool and webmcp_interactive_ov_enabled | default(false) | bool)
     quiet: true
 
@@ -163,6 +164,10 @@
     index_var: index
     label: "{{ item.item }}"
   when: webmcp_interactive_holonet_enabled | default(false) | bool
+
+- name: Stage only an explicitly selected HoloNet writer capability
+  ansible.builtin.include_tasks: holonet-writer.yml
+  when: webmcp_interactive_holonet_writer_enabled | default(false) | bool
 
 - name: Stage only a protected per-host enrollment
   no_log: true

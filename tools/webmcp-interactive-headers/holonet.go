@@ -58,8 +58,12 @@ func holonetMode() {
 }
 
 func acquireHolonet(ctx context.Context, client *http.Client, password string, now func() time.Time) (string, error) {
+	return acquireHolonetFor(ctx, client, password, now, holonetReaderContract())
+}
+
+func acquireHolonetFor(ctx context.Context, client *http.Client, password string, now func() time.Time, contract holonetContract) (string, error) {
 	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {holonetClientID},
-		"username": {holonetUsername}, "password": {password}, "scope": {holonetScope}, "resource": {holonetResource}}
+		"username": {contract.username}, "password": {password}, "scope": {contract.scope}, "resource": {holonetResource}}
 	start := now().Unix()
 	data, err := response(ctx, client, "POST", tokenURL, strings.NewReader(form.Encode()), 32768)
 	if err != nil {
@@ -73,11 +77,11 @@ func acquireHolonet(ctx context.Context, client *http.Client, password string, n
 		Refresh     json.RawMessage `json:"refresh_token"`
 	}
 	if strictJSON(data, &result) != nil || !strings.EqualFold(result.TokenType, "Bearer") ||
-		result.ExpiresIn <= 30 || result.ExpiresIn > 300 || result.Scope != holonetScope || len(result.Refresh) != 0 {
+		result.ExpiresIn <= 30 || result.ExpiresIn > 300 || !contract.acceptScope(result.Scope) || len(result.Refresh) != 0 {
 		return "", denied
 	}
 	keys, err := response(ctx, client, "GET", holonetJWKSURL, nil, 65536)
-	if err != nil || validateHolonet(result.AccessToken, keys, now().Unix(), start, result.ExpiresIn) != nil {
+	if err != nil || validateHolonetFor(result.AccessToken, keys, now().Unix(), start, result.ExpiresIn, contract) != nil {
 		return "", denied
 	}
 	return result.AccessToken, nil
@@ -103,6 +107,10 @@ func exactHolonetList(claims map[string]json.RawMessage, key string, want []stri
 // Verify the signature first, then the exact catalog-only HoloNet contract.
 // There is no arbitrary endpoint, namespace, user, library or credential selector.
 func validateHolonet(token string, keys []byte, now, start, expires int64) error {
+	return validateHolonetFor(token, keys, now, start, expires, holonetReaderContract())
+}
+
+func validateHolonetFor(token string, keys []byte, now, start, expires int64, contract holonetContract) error {
 	if len(token) > 12288 {
 		return denied
 	}
@@ -156,10 +164,10 @@ func validateHolonet(token string, keys []byte, now, start, expires int64) error
 	}
 	var iss, aud, azp, scope, sub, server, namespace string
 	if !text(c["iss"], &iss) || iss != holonetIssuer || !text(c["aud"], &aud) || aud != holonetResource ||
-		!text(c["azp"], &azp) || azp != holonetClientID || !text(c["scope"], &scope) || scope != holonetScope ||
+		!text(c["azp"], &azp) || azp != holonetClientID || !text(c["scope"], &scope) || !contract.acceptScope(scope) ||
 		!text(c["sub"], &sub) || !subject(sub) || len(sub) > 256 ||
 		!text(c["holonet_server"], &server) || server != holonetServer ||
-		!text(c["holonet_namespace"], &namespace) || namespace != "movies-catalog" {
+		!text(c["holonet_namespace"], &namespace) || namespace != contract.namespace {
 		return denied
 	}
 	for _, r := range sub {
@@ -170,8 +178,8 @@ func validateHolonet(token string, keys []byte, now, start, expires int64) error
 	if !exactHolonetList(c, "holonet_libraries", []string{"3"}) ||
 		!exactHolonetList(c, "holonet_catalog_users", []string{holonetUser}) ||
 		!exactHolonetList(c, "holonet_history_users", []string{}) ||
-		!exactHolonetList(c, "holonet_target_users", []string{}) ||
-		!exactHolonetList(c, "holonet_actions", []string{"catalog.read"}) {
+		!contract.exactTargets(c) ||
+		!exactHolonetList(c, "holonet_actions", contract.actions) {
 		return denied
 	}
 	var iat, exp int64
