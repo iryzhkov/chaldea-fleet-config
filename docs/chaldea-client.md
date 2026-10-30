@@ -43,6 +43,22 @@ Do not clear agent-a's hold or change the laptop's system mode as part of this
 pin update. Preserve the accepted rollback lists and separately protected
 helper, profile and runtime pins; retention never installs a missing version.
 
+## Laptop routing client selection
+
+The laptop sets `chaldea_client_route_entry` to the already-installed immutable
+`releases/client-v0.4.23/bin/chaldea`. The launcher reuses its command selector
+pattern for `chaldea route`; routing-only MCP selects the same entry directly.
+Both retain the ordinary inventory-pinned Node. Other commands, the exec-only
+selection and waits-enabled MCP registrations keep their existing selection.
+An unset or empty override preserves the old defaults.
+
+This fixes the older client's rejection of T3 0.1.5 catalog keybindings.
+It installs no payload and changes no links, services, route policy or credentials.
+The parent operator owns live repair and verification. Missing selected entries
+refuse rather than falling back to `current`. Preserve this override through
+normal pulls until the laptop's ordinary client migration is qualified alongside
+its quota drop-in and protected system waits runtime.
+
 ## First release and activation
 
 The following bootstrap procedure predates the current pin. Initially inventory

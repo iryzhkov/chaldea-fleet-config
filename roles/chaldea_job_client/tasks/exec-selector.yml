@@ -1,4 +1,7 @@
 ---
+- name: Validate the routing selection before rendering the launcher
+  ansible.builtin.import_tasks: route-selector.yml
+
 # Both roles that render the launcher run this first, so an unsafe selection
 # refuses before either writes it. The paths become single-quoted shell
 # literals, which the character set below keeps exact.
