@@ -11,8 +11,8 @@ if (( $# > 1 )); then
 	exit 64
 fi
 case "$phase" in
-	all|pytest|pytest-skills|pytest-roles|pytest-rest|converge) ;;
-	*) echo 'usage: tools/ci.sh [all|pytest|pytest-skills|pytest-roles|pytest-rest|converge]' >&2; exit 64 ;;
+	all|pytest|pytest-skills|pytest-roles|pytest-rest|pytest-rest-[123]|converge) ;;
+	*) echo 'usage: tools/ci.sh [all|pytest|pytest-skills|pytest-roles|pytest-rest|pytest-rest-[123]|converge]' >&2; exit 64 ;;
 esac
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
@@ -59,10 +59,6 @@ reset_home() {
 	printf '{"units": {}, "calls": []}\n' >"$FAKE_SYSTEMCTL_STATE"
 }
 
-# Stage a synthetic, checksummed host release. All role destinations remain in
-# scratch; this exercises extraction and installed-byte copies without sudo.
-python tests/host_artifact_fixture.py "$TMPDIR/host-artifact" >"$TMPDIR/host-artifact-vars.json"
-python tests/client_artifact_fixture.py "$TMPDIR/client-artifact" >"$TMPDIR/client-artifact-vars.json"
 export HUYANG_PLUGIN_SOURCE="$PWD/roles/agent_config/files/opencode/huyang-profiles.js"
 
 # Whole-file lanes avoid shared-HOME concurrency and keep parameterized cases intact.
@@ -70,11 +66,25 @@ export HUYANG_PLUGIN_SOURCE="$PWD/roles/agent_config/files/opencode/huyang-profi
 skill_tests=(tests/test_agent_skills.py tests/test_laptop_skill_links.py)
 role_tests=(tests/test_agent_source_migration.py tests/test_chaldea_client.py tests/test_huyang_role.py
             tests/test_chaldea_claude_capabilities_probe.py tests/test_chaldea_session_profiles_claude.py)
+# Split the expensive role files observed in run 40952835783. Keep files intact;
+# rest-3 discovers every other test recursively, including future directories.
+rest_1_tests=(tests/test_chaldea_session_profiles.py tests/test_chaldea_session_profiles_opencode.py
+              tests/test_chaldea_waits_legacy.py tests/test_chaldea_waits_recovery.py)
+rest_2_tests=(tests/test_chaldea_waits_runtime_migration.py tests/test_chaldea_waits_system.py
+              tests/test_host_artifact.py tests/test_mission_control.py tests/test_mission_control_capture.py
+              tests/test_laptop_ov_tooling.py tests/test_mise_agents.py)
 pytest_targets=(tests)
 case "$phase" in
 	pytest-skills) pytest_targets=("${skill_tests[@]}") ;;
 	pytest-roles) pytest_targets=("${role_tests[@]}") ;;
-	pytest-rest)
+	pytest-rest-1) pytest_targets=("${rest_1_tests[@]}") ;;
+	pytest-rest-2) pytest_targets=("${rest_2_tests[@]}") ;;
+	pytest-rest|pytest-rest-3)
+		if [[ "$phase" == pytest-rest-3 ]]; then
+			for path in "${rest_1_tests[@]}" "${rest_2_tests[@]}"; do
+				pytest_targets+=(--ignore "$path")
+			done
+		fi
 		for path in "${skill_tests[@]}" "${role_tests[@]}"; do
 			pytest_targets+=(--ignore "$path")
 		done
@@ -88,6 +98,9 @@ fi
 if [[ "$phase" == pytest || "$phase" == pytest-* ]]; then
 	exit 0
 fi
+# Only convergence consumes these release variables. Pytest stages its own fixtures.
+python tests/host_artifact_fixture.py "$TMPDIR/host-artifact" >"$TMPDIR/host-artifact-vars.json"
+python tests/client_artifact_fixture.py "$TMPDIR/client-artifact" >"$TMPDIR/client-artifact-vars.json"
 # Scratch may be inside an isolated job workspace; generated fixture plays are not source.
 ansible-lint --exclude "$TMPDIR" --exclude "${TMPDIR#"$PWD"/}"
 export FAKE_SYSTEMCTL_UNIT_HOME="$PWD/.ci-home"
