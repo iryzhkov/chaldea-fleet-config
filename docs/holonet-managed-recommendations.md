@@ -53,9 +53,11 @@ repurposed, and no broker, database, cache or daemon is added.
 
 Set webmcp_interactive_holonet_writer_enabled only in a reviewed operator
 selection, with webmcp_interactive_holonet_writer_targets and a reviewed helper
-artifact/pin that contains this mode. Defaults are false and an empty cohort;
-no inventory selects them in this source. Keep webmcp_interactive_holonet_enabled
-and holonet_catalog unchanged.
+artifact/pin that contains this mode. Defaults are false and an empty cohort.
+The laptop inventory maintains the existing writer with its seven recipients
+and scoped playback history. Merge that activation only after guarded helper
+installation and native qualification. The ordinary reader selection and
+holonet_catalog remain unchanged.
 
 webmcp_interactive_holonet_writer_history_users defaults to empty and is set
 only in the same reviewed selection, as an explicit subset of the targets. The
