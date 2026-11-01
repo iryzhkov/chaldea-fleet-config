@@ -4,3 +4,15 @@
 # reviewed source, guarded rollout and native proof. Merges activate pulls.
 # The issuer-delivered credential is metadata-checked only, never copied here.
 webmcp_interactive_holonet_enabled: true
+# Maintain the existing separate writer and its explicitly scoped playback
+# grant. Merge only after guarded installation and native acceptance.
+webmcp_interactive_holonet_writer_enabled: true
+webmcp_interactive_holonet_writer_targets:
+  - 22703968ab0b48eebb4faf7c1d16262c
+  - 313e39bb4d8c4b92b81d4b170c3f1b8e
+  - 545014d1c9d1416b8e0b5a445d6ff9ec
+  - b8f4f6de49b443f1948cf0118679e863
+  - c06c7d2c3e224d8ba2e466efa5bcb97b
+  - db2f3bfb1f84438ebcde94f228183011
+  - e05efa68303043b893b0f5c2e200ccd7
+webmcp_interactive_holonet_writer_history_users: "{{ webmcp_interactive_holonet_writer_targets }}"

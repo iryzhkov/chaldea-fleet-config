@@ -111,7 +111,12 @@ def test_actual_selection_defaults_off_preserves_entries_and_absent_intent(tmp_p
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults[FLAG] is False
     owner = ROOT / "inventory/host_vars/laptop/holonet-interactive.yml"
-    assert yaml.safe_load(owner.read_text()) == {FLAG: True}
+    selected = yaml.safe_load(owner.read_text())
+    assert selected[FLAG] is True
+    # Writer activation is independently pinned by its cohort and policy tests.
+    assert set(selected) == {FLAG, "webmcp_interactive_holonet_writer_enabled",
+                             "webmcp_interactive_holonet_writer_targets",
+                             "webmcp_interactive_holonet_writer_history_users"}
     for path in (ROOT / "inventory").rglob("*.yml"):
         assert (FLAG in path.read_text(errors="replace")) is (path == owner)
     jocasta, _ = selection_tasks()

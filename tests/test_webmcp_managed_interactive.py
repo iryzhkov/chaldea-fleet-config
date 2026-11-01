@@ -143,7 +143,7 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
         "x86_64": "667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed",
     }
     host_pins = {host: pins[architectures[host]] for host in HOSTS}
-    host_pins["laptop"] = "de4df4e7c8ffaffa9f327d16283c35f2c649bf57d8e336e7fbb3d7598afe92e6"
+    host_pins["laptop"] = "d0d0ec1e701cea66364e426ff60a96986270d7585f548fd8753747373ca1dca2"
     host_pins["omarchy-pc"] = "f88abf558d9c6b7b49987b276633a03cb3e3353990f4fd156d3e83a13ffabbf7"
     ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["claude", "codex"],
                 "auth_mode": "managed_helper", "helper_host": "{{ inventory_hostname }}",

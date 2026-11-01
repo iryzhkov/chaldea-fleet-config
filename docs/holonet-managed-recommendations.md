@@ -19,9 +19,13 @@ chaldea-laptop-holonet-recommendations account. The credential path is
 ~/.config/chaldea/authentik/holonet-recommendations.app-password. It never reads
 the ordinary catalog or retired session credential.
 
-The signed namespace must be managed-recommendations, history empty, library
-and catalog user unchanged, and actions exactly catalog.read, playlist.read,
-playlist.manage, object.share, home.read, home.manage and object.delete.
+The signed namespace must be managed-recommendations, library and catalog user
+unchanged, and actions exactly catalog.read, playlist.read, playlist.manage,
+object.share, home.read, home.manage and object.delete. History is empty unless
+the public policy below opts in to scoped playback history; then the actions
+are exactly those seven followed by history.read, and the signed
+holonet_history_users set must equal the policy's history_users set. The
+ordinary catalog reader always requires empty history and catalog.read only.
 Only a complete scope set is accepted, with no duplicates, extras or whitespace
 aliases. The helper retains fixed HTTPS token/JWKS endpoints, no redirects,
 RS256, bounded lifetime and foreign/unknown-claim refusal.
@@ -30,23 +34,41 @@ An exact independent recipient ceiling is needed without baking real user IDs
 into every binary release. The one fixed public policy
 /etc/webmcp-interactive/holonet-recommendations.json carries only version1,
 owner "chaldea-fleet-config holonet recommendations", and 1..16 unique hex32
-target_users. The helper verifies its FD-held no-follow custody: root-owned
-nonwritable parents, root0644 single-link regular leaf, bounded bytes, strict
-JSON. The signed target set must equal this cohort; ordering is immaterial.
-There is no CLI path, target, scope or credential selector. The policy contains
-no token, password, history or media. Existing Jocasta private enrollment is not
+target_users, plus one optional field, history_users. The helper verifies its
+FD-held no-follow custody: root-owned nonwritable parents, root0644 single-link
+regular leaf, bounded bytes, strict JSON. The signed target set must equal this
+cohort; ordering is immaterial.
+
+history_users, when present, must be a JSON array of unique IDs drawn from
+target_users. Absent or empty keeps the original writer contract. A nonempty
+set admits a token only when its signed history set equals the policy set,
+with no duplicates, foreign IDs, aliases, wildcards or extras; ordering is
+immaterial. History authority is never derived from the target cohort, and no
+scope, account, credential or request field changes. There is no CLI path,
+target, history, scope or credential selector. The policy contains no token,
+password, viewing data or media. Existing Jocasta private enrollment is not
 repurposed, and no broker, database, cache or daemon is added.
 
 ## Explicit fleet selection
 
 Set webmcp_interactive_holonet_writer_enabled only in a reviewed operator
 selection, with webmcp_interactive_holonet_writer_targets and a reviewed helper
-artifact/pin that contains this mode. Defaults are false and an empty cohort;
-no inventory selects them in this source. Keep webmcp_interactive_holonet_enabled
-and holonet_catalog unchanged.
+artifact/pin that contains this mode. Defaults are false and an empty cohort.
+The laptop inventory maintains the existing writer with its seven recipients
+and scoped playback history. Merge that activation only after guarded helper
+installation and native qualification. The ordinary reader selection and
+holonet_catalog remain unchanged.
 
-The role validates the cohort and separately delivered writer credential
-metadata before writes. It never reads or checksums that app password. Existing
+webmcp_interactive_holonet_writer_history_users defaults to empty and is set
+only in the same reviewed selection, as an explicit subset of the targets. The
+role renders history_users only when it is nonempty, so the default policy
+bytes are byte-identical to the earlier source. Opting in, and rolling back to
+empty, each replace the existing policy only through the previous-policy digest
+below. A helper release that predates history_users refuses a policy carrying
+it, so install the reviewed helper before rendering a nonempty history.
+
+The role validates the cohort, history subset and separately delivered writer
+credential metadata before writes. It never reads or checksums that app password. Existing
 public policy paths must have exact root custody; only current desired bytes or
 an explicitly supplied webmcp_interactive_holonet_writer_previous_policy_sha256
 permit replacement. Foreign content or unsafe paths refuse. The policy is

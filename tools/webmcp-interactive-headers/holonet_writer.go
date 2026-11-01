@@ -19,26 +19,40 @@ const holonetWriterPolicyOwner = "chaldea-fleet-config holonet recommendations"
 var holonetTargetID = regexp.MustCompile("^[0-9a-f]{32}$")
 var holonetWriterActions = []string{"catalog.read", "playlist.read", "playlist.manage", "object.share", "home.read", "home.manage", "object.delete"}
 
+// The issuer appends this one action after the exact writer tuple when the
+// public policy opts recipients into scoped playback history.
+const holonetHistoryAction = "history.read"
+
 type holonetContract struct {
 	username, scope, namespace string
-	targets, actions           []string
+	targets, history, actions  []string
 	writer                     bool
 }
 type holonetWriterPolicy struct {
 	Version int      `json:"version"`
 	Owner   string   `json:"owner"`
 	Targets []string `json:"target_users"`
+	History []string `json:"history_users,omitempty"`
 }
 
 func holonetReaderContract() holonetContract {
 	return holonetContract{username: holonetUsername, scope: holonetScope, namespace: "movies-catalog",
-		targets: []string{}, actions: []string{"catalog.read"}}
+		targets: []string{}, history: []string{}, actions: []string{"catalog.read"}}
 }
+
+// History authority comes only from the policy's explicit history_users, never
+// from the target cohort. An absent or empty set keeps the original contract.
 func holonetRecommendationContract(policy holonetWriterPolicy) holonetContract {
 	targets := append([]string{}, policy.Targets...)
 	sort.Strings(targets)
+	history := append([]string{}, policy.History...)
+	sort.Strings(history)
+	actions := append([]string{}, holonetWriterActions...)
+	if len(history) > 0 {
+		actions = append(actions, holonetHistoryAction)
+	}
 	return holonetContract{username: holonetWriterUsername, scope: holonetWriterScope,
-		namespace: "managed-recommendations", targets: targets, actions: holonetWriterActions, writer: true}
+		namespace: "managed-recommendations", targets: targets, history: history, actions: actions, writer: true}
 }
 func (c holonetContract) acceptScope(value string) bool {
 	if !c.writer {
@@ -51,21 +65,24 @@ func (c holonetContract) acceptScope(value string) bool {
 	sort.Strings(fields)
 	return strings.Join(fields, " ") == "holonet.curate holonet.home holonet.read"
 }
-func (c holonetContract) exactTargets(claims map[string]json.RawMessage) bool {
+
+// A writer's signed recipient sets must equal the policy sets in any order;
+// want is sorted and unique, so a duplicate, foreign or missing ID refuses.
+func (c holonetContract) exactSet(claims map[string]json.RawMessage, key string, want []string) bool {
 	if !c.writer {
-		return exactHolonetList(claims, "holonet_target_users", c.targets)
+		return exactHolonetList(claims, key, want)
 	}
-	raw, ok := claims["holonet_target_users"]
+	raw, ok := claims[key]
 	if !ok || len(raw) == 0 || raw[0] != '[' {
 		return false
 	}
 	var actual []string
-	if json.Unmarshal(raw, &actual) != nil || len(actual) != len(c.targets) {
+	if json.Unmarshal(raw, &actual) != nil || len(actual) != len(want) {
 		return false
 	}
 	sort.Strings(actual)
 	for i, value := range actual {
-		if value != c.targets[i] {
+		if value != want[i] {
 			return false
 		}
 	}
@@ -73,7 +90,12 @@ func (c holonetContract) exactTargets(claims map[string]json.RawMessage) bool {
 }
 func parseHolonetWriterPolicy(data []byte) (holonetWriterPolicy, error) {
 	var shape map[string]json.RawMessage
-	if strictJSON(data, &shape) != nil || len(shape) != 3 || shape["version"] == nil || shape["owner"] == nil || shape["target_users"] == nil {
+	if strictJSON(data, &shape) != nil || shape["version"] == nil || shape["owner"] == nil || shape["target_users"] == nil {
+		return holonetWriterPolicy{}, denied
+	}
+	// history_users is the only optional field; null never stands for empty.
+	history, hasHistory := shape["history_users"]
+	if len(shape) != 3 && !(hasHistory && len(shape) == 4) || hasHistory && (len(history) == 0 || history[0] != '[') {
 		return holonetWriterPolicy{}, denied
 	}
 	var policy holonetWriterPolicy
@@ -88,7 +110,15 @@ func parseHolonetWriterPolicy(data []byte) (holonetWriterPolicy, error) {
 		}
 		seen[id] = true
 	}
+	recipients := map[string]bool{}
+	for _, id := range policy.History {
+		if !seen[id] || recipients[id] {
+			return holonetWriterPolicy{}, denied
+		}
+		recipients[id] = true
+	}
 	sort.Strings(policy.Targets)
+	sort.Strings(policy.History)
 	return policy, nil
 }
 func readHolonetWriterPolicy(path string) (holonetWriterPolicy, error) {
