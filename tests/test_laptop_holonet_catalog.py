@@ -128,9 +128,14 @@ def test_bindings_are_actual_and_share_nothing_with_jocasta():
     for short in SESSION_MAPS[1:]:
         key = "chaldea_client_session_" + short
         assert not set(holonet[key]) & set(jocasta[key])
-    # The separate ordinary reader selects only its laptop flag, not this preset.
+    # The ordinary reader remains selected independently of the maintained writer.
     ordinary = ROOT / "inventory/host_vars/laptop/holonet-interactive.yml"
-    assert yaml.safe_load(ordinary.read_text()) == {"webmcp_interactive_holonet_enabled": True}
+    ordinary_vars = yaml.safe_load(ordinary.read_text())
+    assert ordinary_vars["webmcp_interactive_holonet_enabled"] is True
+    assert set(ordinary_vars) == {"webmcp_interactive_holonet_enabled",
+                                  "webmcp_interactive_holonet_writer_enabled",
+                                  "webmcp_interactive_holonet_writer_targets",
+                                  "webmcp_interactive_holonet_writer_history_users"}
     # Only the laptop carries either HoloNet input.
     for path in (ROOT / "inventory").rglob("*.yml"):
         if path not in {INPUT, ordinary, ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml"}:

@@ -85,8 +85,17 @@ def test_actual_writer_selection_is_default_off_and_preserves_reader(tmp_path):
     assert defaults[FLAG] is False
     assert defaults["webmcp_interactive_holonet_writer_targets"] == []
     assert defaults[HISTORY] == []
+    activation = ROOT / "inventory/host_vars/laptop/holonet-interactive.yml"
+    actual = yaml.safe_load(activation.read_text())
+    assert actual[FLAG] is True
+    assert actual["webmcp_interactive_holonet_writer_targets"] == [
+        "22703968ab0b48eebb4faf7c1d16262c", "313e39bb4d8c4b92b81d4b170c3f1b8e",
+        "545014d1c9d1416b8e0b5a445d6ff9ec", "b8f4f6de49b443f1948cf0118679e863",
+        "c06c7d2c3e224d8ba2e466efa5bcb97b", "db2f3bfb1f84438ebcde94f228183011",
+        "e05efa68303043b893b0f5c2e200ccd7"]
+    assert actual[HISTORY] == "{{ webmcp_interactive_holonet_writer_targets }}"
     assert all(FLAG not in p.read_text(errors="replace") and HISTORY not in p.read_text(errors="replace")
-               for p in (ROOT / "inventory").rglob("*.yml"))
+               for p in (ROOT / "inventory").rglob("*.yml") if p != activation)
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     selection = next(t for t in tasks if t["name"].startswith("Select the closed laptop HoloNet recommendation writer"))
     base, _ = selection_tasks()
