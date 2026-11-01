@@ -1,5 +1,6 @@
 """Separate native writer, exact public cohort and preserved ordinary readers."""
 import copy
+import hashlib
 import json
 import os
 import sys
@@ -18,6 +19,10 @@ URL = "https://media.mcp.ryzhkov.dev/mcp"
 HELPER = "/usr/local/libexec/webmcp-interactive-headers holonet-writer laptop"
 FLAG = "webmcp_interactive_holonet_writer_enabled"
 TARGETS = ["b" * 32, "c" * 32]
+HISTORY = "webmcp_interactive_holonet_writer_history_users"
+# The render expression at d078756, before optional history; default bytes must match it.
+OLD_RENDER = ("{{ {'version': 1, 'owner': 'chaldea-fleet-config holonet recommendations', "
+              "'target_users': webmcp_interactive_holonet_writer_targets | sort} | to_nice_json }}\n")
 
 
 def writer(**changes):
@@ -79,7 +84,9 @@ def test_actual_writer_selection_is_default_off_and_preserves_reader(tmp_path):
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults[FLAG] is False
     assert defaults["webmcp_interactive_holonet_writer_targets"] == []
-    assert all(FLAG not in p.read_text(errors="replace") for p in (ROOT / "inventory").rglob("*.yml"))
+    assert defaults[HISTORY] == []
+    assert all(FLAG not in p.read_text(errors="replace") and HISTORY not in p.read_text(errors="replace")
+               for p in (ROOT / "inventory").rglob("*.yml"))
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     selection = next(t for t in tasks if t["name"].startswith("Select the closed laptop HoloNet recommendation writer"))
     base, _ = selection_tasks()
@@ -120,10 +127,21 @@ def test_actual_writer_cohort_guard_and_secret_metadata_are_closed(tmp_path):
                                     ["B" * 32], [TARGETS[0]] * 2, [str(i).zfill(32) for i in range(17)]]):
         checks += [{**validate, "name": f"Cohort {index}", "ignore_errors": True, "register": "observed",
                     "vars": {"ansible_facts": {"user_uid": 1001},
-                             "webmcp_interactive_holonet_writer_targets": cohort,
+                             "webmcp_interactive_holonet_writer_targets": cohort, HISTORY: [],
                              "webmcp_interactive_holonet_writer_previous_policy_sha256": ""}},
                    {"ansible.builtin.assert": {"that": ["observed.failed | default(false) == expected"]},
                     "vars": {"expected": index != 0}}]
+    # History is an explicit bounded subset of the cohort, validated before any stat or write.
+    for index, (history, refused) in enumerate([
+            ([], False), ([TARGETS[1]], False), (list(reversed(TARGETS)), False),
+            (["d" * 32], True), ([TARGETS[0]] * 2, True), (TARGETS[0], True), ({TARGETS[0]: True}, True),
+            (["B" * 32], True), (["*"], True), ([1], True), (None, True)]):
+        checks += [{**validate, "name": f"History {index}", "ignore_errors": True, "register": "observed",
+                    "vars": {"ansible_facts": {"user_uid": 1001},
+                             "webmcp_interactive_holonet_writer_targets": TARGETS, HISTORY: history,
+                             "webmcp_interactive_holonet_writer_previous_policy_sha256": ""}},
+                   {"ansible.builtin.assert": {"that": ["observed.failed | default(false) == expected"]},
+                    "vars": {"expected": refused}}]
     guard = next(t for t in tasks if t["name"].startswith("Require private HoloNet writer"))
     rows = [{"item": f"/synthetic/{i}", "stat": {
         "exists": True, "islnk": False, "uid": 1001, "mode": "0700" if i == 3 else "0755",
@@ -140,6 +158,29 @@ def test_actual_writer_cohort_guard_and_secret_metadata_are_closed(tmp_path):
                              "webmcp_interactive_holonet_writer_credential": {"results": changed}}},
                    {"ansible.builtin.assert": {"that": ["observed.failed | default(false) == expected"]},
                     "vars": {"expected": change is not None}}]
+    result = _ansible(tmp_path, checks)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def policy_bytes(history=()):
+    policy = {"version": 1, "owner": "chaldea-fleet-config holonet recommendations", "target_users": TARGETS}
+    if history:
+        policy["history_users"] = sorted(history)
+    return (json.dumps(policy, indent=4, sort_keys=True) + "\n").encode()
+
+
+def test_writer_policy_render_keeps_default_bytes_and_adds_only_explicit_history(tmp_path):
+    render = next(t for t in writer_tasks() if t["name"].startswith("Render only the public fixed writer policy"))
+    checks = []
+    for index, history in enumerate([[], [TARGETS[1]], list(reversed(TARGETS))]):
+        values = {"webmcp_interactive_holonet_writer_targets": list(reversed(TARGETS)), HISTORY: history}
+        checks += [{**render, "name": f"Render {index}", "vars": values},
+                   {"ansible.builtin.set_fact": {"old_policy": OLD_RENDER}, "vars": values},
+                   {"ansible.builtin.assert": {"that": [
+                       "webmcp_interactive_holonet_writer_policy_public | hash('sha256') == digest",
+                       "(webmcp_interactive_holonet_writer_policy_public == old_policy) == unchanged"]},
+                    "vars": {"digest": hashlib.sha256(policy_bytes(history)).hexdigest(),
+                             "unchanged": not history}}]
     result = _ansible(tmp_path, checks)
     assert result.returncode == 0, result.stdout + result.stderr
 
@@ -166,10 +207,10 @@ def test_actual_public_policy_check_apply_repeat_and_foreign_digest_refusal(tmp_
                         args[field] = "0"
         selected.append(task)
     values = {"ansible_facts": {"user_uid": 1001},
-              "webmcp_interactive_holonet_writer_targets": list(reversed(TARGETS)),
+              "webmcp_interactive_holonet_writer_targets": list(reversed(TARGETS)), HISTORY: [],
               "webmcp_interactive_holonet_writer_previous_policy_sha256": ""}
-    def run(check=False):
-        tasks = [{**task, "vars": values, **({"check_mode": True} if check else {})} for task in selected]
+    def run(check=False, **changes):
+        tasks = [{**task, "vars": values | changes, **({"check_mode": True} if check else {})} for task in selected]
         return _ansible(tmp_path, tasks)
     planned = run(check=True)
     assert planned.returncode == 0, planned.stdout + planned.stderr
@@ -182,6 +223,22 @@ def test_actual_public_policy_check_apply_repeat_and_foreign_digest_refusal(tmp_
     assert desired.stat().st_uid == 0
     repeated = run()
     assert repeated.returncode == 0 and "changed=0" in repeated.stdout, repeated.stdout + repeated.stderr
+    assert desired.read_bytes() == policy_bytes()
+    # Opting into history replaces the old bytes only with their explicit previous digest.
+    old_sha = hashlib.sha256(policy_bytes()).hexdigest()
+    history = {HISTORY: [TARGETS[1]]}
+    refused = run(**history)
+    assert refused.returncode != 0 and desired.read_bytes() == policy_bytes()
+    applied = run(**history, webmcp_interactive_holonet_writer_previous_policy_sha256=old_sha)
+    assert applied.returncode == 0, applied.stdout + applied.stderr
+    assert desired.read_bytes() == policy_bytes([TARGETS[1]])
+    assert desired.stat().st_mode & 0o777 == 0o644 and desired.stat().st_uid == 0
+    # Rollback to empty history restores the exact original bytes, again by digest.
+    assert run().returncode != 0 and desired.read_bytes() == policy_bytes([TARGETS[1]])
+    restored = run(webmcp_interactive_holonet_writer_previous_policy_sha256=hashlib.sha256(
+        policy_bytes([TARGETS[1]])).hexdigest())
+    assert restored.returncode == 0, restored.stdout + restored.stderr
+    assert desired.read_bytes() == policy_bytes()
     desired.write_text('{"foreign":"retain"}')
     original = desired.read_bytes()
     refused = run()
