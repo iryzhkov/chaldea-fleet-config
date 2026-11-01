@@ -82,4 +82,8 @@ def test_cleanup_reuses_existing_file_inverse_and_preserves_interactive_opt_in()
     for value in RETIRED:
         assert set(value) in ({"name", "driver"}, {"name", "home"})
     ordinary = yaml.safe_load((ROOT / "inventory/host_vars/laptop/holonet-interactive.yml").read_text())
-    assert ordinary == {"webmcp_interactive_holonet_enabled": True}
+    assert ordinary["webmcp_interactive_holonet_enabled"] is True
+    assert set(ordinary) == {"webmcp_interactive_holonet_enabled",
+                             "webmcp_interactive_holonet_writer_enabled",
+                             "webmcp_interactive_holonet_writer_targets",
+                             "webmcp_interactive_holonet_writer_history_users"}
