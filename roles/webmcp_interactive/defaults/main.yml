@@ -24,6 +24,10 @@ webmcp_interactive_holonet_writer_targets: []
 # Optional scoped playback history: an explicit subset of the targets above.
 # Empty keeps the original policy bytes and writer contract; never inferred.
 webmcp_interactive_holonet_writer_history_users: []
+# Optional writer library scope. Empty keeps the original Movies-only (3)
+# policy bytes; otherwise 2..3 canonical decimal string IDs that include "3",
+# for example the Movie/TV/anime set ["3", "615", "1132"]. Never inferred.
+webmcp_interactive_holonet_writer_library_ids: []
 webmcp_interactive_holonet_writer_previous_policy_sha256: ""
 # Full interactive OV for ordinary Claude and Codex on laptop and omarchy-pc:
 # the helper's "ov-full HOST" mode with homelab-infra's separately delivered

@@ -20,6 +20,15 @@
       - webmcp_interactive_holonet_writer_history_users | unique | list | length == webmcp_interactive_holonet_writer_history_users | length
       - webmcp_interactive_holonet_writer_history_users | select('string') | list | length == webmcp_interactive_holonet_writer_history_users | length
       - webmcp_interactive_holonet_writer_history_users | difference(webmcp_interactive_holonet_writer_targets) | length == 0
+      # Empty omits library_ids; an explicit set must widen Movies 3, never replace it.
+      - webmcp_interactive_holonet_writer_library_ids is sequence
+      - webmcp_interactive_holonet_writer_library_ids is not string
+      - webmcp_interactive_holonet_writer_library_ids is not mapping
+      - webmcp_interactive_holonet_writer_library_ids | length in [0, 2, 3]
+      - webmcp_interactive_holonet_writer_library_ids | unique | list | length == webmcp_interactive_holonet_writer_library_ids | length
+      - webmcp_interactive_holonet_writer_library_ids | select('string') | list | length == webmcp_interactive_holonet_writer_library_ids | length
+      - webmcp_interactive_holonet_writer_library_ids | select('match', '^[1-9][0-9]{0,9}$') | list | length == webmcp_interactive_holonet_writer_library_ids | length
+      - webmcp_interactive_holonet_writer_library_ids | length == 0 or '3' in webmcp_interactive_holonet_writer_library_ids
       - webmcp_interactive_holonet_writer_previous_policy_sha256 == '' or webmcp_interactive_holonet_writer_previous_policy_sha256 is match('^[0-9a-f]{64}$')
     quiet: true
 
@@ -53,8 +62,8 @@
 
 - name: Render only the public fixed writer policy
   ansible.builtin.set_fact:
-    # history_users is rendered only when nonempty, so the default bytes stay unchanged.
-    webmcp_interactive_holonet_writer_policy_public: "{{ ({'version': 1, 'owner': 'chaldea-fleet-config holonet recommendations', 'target_users': webmcp_interactive_holonet_writer_targets | sort} | combine({'history_users': webmcp_interactive_holonet_writer_history_users | sort} if webmcp_interactive_holonet_writer_history_users | length > 0 else {})) | to_nice_json }}\n"
+    # history_users and library_ids are rendered only when nonempty, so the default bytes stay unchanged.
+    webmcp_interactive_holonet_writer_policy_public: "{{ ({'version': 1, 'owner': 'chaldea-fleet-config holonet recommendations', 'target_users': webmcp_interactive_holonet_writer_targets | sort} | combine({'history_users': webmcp_interactive_holonet_writer_history_users | sort} if webmcp_interactive_holonet_writer_history_users | length > 0 else {}) | combine({'library_ids': webmcp_interactive_holonet_writer_library_ids | sort} if webmcp_interactive_holonet_writer_library_ids | length > 0 else {})) | to_nice_json }}\n"
 
 - name: Inspect writer policy custody without reading unqualified files
   ansible.builtin.stat:

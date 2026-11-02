@@ -17,6 +17,13 @@ const holonetWriterPolicyPath = "/etc/webmcp-interactive/holonet-recommendations
 const holonetWriterPolicyOwner = "chaldea-fleet-config holonet recommendations"
 
 var holonetTargetID = regexp.MustCompile("^[0-9a-f]{32}$")
+
+// Canonical decimal library IDs: no sign, no leading zero, no zero.
+var holonetLibraryID = regexp.MustCompile("^[1-9][0-9]{0,9}$")
+
+// The Movies library every reader and writer has always carried.
+const holonetDefaultLibrary = "3"
+
 var holonetWriterActions = []string{"catalog.read", "playlist.read", "playlist.manage", "object.share", "home.read", "home.manage", "object.delete"}
 
 // The issuer appends this one action after the exact writer tuple when the
@@ -24,20 +31,22 @@ var holonetWriterActions = []string{"catalog.read", "playlist.read", "playlist.m
 const holonetHistoryAction = "history.read"
 
 type holonetContract struct {
-	username, scope, namespace string
-	targets, history, actions  []string
-	writer                     bool
+	username, scope, namespace           string
+	targets, history, actions, libraries []string
+	writer                               bool
 }
 type holonetWriterPolicy struct {
-	Version int      `json:"version"`
-	Owner   string   `json:"owner"`
-	Targets []string `json:"target_users"`
-	History []string `json:"history_users,omitempty"`
+	Version   int      `json:"version"`
+	Owner     string   `json:"owner"`
+	Targets   []string `json:"target_users"`
+	History   []string `json:"history_users,omitempty"`
+	Libraries []string `json:"library_ids,omitempty"`
 }
 
 func holonetReaderContract() holonetContract {
 	return holonetContract{username: holonetUsername, scope: holonetScope, namespace: "movies-catalog",
-		targets: []string{}, history: []string{}, actions: []string{"catalog.read"}}
+		targets: []string{}, history: []string{}, actions: []string{"catalog.read"},
+		libraries: []string{holonetDefaultLibrary}}
 }
 
 // History authority comes only from the policy's explicit history_users, never
@@ -51,8 +60,16 @@ func holonetRecommendationContract(policy holonetWriterPolicy) holonetContract {
 	if len(history) > 0 {
 		actions = append(actions, holonetHistoryAction)
 	}
+	// An absent library_ids keeps the original Movies-only writer; the parser
+	// never lets a supplied empty set reach this point.
+	libraries := []string{holonetDefaultLibrary}
+	if len(policy.Libraries) > 0 {
+		libraries = append([]string{}, policy.Libraries...)
+		sort.Strings(libraries)
+	}
 	return holonetContract{username: holonetWriterUsername, scope: holonetWriterScope,
-		namespace: "managed-recommendations", targets: targets, history: history, actions: actions, writer: true}
+		namespace: "managed-recommendations", targets: targets, history: history, actions: actions,
+		libraries: libraries, writer: true}
 }
 func (c holonetContract) acceptScope(value string) bool {
 	if !c.writer {
@@ -93,15 +110,41 @@ func parseHolonetWriterPolicy(data []byte) (holonetWriterPolicy, error) {
 	if strictJSON(data, &shape) != nil || shape["version"] == nil || shape["owner"] == nil || shape["target_users"] == nil {
 		return holonetWriterPolicy{}, denied
 	}
-	// history_users is the only optional field; null never stands for empty.
-	history, hasHistory := shape["history_users"]
-	if len(shape) != 3 && !(hasHistory && len(shape) == 4) || hasHistory && (len(history) == 0 || history[0] != '[') {
-		return holonetWriterPolicy{}, denied
+	// history_users and library_ids are the only optional fields; exact names
+	// only (Go's decoder would fold case aliases), and null never stands for empty.
+	for name, raw := range shape {
+		switch name {
+		case "version", "owner", "target_users":
+		case "history_users", "library_ids":
+			if len(raw) == 0 || raw[0] != '[' {
+				return holonetWriterPolicy{}, denied
+			}
+		default:
+			return holonetWriterPolicy{}, denied
+		}
 	}
 	var policy holonetWriterPolicy
 	if strictJSON(data, &policy) != nil || policy.Version != 1 || policy.Owner != holonetWriterPolicyOwner ||
 		len(policy.Targets) < 1 || len(policy.Targets) > 16 {
 		return holonetWriterPolicy{}, denied
+	}
+	// A supplied set is explicit: never empty, at most three, and always
+	// including the Movies library so the original writer scope stays within it.
+	if _, hasLibraries := shape["library_ids"]; hasLibraries {
+		if len(policy.Libraries) < 1 || len(policy.Libraries) > 3 {
+			return holonetWriterPolicy{}, denied
+		}
+		libraries, movies := map[string]bool{}, false
+		for _, id := range policy.Libraries {
+			if !holonetLibraryID.MatchString(id) || libraries[id] {
+				return holonetWriterPolicy{}, denied
+			}
+			libraries[id] = true
+			movies = movies || id == holonetDefaultLibrary
+		}
+		if !movies {
+			return holonetWriterPolicy{}, denied
+		}
 	}
 	seen := map[string]bool{}
 	for _, id := range policy.Targets {
@@ -119,6 +162,7 @@ func parseHolonetWriterPolicy(data []byte) (holonetWriterPolicy, error) {
 	}
 	sort.Strings(policy.Targets)
 	sort.Strings(policy.History)
+	sort.Strings(policy.Libraries)
 	return policy, nil
 }
 func readHolonetWriterPolicy(path string) (holonetWriterPolicy, error) {
