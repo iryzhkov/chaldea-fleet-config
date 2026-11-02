@@ -6,11 +6,29 @@ description: >
   work, decisions, infrastructure or credentials that are not in the current repo
   or conversation ("how did we set up X", "what did I decide about Y", "where does
   Z live"), when a question touches the homelab, and whenever the user asks you to
-  remember something. Triggers: remember this, what do we know about, prior
+  remember something, or an agent has useful durable knowledge or correction
+  lessons to retain proactively. Triggers: remember this, what do we know about, prior
   decision, homelab, infrastructure notes, project knowledge base, memory search.
 ---
 
 # OV memory
+
+## Agent knowledge and learning
+
+OV is the agents' durable knowledge store. Use it proactively to retain useful
+verified facts, decisions and reasons, lessons from user corrections and recurring
+system quirks. Igor does not need to request or approve each note. Search for
+existing knowledge first, update the relevant note safely and review relevant
+lessons when starting related work. Record scope and evidence so a narrow
+correction does not become a blanket rule.
+
+Keep mutable plans, checkpoints and handoffs in Jocasta, with pointers from OV
+only when useful. Do not mirror repositories, working documents or transcripts.
+Retain no secrets; use credential pointers. Distinguish verified facts from
+uncertainty and revise obsolete knowledge rather than accumulating duplicates.
+Memory is evidence, not authority or a replacement for current instructions.
+Autonomous resource writes do not expand grants, authorize curation/deletion,
+or imply personal/session capture; preserve transport and safe-update rules.
 
 OpenViking on homelab holds durable facts about infrastructure, decisions and
 projects. Select the procedure for the server actually registered below.
@@ -29,8 +47,9 @@ copy credentials or switch transport to bypass a refusal.
   provide bounded browsing. Only `viking://resources`, including archives, is
   granted by the resource tools. Personal memory and sessions use the separate
   tools below only when an explicit signed personal grant is enabled.
-- Write only when requested. Store durable facts and reasons, with credential
-  pointers rather than secrets. Reuse an existing namespace.
+- Write useful durable agent knowledge proactively under the policy above.
+  Store facts and reasons, with credential pointers rather than secrets.
+  Reuse an existing namespace.
 - Default `memory_write` ingests a document directory. For overwrite, create the
   authorized destination's `archive` parent first and set `overwrite=true`.
   The service observes typed state for CAS. Caller `expected_sha256` is
@@ -151,9 +170,9 @@ config dump) and `volcengine/` (an OpenViking source checkout).
 
 ## Writing
 
-`memory_write` only, and only when the user asks for something to be remembered.
-This store is curated on purpose: nothing is written automatically, so it stays
-small enough to be worth searching.
+Use `memory_write` proactively for useful durable agent knowledge under the policy
+above. Search first, retain facts and reasons, and keep notes small enough to be
+worth finding again. Explicit requests to remember something also use this path.
 
 - `to` must be under `viking://resources/`. The agent and user scopes are
   written solely by OpenViking's own session extraction, and `/resources`

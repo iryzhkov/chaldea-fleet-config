@@ -17,9 +17,10 @@ This machine's agents share a long-term memory store (OpenViking on homelab), re
 through the registered OV tools. Claude and Codex use native HTTP server `ov` when
 present; other clients and hosts retain `ov-memory` stdio where registered. Follow the
 transport-specific procedure in the `ov-memory` skill; never use stdio to bypass an HTTP
-refusal. Search before answering past-work, infrastructure or decision questions; write
-only when asked. Record the fact and why it is
-true; store a pointer to a credential, never the secret.
+refusal. Search before answering past-work, infrastructure or decision questions.
+Use OV proactively for useful durable facts, decisions and lessons, including user
+corrections, without per-note approval. Record the fact, scope and why it is true;
+store a pointer to a credential, never the secret. Keep active task state in Jocasta.
 
 Namespaces, document shape and curation: the `ov-memory` and `ov-memory-curation` skills,
 or **~/.config/agents/ov-memory.md**.
@@ -81,6 +82,17 @@ Check live timer/service state and report source, merge/activation, installed an
 states separately for each host. An explicit instruction to keep work local takes precedence.
 
 ## Interactive work and delegation
+
+Use agent-workflow for nontrivial work with 3+ meaningful steps or architectural
+choices. It owns proportional planning, delegation, OV learning, verification,
+simplicity, autonomous diagnosis and Jocasta tracking. Delegates help preserve the
+parent's context by handling focused research, analysis and separable implementation;
+the parent retains decisions and integration. Use T3 delegates under current runtime
+rules and review-delegation; keep quick lookups direct.
+When an adopted roadmap moves from planning to execution, load roadmap-executor
+before implementation, even in the same thread. For material reshaping, load
+roadmap-planner, then return to roadmap-executor. Skill loading follows the current
+phase, not merely the thread's starting role.
 
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
 making decisions turn by turn. For requested work, record the plan in Jocasta when needed and execute

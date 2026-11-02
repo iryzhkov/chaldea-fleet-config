@@ -64,8 +64,12 @@ Cover these lenses (combine for small scopes):
 
 1. Scope and roadmap alignment: plan order, measured need, unused capabilities,
    budgets versus actuals, and Igor decisions missing from the plan.
-2. Logic duplication and ownership: repeated mechanisms, unjustified layers,
-   code in configuration repositories, and the smallest consolidation.
+2. Logic duplication, ownership and code elegance: repeated mechanisms, unjustified
+   layers, scattered knowledge, special-case patches and interfaces exposing internal
+   complexity. Ask whether a simpler coherent solution meets the same requirements;
+   propose the smallest consolidation, with current benefit, effort and risk.
+   Apply review-delegation's necessity rules and codebase-design when boundaries
+   matter. Personal taste and fewer lines alone do not establish a defect.
    Check whether existing configuration, pins or enrollment can meet the same
    requirement before accepting new processes, identities, state or publication paths.
 3. Cross-component consistency: protocols, configuration, paths, pins, defaults,

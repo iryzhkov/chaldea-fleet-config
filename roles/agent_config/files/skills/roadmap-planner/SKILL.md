@@ -10,6 +10,11 @@ description: >-
 
 # Plan an uncertain roadmap
 
+Apply agent-workflow's shared policy; this skill owns roadmap design. When the
+plan is adopted within existing authority and you start execution, load
+roadmap-executor before implementation, including in this same thread. Do not
+carry only the planning skill into execution.
+
 ## When to use
 
 - You are the primary agent creating or materially revising a multi-milestone

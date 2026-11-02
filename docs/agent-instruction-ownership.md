@@ -36,6 +36,23 @@ The laptop/reaper utilities, Claude settings and third-party skills list are
 preserved under tooling/legacy-bootstrap/. No task installs them in this change.
 Their historical tests and laptop isolation document travel with them.
 
+## Shared workflow ownership
+
+agent-workflow owns the common plan, delegate, learn, verify, simplify, diagnose
+and track policy. Shared MD entrypoints route nontrivial parent work there and
+explain why focused delegates help. roadmap-planner owns uncertain roadmap design;
+roadmap-executor owns adopted root execution; sub-roadmap-executor owns only an
+explicitly assigned milestone group. On planning-to-execution transitions, load
+the execution skill even in the same thread. Material reshaping returns through
+the planning skill without discarding authority or current execution state.
+
+Jocasta owns active plans, checkpoints and evidence links. OV is proactively
+available to agents for durable knowledge and lessons without per-note approval;
+ov-memory owns its transport, grants and safe updates. review-delegation owns
+briefs, routing and independent acceptance. Runtime rules still determine which
+native or T3 delegation seam is supported. Keep specialist mechanics in their
+owning skills rather than copying them into the shared workflow.
+
 ## Standing operator authority
 
 Igor adopted standing authority for agents to modify existing hosts and homelab

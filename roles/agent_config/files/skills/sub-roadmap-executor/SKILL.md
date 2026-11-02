@@ -8,6 +8,9 @@ description: >-
 
 # Execute a bounded milestone group
 
+Apply agent-workflow's shared policy within the assigned group. Material
+reshaping beyond the brief goes to the root; do not assume global planner rights.
+
 Use only when the root explicitly assigns this role. Read the relevant plan excerpt,
 acceptance criteria and exact evidence links in the brief, not the full global plan
 or checkpoint. The root owns global priorities, interfaces, authority, the global

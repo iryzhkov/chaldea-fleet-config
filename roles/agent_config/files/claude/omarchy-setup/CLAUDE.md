@@ -60,9 +60,10 @@ past decisions, infrastructure, a homelab service, a machine you cannot see, or 
 this up last time": `memory_search` for the concept, `memory_abstract` to triage a hit,
 `memory_read` only for what earns it.
 
-Write to OV with `memory_write` when the user asks for something to be remembered, into an
-existing namespace under `viking://resources/`. Record the fact and why it is true, in normal
-prose. Do not mirror what a repo, its git history or its CLAUDE.md already says; point at that
+Use OV proactively with `memory_write` for useful durable agent knowledge, including
+verified discoveries, decisions and lessons from user corrections, without per-note approval.
+Reuse an existing namespace under `viking://resources/`. Record the fact, scope and why it
+is true, in normal prose. Keep active plans and checkpoints in Jocasta. Do not mirror what a repo, its git history or its CLAUDE.md already says; point at that
 instead. For credentials, store a pointer, never the secret.
 
 Machine-local Claude memory at `~/.claude/projects/<slug>/memory/` is this machine's cache of
@@ -89,6 +90,17 @@ Never copy feed entries into OV as if they were established facts; promoting an 
 knowledge is a decision, not a sync.
 
 # Interactive work and delegation
+
+Use agent-workflow for nontrivial work with 3+ meaningful steps or architectural
+choices. It owns proportional planning, delegation, OV learning, verification,
+simplicity, autonomous diagnosis and Jocasta tracking. Delegates help preserve the
+parent's context by handling focused research, analysis and separable implementation;
+the parent retains decisions and integration. Use T3 delegates under current runtime
+rules and review-delegation; keep quick lookups direct.
+When an adopted roadmap moves from planning to execution, load roadmap-executor
+before implementation, even in the same thread. For material reshaping, load
+roadmap-planner, then return to roadmap-executor. Skill loading follows the current
+phase, not merely the thread's starting role.
 
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
 making decisions turn by turn. For requested work, record the plan in Jocasta when needed and execute
