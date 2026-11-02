@@ -13,7 +13,8 @@ profile. The actual node must be omarchy-macbook-air-igor and UID1001.
 ## Fixed identity and exact cohort
 
 The helper uses the existing chaldea-holonet issuer/client/resource and fixed
-server, Movies library3 and dedicated catalog principal. It requests all three
+server, Movies library3 (or the policy's explicit library_ids below) and
+dedicated catalog principal. It requests all three
 holonet.read/holonet.curate/holonet.home scopes for the separately enrolled
 chaldea-laptop-holonet-recommendations account. The credential path is
 ~/.config/chaldea/authentik/holonet-recommendations.app-password. It never reads
@@ -34,7 +35,8 @@ An exact independent recipient ceiling is needed without baking real user IDs
 into every binary release. The one fixed public policy
 /etc/webmcp-interactive/holonet-recommendations.json carries only version1,
 owner "chaldea-fleet-config holonet recommendations", and 1..16 unique hex32
-target_users, plus one optional field, history_users. The helper verifies its
+target_users, plus two optional fields, history_users and library_ids. The
+helper verifies its
 FD-held no-follow custody: root-owned nonwritable parents, root0644 single-link
 regular leaf, bounded bytes, strict JSON. The signed target set must equal this
 cohort; ordering is immaterial.
@@ -49,14 +51,29 @@ target, history, scope or credential selector. The policy contains no token,
 password, viewing data or media. Existing Jocasta private enrollment is not
 repurposed, and no broker, database, cache or daemon is added.
 
+library_ids, when present, must be a JSON array of 1..3 unique canonical
+decimal strings (no sign, leading zero, zero, whitespace or number type) that
+includes "3". Absent keeps the original Movies-only writer, which requires the
+signed holonet_libraries to be exactly ["3"]; a supplied empty array, null or
+any other type refuses. A present set admits a token only when its signed
+holonet_libraries set equals the policy set, ordering immaterial, with no
+duplicates, foreign, missing or extra IDs. The policy is the allowlist: the
+helper hardcodes no TV or anime library. The Movie/TV/anime opt-in is
+["3", "615", "1132"]. Libraries change no action, history, target, scope,
+account, credential or request field, and the ordinary catalog reader keeps
+exact library3, catalog.read and empty history.
+
 ## Explicit fleet selection
 
 Set webmcp_interactive_holonet_writer_enabled only in a reviewed operator
 selection, with webmcp_interactive_holonet_writer_targets and a reviewed helper
 artifact/pin that contains this mode. Defaults are false and an empty cohort.
-The laptop inventory maintains the existing writer with its seven recipients
-and scoped playback history. Merge that activation only after guarded helper
-installation and native qualification. The ordinary reader selection and
+The laptop inventory selects the existing writer with its seven recipients,
+scoped playback history, and explicit Movies3/Anime615/TV1132 library grant.
+The ordinary catalog reader remains Movies3-only. The selected ARM64 helper
+145463c7 is built from8bba68c in Chaldea4147b212. Merge this candidate activation
+only after guarded helper installation, matching issuer writer grant and
+native qualification; source selection alone is not installed-state evidence. The ordinary reader selection and
 holonet_catalog remain unchanged.
 
 webmcp_interactive_holonet_writer_history_users defaults to empty and is set
@@ -66,6 +83,15 @@ bytes are byte-identical to the earlier source. Opting in, and rolling back to
 empty, each replace the existing policy only through the previous-policy digest
 below. A helper release that predates history_users refuses a policy carrying
 it, so install the reviewed helper before rendering a nonempty history.
+
+webmcp_interactive_holonet_writer_library_ids likewise defaults to empty, which
+omits library_ids and keeps the default bytes. Otherwise it must be 2..3 unique
+canonical decimal strings including "3"; the role refuses ["3"] alone, since
+that equals the default and would only change bytes. The role validates it
+before any stat or write and renders it sorted. Opting in and rolling back use
+the same previous-policy digest. A helper release that predates library_ids
+refuses a policy carrying it, so install the reviewed helper first, and enroll
+the matching issuer writer grant before rendering the set.
 
 The role validates the cohort, history subset and separately delivered writer
 credential metadata before writes. It never reads or checksums that app password. Existing

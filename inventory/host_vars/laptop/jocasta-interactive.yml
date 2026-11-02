@@ -29,9 +29,9 @@ webmcp_interactive_ov_full_enabled: true
 # Go1.27.0 Linux/ARM64 build 2bab960a-881d-469a-b186-417dec2233e8.
 # Other hosts retain their architecture pins. Protected staging and the exact
 # previous-pin guard are private rollout inputs, never inventory selections.
-# Scoped HoloNet playback helper eab999a, Chaldea4fe55bc8 Linux/ARM64.
-# Activate only after the reviewed artifact is installed and native-qualified.
-webmcp_interactive_helper_sha256: d0d0ec1e701cea66364e426ff60a96986270d7585f548fd8753747373ca1dca2
+# Scoped HoloNet TV/Anime helper 8bba68c, Chaldea4147b212 Linux/ARM64.
+# Merge activation only after guarded install and native qualification.
+webmcp_interactive_helper_sha256: 145463c76cb4e15e3e37352d21bed0c531c0e20d69de7caef8f3c7389ed70682
 
 mcp_registrations_jocasta_interactive_state: present
 

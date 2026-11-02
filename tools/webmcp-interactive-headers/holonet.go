@@ -175,7 +175,7 @@ func validateHolonetFor(token string, keys []byte, now, start, expires int64, co
 			return denied
 		}
 	}
-	if !exactHolonetList(c, "holonet_libraries", []string{"3"}) ||
+	if !contract.exactSet(c, "holonet_libraries", contract.libraries) ||
 		!exactHolonetList(c, "holonet_catalog_users", []string{holonetUser}) ||
 		!contract.exactSet(c, "holonet_history_users", contract.history) ||
 		!contract.exactSet(c, "holonet_target_users", contract.targets) ||
