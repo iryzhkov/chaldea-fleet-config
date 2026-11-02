@@ -289,7 +289,7 @@ def test_actual_public_policy_check_apply_repeat_and_foreign_digest_refusal(tmp_
     # The library opt-in uses the same previous-digest guard, and invalid sets refuse before any write.
     assert run(webmcp_interactive_holonet_writer_library_ids=[], webmcp_interactive_holonet_writer_previous_policy_sha256=old_sha).returncode == 0
     assert desired.read_bytes() == policy_bytes()
-    for bad in (["615", "1132"], ["3"], ["03", "615"]):
+    for bad in (["615", "1132"], ["3"], ["03", "615"], ["3", "615\n"], ["3", "615\r\n"]):
         assert run(webmcp_interactive_holonet_writer_library_ids=bad, webmcp_interactive_holonet_writer_previous_policy_sha256=old_sha).returncode != 0
         assert desired.read_bytes() == policy_bytes()
     assert run(webmcp_interactive_holonet_writer_library_ids=SERIES).returncode != 0 and desired.read_bytes() == policy_bytes()
