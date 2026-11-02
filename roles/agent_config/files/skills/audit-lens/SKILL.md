@@ -31,6 +31,11 @@ For scope or duplication findings, apply review-delegation's necessity check to 
 existing path and proposed machinery. Verify the assumption that prevents reuse;
 distinguish Igor's explicit requirements from implementation choices and unknowns.
 Report contrary evidence through the lead without silently changing adopted decisions.
+For the assigned architecture/duplication lens, evaluate code elegance through
+clear interfaces, localized knowledge and fewer unnecessary layers or special cases.
+Use codebase-design when relevant. Name a concrete simpler alternative, the current
+benefit and migration risk; preserve behavior and established constraints. Personal
+taste, fewer lines or a speculative rewrite alone do not justify a finding.
 
 For delivery-friction findings, compare planned acceptance and actual useful outcomes.
 Separate queue/setup, test execution, review, CI, integration and deployment delays;

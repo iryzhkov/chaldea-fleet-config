@@ -108,6 +108,15 @@ other provider continue.
 
 ## Check necessity and complexity
 
+Apply agent-workflow's simplicity principle in this review. For substantial
+changes, ask whether a simpler, more coherent solution meets the same requirements.
+Inspect needless indirection, scattered knowledge, duplicated decisions, special-case
+patches and interfaces that expose internal complexity. Use codebase-design when
+module boundaries are relevant. Name the concrete simpler alternative, current
+benefit, effort and risk. Elegance is not fewer lines or personal taste.
+A finding blocks only under the existing citation/location rule; useful optional
+refactors remain follow-ups. Add no review round or rewrite gate.
+
 Separate explicit or established requirements, actual current constraints and optional
 design ideas. Optional improvements and imagined future scale do not become acceptance
 criteria. Choose the smallest sufficient implementation for the current outcome, reusing

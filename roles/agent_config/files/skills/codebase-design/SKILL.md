@@ -9,6 +9,12 @@ Design **deep modules**: a lot of behaviour behind a small interface, placed at 
 
 ## Check reuse before designing
 
+Apply agent-workflow's simplicity principle when comparing designs. Prefer a
+coherent solution that hides complexity, keeps knowledge local and removes
+unnecessary special cases while preserving required behavior. Compare a concrete
+simpler alternative against its change cost and risk. Extra abstractions and fewer
+lines alone do not establish elegance; keep small obvious fixes small.
+
 Trace the existing producer and consumer before proposing a new module. Compare
 configuration, version-pin and enrollment changes with the requested outcome.
 Separate verified constraints from assumptions; cite the unmet requirement before

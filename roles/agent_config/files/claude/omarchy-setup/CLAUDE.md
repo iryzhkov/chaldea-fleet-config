@@ -60,9 +60,10 @@ past decisions, infrastructure, a homelab service, a machine you cannot see, or 
 this up last time": `memory_search` for the concept, `memory_abstract` to triage a hit,
 `memory_read` only for what earns it.
 
-Write to OV with `memory_write` when the user asks for something to be remembered, into an
-existing namespace under `viking://resources/`. Record the fact and why it is true, in normal
-prose. Do not mirror what a repo, its git history or its CLAUDE.md already says; point at that
+Use OV proactively with `memory_write` for useful durable agent knowledge, including
+verified discoveries, decisions and lessons from user corrections, without per-note approval.
+Reuse an existing namespace under `viking://resources/`. Record the fact, scope and why it
+is true, in normal prose. Keep active plans and checkpoints in Jocasta. Do not mirror what a repo, its git history or its CLAUDE.md already says; point at that
 instead. For credentials, store a pointer, never the secret.
 
 Machine-local Claude memory at `~/.claude/projects/<slug>/memory/` is this machine's cache of
