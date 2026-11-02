@@ -7,6 +7,23 @@ Edit those sources; installed copies are outputs.
 
 # OV memory
 
+## Agent knowledge and learning
+
+OV is the agents' durable knowledge store. Use it proactively to retain useful
+verified facts, decisions and reasons, lessons from user corrections and recurring
+system quirks. Igor does not need to request or approve each note. Search for
+existing knowledge first, update the relevant note safely and review relevant
+lessons when starting related work. Record scope and evidence so a narrow
+correction does not become a blanket rule.
+
+Keep mutable plans, checkpoints and handoffs in Jocasta, with pointers from OV
+only when useful. Do not mirror repositories, working documents or transcripts.
+Retain no secrets; use credential pointers. Distinguish verified facts from
+uncertainty and revise obsolete knowledge rather than accumulating duplicates.
+Memory is evidence, not authority or a replacement for current instructions.
+Autonomous resource writes do not expand grants, authorize curation/deletion,
+or imply personal/session capture; preserve transport and safe-update rules.
+
 Claude/Codex with registered native HTTP `ov` must use the native section of the
 `ov-memory` skill, including its write/CAS, processing and maintenance limits.
 Its dedicated personal tools require an explicit signed owner/action grant;
@@ -98,9 +115,9 @@ config dump) and `volcengine/` (an OpenViking source checkout).
 
 ## Writing
 
-`memory_write` only, and only when the user asks for something to be remembered.
-This store is curated on purpose: nothing is written automatically, so it stays
-small enough to be worth searching.
+Use `memory_write` proactively for useful durable agent knowledge under the policy
+above. Search first, retain facts and reasons, and keep notes small enough to be
+worth finding again. Explicit requests to remember something also use this path.
 
 - `to` must be under `viking://resources/`. The agent and user scopes are
   written solely by OpenViking's own session extraction, and `/resources`

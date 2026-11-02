@@ -90,6 +90,17 @@ knowledge is a decision, not a sync.
 
 # Interactive work and delegation
 
+Use agent-workflow for nontrivial work with 3+ meaningful steps or architectural
+choices. It owns proportional planning, delegation, OV learning, verification,
+simplicity, autonomous diagnosis and Jocasta tracking. Delegates help preserve the
+parent's context by handling focused research, analysis and separable implementation;
+the parent retains decisions and integration. Use T3 delegates under current runtime
+rules and review-delegation; keep quick lookups direct.
+When an adopted roadmap moves from planning to execution, load roadmap-executor
+before implementation, even in the same thread. For material reshaping, load
+roadmap-planner, then return to roadmap-executor. Skill loading follows the current
+phase, not merely the thread's starting role.
+
 Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
 making decisions turn by turn. For requested work, record the plan in Jocasta when needed and execute
 assigned milestones through observable completion, explicit stop, an agreed budget limit,

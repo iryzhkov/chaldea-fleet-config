@@ -702,7 +702,8 @@ EXECUTOR_AUTONOMY_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_executor_autonomy.json").read_text())
 
 # Files added after the move have no pre-move bytes; they install unchanged.
-ADDED_FILES = {"skills/roadmap-planner/SKILL.md", "skills/sub-roadmap-executor/SKILL.md"}
+ADDED_FILES = {"skills/roadmap-planner/SKILL.md", "skills/sub-roadmap-executor/SKILL.md",
+               "skills/agent-workflow/SKILL.md"}
 
 
 HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetch the full current Jocasta guide\n`tooling/guides/web-mcp-authentik-authoring-2026-10-19.md`\n(initial validated revision `jocasta:38a63cf8918eebae2dd7c8911eacd89c@1`).\nIt covers Authentik token verification, resource ACLs, protected credential helpers,\nTraefik HTTPS and native-client acceptance checks. Preserve its tested/unqualified\nboundaries; the guide does not grant enrollment or deployment authority.\n\n"
@@ -760,7 +761,17 @@ OV_PERSONAL_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_ov_personal.json").read_text())
 
 
+# Unified workflow and proactive OV use requested by Igor, 2026-11-02.
+# Reverse only this layer; preserve every historical baseline and assertion.
+WORKFLOW_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_workflow.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(WORKFLOW_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(OV_PERSONAL_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative

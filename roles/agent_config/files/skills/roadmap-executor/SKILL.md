@@ -10,6 +10,11 @@ description: >-
 
 # Execute the adopted roadmap
 
+Apply agent-workflow's shared policy; this skill owns root execution. Load it
+when moving from planning to execution even in the same thread. If evidence
+requires material roadmap reshaping, load roadmap-planner, reconcile the plan,
+then return here before continuing dependent implementation.
+
 Use this while executing an adopted roadmap as its root orchestrator, owning global
 priorities, shared interfaces, cross-group integration, authority and the global checkpoint.
 Ordinary interactive parent work does not require this skill merely because it delegates
