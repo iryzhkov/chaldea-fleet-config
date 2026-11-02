@@ -16,3 +16,5 @@ webmcp_interactive_holonet_writer_targets:
   - db2f3bfb1f84438ebcde94f228183011
   - e05efa68303043b893b0f5c2e200ccd7
 webmcp_interactive_holonet_writer_history_users: "{{ webmcp_interactive_holonet_writer_targets }}"
+# Existing writer only: Movies, Anime and TV shows. Ordinary reader stays Movies-only.
+webmcp_interactive_holonet_writer_library_ids: ["3", "615", "1132"]

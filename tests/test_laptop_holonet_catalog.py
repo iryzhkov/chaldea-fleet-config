@@ -135,7 +135,9 @@ def test_bindings_are_actual_and_share_nothing_with_jocasta():
     assert set(ordinary_vars) == {"webmcp_interactive_holonet_enabled",
                                   "webmcp_interactive_holonet_writer_enabled",
                                   "webmcp_interactive_holonet_writer_targets",
-                                  "webmcp_interactive_holonet_writer_history_users"}
+                                  "webmcp_interactive_holonet_writer_history_users",
+                                  "webmcp_interactive_holonet_writer_library_ids"}
+    assert ordinary_vars["webmcp_interactive_holonet_writer_library_ids"] == ["3", "615", "1132"]
     # Only the laptop carries either HoloNet input.
     for path in (ROOT / "inventory").rglob("*.yml"):
         if path not in {INPUT, ordinary, ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml"}:
