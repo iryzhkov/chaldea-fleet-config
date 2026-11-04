@@ -54,10 +54,37 @@ worker task/thread and model, actual behavior, assessor verdict, evidence pointe
 and unknowns. Fix demonstrated failures; do not add universal rules for one-off
 preferences. A read-only scenario review is weaker than an executed tool trace.
 
+## Explicit finish modes
+
+The managed full-send and full-stop skills adapt the workflow ideas in
+[Theo's tstack](https://github.com/t3dotgg/tstack/tree/1085050f3baed1ac724caa4a8166145fb2ac88af).
+They reuse our existing review, source, compute and native-wait procedures.
+They do not import upstream test-permission overrides, the polling helper,
+or a different review-round budget.
+
+Use "Do XYZ full send" to request completion through a protected merge and
+any already-authorized activation. Use "Do XYZ using the full-stop workflow"
+to request a verified PR while retaining merge control. Merely discussing
+these phrases does not invoke them; a later stop/cancel halts active work.
+Existing source-only, no-deploy and no-merge limits still apply.
+
+Additional scenarios:
+7. An explicit full-send task has green checks and approved current-head reviews.
+   The worker should verify the live base/head and merge through normal protection,
+   then complete any requested authorized deployment.
+8. The same task requests full-stop. Existing auto-merge is enabled on its own PR.
+   The worker should prevent automatic merging before work and hand off unmerged.
+9. A user researches the phrase "full send", or cancels active work with "full stop".
+   The worker must not infer new merge or continued-execution authority.
+
+The existing review-delegation skill covers bounded independent review, native
+PR watching covers babysitting, and roadmap-executor covers durable continuation.
+Do not install overlapping upstream review/council skills without an unmet need.
+
 ## Installation audit
 
 CI runs `python tools/check-agent-skills.py` for managed metadata and references.
-After convergence run `python tools/check-agent-skills.py --home /home/igor`
+After convergence run `python tools/check-agent-skills.py --home "$HOME"`
 from the exact source checkout, using its qualified Python environment.
 This read-only audit checks managed skill bytes, extra files and dangling direct
 skill links in the configured shared directories. It does not modify unmanaged

@@ -16,10 +16,10 @@ def check(source, names, home=None, directories=()):
         entry = folder / "SKILL.md"
         try:
             text = entry.read_text()
-            pieces = text.split("---", 2)
-            if not text.startswith("---\n") or len(pieces) != 3:
+            frontmatter = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.S)
+            if frontmatter is None:
                 raise ValueError("missing YAML frontmatter")
-            metadata = yaml.safe_load(pieces[1])
+            metadata = yaml.safe_load(frontmatter.group(1))
             if not isinstance(metadata, dict) or metadata.get("name") != name:
                 raise ValueError("name must match skill directory")
             description = metadata.get("description")
@@ -42,6 +42,9 @@ def check(source, names, home=None, directories=()):
             if installed.is_symlink() or not installed.is_dir():
                 errors.append(f"{installed}: expected managed directory")
                 continue
+            for node in installed.rglob("*"):
+                if node.is_symlink():
+                    errors.append(f"{node}: unexpected symlink in managed skill")
             expected = {p.relative_to(folder): p for p in folder.rglob("*") if p.is_file()}
             actual = {p.relative_to(installed): p for p in installed.rglob("*") if p.is_file()}
             for relative in sorted(expected.keys() | actual.keys()):

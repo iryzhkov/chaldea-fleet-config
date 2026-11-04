@@ -704,7 +704,8 @@ EXECUTOR_AUTONOMY_CHANGES = json.loads(
 # Files added after the move have no pre-move bytes; they install unchanged.
 ADDED_FILES = {"skills/roadmap-planner/SKILL.md", "skills/sub-roadmap-executor/SKILL.md",
                "skills/agent-workflow/SKILL.md",
-               "skills/agent-workflow/references/interactive-runtime.md"}
+               "skills/agent-workflow/references/interactive-runtime.md",
+               "skills/full-send/SKILL.md", "skills/full-stop/SKILL.md"}
 
 
 HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetch the full current Jocasta guide\n`tooling/guides/web-mcp-authentik-authoring-2026-10-19.md`\n(initial validated revision `jocasta:38a63cf8918eebae2dd7c8911eacd89c@1`).\nIt covers Authentik token verification, resource ACLs, protected credential helpers,\nTraefik HTTPS and native-client acceptance checks. Preserve its tested/unqualified\nboundaries; the guide does not grant enrollment or deployment authority.\n\n"

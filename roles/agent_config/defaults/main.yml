@@ -40,6 +40,8 @@ agent_config_skills:
   - codebase-design
   - diagnosing-bugs
   - fleet-rollout
+  - full-send
+  - full-stop
   - grilling
   - huyang
   - ov-memory

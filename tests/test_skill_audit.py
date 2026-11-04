@@ -32,5 +32,9 @@ def test_drift_and_missing_reference(tmp_path):
     assert not audit.check(source, ["sample"], home, [".agents/skills"])
     (installed / "SKILL.md").write_text("changed")
     assert any("differs" in error for error in audit.check(source, ["sample"], home, [".agents/skills"]))
+    (installed / "dangling").symlink_to("missing")
+    (installed / "directory-link").symlink_to(folder, target_is_directory=True)
+    errors = audit.check(source, ["sample"], home, [".agents/skills"])
+    assert sum("unexpected symlink" in error for error in errors) == 2
     entry.write_text(entry.read_text() + "[required](references/missing.md)\n")
     assert any("missing or escaping" in error for error in audit.check(source, ["sample"]))
