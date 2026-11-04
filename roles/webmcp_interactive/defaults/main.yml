@@ -19,6 +19,8 @@ webmcp_interactive_ov_enabled: false
 webmcp_interactive_holonet_enabled: false
 # Independent writer capability; no inventory opts in. The root-owned public
 # policy supplies the exact cohort and never contains a password or token.
+# Fixed read-only janitor mode reuses the existing writer credential in place.
+webmcp_interactive_holonet_janitor_enabled: false
 webmcp_interactive_holonet_writer_enabled: false
 webmcp_interactive_holonet_writer_targets: []
 # Optional scoped playback history: an explicit subset of the targets above.
