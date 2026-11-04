@@ -13,7 +13,7 @@ Mentioning or researching this skill does not invoke it.
 Never merge, push to the default branch, enable auto-merge, enqueue a merge or
 delegate those actions. For a PR this task owns, disable pre-existing auto-merge
 and remove it from a merge queue before proceeding; verify again before pushing
-and at handoff. If that cannot be done, stop dependent mutations and report the
+and at handoff. Report auto-merge or queue settings changed. If that cannot be done, stop dependent mutations and report the
 blocker. Do not modify an unrelated PR's settings.
 
 Stop at full-send's gate with the PR open and unmerged. State whether it is ready,

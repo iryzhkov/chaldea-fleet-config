@@ -705,7 +705,8 @@ EXECUTOR_AUTONOMY_CHANGES = json.loads(
 ADDED_FILES = {"skills/roadmap-planner/SKILL.md", "skills/sub-roadmap-executor/SKILL.md",
                "skills/agent-workflow/SKILL.md",
                "skills/agent-workflow/references/interactive-runtime.md",
-               "skills/full-send/SKILL.md", "skills/full-stop/SKILL.md"}
+               "skills/full-send/SKILL.md", "skills/full-stop/SKILL.md",
+               "skills/review-delegation/references/pr-delivery.md"}
 
 
 HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetch the full current Jocasta guide\n`tooling/guides/web-mcp-authentik-authoring-2026-10-19.md`\n(initial validated revision `jocasta:38a63cf8918eebae2dd7c8911eacd89c@1`).\nIt covers Authentik token verification, resource ACLs, protected credential helpers,\nTraefik HTTPS and native-client acceptance checks. Preserve its tested/unqualified\nboundaries; the guide does not grant enrollment or deployment authority.\n\n"
@@ -773,7 +774,15 @@ COMPACT_RUNTIME = json.loads(
     (ROOT / "tests/fixtures/agent_config_compact_runtime.json").read_text())
 
 
+DELIVERY_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_pr_delivery.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(DELIVERY_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     if relative in COMPACT_RUNTIME["paths"]:
         before, after = (COMPACT_RUNTIME[key].encode() for key in ("before", "after"))
         assert data.count(after) == 1, relative

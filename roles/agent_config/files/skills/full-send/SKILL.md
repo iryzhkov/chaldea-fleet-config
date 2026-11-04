@@ -16,6 +16,7 @@ when the gate below passes. Carry existing deployment authority through to the
 requested installed and verified outcome. Do not infer authority for unrelated
 production changes, destructive data loss, new cost or access/security changes.
 Existing explicit source-only, no-deploy or no-merge restrictions remain binding.
+Where merge activates pull timers, source-only or no-deploy also excludes merge.
 Resolve genuinely conflicting requested outcomes before the dependent action.
 
 ## Execute to the outcome
@@ -32,7 +33,8 @@ Resolve genuinely conflicting requested outcomes before the dependent action.
    Follow the runtime's available browser and tool rules; this skill overrides none.
 4. Obtain independent acceptance under review-delegation's current routing, pair,
    quota, evidence and fix-round rules. Do not add a second competing review loop.
-5. File or update a concise PR explaining the problem, result and verification.
+5. Follow review-delegation's PR delivery reference for a concise PR explaining
+   the problem, result and verification, and for a merge pinned to the checked head.
    Link it to the current T3 thread immediately. Preserve contributor credit.
 6. Handle existing CI and review findings. While waiting for actual dependencies,
    use native child completion or watch_pull_request and end the turn as required.
