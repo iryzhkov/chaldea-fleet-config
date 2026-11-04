@@ -31,9 +31,9 @@ var holonetWriterActions = []string{"catalog.read", "playlist.read", "playlist.m
 const holonetHistoryAction = "history.read"
 
 type holonetContract struct {
-	username, scope, namespace           string
-	targets, history, actions, libraries []string
-	writer                               bool
+	username, scope, namespace                    string
+	targets, history, actions, libraries, catalog []string
+	writer                                        bool
 }
 type holonetWriterPolicy struct {
 	Version   int      `json:"version"`
@@ -46,7 +46,7 @@ type holonetWriterPolicy struct {
 func holonetReaderContract() holonetContract {
 	return holonetContract{username: holonetUsername, scope: holonetScope, namespace: "movies-catalog",
 		targets: []string{}, history: []string{}, actions: []string{"catalog.read"},
-		libraries: []string{holonetDefaultLibrary}}
+		libraries: []string{holonetDefaultLibrary}, catalog: []string{holonetUser}}
 }
 
 // History authority comes only from the policy's explicit history_users, never
@@ -69,18 +69,20 @@ func holonetRecommendationContract(policy holonetWriterPolicy) holonetContract {
 	}
 	return holonetContract{username: holonetWriterUsername, scope: holonetWriterScope,
 		namespace: "managed-recommendations", targets: targets, history: history, actions: actions,
-		libraries: libraries, writer: true}
+		libraries: libraries, catalog: []string{holonetUser}, writer: true}
 }
 func (c holonetContract) acceptScope(value string) bool {
 	if !c.writer {
 		return value == c.scope
 	}
 	fields := strings.Fields(value)
-	if len(fields) != 3 || strings.Join(fields, " ") != value {
+	if len(fields) != len(strings.Fields(c.scope)) || strings.Join(fields, " ") != value {
 		return false
 	}
 	sort.Strings(fields)
-	return strings.Join(fields, " ") == "holonet.curate holonet.home holonet.read"
+	expected := strings.Fields(c.scope)
+	sort.Strings(expected)
+	return strings.Join(fields, " ") == strings.Join(expected, " ")
 }
 
 // A writer's signed recipient sets must equal the policy sets in any order;

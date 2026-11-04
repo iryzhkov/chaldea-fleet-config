@@ -118,6 +118,8 @@ func main() {
 		holonetMode()
 	case "holonet-writer":
 		holonetWriterMode()
+	case "holonet-janitor":
+		holonetJanitorMode()
 	default:
 		fail()
 	}
@@ -136,6 +138,9 @@ func selectMode(args []string) string {
 	}
 	if args[0] == "holonet-writer" && args[1] == "laptop" {
 		return "holonet-writer"
+	}
+	if args[0] == "holonet-janitor" && args[1] == "laptop" {
+		return "holonet-janitor"
 	}
 	if args[0] == "ov" && args[1] == "laptop" {
 		return "ov"
