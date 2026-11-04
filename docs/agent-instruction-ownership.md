@@ -18,7 +18,10 @@ See [the plugin contract](opencode-huyang-profiles.md).
 Fleet skills install in ~/.claude/skills and ~/.agents/skills. Existing unrelated
 skills stay unmanaged. Retirement remains limited to find-skills,
 improve-codebase-architecture, domain-modeling, prototype, code-review and
-implementation-session. Safety-critical-code and unslop retain their validated
+implementation-session. Exact relative Claude aliases to these retired shared
+paths are removed only when their shared counterpart is absent or is a real
+retired directory removed by the same run. Other symlinks and regular files stay.
+Safety-critical-code and unslop retain their validated
 matching-tree migrations. Five additional links migrate only on laptop, from
 .claude/skills/{codebase-design,diagnosing-bugs,grilling,resolving-merge-conflicts,tdd}
 to the corresponding exact relative ../../.agents/skills/NAME target. Their
@@ -52,6 +55,15 @@ ov-memory owns its transport, grants and safe updates. review-delegation owns
 briefs, routing and independent acceptance. Runtime rules still determine which
 native or T3 delegation seam is supported. Keep specialist mechanics in their
 owning skills rather than copying them into the shared workflow.
+
+The three global entrypoints now route conditional T3 details to
+skills/agent-workflow/references/interactive-runtime.md rather than embedding
+three copies. This reference preserves the prior requirements byte for byte;
+the compact-runtime fixture reverses the routing change before historical checks.
+Standing authority and core source/build boundaries remain in each entrypoint.
+See [guidance evaluation](agent-guidance-evaluation.md) for installation auditing,
+telemetry coverage limits and behavior scenarios. No call-count target or
+per-task memory-write quota is introduced.
 
 ## Standing operator authority
 

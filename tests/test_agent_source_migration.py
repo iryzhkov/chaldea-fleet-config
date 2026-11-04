@@ -703,7 +703,8 @@ EXECUTOR_AUTONOMY_CHANGES = json.loads(
 
 # Files added after the move have no pre-move bytes; they install unchanged.
 ADDED_FILES = {"skills/roadmap-planner/SKILL.md", "skills/sub-roadmap-executor/SKILL.md",
-               "skills/agent-workflow/SKILL.md"}
+               "skills/agent-workflow/SKILL.md",
+               "skills/agent-workflow/references/interactive-runtime.md"}
 
 
 HTTP_MCP_AUTHORING_BODY = "Before building or migrating an HTTP MCP server, fetch the full current Jocasta guide\n`tooling/guides/web-mcp-authentik-authoring-2026-10-19.md`\n(initial validated revision `jocasta:38a63cf8918eebae2dd7c8911eacd89c@1`).\nIt covers Authentik token verification, resource ACLs, protected credential helpers,\nTraefik HTTPS and native-client acceptance checks. Preserve its tested/unqualified\nboundaries; the guide does not grant enrollment or deployment authority.\n\n"
@@ -767,7 +768,15 @@ WORKFLOW_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_workflow.json").read_text())
 
 
+COMPACT_RUNTIME = json.loads(
+    (ROOT / "tests/fixtures/agent_config_compact_runtime.json").read_text())
+
+
 def old_bytes(relative, data):
+    if relative in COMPACT_RUNTIME["paths"]:
+        before, after = (COMPACT_RUNTIME[key].encode() for key in ("before", "after"))
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(WORKFLOW_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
@@ -926,6 +935,13 @@ def assert_delegation_contract(read):
     """The three instruction entry points and installed skills must agree."""
     instructions = [read(path) for path in (
         "agents/AGENTS.md", "codex/AGENTS.md", "claude/omarchy-setup/CLAUDE.md")]
+    runtime = read("skills/agent-workflow/references/interactive-runtime.md")
+    assert COMPACT_RUNTIME["before"] in runtime
+    for text in instructions:
+        assert COMPACT_RUNTIME["after"] in text
+        assert "references/interactive-runtime.md" in text
+    instructions = [text.replace(COMPACT_RUNTIME["after"], COMPACT_RUNTIME["before"], 1)
+                    for text in instructions]
     execution = [text.split("Work happens in interactive T3 sessions.", 1)[1]
                  .split("Before each T3 `delegate_task`", 1)[0] for text in instructions]
     assert execution[0] == execution[1] == execution[2]
