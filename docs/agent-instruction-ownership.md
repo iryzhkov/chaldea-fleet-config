@@ -26,7 +26,11 @@ matching-tree migrations. Five additional links migrate only on laptop, from
 .claude/skills/{codebase-design,diagnosing-bugs,grilling,resolving-merge-conflicts,tdd}
 to the corresponding exact relative ../../.agents/skills/NAME target. Their
 ancestors and complete trees must be real, owned directories/files and match
-source recursively before any unlink. Mismatches stop all migrations. The separately
+source recursively before any unlink. The resolving-merge-conflicts alias also
+accepts its exact previous canonical one-file tree, SHA-256
+9d8114f8ef0b31f535a265fc05c364bd8cf2e2895a830040e06c22acb11f54b0,
+under the same laptop path, ownership and nested-link guards. Extra files or
+unknown edits stop every migration before unlinking. The separately
 approved TDD backup/restoration is explicit, never part of an ordinary converge;
 see [the restoration procedure](laptop-guidance-restoration.md).
 
