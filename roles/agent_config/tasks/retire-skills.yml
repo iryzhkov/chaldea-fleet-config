@@ -1,5 +1,5 @@
 ---
-# Exact retirement list only; unmanaged skills and final-component symlinks stay.
+# Exact retirement list only; preserve unmanaged skills and unrelated symlinks.
 - name: Inspect retired skill paths without following symlinks
   ansible.builtin.stat:
     path: "{{ fleet_home }}/{{ item.0 }}/{{ item.1 }}"
@@ -23,3 +23,25 @@
   loop: "{{ agent_config_retired_paths.results }}"
   loop_control:
     label: "~/{{ item.item.0 }}/{{ item.item.1 }}"
+
+- name: Remove only retired Claude links to absent retired shared skills
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.claude/skills/{{ item.item.1 }}"
+    state: absent
+    follow: false
+  vars:
+    agent_config_retired_shared: >-
+      {{ agent_config_retired_paths.results
+         | selectattr('item.0', 'equalto', '.agents/skills')
+         | selectattr('item.1', 'equalto', item.item.1) | first }}
+  when:
+    - item.item.0 == '.claude/skills'
+    - item.stat.islnk | default(false)
+    - item.stat.lnk_target == '../../.agents/skills/' ~ item.item.1
+    - >-
+      not (agent_config_retired_shared.stat.exists | default(false)) or
+      ((agent_config_retired_shared.stat.isdir | default(false)) and
+       not (agent_config_retired_shared.stat.islnk | default(false)))
+  loop: "{{ agent_config_retired_paths.results }}"
+  loop_control:
+    label: "~/.claude/skills/{{ item.item.1 }}"

@@ -31,7 +31,7 @@ agent_config_files:
   - {src: bin/opencode, dest: .local/bin/opencode, mode: "0755"}
 
 # Fleet-owned skills. Other CLI-installed skills and symlinks stay unmanaged,
-# except the exact retirement list and the seven validated laptop link migrations.
+# except exact retired directories/obsolete shared aliases and validated laptop links.
 agent_config_skills:
   - agent-workflow
   - audit-lens
@@ -40,6 +40,8 @@ agent_config_skills:
   - codebase-design
   - diagnosing-bugs
   - fleet-rollout
+  - full-send
+  - full-stop
   - grilling
   - huyang
   - ov-memory
