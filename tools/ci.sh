@@ -61,6 +61,8 @@ reset_home() {
 
 export HUYANG_PLUGIN_SOURCE="$PWD/roles/agent_config/files/opencode/huyang-profiles.js"
 
+python tools/check-agent-skills.py
+
 # Whole-file lanes avoid shared-HOME concurrency and keep parameterized cases intact.
 # The remainder collects tests recursively, so new files are included automatically.
 skill_tests=(tests/test_agent_skills.py tests/test_laptop_skill_links.py)

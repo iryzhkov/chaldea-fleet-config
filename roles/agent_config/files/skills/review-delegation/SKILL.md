@@ -35,6 +35,11 @@ OpenCode models are not used for reviews. Reviews stay within the brief. Preserv
 each reviewer's exact task/thread IDs, model, verdict and reviewed commit under
 "Preserve review notes". Give a short verdict and receipt link in chat.
 
+Before requesting review, fix known in-scope defects and run relevant checks.
+Do not spend a round rediscovering an established failure. When filing, taking
+over, reviving or responding on a PR, read
+[PR delivery](references/pr-delivery.md).
+
 ## How to run a round
 
 Before each delegation, call FATE through `chaldea_route` or
@@ -171,6 +176,11 @@ linked PRs across repositories. Batching never waives exact-head review or requi
   Igor.
 - The author may dispute a finding with a reason. Disputes go to a
   critical-review model or to Igor, not to another round of the same reviewer.
+
+Maintain stable finding IDs across rounds. Record each as fixed, disputed or
+deferred with evidence and a reason. Rechecks focus on changed code and open
+findings while retaining the original acceptance criteria. Do not change code
+merely to obtain agreement or turn preferences into requirements.
 
 ## Preserve review notes
 

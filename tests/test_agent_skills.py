@@ -97,6 +97,32 @@ def test_retire_only_exact_real_directories():
     assert all((home / DIRECTORIES[0] / name).read_text() == "not a directory" for name in RETIRED)
 
 
+@pytest.mark.parametrize("counterpart", ["absent", "directory", "symlink"])
+def test_retire_exact_shared_aliases(counterpart):
+    home = scratch() / "fleet"
+    claude = home / ".claude/skills"
+    agents = home / ".agents/skills"
+    claude.mkdir(parents=True)
+    agents.mkdir(parents=True)
+    protected = scratch() / "protected"
+    protected.mkdir()
+    (protected / "keep").write_text("preserve")
+    for name in RETIRED:
+        (claude / name).symlink_to("../../.agents/skills/" + name)
+        if counterpart == "directory":
+            (agents / name).mkdir()
+        elif counterpart == "symlink":
+            (agents / name).symlink_to(protected)
+    (claude / "unmanaged").symlink_to("../../.agents/skills/missing")
+    run_role(home, "retire-skills", check=True)
+    assert all((claude / name).is_symlink() for name in RETIRED)
+    run_role(home, "retire-skills")
+    assert all((claude / name).is_symlink() == (counterpart == "symlink") for name in RETIRED)
+    assert (claude / "unmanaged").is_symlink()
+    assert (protected / "keep").read_text() == "preserve"
+    assert re.search(r"changed=0\s", run_role(home, "retire-skills"))
+
+
 def laptop_layout():
     home = scratch() / "fleet"
     claude = home / ".claude/skills"
