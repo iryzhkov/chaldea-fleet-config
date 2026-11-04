@@ -27,9 +27,11 @@ matching-tree migrations. Five additional links migrate only on laptop, from
 to the corresponding exact relative ../../.agents/skills/NAME target. Their
 ancestors and complete trees must be real, owned directories/files and match
 source recursively before any unlink. The resolving-merge-conflicts alias also
-accepts its exact previous canonical one-file tree, SHA-256
-9d8114f8ef0b31f535a265fc05c364bd8cf2e2895a830040e06c22acb11f54b0,
-under the same laptop path, ownership and nested-link guards. Extra files or
+accepts its complete previous canonical tree from base 82f3c9e, retained in
+roles/agent_config/fixtures/conflict-skill-82f3c9e, including agents/openai.yaml.
+The SKILL.md SHA-256 is
+9d8114f8ef0b31f535a265fc05c364bd8cf2e2895a830040e06c22acb11f54b0.
+The same laptop path, ownership and nested-link guards apply. Extra files or
 unknown edits stop every migration before unlinking. The separately
 approved TDD backup/restoration is explicit, never part of an ordinary converge;
 see [the restoration procedure](laptop-guidance-restoration.md).

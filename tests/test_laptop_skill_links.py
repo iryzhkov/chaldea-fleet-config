@@ -29,20 +29,26 @@ def layout(legacy=False):
     return home, claude, agents, store
 
 
-@pytest.mark.parametrize("difference", ["known", "modified", "extra", "nested-link"])
+@pytest.mark.parametrize("difference", ["known", "modified", "extra", "nested-link", "modified-metadata", "missing-metadata"])
 def test_historical_conflict_skill_upgrade(difference):
     home, claude, agents, store = layout()
     fixture = json.loads((Path(__file__).parent / "fixtures/agent_config_pr_delivery.json").read_text())
     historical = fixture["skills/resolving-merge-conflicts/SKILL.md"][0][0].encode()
     assert hashlib.sha256(historical).hexdigest() == "9d8114f8ef0b31f535a265fc05c364bd8cf2e2895a830040e06c22acb11f54b0"
     target = agents / "resolving-merge-conflicts"
-    (target / "SKILL.md").write_bytes(historical)
+    shutil.rmtree(target)
+    shutil.copytree(SKILLS.parents[1] / "fixtures/conflict-skill-82f3c9e", target)
+    assert (target / "SKILL.md").read_bytes() == historical
     if difference == "modified":
         (target / "SKILL.md").write_bytes(historical + b"local edit")
     elif difference == "extra":
         (target / "local.md").write_text("preserve")
     elif difference == "nested-link":
         (target / "linked").symlink_to(store, target_is_directory=True)
+    elif difference == "modified-metadata":
+        (target / "agents/openai.yaml").write_text("local metadata")
+    elif difference == "missing-metadata":
+        (target / "agents/openai.yaml").unlink()
     before = tree(agents)
     succeeds = difference == "known"
     run_role(home, "install-skills", skills=NAMES, host="laptop", check=True, succeeds=succeeds)

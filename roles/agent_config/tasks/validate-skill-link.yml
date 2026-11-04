@@ -37,16 +37,26 @@
   changed_when: false
   check_mode: false
 
-# Only the recorded one-file conflict skill may transition from its previous
-# canonical bytes. Existing owner, ancestor and nested-link guards still apply.
-- name: Inspect the known historical conflict skill without following links
-  ansible.builtin.stat:
-    path: "{{ fleet_home }}/.agents/skills/resolving-merge-conflicts/SKILL.md"
-    follow: false
-    checksum_algorithm: sha256
-  register: agent_config_skill_legacy_entry
+# The complete previous canonical tree is a pinned migration fixture, including
+# UI metadata. Existing owner, ancestor and nested-link guards still apply.
+- name: Compare the recorded historical conflict skill tree
+  ansible.builtin.command:
+    argv:
+      - diff
+      - --brief
+      - --recursive
+      - --no-dereference
+      - --
+      - "{{ role_path }}/fixtures/conflict-skill-82f3c9e"
+      - "{{ agent_config_skill_link.stat.lnk_source }}"
+  register: agent_config_skill_legacy_comparison
+  failed_when: agent_config_skill_legacy_comparison.rc not in [0, 1]
+  changed_when: false
+  check_mode: false
   when:
     - agent_config_skill_link_comparison.rc == 1
+    - inventory_hostname == 'laptop'
+    - agent_config_skill_link.item.0 == '.claude/skills'
     - agent_config_skill_link.item.1 == 'resolving-merge-conflicts'
 
 - name: Require current source or the exact historical conflict skill tree
@@ -54,13 +64,6 @@
     that:
       - >-
         agent_config_skill_link_comparison.rc == 0 or
-        (inventory_hostname == 'laptop' and
-         agent_config_skill_link.item.0 == '.claude/skills' and
-         agent_config_skill_link.item.1 == 'resolving-merge-conflicts' and
-         (agent_config_managed_link_tree.files | length) == 1 and
-         (agent_config_skill_legacy_entry.stat.isreg | default(false)) and
-         not (agent_config_skill_legacy_entry.stat.islnk | default(false)) and
-         (agent_config_skill_legacy_entry.stat.checksum | default('')) ==
-         '9d8114f8ef0b31f535a265fc05c364bd8cf2e2895a830040e06c22acb11f54b0')
+        (agent_config_skill_legacy_comparison.rc | default(-1)) == 0
     fail_msg: "Skill target differs from managed source and the exact approved historical tree; stopping."
     quiet: true
