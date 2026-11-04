@@ -56,15 +56,22 @@ def test_shared_collector_selection_preserves_enrollment_inventory():
     assert inventory["laptop"]["expected_hostname"] == "omarchy-macbook-air-igor"
     normal = hostvars("inventory/hosts.yml")
     for host in ("agent-a", "agent-b", "omarchy-pc", "laptop"):
-        assert normal[host]["akasha_collector_version"] == "host-v0.2.10"
-        assert normal[host]["akasha_collector_script"] == "/opt/chaldea-host/releases/{{ akasha_collector_version }}/host/akasha-collector.mjs"
+        assert normal[host]["akasha_collector_version"] == "host-v0.2.16"
+        assert normal[host]["akasha_collector_script"] == "{{ akasha_collector_release_root }}/{{ akasha_collector_version }}/host/akasha-collector.mjs"
+        assert normal[host]["akasha_collector_release_root"] == "/opt/chaldea-akasha-host/releases"
+        assert normal[host]["akasha_collector_cache"] == "/var/cache/chaldea-akasha-host"
         assert normal[host]["chaldea_host_version"] == "host-v0.2.2"
         assert normal[host]["chaldea_host_sha256"] == "ebaf896b2b4552002f00ad9b83855ff2364abe02f57ec667d7c9fcafb308c357"
         assert normal[host]["pull_timer_enabled"] is True
         assert normal[host]["retention_timer_enabled"] is True
     for values in hostvars("inventory/akasha-enrollment.yml").values():
-        assert "akasha_collector_version" not in values
-        assert "akasha_collector_script" not in values
+        assert values["akasha_collector_version"] == "host-v0.2.16"
+        assert values.get("akasha_collector_enabled", False) is False
+    for host in ("homelab", "normandy"):
+        assert normal[host]["akasha_collector_enabled"] is True
+        assert normal[host]["akasha_collector_node"] == "/opt/chaldea/node/bin/node"
+        assert normal[host]["akasha_collector_timer_events"] is False
+        assert normal[host]["akasha_collector_release_root"] == "/opt/chaldea-akasha-host/releases"
 
 
 def test_timer_reporting_uses_artifact_and_delivery_configuration():
@@ -78,3 +85,10 @@ def test_timer_reporting_uses_artifact_and_delivery_configuration():
     assert "'queue' if akasha_collector_enabled" in config["content"]
     assert "else 'feed'" in config["content"]
     assert config["dest"].endswith("/.config/chaldea/timer-reporting.json")
+    import jinja2
+    env = jinja2.Environment(undefined=jinja2.StrictUndefined)
+    env.filters.update(bool=bool, to_json=json.dumps)
+    template = env.from_string(config["content"])
+    assert json.loads(template.render(akasha_collector_enabled=True))["delivery"] == "queue"
+    assert json.loads(template.render(akasha_collector_enabled=True,
+                                     akasha_collector_timer_events=False))["delivery"] == "feed"

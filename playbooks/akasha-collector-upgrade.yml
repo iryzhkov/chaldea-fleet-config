@@ -1,0 +1,35 @@
+---
+# Existing enrolled collectors only. No enrollment, helper, trust or site convergence.
+- name: Upgrade one existing local Akasha collector
+  hosts: all
+  gather_facts: true
+  gather_subset: [min]
+  vars:
+    akasha_collector_policy: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../access-trust/akasha-enrollment.json') | from_json }}"
+    akasha_collector_host: "{{ akasha_collector_policy[ansible_facts.hostname] }}"
+  pre_tasks:
+    - name: Bind one exact existing producer account and host
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+          - ansible_limit == inventory_hostname
+          - ansible_connection == 'local'
+          - ansible_facts.hostname == expected_hostname
+          - ansible_facts.hostname in akasha_collector_policy
+          - ansible_facts.user_uid | int == akasha_collector_host.uid
+          - ansible_facts.user_id == akasha_collector_host.user
+          - ansible_facts.user_dir == akasha_collector_host.home
+          - akasha_collector_enabled | bool
+          - akasha_collector_version == 'host-v0.2.16'
+          - akasha_collector_release_root == '/opt/chaldea-akasha-host/releases'
+          - akasha_collector_cache == '/var/cache/chaldea-akasha-host'
+        quiet: true
+    - name: Require the existing collector timer to be enabled
+      ansible.builtin.command:
+        argv: [systemctl, --user, is-enabled, akasha-collector.timer]
+      register: akasha_collector_existing
+      changed_when: false
+      failed_when: akasha_collector_existing.rc != 0 or akasha_collector_existing.stdout | trim != 'enabled'
+      check_mode: false
+  roles:
+    - akasha_collector

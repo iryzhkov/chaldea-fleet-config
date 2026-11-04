@@ -28,7 +28,7 @@
 
 - name: Configure timer outcome delivery
   ansible.builtin.copy:
-    content: "{{ {'delivery': 'queue' if akasha_collector_enabled | default(false) | bool else 'feed'} | to_json }}\n"
+    content: "{{ {'delivery': 'queue' if akasha_collector_enabled | default(false) | bool and (akasha_collector_timer_events is not defined or akasha_collector_timer_events | bool) else 'feed'} | to_json }}\n"
     dest: "{{ fleet_home }}/.config/chaldea/timer-reporting.json"
     mode: "0644"
 

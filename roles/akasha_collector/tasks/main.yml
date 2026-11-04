@@ -3,6 +3,19 @@
   ansible.builtin.include_role:
     name: chaldea_host_artifact
     public: true
+  when: akasha_collector_version | length == 0
+
+- name: Install the independently pinned collector runtime
+  ansible.builtin.include_role:
+    name: chaldea_host_artifact
+  vars:
+    # Names are the canonical installer interface, shared by existing callers.
+    chaldea_host_version: "{{ akasha_collector_version }}"  # noqa var-naming[no-role-prefix]
+    chaldea_host_sha256: "{{ akasha_collector_sha256 }}"  # noqa var-naming[no-role-prefix]
+    chaldea_host_artifact_release_root: "{{ akasha_collector_release_root }}"
+    chaldea_host_artifact_cache: "{{ akasha_collector_cache }}"
+    chaldea_host_artifact_preserve_versions: []
+  when: akasha_collector_version | length > 0
 
 - name: Validate collector settings before enablement
   ansible.builtin.assert:

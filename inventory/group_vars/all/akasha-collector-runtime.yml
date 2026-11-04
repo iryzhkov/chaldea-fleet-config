@@ -1,0 +1,7 @@
+---
+# Independent runtime; shared trust/job022 and clock012 stay unchanged.
+akasha_collector_version: host-v0.2.16
+akasha_collector_sha256: d9cdc7e86a37b8559a534e99bfa3216a127db5c701c8e86f51291bc52f8cc186
+akasha_collector_release_root: /opt/chaldea-akasha-host/releases
+akasha_collector_cache: /var/cache/chaldea-akasha-host
+akasha_collector_script: "{{ akasha_collector_release_root }}/{{ akasha_collector_version }}/host/akasha-collector.mjs"
