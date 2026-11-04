@@ -46,6 +46,33 @@ granted command names grouped by access. The current tool inventory fits below
 Check mode skips installed probing and output writes, because prerequisite
 installers may only be simulated.
 
+## Akasha report client pin
+
+The inventory selects homelab-cli601d226867238a5e3d9150f09aa5bf4ed7fba06c
+for the report pagination fix. PR46 must merge and pass CI before publishing
+this fleet selection. Its production delta from6d17c5f changes only the Akasha
+request limit and response row bound from100 to1000.
+
+The cumulative delta from the former f035d282 pin also contains HoloNet and
+observer Go service sources, removal of retired feedd/toolfeedback service
+sources, help corrections in feed/toolfeedback and a help-only SIGPIPE fix in
+docker-update-sweep. The canonical agent_tools role clones sources, installs
+the unchanged OV dependency lock/launcher and links its existing command list.
+It neither builds nor enables the new Go services and does not run install.sh.
+The shared shell/Python libraries, jobs and installer are unchanged. No new
+service, MCP configuration, access helper, permission or credential is selected.
+
+Changing the common pin changes the content-derived agent_tools release on all
+six inventory hosts at their next agent_tools run, including timer-driven pulls
+after publication. The OV source refs remain unchanged, but its venv is rebuilt
+beside the previous release. Stage the canonical role on omarchy-pc first and
+prove the full30day Akasha report before allowing fleet pulls to advance. Keep
+the previous complete agent-tools release for rollback. A check run reports
+the build; it cannot prove a private Git fetch, dependency install or live report.
+Use site.yml with the existing identity guard and --tags agent_tools through
+the canonical pull path. Review CHECK, then REAL and a second run with changed=0;
+never copy a script or repoint an installed symlink by hand.
+
 ## Release and pin handoff
 
 No release or host converge is part of this change. Merge the homelab-cli,
