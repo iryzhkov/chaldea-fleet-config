@@ -23,6 +23,8 @@ webmcp_interactive_holonet_enabled: false
 webmcp_interactive_holonet_janitor_enabled: false
 # Separate torrent-read capability on the same account. Laptop opts in explicitly.
 webmcp_interactive_holonet_torrents_enabled: false
+# Independent stat-only seed join; new signed-scope enrollment is a separate decision.
+webmcp_interactive_holonet_seed_join_enabled: false
 webmcp_interactive_holonet_writer_enabled: false
 webmcp_interactive_holonet_writer_targets: []
 # Optional scoped playback history: an explicit subset of the targets above.

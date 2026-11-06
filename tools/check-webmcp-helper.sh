@@ -2,8 +2,9 @@
 # Standalone helper source/fixture gate. Native T3 acceptance remains separate.
 set -euo pipefail
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
-export HOME="$PWD/.cache/managed-helper-check/home"
-test "$HOME" = "$PWD/.cache/managed-helper-check/home"
+helper_check_home="$(pwd -P)/.cache/managed-helper-check/home"
+export HOME="$helper_check_home"
+test "$HOME" = "$(pwd -P)/.cache/managed-helper-check/home"
 export TMPDIR="$HOME/tmp"
 mkdir -p "$TMPDIR"
 cd tools/webmcp-interactive-headers
@@ -16,7 +17,11 @@ for args in "invalid" "ov" "ov agent-a" "ov laptop extra" "ov --url=https://othe
     "holonet-writer" "holonet-writer agent-a" "holonet-writer laptop extra" "holonet-writer --policy=other" \
     "holonet-janitor" "holonet-janitor agent-a" "holonet-janitor laptop extra" "holonet-janitor --scope=holonet.home" \
     "holonet-torrents" "holonet-torrents agent-a" "holonet-torrents laptop extra" \
-    "holonet-torrents --scope=holonet.read" "holonet-torrents laptop --action=janitor.torrents.read"; do
+    "holonet-torrents --scope=holonet.read" "holonet-torrents laptop --action=janitor.torrents.read" \
+    "holonet-seed-join" "holonet-seed-join agent-a" "holonet-seed-join omarchy-pc" \
+    "holonet-seed-join laptop extra" "holonet-seed-join laptop --scope=holonet.seedjoin" \
+    "holonet-seed-join laptop --action=janitor.seed_join.read" "holonet-seed-join laptop --path=/movies" \
+    "holonet-seed-join laptop --url=https://other.invalid/mcp"; do
     # shellcheck disable=SC2086
     if "$HOME/webmcp-interactive-headers" $args 2>"$HOME/error" >"$HOME/output"; then
         echo "helper admitted invalid arguments: $args" >&2

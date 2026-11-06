@@ -110,6 +110,8 @@ MANAGED_SERVERS = {
                          "commands": {"laptop": HELPER_PATH + " holonet-janitor laptop"}},
     "holonet_janitor_torrents": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
                          "commands": {"laptop": HELPER_PATH + " holonet-torrents laptop"}},
+    "holonet_janitor_seed_join": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+                         "commands": {"laptop": HELPER_PATH + " holonet-seed-join laptop"}},
     "holonet_recommendations": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
                                 "commands": {"laptop": HELPER_PATH + " holonet-writer laptop"}},
     "ov": {"url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": frozenset({"codex"}),
