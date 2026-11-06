@@ -18,6 +18,11 @@ func holonetJanitorContract() holonetContract {
 }
 
 func holonetJanitorMode() {
+	holonetJanitorModeFor(holonetJanitorContract())
+}
+
+// Both closed modes use the same bound credential and acquisition pipeline.
+func holonetJanitorModeFor(contract holonetContract) {
 	node, err := os.Hostname()
 	if err != nil || holonetBinding(node, os.Getuid()) != nil {
 		fail()
@@ -32,7 +37,7 @@ func holonetJanitorMode() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
-	token, err := acquireHolonetFor(ctx, httpClient(), password, time.Now, holonetJanitorContract())
+	token, err := acquireHolonetFor(ctx, httpClient(), password, time.Now, contract)
 	if err != nil {
 		fail()
 	}

@@ -14,7 +14,9 @@ go build -trimpath -o "$HOME/webmcp-interactive-headers" .
 for args in "invalid" "ov" "ov agent-a" "ov laptop extra" "ov --url=https://other.invalid/mcp" "jocasta homelab" \
     "ov-full" "ov-full agent-a" "ov-full controller" "ov-full laptop extra" "ov-full --host=laptop" "ov omarchy-pc" \
     "holonet-writer" "holonet-writer agent-a" "holonet-writer laptop extra" "holonet-writer --policy=other" \
-    "holonet-janitor" "holonet-janitor agent-a" "holonet-janitor laptop extra" "holonet-janitor --scope=holonet.home"; do
+    "holonet-janitor" "holonet-janitor agent-a" "holonet-janitor laptop extra" "holonet-janitor --scope=holonet.home" \
+    "holonet-torrents" "holonet-torrents agent-a" "holonet-torrents laptop extra" \
+    "holonet-torrents --scope=holonet.read" "holonet-torrents laptop --action=janitor.torrents.read"; do
     # shellcheck disable=SC2086
     if "$HOME/webmcp-interactive-headers" $args 2>"$HOME/error" >"$HOME/output"; then
         echo "helper admitted invalid arguments: $args" >&2

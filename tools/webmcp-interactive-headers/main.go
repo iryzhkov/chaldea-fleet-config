@@ -3,7 +3,8 @@
 // No CLI/config option can select another endpoint, resource, scope or client.
 // The only invocations are the fixed tuples "jocasta HOST", "ov laptop" and
 // "ov-full HOST" for laptop and omarchy-pc, plus "holonet laptop" and
-// "holonet-writer laptop" with its separate root-owned recipient policy.
+// "holonet-writer laptop" with its separate root-owned recipient policy, and
+// the independent "holonet-janitor laptop" and "holonet-torrents laptop" reads.
 package main
 
 import (
@@ -120,6 +121,8 @@ func main() {
 		holonetWriterMode()
 	case "holonet-janitor":
 		holonetJanitorMode()
+	case "holonet-torrents":
+		holonetTorrentsMode()
 	default:
 		fail()
 	}
@@ -141,6 +144,9 @@ func selectMode(args []string) string {
 	}
 	if args[0] == "holonet-janitor" && args[1] == "laptop" {
 		return "holonet-janitor"
+	}
+	if args[0] == "holonet-torrents" && args[1] == "laptop" {
+		return "holonet-torrents"
 	}
 	if args[0] == "ov" && args[1] == "laptop" {
 		return "ov"

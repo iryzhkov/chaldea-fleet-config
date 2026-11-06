@@ -45,7 +45,8 @@ func TestHolonetJanitorSignedReadBoundary(t *testing.T) {
 		field string
 		value any
 	}{
-		{"scope", holonetWriterScope}, {"scope", holonetJanitorScope + " holonet.home"},
+		{"scope", holonetTorrentsScope}, {"holonet_actions", []string{"janitor.torrents.read"}},
+		{"holonet_torrents", map[string]any{"library": "3"}}, {"scope", holonetWriterScope}, {"scope", holonetJanitorScope + " holonet.home"},
 		{"scope", "holonet.janitor holonet.janitor"}, {"scope", "holonet.read  holonet.janitor"},
 		{"holonet_namespace", "managed-recommendations"}, {"holonet_libraries", []string{"3", "615"}},
 		{"holonet_catalog_users", []string{holonetUser}}, {"holonet_target_users", []string{holonetUser}},

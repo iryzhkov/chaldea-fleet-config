@@ -130,6 +130,22 @@
     - webmcp_interactive_enabled | default(false) | bool
     - webmcp_interactive_holonet_janitor_enabled | default(false) | bool
 
+# A separate fixed read-only mode on the existing account; no new secret.
+- name: Select the closed laptop HoloNet torrents on explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'holonet_janitor_torrents') | list)
+         + [{'name': 'holonet_janitor_torrents', 'url': 'https://media.mcp.ryzhkov.dev/mcp',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_janitor_torrents')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper', 'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_janitor_torrents')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_holonet_torrents_enabled | default(false) | bool
+
 - name: Check the opt-in remote MCP servers
   ansible.builtin.assert:
     that:
