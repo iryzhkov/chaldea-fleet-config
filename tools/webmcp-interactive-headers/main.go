@@ -4,7 +4,8 @@
 // The only invocations are the fixed tuples "jocasta HOST", "ov laptop" and
 // "ov-full HOST" for laptop and omarchy-pc, plus "holonet laptop" and
 // "holonet-writer laptop" with its separate root-owned recipient policy, and
-// the independent "holonet-janitor laptop" and "holonet-torrents laptop" reads.
+// the independent "holonet-janitor laptop", "holonet-torrents laptop", and
+// "holonet-seed-join laptop" reads.
 package main
 
 import (
@@ -123,6 +124,8 @@ func main() {
 		holonetJanitorMode()
 	case "holonet-torrents":
 		holonetTorrentsMode()
+	case "holonet-seed-join":
+		holonetSeedJoinMode()
 	default:
 		fail()
 	}
@@ -147,6 +150,9 @@ func selectMode(args []string) string {
 	}
 	if args[0] == "holonet-torrents" && args[1] == "laptop" {
 		return "holonet-torrents"
+	}
+	if args[0] == "holonet-seed-join" && args[1] == "laptop" {
+		return "holonet-seed-join"
 	}
 	if args[0] == "ov" && args[1] == "laptop" {
 		return "ov"
