@@ -9,6 +9,9 @@ webmcp_interactive_holonet_enabled: true
 # Existing-account Movies-only janitor reads; no pause, hashing or removal.
 # Native importer canary: jocasta:fc1242c4e71d8472b06dc36909db8ad8@1.
 webmcp_interactive_holonet_janitor_enabled: true
+# Separate Movies-only torrent reads; preserves the old janitor contract.
+# One native canary: jocasta:d25b3ce108c2481234598ec3a9ae71a4@1.
+webmcp_interactive_holonet_torrents_enabled: true
 webmcp_interactive_holonet_writer_enabled: true
 webmcp_interactive_holonet_writer_targets:
   - 22703968ab0b48eebb4faf7c1d16262c
