@@ -21,6 +21,8 @@ webmcp_interactive_holonet_enabled: false
 # policy supplies the exact cohort and never contains a password or token.
 # Fixed read-only janitor mode reuses the existing writer credential in place.
 webmcp_interactive_holonet_janitor_enabled: false
+# Separate torrent-read capability on the same account. No inventory opts in.
+webmcp_interactive_holonet_torrents_enabled: false
 webmcp_interactive_holonet_writer_enabled: false
 webmcp_interactive_holonet_writer_targets: []
 # Optional scoped playback history: an explicit subset of the targets above.
