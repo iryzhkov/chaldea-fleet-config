@@ -137,7 +137,8 @@ def test_bindings_are_actual_and_share_nothing_with_jocasta():
                                   "webmcp_interactive_holonet_writer_targets",
                                   "webmcp_interactive_holonet_writer_history_users",
                                   "webmcp_interactive_holonet_writer_library_ids",
-                             "webmcp_interactive_holonet_janitor_enabled"}
+                             "webmcp_interactive_holonet_janitor_enabled",
+                             "webmcp_interactive_holonet_torrents_enabled"}
     assert ordinary_vars["webmcp_interactive_holonet_writer_library_ids"] == ["3", "615", "1132"]
     # Only the laptop carries either HoloNet input.
     for path in (ROOT / "inventory").rglob("*.yml"):
