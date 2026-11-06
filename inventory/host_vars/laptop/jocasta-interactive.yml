@@ -29,10 +29,12 @@ webmcp_interactive_ov_full_enabled: true
 # Go1.27.0 Linux/ARM64 build 2bab960a-881d-469a-b186-417dec2233e8.
 # Other hosts retain their architecture pins. Protected staging and the exact
 # previous-pin guard are private rollout inputs, never inventory selections.
-# Janitor read superset source39c2db6, Linux/ARM64 Chaldeaf72d2352.
-# Guarded install/repeat06ea6cad and native canaryfc1242c4 verified2026-11-04.
+# Torrent read superset sourced2433ba, Linux/ARM64 Chaldea build
+# 6f5896fb-9254-4db5-9cf0-4ce5ad59eaf9; installed CHECK/REAL/repeat:
+# jocasta:2ddd958c8b9a3198406794c487d8f37b@1.
+# Single native canary: jocasta:d25b3ce108c2481234598ec3a9ae71a4@1.
 # Existing TV/Anime, OV and Jocasta modes remain in the same reviewed binary.
-webmcp_interactive_helper_sha256: af0e8b0302e1b1bc70eab2f35ef7b41f6011f36bb34d2adff78101e47bc44a8f
+webmcp_interactive_helper_sha256: 59336572c6350fc7779844083c5d5d4bded5536b08c95f5a99ae9bf3446849a2
 
 mcp_registrations_jocasta_interactive_state: present
 

@@ -1,8 +1,8 @@
 # Native HoloNet torrent reader
 
-Source capability only. `webmcp_interactive_holonet_torrents_enabled` defaults to
-false, with no inventory opt-in. Enabling it requires the existing writer
-capability on laptop UID 1001 before any staging writes.
+`webmcp_interactive_holonet_torrents_enabled` defaults to false. Only laptop
+inventory opts in, with the existing writer capability on UID 1001 required
+before any staging writes. Other hosts and helper modes remain unchanged.
 
 The separate `holonet_janitor_torrents` registration supports Claude and Codex
 at the fixed URL `https://media.mcp.ryzhkov.dev/mcp`. Its only helper command is
@@ -19,6 +19,16 @@ The existing `holonet-janitor laptop` mode and `holonet_janitor` registration
 retain their original two-action contract. The torrent resource
 `homelab-qbit-movies` belongs to root endpoint policy and is never a caller grant.
 
-This change does not enroll an issuer grant, update the installed helper pin,
-or activate inventory. Build/release and combined acceptance belong to root
-after final source review. No live authentication or torrent read is qualified.
+Laptop inventory persists the already installed Linux/ARM64 helper SHA256
+`59336572c6350fc7779844083c5d5d4bded5536b08c95f5a99ae9bf3446849a2`, from reviewed
+source `d2433ba1f8e474c1ae3b8fba54612f4c72366d8a`, merged equivalent
+`150a341145f6a4b3106f2d262948e3ac83365f19`. Chaldea build
+`6f5896fb-9254-4db5-9cf0-4ce5ad59eaf9` and guarded CHECK/REAL/repeat are
+recorded at `jocasta:2ddd958c8b9a3198406794c487d8f37b@1`.
+
+Exactly one native GOAT canary succeeded at 2026-11-06T11:14:03.787652764Z,
+recorded at `jocasta:d25b3ce108c2481234598ec3a9ae71a4@1`. It reported one
+complete file and accepted the producer's owned logout contract. Application
+paths and seed topology remain unqualified; media removal is unauthorized.
+Do not repeat the canary for this persistence change. Publication and convergence
+belong to root; this source follow-through adds no grant or helper code change.
