@@ -2,9 +2,9 @@
 # Standalone helper source/fixture gate. Native T3 acceptance remains separate.
 set -euo pipefail
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
-helper_check_home="${HOME:?}/.cache/managed-helper-check/home"
+helper_check_home="$(pwd -P)/.cache/managed-helper-check/home"
 export HOME="$helper_check_home"
-test "$HOME" = "$helper_check_home"
+test "$HOME" = "$(pwd -P)/.cache/managed-helper-check/home"
 export TMPDIR="$HOME/tmp"
 mkdir -p "$TMPDIR"
 cd tools/webmcp-interactive-headers
