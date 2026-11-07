@@ -12,6 +12,10 @@ webmcp_interactive_holonet_janitor_enabled: true
 # Separate Movies-only torrent reads; preserves the old janitor contract.
 # One native canary: jocasta:d25b3ce108c2481234598ec3a9ae71a4@1.
 webmcp_interactive_holonet_torrents_enabled: true
+# Separate Movies-only stat-only seed join; linked is one instant, not removal.
+# Approved packet jocasta:c61d194504ef8dd2318e1a1e3e1a5bfc@3; one native
+# canary: jocasta:b5c3380ab7e3ffdd8002e1d5615b1677@1.
+webmcp_interactive_holonet_seed_join_enabled: true
 webmcp_interactive_holonet_writer_enabled: true
 webmcp_interactive_holonet_writer_targets:
   - 22703968ab0b48eebb4faf7c1d16262c

@@ -24,7 +24,8 @@ Laptop inventory persists the already installed Linux/ARM64 helper SHA256
 source `d2433ba1f8e474c1ae3b8fba54612f4c72366d8a`, merged equivalent
 `150a341145f6a4b3106f2d262948e3ac83365f19`. Chaldea build
 `6f5896fb-9254-4db5-9cf0-4ce5ad59eaf9` and guarded CHECK/REAL/repeat are
-recorded at `jocasta:2ddd958c8b9a3198406794c487d8f37b@1`.
+recorded at `jocasta:2ddd958c8b9a3198406794c487d8f37b@1`. The seed join superset
+pin in `holonet-native-seed-join.md` later replaced it with the torrent mode kept.
 
 Exactly one native GOAT canary succeeded at 2026-11-06T11:14:03.787652764Z,
 recorded at `jocasta:d25b3ce108c2481234598ec3a9ae71a4@1`. It reported one
