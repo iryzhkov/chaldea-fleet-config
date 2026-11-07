@@ -89,5 +89,6 @@ def test_cleanup_reuses_existing_file_inverse_and_preserves_interactive_opt_in()
                              "webmcp_interactive_holonet_writer_history_users",
                              "webmcp_interactive_holonet_writer_library_ids",
                              "webmcp_interactive_holonet_janitor_enabled",
-                             "webmcp_interactive_holonet_torrents_enabled"}
+                             "webmcp_interactive_holonet_torrents_enabled",
+                             "webmcp_interactive_holonet_seed_join_enabled"}
     assert ordinary["webmcp_interactive_holonet_writer_library_ids"] == ["3", "615", "1132"]

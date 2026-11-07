@@ -67,7 +67,13 @@ def test_seed_join_closed_registration(provider, change):
 def test_seed_join_default_off_and_real_selection(tmp_path):
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults[FLAG] is False
-    assert all(FLAG not in p.read_text() for p in (ROOT / "inventory").rglob("*.yml"))
+    activation = ROOT / "inventory/host_vars/laptop/holonet-interactive.yml"
+    laptop = yaml.safe_load(activation.read_text())
+    assert laptop[FLAG] is True
+    assert laptop["webmcp_interactive_holonet_torrents_enabled"] is True
+    assert laptop["webmcp_interactive_holonet_janitor_enabled"] is True
+    assert laptop["webmcp_interactive_holonet_writer_enabled"] is True
+    assert all(FLAG not in p.read_text() for p in (ROOT / "inventory").rglob("*.yml") if p != activation)
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     select = next(t for t in tasks if t["name"] == "Select the closed laptop HoloNet seed_join on explicit opt-in")
     base, _ = selection_tasks()
