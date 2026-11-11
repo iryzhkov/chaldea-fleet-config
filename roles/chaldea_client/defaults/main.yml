@@ -12,6 +12,7 @@ chaldea_client_manifest_source: ""
 chaldea_client_root: "{{ fleet_home }}/.local/share/chaldea"
 chaldea_client_cache: "{{ fleet_home }}/.cache/chaldea-client"
 chaldea_client_quota_enabled: false
+chaldea_client_quota_no_new_privileges: true
 chaldea_client_waits_enabled: false
 # System mode converges waits only, using the existing client and fleet account.
 chaldea_client_waits_service_mode: user

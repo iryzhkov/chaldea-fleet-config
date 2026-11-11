@@ -1,8 +1,11 @@
 """Regression for Ansible 2.19 trusted normal-inventory composition."""
 import json
+import os
+from pathlib import Path
 import shutil
 import subprocess
 
+import pytest
 import yaml
 from test_quota_sharing_composition import ROOT, PREFLIGHT, run
 
@@ -41,3 +44,44 @@ def test_real_inventory_patch_resolves_pc_reader_and_account_bindings(tmp_path):
     for context in config.get("claudeContexts", []):
         assert context["envFile"] == str(tmp_path / ".config/claude/oauth.env")
     assert "{{" not in json.dumps(config)
+
+
+@pytest.mark.parametrize("host", ["omarchy-pc", "agent-a", "agent-b", "laptop"])
+def test_normal_quota_unit_hardening_from_actual_inventory(tmp_path, host):
+    assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]))
+    assert tmp_path.is_relative_to(Path(os.environ["TMPDIR"]))
+    defaults = yaml.safe_load((ROOT / "roles/chaldea_client/defaults/main.yml").read_text())
+    assert defaults["chaldea_client_quota_no_new_privileges"] is True
+    hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
+    assert hosts["omarchy-pc"]["chaldea_client_quota_no_new_privileges"] is False
+    assert all("chaldea_client_quota_no_new_privileges" not in values
+               for name, values in hosts.items() if name != "omarchy-pc")
+    play = tmp_path / "render.yml"
+    play.write_text(yaml.safe_dump([dict(
+        hosts=host, connection="local", gather_facts=False,
+        vars=dict(fleet_home=str(tmp_path), ansible_facts=dict(user_uid=os.getuid())),
+        tasks=[
+            dict(name="Expose role defaults without enabling the isolated runtime",
+                 **{"ansible.builtin.include_role": dict(
+                     name="chaldea_client", tasks_from="quota-runtime", public=True)}),
+            dict(name="Render actual normal observer unit",
+                 **{"ansible.builtin.template": dict(
+                     src=str(ROOT / "roles/chaldea_client/templates/chaldea-quota.service.j2"),
+                     dest=str(tmp_path / "chaldea-quota.service"), mode="0644")}),
+            dict(name="Render default hardening for byte comparison",
+                 vars=dict(chaldea_client_quota_no_new_privileges=True),
+                 **{"ansible.builtin.template": dict(
+                     src=str(ROOT / "roles/chaldea_client/templates/chaldea-quota.service.j2"),
+                     dest=str(tmp_path / "default.service"), mode="0644")}),
+        ])]))
+    result = subprocess.run(["ansible-playbook", "-i", str(ROOT / "inventory"), str(play)],
+                            cwd=ROOT, capture_output=True, text=True,
+                            env=dict(os.environ, ANSIBLE_ROLES_PATH=str(ROOT / "roles")))
+    assert result.returncode == 0, result.stdout + result.stderr
+    actual = (tmp_path / "chaldea-quota.service").read_bytes()
+    default = (tmp_path / "default.service").read_bytes()
+    assert default.count(b"NoNewPrivileges=yes\n") == 1
+    assert actual == (default.replace(b"NoNewPrivileges=yes\n", b"NoNewPrivileges=no\n")
+                      if host == "omarchy-pc" else default)
+    assert b"/current/bin/chaldea quota observe" in actual
+    assert b"quota-sharing" not in actual
