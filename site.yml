@@ -58,6 +58,8 @@
     - role: chaldea_token_helper
       tags: [chaldea_token_helper]
       when: chaldea_token_helper_enabled | default(false) | bool
+    - role: host_credential_rotation
+      tags: [host_credential_rotation]
     - role: pull_timer
       tags: [pull_timer]
   # Discover after installers (including the Chaldea wrapper) have converged.
