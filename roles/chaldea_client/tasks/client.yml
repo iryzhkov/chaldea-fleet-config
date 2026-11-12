@@ -13,13 +13,16 @@
         select('match', '^client-v(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)\Z') |
         list | length == chaldea_client_retained_versions | length
       - >-
-        (chaldea_client_route_targets | length == 0 and
-         chaldea_client_claude_contexts | length == 0 and
-         chaldea_client_claude_usage_source | length == 0) or
+        chaldea_client_route_targets | length == 0 or
         chaldea_client_version | regex_replace('^client-v', '') is version('0.4.0', '>=')
+      # Native T3 owns Claude usage; never silently discard retired settings.
+      - not chaldea_client_claude_usage_enabled | bool
+      - chaldea_client_claude_usage_provider | length == 0
+      - chaldea_client_claude_usage_source | length == 0
+      - chaldea_client_claude_contexts | length == 0
       - not chaldea_client_quota_enabled or chaldea_client_codex_home is match('^/')
       - chaldea_client_root == fleet_home ~ '/.local/share/chaldea'
-    fail_msg: Set valid client pins, at most six unique canonical retained client versions, explicit Codex home in inventory.
+    fail_msg: Set valid client pins, at most six unique canonical retained client versions, explicit Codex home in inventory, and empty retired Claude usage settings.
     quiet: true
 
 # This role also renders the shared launcher, so it refuses an unsafe exec-only

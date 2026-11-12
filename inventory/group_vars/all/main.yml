@@ -52,15 +52,15 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Published client-v0.4.25 from Chaldea main e369458306d54c0c5f847ac7f915603362e027c5
-# (official T3 0.1.9 typed client; also qualified against official 0.1.6).
+# Published client-v0.4.26 from Chaldea main abc9c90
+# (native T3 quota and restart ownership; official 0.1.6 compatibility retained).
 # Archive and manifest SHA-256 verified by downloading both release assets.
-# Manifest SHA-256: 868d0f4363c0f785a5c4a6b518c5464a0793f02cc69fe626096523b55727cd45.
+# Manifest SHA-256: 006f3cb2c6899eeb7653709d52afeaaed917de53603d2d2c872f8b854cfb254b.
 # Desired ordinary-client pin for every host.
 # See docs/chaldea-client.md for installed-state and migration-owner obligations.
 chaldea_client_enabled: true
-chaldea_client_version: client-v0.4.25
-chaldea_client_sha256: "3d9dff298a345fc66afc1536684220b8a76ff6ffee5282fdb5096c4b21090e2c"
+chaldea_client_version: client-v0.4.26
+chaldea_client_sha256: "072b7a690c67ebdbc6310916b6fb04b9034171e74da486b3f7b13f46045af0fe"
 # Observed ordinary-client rollback history, not active per-host version pins.
 # Keep existing payloads/caches only; absent versions are never installed.
 # Keep client-v0.4.8 when the 0.4.11 upgrade moves previous to 0.4.9.
