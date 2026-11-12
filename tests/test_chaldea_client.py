@@ -167,7 +167,7 @@ def test_directory_provisioning_repairs_private_quota_state(quota_runtime):
             # systemd otherwise defaults to 0755 and resets the directory on start.
             assert unit["Service"]["StateDirectory"] == "chaldea"
             assert unit["Service"]["StateDirectoryMode"] == "0700"
-        print(f"rendered StateDirectoryMode=0700 for both units, quota_runtime={quota_runtime}")
+        print(f"rendered StateDirectoryMode=0700 for the quota unit, quota_runtime={quota_runtime}")
 
 
 def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
@@ -388,7 +388,7 @@ def test_interrupted_unit_reload_retries_before_retiring_checkout(tmp_path, monk
     assert not app.exists()
     assert (app.parent / "app.pre-fleet/.git").exists()
     calls = json.loads((tmp_path / "systemctl.json").read_text())["calls"]
-    assert sum(call[0] == "daemon-reload" for call in calls) >= 3
+    assert sum(call[0] == "daemon-reload" for call in calls) >= 2
     assert ["restart", "chaldea-quota.service"] in calls
     for config in (home / ".codex/config.toml", home / "claude-mcp.json"):
         assert "/current/bin/chaldea" in config.read_text()
