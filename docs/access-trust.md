@@ -183,6 +183,31 @@ new bundle, each host's /etc/chaldea/token-helper.json is pointed at the new
 key_file and kid. Tokens minted under the old kid stop verifying when the new
 bundle arrives, so collectors keep their queues for the few minutes in between.
 
+## Replacement kids through 2027-02-28
+
+The HOST-2026-11r rows retain each old row's exact ceilings alongside the
+unchanged HOST-2026-11 rows. Replacement issuance ends at
+2027-02-28T00:00:00Z; verification ends 810 seconds later. The not_before
+lower bound is 2026-11-12T00:00:00Z. Effective issuance starts only when
+Normandy publishes these previously untrusted keys and helpers are activated.
+The publisher uses fixed manifest windows, not a publication-time substitution.
+
+Chaldea main 148b9cb src/access/trust.ts:113-121 allows up to 128 keys,
+deduplicates by issuer/kid and imposes no maximum issuance duration.
+The verification tail is at most MAX_TOKEN_SECONDS + MAX_SKEW_SECONDS,
+780 + 30 seconds. Lines 171-179 forbid reusing key material under another
+kid, changing not_before or extending a known kid's deadlines.
+
+Enrollment has one selected kid per host, not two simultaneous signers.
+It selects HOST-2026-11r while the trust manifest retains both kids.
+The helper reads that exact kid and key_file from its root-owned config,
+then HostIssuer matches issuer, kid and public key. It never auto-selects
+the newest key. Old November keys must not be removed before their
+2026-12-12T00:13:30Z verification expiry.
+
+This commit prepares source only. Publishing, trust update and helper activation
+are separate phase-2 operations after merge. No existing private keys are changed.
+
 ## Checks
 
 Run tools/ci.sh through Chaldea with disk TMPDIR and scratch HOME. Infra's

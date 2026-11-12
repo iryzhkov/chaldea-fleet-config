@@ -102,7 +102,7 @@ def test_pc_existing_collector_prospective_native_contract(hosted, client, tmp_p
         source="omarchy-pc.mission-control",
         grants=[dict(resource="omarchy-pc.mission-control", actions=["append"])])
     for row in fixture_issuers:
-        if row["issuer"] == "chaldea:omarchy-pc":
+        if row["issuer"] == "chaldea:omarchy-pc" and row["kid"] == "omarchy-pc-2026-11r":
             row["ceilings"] = [c for c in row["ceilings"] if c != pc_ceiling]
     fixture_file = tmp_path / "before-pc-status.json"
     fixture_file.write_text(json.dumps(fixture_issuers))
@@ -132,7 +132,7 @@ def test_pc_existing_collector_prospective_native_contract(hosted, client, tmp_p
         actual = next(r for r in proposed["issuers"] if r["issuer"] == row["issuer"] and r["kid"] == row["kid"])
         assert {k:v for k,v in actual.items() if k != "ceilings"} == {k:v for k,v in row.items() if k != "ceilings"}
         assert actual["ceilings"][:len(row["ceilings"])] == row["ceilings"]
-        assert len(actual["ceilings"]) == len(row["ceilings"]) + (row["issuer"] == "chaldea:omarchy-pc")
+        assert len(actual["ceilings"]) == len(row["ceilings"]) + (row["issuer"] == "chaldea:omarchy-pc" and row["kid"] == "omarchy-pc-2026-11r")
     grant = proposed["grants"]["omarchy-pc"][-1]
     assert grant["uid"] == 1000 and grant["kind"] == "agent_status"
     sudoers = render("sudoers.j2", dict(chaldea_token_helper_grants=[grant]))
@@ -165,14 +165,14 @@ def test_remaining_collectors_native_uid_scope_and_preservation(canonical, tmp_p
     from test_akasha_enrollment import ROOT
     active = ROOT / "access-trust/issuer-grants.json"
     source = json.loads(active.read_text())
-    assert len(source) == 6
+    assert len(source) == 12
     previous = copy.deepcopy(source)
     for host in ("agent-b", "omarchy-macbook-air-igor"):
         ceiling = dict(audience="akasha", profile="mission-control-publisher", project="chaldea",
             source=host + ".mission-control",
             grants=[dict(resource=host + ".mission-control", actions=["append"])])
-        row = next(r for r in previous if r["issuer"] == "chaldea:" + host)
-        assert row["kid"] == host + "-2026-11"
+        row = next(r for r in previous if r["issuer"] == "chaldea:" + host and r["kid"] == host + "-2026-11r")
+        assert row["kid"] == host + "-2026-11r"
         assert row["ceilings"].count(ceiling) == 1
         assert row["ceilings"][-1] == ceiling
         row["ceilings"].remove(ceiling)
@@ -206,10 +206,10 @@ def test_remaining_collectors_native_uid_scope_and_preservation(canonical, tmp_p
                     audience="akasha", action="append", source=host + ".mission-control", host=host,
                     kind="agent_status", profile="mission-control-publisher", project="chaldea")
         for old in before["issuers"]:
-            row = next(r for r in after["issuers"] if r["issuer"] == old["issuer"])
+            row = next(r for r in after["issuers"] if r["issuer"] == old["issuer"] and r["kid"] == old["kid"])
             assert {k:v for k,v in row.items() if k != "ceilings"} == {k:v for k,v in old.items() if k != "ceilings"}
             assert row["ceilings"][:len(old["ceilings"])] == old["ceilings"]
-            assert len(row["ceilings"]) == len(old["ceilings"]) + (old["issuer"].removeprefix("chaldea:") in hosts)
+            assert len(row["ceilings"]) == len(old["ceilings"]) + (old["issuer"].removeprefix("chaldea:") in hosts and old["kid"].endswith("-2026-11r"))
         if b and laptop:
             assert after["issuers"] == source
             # The actual source is idempotent under the same native composition.

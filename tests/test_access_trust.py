@@ -77,15 +77,23 @@ def test_inventory_disabled_and_units_use_isolated_state():
     keys = json.loads((ROOT / "access-trust/issuer-grants.json").read_text())
     policy = json.loads((ROOT / "access-trust/akasha-enrollment.json").read_text())
     assert {row["issuer"] for row in keys} == {"chaldea:" + host for host in policy}
-    assert len(keys) == 6
+    assert len(keys) == 12
     key = keys[0]
     assert (key["issuer"], key["kid"]) == ("chaldea:agent-a", "agent-a-2026-11")
     assert key["public_key"] == {"kty": "OKP", "crv": "Ed25519", "x": "Dui1JSMyV_q_L4g1GzGL5oU3Hx3chOL3AdSoINrCCRk"}
-    # 2026-11 rotation: every issuer shares one 30-day window from 2026-11-12T00:00:00Z.
-    assert {(row["not_before"], row["issue_until"], row["verify_until"]) for row in keys} == {
-        (1794441600, 1797033600, 1797034410)}
-    assert {row["kid"] for row in keys} == {host + "-2026-11" for host in policy}
-    assert all(policy[host]["kid"] == host + "-2026-11" for host in policy)
+    # Old rows remain verifiable while the helper selects the replacement kid.
+    assert {row["kid"] for row in keys} == {
+        host + suffix for host in policy for suffix in ("-2026-11", "-2026-11r")}
+    assert len({row["public_key"]["x"] for row in keys}) == 12
+    for host in policy:
+        old = next(row for row in keys if row["kid"] == host + "-2026-11")
+        new = next(row for row in keys if row["kid"] == host + "-2026-11r")
+        assert (old["not_before"], old["issue_until"], old["verify_until"]) == (
+            1794441600, 1797033600, 1797034410)
+        assert (new["not_before"], new["issue_until"], new["verify_until"]) == (
+            1794441600, 1803772800, 1803773610)
+        assert new["ceilings"] == old["ceilings"]
+        assert policy[host]["kid"] == new["kid"]
     assert key["not_before"] == 1794441600
     assert key["issue_until"] - key["not_before"] == 30 * 86400
     assert key["verify_until"] - key["issue_until"] == 810
