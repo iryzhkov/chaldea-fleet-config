@@ -115,8 +115,15 @@ def test_fixed_native_outputs_preserve_old_records_and_bound_pc(client, tmp_path
     if evidence := os.environ.get("ENROLLMENT_RENDER_EVIDENCE"):
         Path(evidence).write_text(result.stdout)
     assert data["issuers"][0]["ceilings"][:len(old[0]["ceilings"])] == old[0]["ceilings"]
-    assert all(not r.get("global_read") and r["source"] != "chaldea-quota" for r in data["registry"])
-    assert all(g["action"] == "append" for grants in data["grants"].values() for g in grants)
+    # Global read is the fleet-reader on the three approved interactive hosts only;
+    # homelab, Normandy and (without its toggle) the PC stay producer-only.
+    readers = {"agent-a", "agent-b", "omarchy-macbook-air-igor"}
+    assert {r["host"] for r in data["registry"] if r.get("global_read")} == readers
+    assert all(r["source"] == "fleet-reader" and r["mode"] == "operator" and r["kinds"] == ["feed_post", "tool_call"]
+               for r in data["registry"] if r.get("global_read"))
+    assert all(r["source"] != "chaldea-quota" for r in data["registry"])
+    reads = [(host, g["source"]) for host, grants in data["grants"].items() for g in grants if g["action"] != "append"]
+    assert sorted(reads) == sorted((host, "fleet-reader") for host in readers for _ in ("feed_post", "tool_call"))
     installed = tmp_path / "public-issuers.json"
     installed.write_text(json.dumps(data["issuers"]))
     again = compose(client, public_inputs(), installed)
@@ -127,7 +134,7 @@ def test_fixed_native_outputs_preserve_old_records_and_bound_pc(client, tmp_path
     enabled = compose(client, public_inputs() | dict(pc_reader=True, pc_quota=True))
     assert enabled.returncode == 0, enabled.stderr
     records = json.loads(enabled.stdout)
-    optional = [r for r in records["registry"] if r["source"] in ("fleet-reader", "chaldea-quota")]
+    optional = [r for r in records["registry"] if r["source"] in ("fleet-reader", "chaldea-quota") and r["host"] not in readers]
     assert len(optional) == 2 and all(r["host"] == "omarchy-pc" for r in optional)
     assert len(next(r for r in optional if r["source"] == "chaldea-quota")["kinds"]) == 7
 

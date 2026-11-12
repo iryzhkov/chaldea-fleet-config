@@ -109,7 +109,15 @@ type enrollment struct {
 }
 
 func main() {
-	switch selectMode(os.Args[1:]) {
+	mode := selectMode(os.Args[1:])
+	if mode == "" {
+		fail()
+	}
+	if err := configureHostIdentity(os.Args[2]); err != nil {
+		fmt.Fprintln(os.Stderr, "host identity unavailable: protected selector or host.app-password missing or unsafe")
+		os.Exit(1)
+	}
+	switch mode {
 	case "jocasta":
 		jocasta(os.Args[2])
 	case "ov":
@@ -182,7 +190,7 @@ func jocasta(host string) {
 	if err != nil {
 		fail()
 	}
-	entry, err := readEnrollment(filepath.Join(current.HomeDir, ".config/webmcp-interactive/enrollment.json"), os.Getuid(), host)
+	entry, err := interactiveEnrollment(current.HomeDir, os.Getuid(), host)
 	if err != nil {
 		fail()
 	}
@@ -346,6 +354,9 @@ func credentialPath(uid int, relative string) (string, error) {
 	account, err := user.LookupId(strconv.Itoa(uid))
 	if err != nil || account.Uid != strconv.Itoa(uid) || !filepath.IsAbs(account.HomeDir) || filepath.Clean(account.HomeDir) != account.HomeDir {
 		return "", denied
+	}
+	if hostIdentityUsername != "" {
+		relative = hostCredential
 	}
 	return filepath.Join(account.HomeDir, relative), nil
 }
@@ -563,7 +574,7 @@ func acquireOVFull(ctx context.Context, client *http.Client, host, password stri
 func exchangeOV(ctx context.Context, client *http.Client, username, password, scope string, contract ovContract, now func() time.Time) (string, error) {
 	// The established OV client exchange (Chaldea's session credential): no
 	// resource indicator, since the provider's scope mapping fixes the audience.
-	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {ovClientID}, "username": {username},
+	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {ovClientID}, "username": {identityUsername(username)},
 		"password": {password}, "scope": {scope}}
 	start := now().Unix()
 	data, err := response(ctx, client, "POST", tokenURL, strings.NewReader(form.Encode()), 32768)

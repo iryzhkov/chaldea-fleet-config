@@ -33,6 +33,14 @@ direction or substantial new cost needs Igor's choice. Apply standing host/homel
 authority from the shared instructions; do not add a separate deployment gate.
 Honor explicit task limits and continue independent work while a choice is pending.
 
+## Prototype mode
+
+When Igor calls the work a prototype, keep the plan light. State the few
+non-negotiable ground rules: no secrets in source or logs, the existing read-only
+boundaries and the web-MCP doctrine essentials. Plan one independent review of the
+security-relevant integration plus CI. Skip staged qualification, per-milestone
+review pairs, audit nodes and acceptance matrices.
+
 ## Start from the outcome and what exists
 
 State the user-observable outcome. Trace the existing authorized implementation,

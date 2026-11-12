@@ -176,7 +176,7 @@ def test_actual_credential_guard_refuses_unsafe_metadata_without_reading_a_secre
     inspect = next(t for t in tasks if t["name"].startswith("Inspect the separately delivered HoloNet"))
     assert inspect["ansible.builtin.stat"] == {
         "path": "{{ item }}", "follow": False, "get_checksum": False, "get_mime": False}
-    assert inspect["loop"][-1].endswith("/holonet-interactive.app-password")
+    assert inspect["loop"][-1] == "{{ fleet_home }}/.config/chaldea/authentik/{{ 'host' if chaldea_host_identity_enabled | default(false) | bool else 'holonet-interactive' }}.app-password"
     guard = next(t for t in tasks if t["name"].startswith("Require private HoloNet"))
     rows = [{"item": f"/synthetic/{i}", "stat": {
         "exists": True, "islnk": False, "uid": 1001, "mode": "0700" if i == 3 else "0755",

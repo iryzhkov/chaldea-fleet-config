@@ -99,6 +99,16 @@ Stop/cancel overrides late wakes. Use native child/PR dependencies; do not poll 
 substitute external wakes. Retain dependency ownership and recovery when blocked.
 Keep detailed receipts in PRs or Jocasta and give concise, meaningful chat updates.
 
+When Igor calls something a prototype, use prototype mode. The plan states a few
+non-negotiable ground rules: no secrets in source or logs, the existing read-only
+boundaries and the web-MCP doctrine essentials. Use one independent review of the
+security-relevant integration plus CI, and skip staged qualification, per-milestone
+review pairs and acceptance matrices.
+
+Write Jocasta documents and checkpoints in normal prose with ordinary spacing between
+words. Keep a checkpoint's current state at the top and move history to an archive
+section or a linked document instead of accumulating receipts.
+
 Igor grants standing authority to modify existing hosts and homelab infrastructure
 as needed to complete requested work. This includes configuration, deployment,
 multi-host convergence, necessary service restarts and routine recovery using

@@ -1,0 +1,82 @@
+---
+# Never read, copy, checksum or embed the host password. Infra owns delivery.
+- name: Inspect host credential custody without reading secret bytes
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "{{ fleet_home }}"
+    - "{{ fleet_home }}/.config"
+    - "{{ fleet_home }}/.config/chaldea"
+    - "{{ fleet_home }}/.config/chaldea/authentik"
+    - "{{ fleet_home }}/.config/chaldea/authentik/host.app-password"
+  register: webmcp_interactive_host_credential
+  when: chaldea_host_identity_enabled | default(false) | bool
+
+- name: Fail closed unless host app password has private custody
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists and not item.stat.islnk
+      - item.stat.uid == ansible_facts.user_uid | int or (index < 3 and item.stat.uid == 0)
+      - item.stat.mode[-2] not in ['2', '3', '6', '7'] and item.stat.mode[-1] not in ['2', '3', '6', '7']
+      - item.stat.isdir if index < 4 else (item.stat.isreg and item.stat.nlink == 1 and item.stat.mode == '0600' and 16 <= item.stat.size <= 256)
+      - index != 3 or item.stat.mode == '0700'
+    fail_msg: "Host identity enabled but host.app-password is missing or unsafe; refusing legacy fallback"
+    quiet: true
+  loop: "{{ webmcp_interactive_host_credential.results | default([]) }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.item }}"
+  when: chaldea_host_identity_enabled | default(false) | bool
+
+- name: Inspect public host identity selector custody
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+  loop:
+    - /etc/webmcp-interactive
+    - "/etc/webmcp-interactive/host-identity-{{ inventory_hostname }}"
+  register: webmcp_interactive_host_selector
+
+- name: Refuse unsafe host identity selector custody
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (not item.stat.islnk and item.stat.uid == 0 and item.stat.gid == 0)
+      - not item.stat.exists or (item.stat.isdir and item.stat.mode == '0755' if index == 0 else (item.stat.isreg and item.stat.nlink == 1 and item.stat.mode == '0644'))
+    quiet: true
+  loop: "{{ webmcp_interactive_host_selector.results }}"
+  loop_control:
+    index_var: index
+    label: "{{ item.item }}"
+
+- name: Create public host identity selector directory
+  ansible.builtin.file:
+    path: /etc/webmcp-interactive
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  when: chaldea_host_identity_enabled | default(false) | bool
+
+- name: Select host identity for every native adapter
+  ansible.builtin.copy:
+    content: "chaldea-fleet-config host identity v1 {{ inventory_hostname }}\n"
+    dest: "/etc/webmcp-interactive/host-identity-{{ inventory_hostname }}"
+    owner: root
+    group: root
+    mode: '0644'
+    follow: false
+  become: true
+  when: chaldea_host_identity_enabled | default(false) | bool
+
+- name: Restore legacy identity on per-host rollback
+  ansible.builtin.file:
+    path: "/etc/webmcp-interactive/host-identity-{{ inventory_hostname }}"
+    state: absent
+  become: true
+  when: not (chaldea_host_identity_enabled | default(false) | bool)

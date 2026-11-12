@@ -43,7 +43,7 @@
     - "{{ fleet_home }}/.config"
     - "{{ fleet_home }}/.config/chaldea"
     - "{{ fleet_home }}/.config/chaldea/authentik"
-    - "{{ fleet_home }}/.config/chaldea/authentik/holonet-recommendations.app-password"
+    - "{{ fleet_home }}/.config/chaldea/authentik/{{ 'host' if chaldea_host_identity_enabled | default(false) | bool else 'holonet-recommendations' }}.app-password"
   register: webmcp_interactive_holonet_writer_credential
 
 - name: Require private HoloNet writer credential custody before policy staging

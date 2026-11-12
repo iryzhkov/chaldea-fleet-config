@@ -21,6 +21,12 @@ to verify it. A short task can use the current conversation's plan facility.
 Use Jocasta when work needs durable continuation, milestones or coordination.
 Do not create a roadmap merely to satisfy a step count.
 
+When Igor calls something a prototype, plan it in prototype mode: state the few
+non-negotiable ground rules (no secrets in source or logs, existing read-only
+boundaries, the web-MCP doctrine essentials), use one independent review of the
+security-relevant integration plus CI, and skip staged qualification, per-milestone
+review pairs and acceptance matrices.
+
 Use roadmap-planner to design or materially reshape an uncertain multi-milestone
 roadmap. Once the plan is adopted within existing authority and execution starts,
 load roadmap-executor before implementation, even in the same thread. Planning
@@ -99,7 +105,9 @@ Ask only for material unresolved direction, missing access or new authority.
 
 ## Track progress where it belongs
 
-Jocasta holds durable plans, current checkpoints and linked evidence. Update
+Jocasta holds durable plans, current checkpoints and linked evidence. Write them in
+normal prose with ordinary spacing between words, current state first and history in
+an archive section or linked document. Update
 checkable progress and the next action at meaningful state changes; keep each
 fact in its owning document. OV holds reusable knowledge across tasks.
 Do not create parallel tasks/todo.md or tasks/lessons.md stores by default.

@@ -1,0 +1,10 @@
+---
+- name: Check for an installed rotation timer
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/.config/systemd/user/chaldea-host-rotation.timer"
+    get_checksum: false
+  register: host_credential_rotation_installed
+
+- name: Manage opted-in or previously installed rotation
+  ansible.builtin.include_tasks: manage.yml
+  when: host_credential_rotation_enabled | bool or host_credential_rotation_revoked | bool or host_credential_rotation_installed.stat.exists
