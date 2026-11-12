@@ -43,7 +43,7 @@ def fixture(base, monkeypatch, version="client-v9.0.0"):
     manager = base / "systemctl.json"
     if not manager.exists():
         manager.write_text(json.dumps({"units": {name: {"enabled": False, "active": False}
-                                               for name in ("chaldea-quota.service")},
+                                               for name in ("chaldea-quota.service",)},
                                       "calls": []}))
     monkeypatch.setenv("PATH", str(ROOT / "tests/fake-bin") + ":" + os.environ["PATH"])
     monkeypatch.setenv("FAKE_SYSTEMCTL_STATE", str(manager))
@@ -161,7 +161,7 @@ def test_directory_provisioning_repairs_private_quota_state(quota_runtime):
         assert snapshot() == before
         for path, mode in generic.items():
             assert path.stat().st_mode & 0o777 == mode
-        for name in ("chaldea-quota"):
+        for name in ("chaldea-quota",):
             unit = configparser.ConfigParser(interpolation=None, strict=False)
             unit.read(home / f".config/systemd/user/{name}.service")
             # systemd otherwise defaults to 0755 and resets the directory on start.
