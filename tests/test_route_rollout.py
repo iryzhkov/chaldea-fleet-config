@@ -30,31 +30,14 @@ def test_agent_clients_use_native_t3_quota():
         assert effective["chaldea_client_codex_assert_runtime_home"] is True
 
 
-# Reviewed host-level release selections, by exact file and top-level key. The
-# laptop's persistent system waits run a separately installed runtime with its
-# Node, and its fixed profiles pin staged native assets by hash. Their exact
-# values are asserted in test_laptop_jocasta_tooling.py.
-# The held laptop OV activation pins the reviewed aarch64 headers helper for
-# the laptop alone; its exact value is asserted in
-# test_webmcp_managed_interactive.py. The default-off HoloNet catalog profile
-# pins the same staged Claude native; its values are asserted in
-# test_laptop_holonet_catalog.py.
+# Reviewed host-level release selections, by exact file and top-level key.
 # The laptop and omarchy-pc stdio OV safety pins are checked for every host in
 # test_ov_source_selection.py.
 HOST_RELEASE_SELECTIONS = {
-    # Routing alone uses the installed T3 0.1.5-compatible client, preserving
-    # current/previous and waits. Exact pin and laptop-only scope are asserted
-    # by test_chaldea_launcher.py::test_only_laptop_selects_the_routing_client.
-    "inventory/host_vars/laptop/chaldea-routing.yml": frozenset({"chaldea_client_route_entry"}),
     "inventory/host_vars/omarchy-pc/fate-route.yml": frozenset({"chaldea_client_version", "chaldea_client_sha256"}),
     "inventory/host_vars/laptop/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({
         "agent_tools_ov_memory_ref", "webmcp_interactive_helper_sha256"}),
-    "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml": frozenset({
-        "chaldea_node_version", "chaldea_client_waits_legacy_user_node_version",
-        "chaldea_client_waits_runtime_root",
-        "chaldea_laptop_jocasta_profiles"}),
-    "inventory/host_vars/laptop/chaldea-holonet-catalog.yml": frozenset({"chaldea_laptop_holonet_catalog_profiles"}),
     "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
     # Inactive-runtime retention only; bounded histories and cleanup preservation
     # are exercised in test_chaldea_client.py. These do not select active pins.
