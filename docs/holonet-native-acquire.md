@@ -34,6 +34,16 @@ live tokens or backend access. This source creates no credentials or account,
 changes no installed helper hash, and opts no host in. Candidate binary provenance
 belongs in the reviewed activation packet before convergence.
 
+The laptop helper pinned in inventory, SHA256
+9a9455eeffe62f0287ebaa36fc7f0cd5024ef819722cb277b44dd3b5bf8694ad, already
+contains these modes alongside every earlier mode and the Shizune mode. Its
+source 760d3e7 includes this change, and main 98c1b74 rebuilds the same bytes with
+Go 1.27.0, CGO disabled and `-trimpath -buildvcs=false -ldflags=-buildid=`. The
+earlier acquisition-only candidate 3490d4a7 lacks the Shizune mode and must not
+be installed. A `strings` search of that binary does not find the mode names,
+so it cannot prove their absence; the acquisition scope and action literals are
+present, and the byte-identical rebuild from this source is the provenance.
+
 The acquisition worker stages new bytes and verifies declared English AUDIO track
 metadata separately. Subtitle language or release language does not establish
 English audio. No Sonarr import, replacement, deletion, cleanup hold, GOAT replay

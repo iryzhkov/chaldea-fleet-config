@@ -1,4 +1,6 @@
 ---
+# Per-host cutover only after host credential enrollment. No host opts in here.
+chaldea_host_identity_enabled: false  # noqa: var-naming[no-role-prefix] shared per-host switch
 # The MCP servers this fleet provides, registered with Claude Code (user
 # scope, through the claude CLI) and Codex ([mcp_servers.NAME] in
 # config.toml). Other registrations on a host are left alone. agent_env names
