@@ -1,8 +1,7 @@
 ---
 name: chaldea
 description: >-
-  Use Chaldea for builds, tests and heavy runs on fleet job hosts. Chaldea waits
-  and the decision inbox are retired; this skill names the native T3 replacements.
+  Use Chaldea for builds, tests and heavy runs on fleet job hosts.
   Reviews and worker briefs belong to review-delegation.
 ---
 
@@ -19,18 +18,6 @@ excludes automatic settlement; it is neither a keepalive nor permission.
 Use Stop/cancel to cancel an assignment and its children. Manual Settle only
 organizes thread state; native child completion may reopen it. Stop/user
 cancellation still wins; do not promise native preservation of manual Settle.
-
-On official T3 0.1.0, do not substitute external Chaldea time/thread wakes for
-executor dependencies requiring Stop preservation. Client 0.4.11 can deliver a
-stale external wake after offline Stop/resume. New guarded clients require server
-capability absent from stock T3. Public replay cannot observe every idle Stop;
-ordinary `message.dispatch` has no admission-version guard. Client preflight,
-pinning and scheduler `runNow` do not establish atomic Stop safety. Preserve
-historical guarded payloads fail-closed; never strip their guard or replay them
-on stock T3. If a required native wake is unavailable, retain the exact gap, owner
-and next authorized recovery in the existing checkpoint. No fork, new client
-release, wrapper, store, daemon, fake recurring schedule or dummy child is needed
-for the native executor path.
 
 Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
 
@@ -153,47 +140,6 @@ A disconnect or interruption without a confirmed result leaves the job
 (or `show <job-id> --full`) to inspect the retained log and outcome, or `chaldea exec fetch <job-id>`
 to recover output and requested artifacts from the original host within three days, instead of re-running the job.
 Never re-run an uncertain job; report the uncertainty if recovery cannot confirm its outcome.
-
-## Availability and identity
-
-MCP registration alone proves neither local waits nor decision availability.
-The routing MCP process, local waits/decision service and native T3 child/PR
-wakes are separate capabilities. Inspect read-only effective configuration and
-service state on the current host, including `~/.config/chaldea/waits.json` and
-its configured service, before relying on a local wait or decision wake. CLI
-help proves syntax only; a routing response proves routing only. Use native
-child/PR completion where available. Record unavailable or unqualified capability
-and retain recovery ownership; never park work assuming registration proves
-service health or wake delivery. A service error still needs diagnosis.
-
-Call T3's `orchestrator_capabilities` and use its `parentThreadId` as your own
-`threadId`, despite the field's name. Do not use a provider session ID or guess
-from cwd. These waits refer to threads on the same host's T3 server.
-
-For each registration, save a stable `requestId` of the form
-`<13-digit epoch milliseconds>:<unique key>`. After an ambiguous response,
-retry with exactly the same key and arguments. The CLI can generate a key, but
-passing `--request-id` explicitly makes retries safe.
-
-## Waits and the decision inbox are retired
-
-Chaldea waits and decisions require a T3 server that advertises
-`externalWakeGuardVersion:1`. Only the archived T3 fork did; official T3 (0.1.5 and
-0.1.6) does not, so every registration is refused with "T3 external wake guard or
-lifecycle history is unsupported". Do not call `chaldea_wait*` or `chaldea_decision*`
-or the `chaldea wait`/`chaldea decision` CLI. Use the native T3 equivalent instead:
-
-- Waiting for a child task: `delegate_task`; its completion wakes the parent.
-- Waiting for another thread's run: `t3_thread_wait`.
-- Waiting for a pull request: `watch_pull_request`.
-- Resuming at a time or on a schedule: `schedule_task` bound to the thread, and
-  `delete_scheduled_task` once it has fired if it should run only once.
-- Waiting for a background command: `t3_background_wait`.
-- A question for Igor: ask in the conversation or through the runtime's own
-  question mechanism.
-
-Before yielding, still retain the dependency, continuation owner, task/PR ID,
-exact source revision, next action and recovery action.
 
 ## Ask Igor, then keep working
 

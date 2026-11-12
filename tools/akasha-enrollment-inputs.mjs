@@ -8,7 +8,7 @@ const { helperConfig } = await moduleAt('access/helper.ts');
 const { Authorization } = await moduleAt('akasha/auth.ts');
 const { exact, object } = await moduleAt('access/token.ts');
 const input = object(JSON.parse(readFileSync(0, 'utf8')));
-exact(input, ['public_keys', 'pc_reader', 'pc_quota'], ['laptop_quota', 'pc_quota_reader', 'mission_control']);
+exact(input, ['public_keys', 'pc_reader', 'pc_quota'], ['laptop_quota', 'pc_quota_reader']);
 if (typeof input.pc_reader !== 'boolean' || typeof input.pc_quota !== 'boolean' ||
     ['laptop_quota', 'pc_quota_reader'].some(k => input[k] !== undefined && typeof input[k] !== 'boolean')) throw Error('boolean gates required');
 const policy = JSON.parse(readFileSync(policyFile)), keys = object(input.public_keys);
@@ -27,51 +27,6 @@ if (input.pc_quota) for (const kind of ['quota_parked', 'quota_reset_unknown', '
 if (input.laptop_quota) grants['omarchy-macbook-air-igor'].push({uid:1001, audience:'akasha', action:'append', source:'quota',
   host:'omarchy-macbook-air-igor', kind:'quota_headroom_snapshot', profile:'quota-service', project:'chaldea'});
 if (input.pc_quota_reader) grants['omarchy-pc'].push(pc('read', 'quota', 'quota_headroom_snapshot', 'quota-service'));
-// Exact infra-owned base registrations (homelab-infra vars/akasha-registry.yml),
-// in canonical order. stdout stays the additive subset; with operations on, the
-// decoder validates base + subset, the full composition the Akasha play applies,
-// because the operations reader binds agent-a.fleet and daily-health from the base.
-const CANONICAL_BASE = [
-  {issuer:'chaldea:agent-a', source:'chaldea.daily-health.agent-a', host:'agent-a', source_id:'agent-a-daily-health', profile:'daily-health', project:'homelab', mode:'report', kinds:['report']},
-  {issuer:'chaldea:agent-a', source:'agent-a.fleet', host:'agent-a', source_id:'agent-a-fleet', profile:'fleet-timers', project:'chaldea', mode:'service', kinds:['job_finished']},
-  {issuer:'chaldea:agent-a', source:'agent-a.toolfeedback', host:'agent-a', source_id:'agent-a-toolfeedback', profile:'toolfeedback', project:'chaldea', mode:'service', kinds:['tool_call']}];
-const ALL_STATUS_SOURCES = ['agent-a--mission-control', 'omarchy-pc--mission-control', 'agent-b--mission-control', 'omarchy-macbook-air-igor--mission-control'];
-let operations = false;
-// Explicit permission packet, independent of all installation/enablement flags.
-if (input.mission_control !== undefined) {
-  const mc = object(input.mission_control);
-  exact(mc, ['publisher_uid', 'reader_uid', 'read_sources'], ['pc_publisher_uid', 'agent_b_publisher_uid', 'laptop_publisher_uid', 'operations_read']);
-  if (mc.operations_read !== undefined && typeof mc.operations_read !== 'boolean') throw Error('boolean operations_read required');
-  operations = mc.operations_read === true;
-  const pcUid = mc.pc_publisher_uid ?? null;
-  if (pcUid !== null && pcUid !== 1000) throw Error('existing PC collector UID must be 1000');
-  const extra = [['agent-b', mc.agent_b_publisher_uid ?? null, 1000],
-    ['omarchy-macbook-air-igor', mc.laptop_publisher_uid ?? null, 1001]];
-  for (const [host, uid, expected] of extra)
-    if (uid !== null && uid !== expected) throw Error('existing collector UID mismatch: ' + host);
-  const selected = ['agent-a--mission-control', ...(pcUid === null ? [] : ['omarchy-pc--mission-control']),
-    ...extra.filter(([, uid]) => uid !== null).map(([host]) => host + '--mission-control')];
-  if (mc.publisher_uid !== null && mc.publisher_uid !== 1000) throw Error('agent-a publisher UID must be 1000');
-  if (mc.reader_uid !== null && (!Number.isSafeInteger(mc.reader_uid) || mc.reader_uid <= 0 ||
-      mc.reader_uid >= 4294967295 || [957, 995, 1000, 1001].includes(mc.reader_uid))) throw Error('dedicated reader UID required');
-  if (!Array.isArray(mc.read_sources) || mc.read_sources.length > 4 ||
-      new Set(mc.read_sources).size !== mc.read_sources.length ||
-      mc.read_sources.some(s => !selected.includes(s)) ||
-      ((pcUid !== null || extra.some(([, uid]) => uid !== null)) && (mc.publisher_uid !== 1000 || mc.reader_uid === null ||
-        JSON.stringify(mc.read_sources) !== JSON.stringify(selected))) ||
-      (mc.reader_uid === null) !== (mc.read_sources.length === 0)) throw Error('exact reader source selection required');
-  if (operations && (mc.reader_uid === null || JSON.stringify(mc.read_sources) !== JSON.stringify(ALL_STATUS_SOURCES)))
-    throw Error('operations read requires the selected reader with all four status sources');
-  if (mc.publisher_uid !== null) grants['agent-a'].push({uid:1000, audience:'akasha', action:'append',
-    source:'agent-a.mission-control', host:'agent-a', kind:'agent_status', profile:'mission-control-publisher', project:'chaldea'});
-  if (pcUid !== null) grants['omarchy-pc'].push(pc('append', 'omarchy-pc.mission-control', 'agent_status', 'mission-control-publisher'));
-  for (const [host, uid] of extra) if (uid !== null) grants[host].push({uid, audience:'akasha', action:'append',
-    source:host + '.mission-control', host, kind:'agent_status', profile:'mission-control-publisher', project:'chaldea'});
-  // Kind is matched by the local helper grant; signed claims carry resource/action only.
-  if (mc.reader_uid !== null) for (const kind of ['agent_status', ...(operations ? ['job_finished', 'report'] : [])])
-    grants['omarchy-normandy'].push({uid:mc.reader_uid, audience:'akasha', action:'read',
-      source:'mission-control-reader', host:'omarchy-normandy', kind, profile:'mission-control-reader', project:'chaldea'});
-}
 const registry = [];
 for (const [host, row] of Object.entries(policy)) {
   const issuer = {uid:row.issuer_uid, name:'chaldea:' + host, kid:row.kid, key_file:'/var/lib/chaldea-issuer/keys/' + row.kid + '.pem'};
@@ -86,16 +41,14 @@ for (const [host, row] of Object.entries(policy)) {
     const known = host === 'agent-a' && ['agent-a.fleet', 'agent-a.toolfeedback'].includes(g.source);
     let entry = registry.find(r => r.issuer === issuer.name && r.source === g.source);
     if (!entry && !known) {
-      entry = {issuer:issuer.name, source:g.source, host, source_id:g.profile === 'mission-control-publisher' && g.source === host + '.mission-control' ? host + '--mission-control' : (host + '--' + g.source).replaceAll('.', '_'), profile:g.profile, project:g.project,
-        mode:g.action === 'read' && !['quota', 'mission-control-reader'].includes(g.source) ? 'operator' : 'service', kinds:[],
-        ...(g.action === 'read' ? (g.source === 'mission-control-reader' ? {mission_control_read_sources:input.mission_control.read_sources,
-          ...(operations ? {mission_control_operations_read:true} : {})} : g.source === 'quota' ? {quota_fleet_read:true} : {global_read:true}) : {})};
+      entry = {issuer:issuer.name, source:g.source, host, source_id:(host + '--' + g.source).replaceAll('.', '_'), profile:g.profile, project:g.project,
+        mode:g.action === 'read' && g.source !== 'quota' ? 'operator' : 'service', kinds:[],
+        ...(g.action === 'read' ? (g.source === 'quota' ? {quota_fleet_read:true} : {global_read:true}) : {})};
       registry.push(entry);
     }
     if (entry && !entry.kinds.includes(g.kind)) entry.kinds.push(g.kind);
   }
 }
 validateBundle({v:1, sequence:1, published_at:1792281600, expires_at:1792368000, keys:issuers});
-// Operations off keeps the historical subset-only validation unchanged.
-new Authorization(operations ? [...CANONICAL_BASE, ...registry] : registry, null, null);
+new Authorization(registry, null, null);
 process.stdout.write(JSON.stringify({issuers, registry, grants}));

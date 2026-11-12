@@ -152,13 +152,6 @@ source, review and deployment verification requirements remain binding.
   and continue, or retain an owner and recovery action for an external merge.
   Registration is not completion. Continue independent ready work before yielding.
   Never poll, add duplicate monitors, dummy children or fake recurring schedules.
-- On official T3 0.1.0, do not substitute external Chaldea time/thread wakes for
-  executor dependencies requiring Stop preservation. Pinning does not guard
-  external message admission. Follow Chaldea's documented client/cancellation
-  limits; preserve historical guarded payloads fail-closed, never strip or replay
-  them. If no required native wake exists, record the exact gap, owner and next
-  authorized recovery rather than promise guaranteed continuation or add a fork,
-  client release, wrapper, store or daemon.
 - Before yielding, checkpoint each dependency's owner, task/PR/wait ID and retry
   key, exact source revision, expected wake, next action, recovery deadline and
   recovery action. A deadline prompts diagnosis of that dependency and continued
@@ -186,10 +179,8 @@ source, review and deployment verification requirements remain binding.
 - Load fleet-rollout for authorized deployments; it owns the converge procedure.
   Report verification evidence per host.
 - Run long converges in native delegated tasks and use their completion wake.
-  An existing non-child thread has no equivalent native completion dependency;
-  retain its owner, exact gap and next authorized recovery instead of substituting
-  an external wake requiring Stop preservation. Preserve command, target, log
-  and outcome; reconcile a disconnect or reboot before any retry.
+  Preserve command, target, log and outcome; reconcile a disconnect or reboot
+  before any retry.
 - Prefer the least disruptive effective recovery. Necessary service restarts for
   requested work use standing host authority. For T3, use `chaldea t3 restart`
   after inspecting installed help and capability; preserve continuation evidence.

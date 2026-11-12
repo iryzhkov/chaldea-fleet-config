@@ -75,7 +75,7 @@ def test_opencode_and_oauth_cannot_select_helper(tmp_path):
     assert SECRET not in module_code.diff("jocasta", projected, {}, module_code.remote_view)["before"]
 
 
-def test_activation_is_opt_in_and_profiles_unchanged():
+def test_activation_is_opt_in():
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults["webmcp_interactive_enabled"] is False
     assert defaults["webmcp_interactive_laptop_qualified"] is False
@@ -83,13 +83,8 @@ def test_activation_is_opt_in_and_profiles_unchanged():
     stage = next(t for t in tasks if t["name"].startswith("Stage explicitly"))
     assert stage["when"] == "webmcp_interactive_enabled | default(false) | bool"
     assert stage["ansible.builtin.include_role"]["apply"]["tags"] == ["mcp_registrations"]
-    strict = (ROOT / "roles/chaldea_client/templates/claude-profile-exec.py.j2").read_text()
-    assert 'for name in ("--restricted", "--strict-mcp-config"):' in strict
     select = next(t for t in tasks if t["name"].startswith("Select explicit"))
     assert "else mcp_registrations_remote_servers" in select["ansible.builtin.set_fact"]["mcp_registrations_effective_remote_servers"]
-    laptop = yaml.safe_load((ROOT / "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml").read_text())
-    assert "jocasta" in laptop["chaldea_laptop_jocasta_profiles"]["jocasta-tooling-codex"]["disabled_servers"]
-    assert laptop["chaldea_laptop_jocasta_profiles"]["jocasta-tooling-claude"]["server"] == "jocasta_tooling"
 
 
 def test_actual_ansible_selection_honors_managed_absence_and_keeps_oauth(tmp_path):

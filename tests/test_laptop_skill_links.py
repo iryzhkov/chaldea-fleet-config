@@ -32,8 +32,7 @@ def layout(legacy=False):
 @pytest.mark.parametrize("difference", ["known", "modified", "extra", "nested-link", "modified-metadata", "missing-metadata"])
 def test_historical_conflict_skill_upgrade(difference):
     home, claude, agents, store = layout()
-    fixture = json.loads((Path(__file__).parent / "fixtures/agent_config_pr_delivery.json").read_text())
-    historical = fixture["skills/resolving-merge-conflicts/SKILL.md"][0][0].encode()
+    historical = (SKILLS.parents[1] / "fixtures/conflict-skill-82f3c9e/SKILL.md").read_bytes()
     assert hashlib.sha256(historical).hexdigest() == "9d8114f8ef0b31f535a265fc05c364bd8cf2e2895a830040e06c22acb11f54b0"
     target = agents / "resolving-merge-conflicts"
     shutil.rmtree(target)

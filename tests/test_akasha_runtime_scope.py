@@ -30,7 +30,7 @@ def test_collector_installs_independently_and_preserves_every_shared_asset(tmp_p
         {"ansible.builtin.assert": {"that": [
             "'flock --nonblock' in user_timer_service",
             "akasha_collector_script in user_timer_service",
-            "'AKASHA_STATE_FILE=%h/.local/state/chaldea/events/collector.db' in user_timer_service",
+            "'AKASHA_' not in user_timer_service",
         ]}},
         {"ansible.builtin.copy": {"content": "{{ user_timer_service }}",
                                   "dest": str(tmp_path / "collector.service"), "mode": "0600"}},

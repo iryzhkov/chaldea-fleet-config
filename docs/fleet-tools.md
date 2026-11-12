@@ -36,9 +36,7 @@ Unlisted tools and access classes are hidden. An explicit empty grant overrides
 a wildcard. `tools: {}` and `mcp: []` produce an empty index. Invalid profiles
 fail closed: an empty index replaces previous instructions before converge fails.
 These grants filter instructions; actual command authorization
-remains the session/runtime's responsibility. This is a converge-time profile,
-not automatic T3 session-profile detection. A future session launcher must pass
-its grants and use an isolated skill destination when profiles run concurrently.
+remains the session/runtime's responsibility. This is a converge-time profile.
 
 Generated output is deterministic, grouped by area, with one line per tool and
 granted command names grouped by access. The current tool inventory fits below

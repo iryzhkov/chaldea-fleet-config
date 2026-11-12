@@ -176,9 +176,6 @@ def test_capability_is_off_by_default_and_only_the_held_laptop_selects_it():
             assert "previous_helper_sha256" not in text, path
     laptop = yaml.safe_load(owner.read_text())
     assert [s["name"] for s in laptop["mcp_registrations_remote_servers"]] == ["jocasta"]
-    # The protected limited OV preset keeps its own separate credential path.
-    limited = yaml.safe_load((ROOT / "docs/examples/laptop-ov-tooling-codex.yml").read_text())
-    assert limited["enrollments"]["ov-tooling-codex"]["secretFile"].endswith("/ov-tooling-codex.app-password")
 
 
 def test_inert_activation_example_is_exact_and_invents_no_hash():

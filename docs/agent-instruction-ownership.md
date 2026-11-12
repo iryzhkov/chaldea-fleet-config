@@ -64,8 +64,8 @@ owning skills rather than copying them into the shared workflow.
 
 The three global entrypoints now route conditional T3 details to
 skills/agent-workflow/references/interactive-runtime.md rather than embedding
-three copies. This reference preserves the prior requirements byte for byte;
-the compact-runtime fixture reverses the routing change before historical checks.
+three copies. The compact-runtime fixture checks the entrypoint routing against
+this shared reference.
 Standing authority and core source/build boundaries remain in each entrypoint.
 See [guidance evaluation](agent-guidance-evaluation.md) for installation auditing,
 telemetry coverage limits and behavior scenarios. No call-count target or
@@ -77,8 +77,6 @@ Igor adopted standing authority for agents to modify existing hosts and homelab
 infrastructure for requested outcomes on 2026-10-29. The shared entry points own
 that policy; executor, planning, rollout and Chaldea skills refer to it. Explicit
 task restrictions still win. Ordinary Chaldea exec examples omit host selection.
-The exact changed guidance blocks are recorded in agent_config_operator_autonomy.json;
-source migration reverses this layer first and retains all historical fixtures.
 This change does not implement remote Huyang atomic verification or alter access ACLs.
 
 ## Lightweight interactive delegation
@@ -93,20 +91,14 @@ Routine notifications are batched, with material changes and requested status su
 promptly. Claude's no-progress-note rule was narrowed to permit these approved updates;
 its other style preferences are unchanged. Exact review IDs, models, verdicts and commits
 remain in durable receipts, with short verdicts and links in chat.
-The exact reversible layer is agent_config_interactive_delegation.json. Historical
-fixtures stay unchanged. This layer adds no runtime, scheduler or access changes.
 
 ## Byte compatibility
 
-tests/fixtures/agent_config_before.json records all source hashes from fleet
-main 7185b506, plus the former downloaded plugin hash. The render test installs
-the agent_config role for agent-a, agent-b, omarchy-pc and laptop into disposable
-homes, and compares every managed file and skill against this baseline.
-Only the exact blocks in AUTHORIZED_CHANGES, QUOTA_REVIEW_CHANGES and
-FATE_GUIDANCE_CHANGES in test_agent_source_migration.py may differ, as
-authorized by Igor on 2026-10-18. Each replacement must occur exactly once.
-The test reverses the new FATE blocks first, then the earlier quota-review,
-ownership and wait changes, before comparing the unchanged historical hashes.
+tests/fixtures/agent_config_before.json records SHA-256 hashes of the current
+maintained source bytes. The render test installs the agent_config role for
+agent-a, agent-b, omarchy-pc and laptop into disposable homes, and compares every
+managed file and skill directly against this snapshot. Authorized guidance changes
+update the snapshot; the obsolete historical replacement chain has been removed.
 
 The plan30 completion gate aligns all three instruction entry points and
 the chaldea, review-delegation and roadmap-executor skills. They call FATE
@@ -124,10 +116,7 @@ draft with auto-merge off. Check current timer/service state before publication.
 with distribution evidence for each host. This source change does not deploy
 a client, restart T3 or activate AA, shared quota or automatic switching.
 
-The adopted consistency layer, jocasta:b491ec8b880f1ef2d597a3a016e59ce3@2,
-is recorded as exact before/after blocks in agent_config_guidance_consistency.json.
-Render tests reverse this layer before all earlier layers, preserving the original
-byte baseline. The historical laptop TDD input and canonical hashes stay pinned;
+The historical laptop TDD input and canonical hashes stay pinned;
 restoration verifies that input before copying today's accepted skill source.
 Use fleet-rollout's canonical agent_guidance tag and selected file/skill variables
 for scoped guidance convergence. All other deployed bytes, destinations and the

@@ -11,10 +11,9 @@
 # enrollment's UID-owned 0700 parent and single-link 0600 file without symlinks.
 # state: absent removes only the listed Jocasta registrations.
 #
-# Isolation: the protected Chaldea tooling profiles
-# (chaldea-jocasta-tooling.yml) are unchanged. Their Codex home is separate and
-# disables any jocasta server by name; their Claude profile uses a strict MCP
-# config. They keep project:tooling read-only access.
+# Preserve the laptop runtime and retention selections from the retired tooling file.
+chaldea_node_version: "26.12.0"
+retention_mise_prune: false
 webmcp_interactive_enabled: true
 webmcp_interactive_opencode_state: present
 webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers

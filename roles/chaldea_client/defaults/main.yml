@@ -12,34 +12,8 @@ chaldea_client_manifest_source: ""
 chaldea_client_root: "{{ fleet_home }}/.local/share/chaldea"
 chaldea_client_cache: "{{ fleet_home }}/.cache/chaldea-client"
 chaldea_client_quota_enabled: false
-chaldea_client_waits_enabled: false
-# System mode converges waits only, using the existing client and fleet account.
-chaldea_client_waits_service_mode: user
-# Protected admission of an older managed user unit during explicit system migration.
-# This only renders legacy checksum expectations; it never selects a runtime.
-chaldea_client_waits_legacy_user_node_version: ""
-# Protected admission of the exact persistent system unit an older waits runtime
-# rendered, during one explicit runtime migration. Like the legacy Node admission
-# it only renders a second checksum expectation; it never selects, installs or
-# runs that runtime.
-chaldea_client_waits_legacy_system_runtime: ""
-# Optional one-canary window: strict UTC YYYY-MM-DDTHH:MM:SSZ, 16..2700 seconds
-# remaining at execution. Empty preserves the persistent service byte for byte.
-chaldea_client_waits_deadline: ""
-# One explicit restart after terminal completion, to read durable status only.
-# Never launches a reporter; the packet controller must prohibit new sessions.
-chaldea_client_waits_status_read_restart: false
-# Already-installed waits runtime only; never changes global current/previous.
-chaldea_client_waits_runtime_root: "{{ chaldea_client_root }}/current"
 chaldea_client_t3_home: "{{ fleet_home }}/.t3"
 chaldea_client_quota_token: "{{ fleet_home }}/.config/chaldea/t3-token"
-chaldea_client_waits_token: "{{ fleet_home }}/.config/chaldea/waits-t3-token"
-chaldea_client_answer_token: "{{ fleet_home }}/.config/chaldea/waits-answer-token"
-chaldea_client_waits_environment: ""
-chaldea_client_waits_listen: "127.0.0.1"
-chaldea_client_waits_port: 7385
-chaldea_client_answer_url: "http://127.0.0.1:{{ chaldea_client_waits_port }}"
-chaldea_client_waits_socket: "{{ ('/run/chaldea-waits-' ~ ansible_facts.user_uid ~ '/waits.sock') if chaldea_client_waits_service_mode == 'system' else ('/run/user/' ~ ansible_facts.user_uid ~ '/chaldea-waits.sock') }}"
 # Explicit provider-to-auth-context binding, never inferred from the shell.
 chaldea_client_codex_home: ""
 chaldea_client_codex_providers: [codex]
@@ -75,21 +49,3 @@ chaldea_client_reserve_fraction: 0.05
 chaldea_client_expiry_horizon_ms: 86400000
 # No illustrative credit conversion or unverified refill/expiry assertion.
 chaldea_client_capacity_providers: {}
-# Protected fixed session presets (docs/chaldea-client.md, "Session policy").
-# Off: no policy file is rendered and waits.json names none. Enabling needs
-# waits enabled; the policy is public configuration and holds no credential.
-chaldea_client_session_policy_enabled: false
-chaldea_client_session_ceilings: []
-chaldea_client_session_presets: {}
-# Authentik app-password enrollments keyed by preset ID. Each secretFile is an
-# operator-provisioned file the role only inspects with stat. Needs a client
-# whose policy parser accepts `enrollments`; empty renders no such key.
-chaldea_client_session_enrollments: {}
-# Fixed provider profiles keyed by name (docs/chaldea-client.md, "Fixed provider
-# profiles"). Empty delivers nothing. Each needs the session policy in system
-# waits mode, a declared preset and that preset's enrollment.
-chaldea_client_session_profiles: {}
-# Guarded inverse: retired profiles whose role-owned files are removed, each
-# {name, home} for Codex or {name, driver: claude|opencode} for the others.
-# Never touches anything else in a profile home.
-chaldea_client_session_profiles_absent: []

@@ -19,7 +19,8 @@ def test_collector_is_disabled_and_uses_one_locked_scoped_service():
     assert settings["OnUnitInactiveSec"] == "5s"
     assert settings["RandomizedDelaySec"] == "1s"
     assert settings["AccuracySec"] == "1s"
-    assert "AKASHA_TOKEN_HELPER" in service and "UnsetEnvironment=FEED_TOKEN" in service
+    assert "UnsetEnvironment=FEED_TOKEN" in service
+    assert "AKASHA_" not in service
     assert "feed/key" not in service
     normal = ROOT / "inventory/hosts.yml"
     hosts = yaml.safe_load(normal.read_text())["all"]["children"]["agent_hosts"]["hosts"]
@@ -56,16 +57,16 @@ def test_shared_collector_selection_preserves_enrollment_inventory():
     assert inventory["laptop"]["expected_hostname"] == "omarchy-macbook-air-igor"
     normal = hostvars("inventory/hosts.yml")
     for host in ("agent-a", "agent-b", "omarchy-pc", "laptop"):
-        assert normal[host]["akasha_collector_version"] == "host-v0.2.16"
+        assert normal[host]["akasha_collector_version"] == "host-v0.2.18"
         assert normal[host]["akasha_collector_script"] == "{{ akasha_collector_release_root }}/{{ akasha_collector_version }}/host/akasha-collector.mjs"
         assert normal[host]["akasha_collector_release_root"] == "/opt/chaldea-akasha-host/releases"
         assert normal[host]["akasha_collector_cache"] == "/var/cache/chaldea-akasha-host"
-        assert normal[host]["chaldea_host_version"] == "host-v0.2.2"
-        assert normal[host]["chaldea_host_sha256"] == "ebaf896b2b4552002f00ad9b83855ff2364abe02f57ec667d7c9fcafb308c357"
+        assert normal[host]["chaldea_host_version"] == "host-v0.2.18"
+        assert normal[host]["chaldea_host_sha256"] == "34d2fd21fc04cd946e6b3bf586d1e47aad22ae2b31f4cc7a797f4dbb28fc4b7c"
         assert normal[host]["pull_timer_enabled"] is True
         assert normal[host]["retention_timer_enabled"] is True
     for values in hostvars("inventory/akasha-enrollment.yml").values():
-        assert values["akasha_collector_version"] == "host-v0.2.16"
+        assert values["akasha_collector_version"] == "host-v0.2.18"
         assert values.get("akasha_collector_enabled", False) is False
     for host in ("homelab", "normandy"):
         assert normal[host]["akasha_collector_enabled"] is True

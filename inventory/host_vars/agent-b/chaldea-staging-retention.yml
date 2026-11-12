@@ -1,5 +1,4 @@
 ---
-# Preserve the separately staged waits runtime through ordinary user-mode pulls.
 # Existing installed rollback versions stay retained; current/previous are also
 # protected by the role. Missing versions are never installed by retention.
 # This selects no service, session policy, profile, provider or active runtime.
