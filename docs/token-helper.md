@@ -22,8 +22,8 @@ clears environment, preserves only sudo's SUDO_UID and a fixed PATH, and invokes
 the root-pinned Node and client entrypoint.
 
 Issuer config fields are uid, key_file, name and kid. Defaults retain agent-a's
-UID 995, /var/lib/chaldea-issuer/keys/agent-a-2026-10.pem, chaldea:agent-a and
-agent-a-2026-10. The role requires an existing non-login chaldea-issuer account
+UID 995, /var/lib/chaldea-issuer/keys/agent-a-2026-11.pem, chaldea:agent-a and
+agent-a-2026-11 (rotated from agent-a-2026-10 on 2026-11-12; see docs/access-trust.md). The role requires an existing non-login chaldea-issuer account
 matching that UID, an issuer-owned 0600 signing key and initialized private state.
 It does not create keys, initialize state or change source registrations.
 

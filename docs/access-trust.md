@@ -155,9 +155,10 @@ operator procedure. The renewal job refuses empty grants to prevent accidental
 mass revocation. Ordinary disconnected issuer revocation can take the remaining
 24h lease; 13-minute bearers plus skew retain the <15-minute cancellation bound.
 
-## First issuer
+## First issuer (historical)
 
-agent-a-2026-10 is append-only, audience akasha, with exact source resources:
+agent-a-2026-10, superseded by agent-a-2026-11 in the 2026-11 rotation below, was
+append-only, audience akasha, with exact source resources:
 
 - daily-health / homelab / chaldea.daily-health.agent-a, report.
 - fleet-timers / chaldea / agent-a.fleet, job_finished.
