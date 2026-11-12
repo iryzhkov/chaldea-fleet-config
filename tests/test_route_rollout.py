@@ -38,6 +38,7 @@ HOST_RELEASE_SELECTIONS = {
     "inventory/host_vars/laptop/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({
         "agent_tools_ov_memory_ref", "webmcp_interactive_helper_sha256"}),
+    # M3 P3.1: retain this host's selector-aware helper pin in the allowlist.
     "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({
         "webmcp_interactive_helper_sha256", "chaldea_node_version"}),
     # M3 P3.1 cutover: agent-b selects the selector-aware helper build.
