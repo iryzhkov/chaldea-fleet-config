@@ -64,6 +64,6 @@ contract:
   scope: ov.read ov.write ov.remove ov.maintain
   ov_namespaces: [viking://resources]
   ov_actions: [read, write, remove, maintain]
-# Other hosts, OpenCode, the Jocasta entries, the limited Chaldea profiles and
-# the stdio ov-memory registration receive nothing from this selection.
-unchanged: [agent-a, agent-b, opencode, jocasta, chaldea_client_session_profiles, ov-memory]
+# Other hosts, OpenCode, the Jocasta entries and the stdio ov-memory
+# registration receive nothing from this selection.
+unchanged: [agent-a, agent-b, opencode, jocasta, ov-memory]
