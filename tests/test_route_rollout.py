@@ -40,6 +40,8 @@ HOST_RELEASE_SELECTIONS = {
         "agent_tools_ov_memory_ref", "webmcp_interactive_helper_sha256"}),
     "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({
         "webmcp_interactive_helper_sha256", "chaldea_node_version"}),
+    # M3 P3.1 cutover: agent-b selects the selector-aware helper build.
+    "inventory/host_vars/agent-b/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
     # Inactive-runtime retention only; bounded histories and cleanup preservation
     # are exercised in test_chaldea_client.py. These do not select active pins.
     "inventory/host_vars/agent-a/chaldea-staging-retention.yml": frozenset({"chaldea_client_retained_versions"}),
