@@ -53,4 +53,5 @@ mcp_registrations_codex_config: "{{ fleet_home }}/.codex/config.toml"
 # the full interactive OV entry of the same name for Claude and Codex (helper
 # "ov-full HOST"); it is off by default and excludes the narrow opt-in.
 # See docs/managed-interactive-webmcp.md; no host is enabled by this capability.
+# Shizune for Claude/Codex is selected only by webmcp_interactive_shizune_enabled.
 mcp_registrations_remote_servers: []

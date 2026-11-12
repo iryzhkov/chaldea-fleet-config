@@ -1,5 +1,39 @@
 # Managed interactive Jocasta capability
 
+## Shizune source capability
+
+The closed command `/usr/local/libexec/webmcp-interactive-headers shizune HOST`
+admits only laptop and omarchy-pc, with the same kernel node/UID bindings as
+ov-full. It reads the account database user's own
+`~/.config/chaldea/authentik/shizune-interactive.app-password` through the
+same no-follow, single-link 0600 file and 0700 directory custody checks.
+Fleet checks metadata only. It never delivers or reads this credential.
+
+The helper exchanges `chaldea-HOST-shizune-interactive` credentials at the fixed
+Authentik token endpoint with client `shizune-mcp-machine` and scope
+`shizune.use`. It verifies RS256 against the fixed shizune-mcp JWKS before
+checking issuer, Shizune MCP audience, client, scope membership, owner igor,
+foreign grants and a maximum 300-second lifetime. It emits Authorization JSON
+without a token cache. Claude and Codex receive the fixed HTTP server
+`shizune` at `https://shizune.mcp.ryzhkov.dev/mcp`.
+
+`webmcp_interactive_shizune_enabled` defaults to false and stays false in both
+host inventories. This PR does not activate Shizune or change existing helper
+pins. After identity enrollment, the parent must stage each architecture's
+reviewed helper in a protected controller path, set that host's
+`webmcp_interactive_helper_source` to that path for the upgrade, set
+`webmcp_interactive_helper_sha256` to the new artifact digest and
+`webmcp_interactive_previous_helper_sha256` to the verified installed digest.
+The role requires source bytes to match the new pin and permits an installed
+target matching only the current or previous pin; it does not accept any binary.
+It installs root-owned 0755 at `/usr/local/libexec/webmcp-interactive-headers`.
+Then flip the two host Shizune flags and converge `--tags mcp_registrations`
+with the correct `--limit HOST`, followed by an unchanged repeat and native
+Claude/Codex acceptance. Restore helper_source to the installed path afterward.
+Include `agent_config,fleet_tools` only if changing instruction profiles.
+Keep all other hosts' pins and selections unchanged.
+
+
 Laptop acceptance and persistence are the base for this candidate. Its inventory,
 ARM helper pin and protected tooling profiles remain unchanged. This source adds
 explicit managed selections for agent-a, agent-b and omarchy-pc/GamingPC.

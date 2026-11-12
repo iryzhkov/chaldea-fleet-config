@@ -1,4 +1,6 @@
 ---
+# Source capability only; enable after separate Shizune identity enrollment.
+webmcp_interactive_shizune_enabled: false
 # Capability only. Root activates each host after protected enrollment.
 webmcp_interactive_enabled: false
 webmcp_interactive_laptop_qualified: false
