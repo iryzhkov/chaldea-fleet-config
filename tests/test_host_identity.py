@@ -11,6 +11,41 @@ ROOT = Path(__file__).resolve().parents[1]
 TASKS = ROOT / "roles/webmcp_interactive/tasks"
 
 
+@pytest.mark.parametrize("enabled,installed,source,ok", [
+    (False, "legacy", "legacy", True),
+    (True, "legacy", "new", False),
+    (True, "new", "legacy", False),
+    (True, "missing", "new", False),
+    (True, "other-arch", "new", False),
+    (True, "new", "new", True),
+])
+def test_selector_aware_helper_preflight(tmp_path, enabled, installed, source, ok):
+    tasks = yaml.safe_load((TASKS / "main.yml").read_text())
+    gate = next(t for t in tasks if t["name"] ==
+                "Require selector-aware helper before enabling host identity")
+    hashes = {"new": "a" * 64, "legacy": "b" * 64, "other-arch": "c" * 64}
+    target = {"exists": installed != "missing"}
+    if installed != "missing":
+        target["checksum"] = hashes[installed]
+    play = tmp_path / "preflight.yml"
+    play.write_text(yaml.safe_dump([{
+        "hosts": "localhost", "connection": "local", "gather_facts": False,
+        "vars": {
+            "chaldea_host_identity_enabled": enabled,
+            "ansible_facts": {"architecture": "x86_64"},
+            "webmcp_interactive_host_identity_helper_checksums": {
+                "x86_64": hashes["new"], "aarch64": hashes["other-arch"]},
+            "webmcp_interactive_helper_target": {"stat": target},
+            "webmcp_interactive_helper_source_stat": {"stat": {"checksum": hashes[source]}},
+        }, "tasks": [gate],
+    }]))
+    result = subprocess.run(["ansible-playbook", "-i", "localhost,", str(play)],
+                            capture_output=True, text=True)
+    assert (result.returncode == 0) == ok, result.stdout + result.stderr
+    if not ok:
+        assert "refusing legacy fallback" in result.stdout
+
+
 def test_native_adapters_match_main_golden():
     # Git blob IDs at 72add22. Jobs omit .git, so check the golden bytes directly.
     for path, expected in {

@@ -29,7 +29,10 @@ and deleted M1 profile inputs are outside this change.
    policies must accept the new subject before switching those hosts. Finish
    or explicitly abandon old pending HoloNet operations without reassigning
    their ownership.
-2. Publish and pin the reviewed helper artifact for each host. Update the owning
+2. Install the selector-aware binary before flipping the switch, using the
+   architecture checksums and build receipt in docs/host-identity-helper-build.md.
+   Both installed binary and controller source must match that capability pin.
+   Keep the shared legacy pins unchanged. Publish and pin the reviewed helper artifact for each host. Update the owning
    host helper hash/source with the normal guarded upgrade receipt. Coordinate
    active pull writers and preserve the installed rollback artifact.
 3. In that host's vars set chaldea_host_identity_enabled: true. Switch agent-b

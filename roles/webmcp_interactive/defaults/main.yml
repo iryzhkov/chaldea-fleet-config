@@ -8,6 +8,8 @@ webmcp_interactive_enabled: false
 webmcp_interactive_laptop_qualified: false
 webmcp_interactive_helper_source: ""
 webmcp_interactive_helper_sha256: ""
+# Missing architecture pins fail closed when host identity is selected.
+webmcp_interactive_host_identity_helper_checksums: {}
 webmcp_interactive_previous_helper_sha256: ""
 webmcp_interactive_credential_source: ""
 # Previous delivery SHA256 is private input for an owned rotation; never shown.

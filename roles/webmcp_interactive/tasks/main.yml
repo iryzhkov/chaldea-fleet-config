@@ -78,6 +78,16 @@
     checksum_algorithm: sha256
   register: webmcp_interactive_helper_target
 
+- name: Require selector-aware helper before enabling host identity
+  ansible.builtin.assert:
+    that:
+      - webmcp_interactive_helper_target.stat.exists
+      - webmcp_interactive_helper_target.stat.checksum | default('') == webmcp_interactive_host_identity_helper_checksums[ansible_facts.architecture]
+      - webmcp_interactive_helper_source_stat.stat.checksum == webmcp_interactive_host_identity_helper_checksums[ansible_facts.architecture]
+    fail_msg: "Install and pin the selector-aware helper before enabling host identity; refusing legacy fallback"
+    quiet: true
+  when: chaldea_host_identity_enabled | default(false) | bool
+
 - name: Refuse a foreign helper or unexplained upgrade
   ansible.builtin.assert:
     that:

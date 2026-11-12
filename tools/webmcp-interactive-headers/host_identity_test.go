@@ -89,6 +89,76 @@ func TestHostCredentialNeverFallsBack(t *testing.T) {
 	}
 }
 
+func TestNonRootHostIdentitySelector(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("non-root ownership fixture")
+	}
+	path := filepath.Join(t.TempDir(), "selector")
+	if err := os.WriteFile(path, []byte("chaldea-fleet-config host identity v1 agent-b\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if selected, err := hostIdentitySelected(path, "agent-b"); selected || err == nil {
+		t.Fatal("user-owned selector admitted")
+	}
+}
+
+func TestHostIdentitySelector(t *testing.T) {
+	// readOwned requires a root-owned parent; all fixtures stay inside job scratch.
+	if os.Getuid() != 0 {
+		t.Skip("root-owned selector fixtures require the isolated root job")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "selector")
+	check := func(want bool, wantError bool) {
+		t.Helper()
+		got, err := hostIdentitySelected(path, "agent-b")
+		if got != want || (err != nil) != wantError {
+			t.Fatalf("selected=%v error=%v, want %v error=%v", got, err, want, wantError)
+		}
+	}
+	check(false, false)
+	for _, body := range []string{"", "chaldea-fleet-config host identity v1 agent-a\n", "chaldea-fleet-config host identity v1 agent-b", "garbage\n"} {
+		if err := os.WriteFile(path, []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(path, 0644); err != nil {
+			t.Fatal(err)
+		}
+		check(false, true)
+	}
+	if err := os.WriteFile(path, []byte("chaldea-fleet-config host identity v1 agent-b\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0644); err != nil {
+		t.Fatal(err)
+	}
+	check(true, false)
+	t.Run("wrong owner", func(t *testing.T) {
+		if err := os.Chown(path, 1000, 1000); err != nil {
+			t.Skipf("job user namespace cannot map another UID: %v", err)
+		}
+		defer os.Chown(path, 0, 0)
+		got, err := hostIdentitySelected(path, "agent-b")
+		if got || err == nil {
+			t.Fatal("wrongly owned selector admitted")
+		}
+	})
+	if err := os.Rename(path, path+".target"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(path+".target", path); err != nil {
+		t.Fatal(err)
+	}
+	check(false, true)
+	if err := os.Remove(path + ".target"); err != nil {
+		t.Fatal(err)
+	}
+	check(false, true) // dangling symlinks must not be treated as absent selectors
+}
+
 func TestHostSignedIdentity(t *testing.T) {
 	key, jwks, claims := fixture(t)
 	claims["webmcp_identity"] = "chaldea-agent-b"
