@@ -31,7 +31,7 @@
   become: true
   register: retired_services_system_removed
 
-- name: Reload system definitions after retirement
+- name: Reload system definitions before subsequent roles  # noqa: no-handler -- reload before subsequent roles
   ansible.builtin.systemd_service:
     scope: system
     daemon_reload: true
@@ -69,7 +69,7 @@
   become: false
   register: retired_services_user_removed
 
-- name: Reload user definitions after retirement
+- name: Reload user definitions before subsequent roles  # noqa: no-handler -- reload before subsequent roles
   ansible.builtin.systemd_service:
     scope: user
     daemon_reload: true
