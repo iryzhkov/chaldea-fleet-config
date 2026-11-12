@@ -10,7 +10,6 @@
     - chaldea-waits-policy-gate.service
     - chaldea-waits-preflight.service
   register: retired_services_system
-  become: true
 
 - name: Stop and disable installed retired system units
   ansible.builtin.systemd_service:
