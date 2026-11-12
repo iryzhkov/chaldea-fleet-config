@@ -133,7 +133,7 @@ def test_actual_writer_cohort_guard_and_secret_metadata_are_closed(tmp_path):
     inspect = next(t for t in tasks if t["name"].startswith("Inspect the separately delivered"))
     assert inspect["ansible.builtin.stat"] == {
         "path": "{{ item }}", "follow": False, "get_checksum": False, "get_mime": False}
-    assert inspect["loop"][-1].endswith("/holonet-recommendations.app-password")
+    assert inspect["loop"][-1] == "{{ fleet_home }}/.config/chaldea/authentik/{{ 'host' if chaldea_host_identity_enabled | default(false) | bool else 'holonet-recommendations' }}.app-password"
     checks = []
     for index, cohort in enumerate([TARGETS, [], "*", {"b" * 32: True}, ["*"],
                                     ["B" * 32], [TARGETS[0]] * 2, [str(i).zfill(32) for i in range(17)]]):
