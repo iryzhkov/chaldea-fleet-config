@@ -16,8 +16,8 @@ def test_agent_clients_use_native_t3_quota():
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert set(hosts) == {"agent-a", "agent-b", "omarchy-pc", "laptop"}
-    assert common["chaldea_client_version"] == "client-v0.4.23"
-    assert common["chaldea_client_sha256"] == "b96c928d050d81e7be96841baf8ce0204927cd14fbd43b62cc0d4ac058fb9c82"
+    assert common["chaldea_client_version"] == "client-v0.4.24"
+    assert common["chaldea_client_sha256"] == "35b284f7ecabdd1b2228bb21f8eff1b42dc3bdd05c52133de04bcc0b2ec5eb43"
     # All agent hosts now use native T3 quota after approved local login checks.
     for name, values in hosts.items():
         assert "chaldea_client_version" not in values
@@ -25,37 +25,21 @@ def test_agent_clients_use_native_t3_quota():
         effective = defaults | common | values
         assert effective["chaldea_client_enabled"] is True
         assert effective["chaldea_client_claude_usage_enabled"] is False
-        assert effective["chaldea_client_version"] == "client-v0.4.23"
+        assert effective["chaldea_client_version"] == "client-v0.4.24"
         assert effective["chaldea_client_quota_enabled"] is True
         assert effective["chaldea_client_codex_assert_runtime_home"] is True
 
 
-# Reviewed host-level release selections, by exact file and top-level key. The
-# laptop's persistent system waits run a separately installed runtime with its
-# Node, and its fixed profiles pin staged native assets by hash. Their exact
-# values are asserted in test_laptop_jocasta_tooling.py.
-# The held laptop OV activation pins the reviewed aarch64 headers helper for
-# the laptop alone; its exact value is asserted in
-# test_webmcp_managed_interactive.py. The default-off HoloNet catalog profile
-# pins the same staged Claude native; its values are asserted in
-# test_laptop_holonet_catalog.py.
+# Reviewed host-level release selections, by exact file and top-level key.
 # The laptop and omarchy-pc stdio OV safety pins are checked for every host in
 # test_ov_source_selection.py.
 HOST_RELEASE_SELECTIONS = {
-    # Routing alone uses the installed T3 0.1.5-compatible client, preserving
-    # current/previous and waits. Exact pin and laptop-only scope are asserted
-    # by test_chaldea_launcher.py::test_only_laptop_selects_the_routing_client.
-    "inventory/host_vars/laptop/chaldea-routing.yml": frozenset({"chaldea_client_route_entry"}),
     "inventory/host_vars/omarchy-pc/fate-route.yml": frozenset({"chaldea_client_version", "chaldea_client_sha256"}),
     "inventory/host_vars/laptop/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({
         "agent_tools_ov_memory_ref", "webmcp_interactive_helper_sha256"}),
-    "inventory/host_vars/laptop/chaldea-jocasta-tooling.yml": frozenset({
-        "chaldea_node_version", "chaldea_client_waits_legacy_user_node_version",
-        "chaldea_client_waits_runtime_root",
-        "chaldea_laptop_jocasta_profiles"}),
-    "inventory/host_vars/laptop/chaldea-holonet-catalog.yml": frozenset({"chaldea_laptop_holonet_catalog_profiles"}),
-    "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
+    "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({
+        "webmcp_interactive_helper_sha256", "chaldea_node_version"}),
     # Inactive-runtime retention only; bounded histories and cleanup preservation
     # are exercised in test_chaldea_client.py. These do not select active pins.
     "inventory/host_vars/agent-a/chaldea-staging-retention.yml": frozenset({"chaldea_client_retained_versions"}),

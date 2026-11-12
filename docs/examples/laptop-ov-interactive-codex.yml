@@ -50,6 +50,6 @@ codex_entry:
   name: ov
   url: https://ov.mcp.ryzhkov.dev/mcp
   http_headers_helper: /usr/local/libexec/webmcp-interactive-headers ov laptop
-# Claude, OpenCode, other hosts, the Jocasta entries and the protected
-# Chaldea tooling profiles receive nothing from this selection.
-unchanged: [claude, opencode, agent-a, agent-b, omarchy-pc, jocasta, chaldea_client_session_profiles]
+# Claude, OpenCode, other hosts and the Jocasta entries receive nothing
+# from this selection.
+unchanged: [claude, opencode, agent-a, agent-b, omarchy-pc, jocasta]

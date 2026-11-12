@@ -68,13 +68,7 @@ cancellation still wins.
   silently. Perform your own authorized merge after the CI wake and continue, or
   retain an owner and recovery action for an external merge. Registration is not
   completion. No polling, duplicate monitors, dummy children or fake schedules.
-- On official T3 0.1.0, do not substitute external Chaldea time/thread wakes for
-  executor dependencies requiring Stop preservation. Pinning is no message
-  admission guard. Preserve historical guarded payloads fail-closed, never strip
-  or replay them. Follow Chaldea's client/cancellation limits; if a required native
-  wake is unavailable, report the exact gap, owner and next authorized recovery
-  to the root. Do not promise guaranteed continuation or add a fork, client release,
-  wrapper, store or daemon.
+
 - Yield only when useful independent ready work is exhausted. Retain each dependency's
   owner, task/PR/wait ID and retry key, source revision, expected wake, next action,
   recovery deadline and action. Reconcile authoritative status once on a wake and

@@ -113,8 +113,7 @@ need no separate approval. Continue independent work while a real question is pe
 
 ## Chaldea and scratch
 
-Use the `chaldea` skill for builds and heavy runs on job hosts. Chaldea waits and the
-decision inbox are retired because official T3 refuses their registration; use native T3.
+Use the `chaldea` skill for builds and heavy runs on job hosts.
 Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
 Ask ordinary clarifying questions directly in the current conversation. Optional
 preferences do not block work; use a reasonable in-scope assumption when safe.

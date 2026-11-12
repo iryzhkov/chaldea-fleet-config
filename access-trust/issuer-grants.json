@@ -66,20 +66,6 @@
             ]
           }
         ]
-      },
-      {
-        "audience": "akasha",
-        "profile": "mission-control-publisher",
-        "project": "chaldea",
-        "source": "agent-a.mission-control",
-        "grants": [
-          {
-            "resource": "agent-a.mission-control",
-            "actions": [
-              "append"
-            ]
-          }
-        ]
       }
     ]
   },
@@ -131,20 +117,6 @@
         "grants": [
           {
             "resource": "agent-b.toolfeedback",
-            "actions": [
-              "append"
-            ]
-          }
-        ]
-      },
-      {
-        "audience": "akasha",
-        "profile": "mission-control-publisher",
-        "project": "chaldea",
-        "source": "agent-b.mission-control",
-        "grants": [
-          {
-            "resource": "agent-b.mission-control",
             "actions": [
               "append"
             ]
@@ -237,20 +209,6 @@
       },
       {
         "audience": "akasha",
-        "profile": "mission-control-publisher",
-        "project": "chaldea",
-        "source": "omarchy-pc.mission-control",
-        "grants": [
-          {
-            "resource": "omarchy-pc.mission-control",
-            "actions": [
-              "append"
-            ]
-          }
-        ]
-      },
-      {
-        "audience": "akasha",
         "profile": "route-service",
         "project": "chaldea",
         "source": "route",
@@ -313,20 +271,6 @@
         "grants": [
           {
             "resource": "omarchy-macbook-air-igor.toolfeedback",
-            "actions": [
-              "append"
-            ]
-          }
-        ]
-      },
-      {
-        "audience": "akasha",
-        "profile": "mission-control-publisher",
-        "project": "chaldea",
-        "source": "omarchy-macbook-air-igor.mission-control",
-        "grants": [
-          {
-            "resource": "omarchy-macbook-air-igor.mission-control",
             "actions": [
               "append"
             ]
@@ -486,20 +430,6 @@
             ]
           }
         ]
-      },
-      {
-        "audience": "akasha",
-        "profile": "mission-control-reader",
-        "project": "chaldea",
-        "source": "mission-control-reader",
-        "grants": [
-          {
-            "resource": "mission-control-reader",
-            "actions": [
-              "read"
-            ]
-          }
-        ]
       }
     ]
   },
@@ -570,20 +500,6 @@
             ]
           }
         ]
-      },
-      {
-        "audience": "akasha",
-        "profile": "mission-control-publisher",
-        "project": "chaldea",
-        "source": "agent-a.mission-control",
-        "grants": [
-          {
-            "resource": "agent-a.mission-control",
-            "actions": [
-              "append"
-            ]
-          }
-        ]
       }
     ]
   },
@@ -635,20 +551,6 @@
         "grants": [
           {
             "resource": "agent-b.toolfeedback",
-            "actions": [
-              "append"
-            ]
-          }
-        ]
-      },
-      {
-        "audience": "akasha",
-        "profile": "mission-control-publisher",
-        "project": "chaldea",
-        "source": "agent-b.mission-control",
-        "grants": [
-          {
-            "resource": "agent-b.mission-control",
             "actions": [
               "append"
             ]
@@ -741,20 +643,6 @@
       },
       {
         "audience": "akasha",
-        "profile": "mission-control-publisher",
-        "project": "chaldea",
-        "source": "omarchy-pc.mission-control",
-        "grants": [
-          {
-            "resource": "omarchy-pc.mission-control",
-            "actions": [
-              "append"
-            ]
-          }
-        ]
-      },
-      {
-        "audience": "akasha",
         "profile": "route-service",
         "project": "chaldea",
         "source": "route",
@@ -817,20 +705,6 @@
         "grants": [
           {
             "resource": "omarchy-macbook-air-igor.toolfeedback",
-            "actions": [
-              "append"
-            ]
-          }
-        ]
-      },
-      {
-        "audience": "akasha",
-        "profile": "mission-control-publisher",
-        "project": "chaldea",
-        "source": "omarchy-macbook-air-igor.mission-control",
-        "grants": [
-          {
-            "resource": "omarchy-macbook-air-igor.mission-control",
             "actions": [
               "append"
             ]
@@ -987,20 +861,6 @@
             "resource": "omarchy-normandy.toolfeedback",
             "actions": [
               "append"
-            ]
-          }
-        ]
-      },
-      {
-        "audience": "akasha",
-        "profile": "mission-control-reader",
-        "project": "chaldea",
-        "source": "mission-control-reader",
-        "grants": [
-          {
-            "resource": "mission-control-reader",
-            "actions": [
-              "read"
             ]
           }
         ]

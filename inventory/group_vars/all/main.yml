@@ -46,14 +46,14 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Published client-v0.4.23 from Chaldea main 2a9aec02d003969af1a1fa19e995a4934288c75b.
-# PR99 merge 354206a; release workflow 40964375069 succeeded.
-# Manifest SHA-256: 443cdf3598fb146e03ff1010bda6753ff1780d78a5d860182eedf185ac89b41a.
+# Published client-v0.4.24 from Chaldea main 72021bafaff39eb8d03ba1ae115b3e59952bffcc.
+# Archive and manifest SHA-256 verified by downloading both release assets.
+# Manifest SHA-256: bad718c5e95024b8d6134e742b4f64a72659511936d29ba8635cd3814a8495a6.
 # Desired ordinary-client pin; agent-a and laptop retain manual observer exceptions.
 # See docs/chaldea-client.md for installed-state and migration-owner obligations.
 chaldea_client_enabled: true
-chaldea_client_version: client-v0.4.23
-chaldea_client_sha256: "b96c928d050d81e7be96841baf8ce0204927cd14fbd43b62cc0d4ac058fb9c82"
+chaldea_client_version: client-v0.4.24
+chaldea_client_sha256: "35b284f7ecabdd1b2228bb21f8eff1b42dc3bdd05c52133de04bcc0b2ec5eb43"
 # Observed ordinary-client rollback history, not active per-host version pins.
 # Keep existing payloads/caches only; absent versions are never installed.
 # Keep client-v0.4.8 when the 0.4.11 upgrade moves previous to 0.4.9.
@@ -67,10 +67,11 @@ chaldea_client_retained_versions:
 # Opt-in requires Igor's approval and verified local account binding on each host.
 chaldea_client_claude_usage_enabled: false
 
-# Published from Chaldea main 330926d; SHA-256 verified from the release asset.
+# Published from Chaldea main 72021bafaff39eb8d03ba1ae115b3e59952bffcc.
+# Archive SHA-256 verified by downloading the release asset.
 # Keep this version and digest identical in fleet-config and homelab-infra.
-chaldea_host_version: host-v0.2.2
-chaldea_host_sha256: "ebaf896b2b4552002f00ad9b83855ff2364abe02f57ec667d7c9fcafb308c357"
+chaldea_host_version: host-v0.2.18
+chaldea_host_sha256: "34d2fd21fc04cd946e6b3bf586d1e47aad22ae2b31f4cc7a797f4dbb28fc4b7c"
 
 # Clock repair is independent of job, collector and issuer runtime pins.
 chaldea_clock_host_version: host-v0.2.12
@@ -125,8 +126,7 @@ chaldea_job_client_targets:
 t3_enabled: true
 # 0.1.6 is installed on agent-a, agent-b, omarchy-pc and the laptop since
 # 2026-11-03/07. Checked 2026-11-11: quota observer reads T3 normally. Waits
-# still refuse registration on official T3 (no externalWakeGuardVersion), as
-# they did on 0.1.5; see chaldea docs/waits.md.
+# still refuse registration on official T3 (no externalWakeGuardVersion).
 # Native T3 updates may advance beyond this floor without blocking fleet pulls.
 t3_min_version: 0.1.6
 

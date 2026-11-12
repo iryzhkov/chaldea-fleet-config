@@ -18,6 +18,8 @@
       tags: [always]
   # Each role is tagged with its name, so a run can skip one with --skip-tags.
   roles:
+    - role: retired_services
+      tags: [retired_services]
     - role: agent_tools
       tags: [agent_tools]
     - role: agent_config
@@ -46,9 +48,7 @@
       when: chaldea_job_host_enabled | default(false) | bool
     - role: chaldea_job_client
       tags: [chaldea_job_client]
-      when: >-
-        chaldea_job_client_enabled | default(false) | bool
-        or mcp_registrations_chaldea_waits_enabled | default(false) | bool
+      when: chaldea_job_client_enabled | default(false) | bool
     - role: retention
       tags: [retention]
       when: "'agent_hosts' in group_names"

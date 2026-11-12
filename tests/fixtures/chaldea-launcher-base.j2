@@ -1,5 +1,5 @@
 #!/bin/sh
-# bin/chaldea dispatches both fleet compute and the waits/decision CLI.
+# bin/chaldea dispatches fleet commands.
 chaldea_entry="$HOME/.local/share/chaldea/{{ 'current' if chaldea_client_enabled | default(false) else 'app' }}/bin/chaldea"
 chaldea_node="$HOME/.local/share/mise/installs/node/{{ chaldea_node_version }}/bin/node"
 if [ ! -f "$chaldea_entry" ]; then
