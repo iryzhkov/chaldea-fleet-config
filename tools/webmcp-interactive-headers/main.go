@@ -124,6 +124,12 @@ func main() {
 		holonetJanitorMode()
 	case "holonet-torrents":
 		holonetTorrentsMode()
+	case "holonet-acquire-read":
+		holonetJanitorModeFor(holonetAcquireContract("read"))
+	case "holonet-acquire-start":
+		holonetJanitorModeFor(holonetAcquireContract("start"))
+	case "holonet-acquire-media":
+		holonetJanitorModeFor(holonetAcquireContract("media"))
 	case "holonet-seed-join":
 		holonetSeedJoinMode()
 	default:
@@ -150,6 +156,9 @@ func selectMode(args []string) string {
 	}
 	if args[0] == "holonet-torrents" && args[1] == "laptop" {
 		return "holonet-torrents"
+	}
+	if (args[0] == "holonet-acquire-read" || args[0] == "holonet-acquire-start" || args[0] == "holonet-acquire-media") && args[1] == "laptop" {
+		return args[0]
 	}
 	if args[0] == "holonet-seed-join" && args[1] == "laptop" {
 		return "holonet-seed-join"

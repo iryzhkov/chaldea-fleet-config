@@ -20,6 +20,12 @@
       - not (webmcp_interactive_holonet_torrents_enabled | default(false)) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001 and webmcp_interactive_holonet_writer_enabled | default(false) | bool)
       - webmcp_interactive_holonet_seed_join_enabled | default(false) | type_debug == 'bool'
       - not (webmcp_interactive_holonet_seed_join_enabled | default(false)) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001 and webmcp_interactive_holonet_writer_enabled | default(false) | bool)
+      - webmcp_interactive_holonet_acquire_read_enabled | default(false) | type_debug == 'bool'
+      - not (webmcp_interactive_holonet_acquire_read_enabled | default(false)) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001 and webmcp_interactive_holonet_writer_enabled | default(false) | bool)
+      - webmcp_interactive_holonet_acquire_start_enabled | default(false) | type_debug == 'bool'
+      - not (webmcp_interactive_holonet_acquire_start_enabled | default(false)) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001 and webmcp_interactive_holonet_writer_enabled | default(false) | bool)
+      - webmcp_interactive_holonet_acquire_media_enabled | default(false) | type_debug == 'bool'
+      - not (webmcp_interactive_holonet_acquire_media_enabled | default(false)) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001 and webmcp_interactive_holonet_writer_enabled | default(false) | bool)
       - not (webmcp_interactive_ov_full_enabled | default(false) | bool and webmcp_interactive_ov_enabled | default(false) | bool)
     quiet: true
 
