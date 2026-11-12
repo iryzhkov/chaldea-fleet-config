@@ -78,7 +78,7 @@ for (const [host, row] of Object.entries(policy)) {
     anchor_file:'/etc/chaldea-access-trust/anchors.json', clock_health_file:'/run/chaldea-access-trust/clock-health.json', grants:grants[host]});
   let record = issuers.find(k => k.issuer === issuer.name && k.kid === row.kid);
   if (record && record.public_key.x !== keys[host].x) throw Error('existing signer public mismatch');
-  if (!record) { record = {issuer:issuer.name, kid:row.kid, public_key:keys[host], not_before:1792281600, issue_until:1794787200, verify_until:1794788010, ceilings:[]}; issuers.push(record); }
+  if (!record) { record = {issuer:issuer.name, kid:row.kid, public_key:keys[host], not_before:1794441600, issue_until:1797033600, verify_until:1797034410, ceilings:[]}; issuers.push(record); }
   for (const g of grants[host]) {
     const ceiling = {audience:g.audience, profile:g.profile, project:g.project, source:g.source, grants:[{resource:g.source, actions:[g.action]}]};
     if (!record.ceilings.some(c => JSON.stringify(c) === JSON.stringify(ceiling))) record.ceilings.push(ceiling);
