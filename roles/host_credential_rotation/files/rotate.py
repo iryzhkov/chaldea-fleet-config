@@ -162,6 +162,12 @@ def rotate(fd, host, api, revoked=False, now=None, checkpoint=lambda _: None):
     else:
         require(hashlib.sha256(current).hexdigest() == marker["sha256"])
     api.exchange(current)  # Inactive/expired credentials stop here, with no retry.
+    if journal and hashlib.sha256(current).hexdigest() != marker["sha256"]:
+        # A crash after swap may leave the replacement ahead of the marker.
+        # Check custody before any server mutation, even when current exchanges.
+        staged = api.token(journal["new"], key=True)
+        require(staged and hashlib.sha256(current).hexdigest() ==
+                hashlib.sha256(staged["key"].encode()).hexdigest())
     old = journal["old"] if journal else marker.get("token", "chaldea-" + host + "-g" + str(marker["generation"]))
     if journal is None:
         token = api.token(old)
@@ -180,10 +186,6 @@ def rotate(fd, host, api, revoked=False, now=None, checkpoint=lambda _: None):
         checkpoint("created")
     key = api.token(new, key=True)["key"].encode()
     require(16 <= len(key) <= 256 and all(33 <= b <= 126 for b in key))
-    # Recovery accepts only the recorded current key or this generation's
-    # server-staged replacement, never another valid credential for the user.
-    require(hashlib.sha256(current).hexdigest() in
-            (marker["sha256"], hashlib.sha256(key).hexdigest()))
     api.exchange(key)  # Verify before switching or deleting anything.
     checkpoint("verified")
     atomic(fd, "host.app-password", key)
