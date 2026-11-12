@@ -1,5 +1,5 @@
 #!/bin/sh
-# bin/chaldea dispatches both fleet compute and the waits/decision CLI.
+# bin/chaldea dispatches fleet commands.
 {% if chaldea_job_client_exec_entry | default('') | length > 0 %}
 # Only `chaldea exec` runs this separately admitted client; every other command
 # keeps the pinned release below. A missing selection never falls back.

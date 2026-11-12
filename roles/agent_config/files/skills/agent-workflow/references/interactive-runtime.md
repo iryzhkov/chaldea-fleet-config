@@ -54,12 +54,7 @@ thread state; native child completion may reopen it. Stop/user cancellation stil
 Use native `delegate_task` completion and `watch_pull_request` for actual dependencies.
 PR checks/comments/conflicts can wake; merge ends the watch silently. After CI, handle
 your own authorized merge and continue, or retain owner/recovery for an external merge.
-On official T3 0.1.0, do not replace Stop-preserving executor dependencies with external
-Chaldea time/thread wakes. Keep historical guarded payloads fail-closed, never strip or
-replay them. Record any missing native wake, owner and next authorized recovery; do not
-promise guaranteed continuation or add a fork, wrapper, store or daemon. No dummy child,
-fake recurring schedule, duplicate monitor or polling loop. Explicit stop/cancellation
-overrides late wakes; reconcile outcomes before continuing.
+
 
 Batch routine child and CI notifications into meaningful milestone updates. Surface material
 failures, blockers, needed decisions or changed plans promptly. A wake should advance or

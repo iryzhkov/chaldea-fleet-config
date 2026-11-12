@@ -389,14 +389,12 @@ def test_role_refuses_unsafe_route_selection_before_writes(tmp_path, entry):
     assert not home.exists()
 
 
-@pytest.mark.parametrize("waits", [False, True])
 @pytest.mark.parametrize("entry", ["", "/opt/releases/client-v0.4.23/bin/chaldea"])
-def test_mcp_route_selection_keeps_waits_registration(tmp_path, waits, entry):
+def test_mcp_route_selection(tmp_path, entry):
     output = tmp_path / "registration.json"
     result = playbook(tmp_path, {"fleet_home": str(tmp_path / "home"),
                                 "chaldea_client_enabled": True,
-                                "chaldea_client_route_entry": entry,
-                                "mcp_registrations_chaldea_waits_enabled": waits}, [
+                                "chaldea_client_route_entry": entry}, [
         {"name": "Load MCP defaults", "ansible.builtin.include_vars":
          {"file": str(ROOT / "roles/mcp_registrations/defaults/main.yml"), "name": "mcp_defaults"}},
         {"name": "Render Chaldea registration", "ansible.builtin.copy":
@@ -405,9 +403,9 @@ def test_mcp_route_selection_keeps_waits_registration(tmp_path, waits, entry):
     ])
     assert result.returncode == 0, result.stdout + result.stderr
     server = json.loads(output.read_text())
-    expected = entry if entry and not waits else str(tmp_path / "home/.local/share/chaldea/current/bin/chaldea")
+    expected = entry if entry else str(tmp_path / "home/.local/share/chaldea/current/bin/chaldea")
     assert server["args"] == [expected, "mcp", "--config",
-                              str(tmp_path / f"home/.config/chaldea/{'waits' if waits else 'mcp'}.json")]
+                              str(tmp_path / f"home/.config/chaldea/mcp.json")]
     assert server["command"] == str(tmp_path / f"home/.local/share/mise/installs/node/{NODE_VERSION}/bin/node")
 
 

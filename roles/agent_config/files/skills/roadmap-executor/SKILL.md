@@ -152,13 +152,7 @@ source, review and deployment verification requirements remain binding.
   and continue, or retain an owner and recovery action for an external merge.
   Registration is not completion. Continue independent ready work before yielding.
   Never poll, add duplicate monitors, dummy children or fake recurring schedules.
-- On official T3 0.1.0, do not substitute external Chaldea time/thread wakes for
-  executor dependencies requiring Stop preservation. Pinning does not guard
-  external message admission. Follow Chaldea's documented client/cancellation
-  limits; preserve historical guarded payloads fail-closed, never strip or replay
-  them. If no required native wake exists, record the exact gap, owner and next
-  authorized recovery rather than promise guaranteed continuation or add a fork,
-  client release, wrapper, store or daemon.
+
 - Before yielding, checkpoint each dependency's owner, task/PR/wait ID and retry
   key, exact source revision, expected wake, next action, recovery deadline and
   recovery action. A deadline prompts diagnosis of that dependency and continued

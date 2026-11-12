@@ -43,7 +43,7 @@ def fixture(base, monkeypatch, version="client-v9.0.0"):
     manager = base / "systemctl.json"
     if not manager.exists():
         manager.write_text(json.dumps({"units": {name: {"enabled": False, "active": False}
-                                               for name in ("chaldea-quota.service", "chaldea-waits.service")},
+                                               for name in ("chaldea-quota.service")},
                                       "calls": []}))
     monkeypatch.setenv("PATH", str(ROOT / "tests/fake-bin") + ":" + os.environ["PATH"])
     monkeypatch.setenv("FAKE_SYSTEMCTL_STATE", str(manager))
@@ -53,8 +53,6 @@ def fixture(base, monkeypatch, version="client-v9.0.0"):
             "chaldea_node_version": "26.10.0", "chaldea_client_enabled": True,
             "chaldea_client_version": version, "chaldea_client_sha256": checksum,
             "chaldea_client_archive_source": str(archive), "chaldea_client_manifest_source": str(manifest),
-            "chaldea_client_waits_socket": str(home / ".cache/chaldea-waits.sock"),
-            "chaldea_client_waits_environment": "fixture-environment",
             "chaldea_client_codex_home": str(home / ".codex"),
             "mcp_registrations_claude": [str(ROOT / "tests/fake-claude"), str(home / "claude-mcp.json")]}
 
@@ -163,7 +161,7 @@ def test_directory_provisioning_repairs_private_quota_state(quota_runtime):
         assert snapshot() == before
         for path, mode in generic.items():
             assert path.stat().st_mode & 0o777 == mode
-        for name in ("chaldea-quota", "chaldea-waits"):
+        for name in ("chaldea-quota"):
             unit = configparser.ConfigParser(interpolation=None, strict=False)
             unit.read(home / f".config/systemd/user/{name}.service")
             # systemd otherwise defaults to 0755 and resets the directory on start.
@@ -174,7 +172,7 @@ def test_directory_provisioning_repairs_private_quota_state(quota_runtime):
 
 def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
     variables = fixture(tmp_path, monkeypatch)
-    variables |= {"chaldea_client_quota_enabled": True, "chaldea_client_waits_enabled": True}
+    variables |= {"chaldea_client_quota_enabled": True}
     provision()
     home = Path.home()
     app = home / ".local/share/chaldea/app"
@@ -186,7 +184,7 @@ def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
     (home / ".config/chaldea/other.json").write_text("preserve config")
     units = home / ".config/systemd/user"
     units.mkdir(parents=True)
-    for name in ("quota", "waits"):
+    for name in ("quota",):
         (units / ("chaldea-" + name + ".service")).write_text("hand-made unit")
     result = run(tmp_path, variables)
     success(result)
@@ -196,7 +194,7 @@ def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
     assert (root / "app.pre-fleet/operator-note").read_text() == "preserve checkout"
     assert (state / "waits.sqlite").read_bytes() == b"database sentinel"
     assert (home / ".config/chaldea/other.json").read_text() == "preserve config"
-    for name in ("quota", "waits"):
+    for name in ("quota",):
         unit = (units / ("chaldea-" + name + ".service")).read_text()
         assert "%h/.local/share/chaldea/current/bin/chaldea" in unit
         assert str(home) not in unit and "/home/igor" not in unit
@@ -206,9 +204,6 @@ def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
                                    "codexHome": str(home / ".codex"),
                                    "command": str(home / ".local/share/mise/shims/codex"),
                                    "assertRuntimeHome": False}
-    waits = json.loads((home / ".config/chaldea/waits.json").read_text())
-    assert waits["environment"] == "fixture-environment"
-    assert waits["tokenFile"] == str(home / ".config/chaldea/waits-t3-token")
     manager = json.loads((tmp_path / "systemctl.json").read_text())
     assert all(u["active"] and u["enabled"] for u in manager["units"].values())
     route = json.loads((home / ".config/chaldea/route.json").read_text())
@@ -259,9 +254,9 @@ def test_route_target_overrides_render_once(tmp_path, monkeypatch):
 @pytest.mark.parametrize("failure", ["missing", "mode", "symlink", "owner"])
 def test_secret_refusal_precedes_writes_and_unit_calls(tmp_path, monkeypatch, failure):
     variables = fixture(tmp_path, monkeypatch)
-    variables |= {"chaldea_client_quota_enabled": True, "chaldea_client_waits_enabled": True}
+    variables |= {"chaldea_client_quota_enabled": True}
     provision()
-    token = Path.home() / ".config/chaldea/waits-answer-token"
+    token = Path.home() / ".config/chaldea/t3-token"
     if failure == "missing":
         token.unlink()
     elif failure == "mode":
@@ -370,7 +365,7 @@ def test_release_refusals_leave_current_and_legacy_untouched(tmp_path, monkeypat
 
 def test_interrupted_unit_reload_retries_before_retiring_checkout(tmp_path, monkeypatch):
     variables = fixture(tmp_path, monkeypatch)
-    variables |= {"chaldea_client_quota_enabled": True, "chaldea_client_waits_enabled": True}
+    variables |= {"chaldea_client_quota_enabled": True}
     provision()
     home = Path.home()
     app = home / ".local/share/chaldea/app"
@@ -388,7 +383,6 @@ def test_interrupted_unit_reload_retries_before_retiring_checkout(tmp_path, monk
     assert app.exists()
     marker = home / ".cache/chaldea-client/restart-required"
     assert marker.exists()
-    assert "/current/bin/chaldea" in (home / ".config/systemd/user/chaldea-waits.service").read_text()
     result = run(tmp_path, variables)
     success(result)
     assert not marker.exists()
@@ -397,7 +391,6 @@ def test_interrupted_unit_reload_retries_before_retiring_checkout(tmp_path, monk
     calls = json.loads((tmp_path / "systemctl.json").read_text())["calls"]
     assert sum(call[0] == "daemon-reload" for call in calls) >= 3
     assert ["restart", "chaldea-quota.service"] in calls
-    assert ["restart", "chaldea-waits.service"] in calls
     for config in (home / ".codex/config.toml", home / "claude-mcp.json"):
         assert "/current/bin/chaldea" in config.read_text()
     repeated = run(tmp_path, variables)

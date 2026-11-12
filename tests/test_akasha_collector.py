@@ -19,7 +19,8 @@ def test_collector_is_disabled_and_uses_one_locked_scoped_service():
     assert settings["OnUnitInactiveSec"] == "5s"
     assert settings["RandomizedDelaySec"] == "1s"
     assert settings["AccuracySec"] == "1s"
-    assert "AKASHA_TOKEN_HELPER" in service and "UnsetEnvironment=FEED_TOKEN" in service
+    assert "UnsetEnvironment=FEED_TOKEN" in service
+    assert "AKASHA_" not in service
     assert "feed/key" not in service
     normal = ROOT / "inventory/hosts.yml"
     hosts = yaml.safe_load(normal.read_text())["all"]["children"]["agent_hosts"]["hosts"]

@@ -1,8 +1,0 @@
-{
-  "claude/omarchy-setup/CLAUDE.md": [
-    [
-      "The fleet feed runs on homelab, port 1934.\n",
-      "The fleet feed is Akasha, the Chaldea event gateway on homelab, at https://akasha.ryzhkov.dev.\nUse the `feed` CLI (`feed recent`, `feed show ID`, `feed post`); it gets short-lived tokens\nfrom this host's Chaldea token helper. The old feed on homelab port 1934 no longer exists.\n"
-    ]
-  ]
-}

@@ -21,8 +21,8 @@ def chaldea(home):
     return {
         "name": "chaldea",
         "command": f"{home}/.local/share/mise/installs/node/{NODE_VERSION}/bin/node",
-        "args": [f"{home}/.local/share/chaldea/app/src/cli.ts", "mcp", "--config",
-                 f"{home}/.config/chaldea/waits.json"],
+        "args": [f"{home}/.local/share/chaldea/current/bin/chaldea", "mcp", "--config",
+                 f"{home}/.config/chaldea/mcp.json"],
     }
 
 
@@ -45,21 +45,6 @@ def test_existing_omarchy_registration_is_unchanged(tmp_path, provider):
 
     assert not call(provider, **params, **desired)["changed"]
     assert path.read_bytes() == before
-
-
-def test_waits_mcp_registration_is_retired_on_every_host():
-    inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
-    defaults = yaml.safe_load((ROOT / "roles/mcp_registrations/defaults/main.yml").read_text())
-    assert defaults["mcp_registrations_chaldea_waits_enabled"] is False
-    enabled = [
-        host
-        for group in inventory["all"]["children"].values()
-        for host, values in group["hosts"].items()
-        if values.get("mcp_registrations_chaldea_waits_enabled", False)
-    ]
-    # Official T3 refuses wait and decision registration (no externalWakeGuardVersion),
-    # so no host registers the waits MCP tools; the waits service stays for sessions.
-    assert enabled == []
 
 
 def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
@@ -89,9 +74,7 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
     def run(enabled=None, check=False, managed=False):
         argv = ["ansible-playbook", "-i", "localhost,", str(play)]
         if enabled is not None:
-            argv += ["-e", json.dumps({"mcp_registrations_chaldea_waits_enabled": enabled})]
-        if managed:
-            argv += ["-e", "chaldea_client_enabled=true"]
+            argv += ["-e", json.dumps({"chaldea_client_enabled": enabled})]
         if check:
             argv += ["--check"]
         result = subprocess.run(argv, cwd=ROOT, env=environment, capture_output=True, text=True)
@@ -124,7 +107,7 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
     for servers in definitions():
         assert servers["chaldea"]["args"][0] == str(home / ".local/share/chaldea/current/bin/chaldea")
     assert re.search(r"changed=0\s", run(True, managed=True))
-    run(False, managed=True)  # Routing remains available without the waits service.
+    run(True, managed=True)  # Routing remains available without the waits service.
     for servers in definitions():
         assert servers["chaldea"]["args"][-1] == str(home / ".config/chaldea/mcp.json")
     opencode = json.loads((home / ".config/opencode/opencode.json").read_text())

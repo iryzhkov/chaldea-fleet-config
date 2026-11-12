@@ -21,7 +21,7 @@ ceilings, profile route-service/project chaldea/audience akasha. The matching
 fate-route-helper-additions.json is an additive operator packet for the existing
 root-owned helper configurations. Preserve all current helper fields and grants,
 validate with the qualified client, and compare current bytes before replacement.
-Do not rerun baseline enrollment over live Mission Control or quota additions.
+Do not rerun baseline enrollment over live quota additions.
 No identity, issuer key, deployment anchor or signer state changes.
 
 Deploy the compatible homelab Akasha packet from homelab-infra first. Trigger the

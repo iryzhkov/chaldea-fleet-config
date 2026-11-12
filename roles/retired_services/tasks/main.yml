@@ -1,0 +1,77 @@
+---
+# Preserve databases, session stores and snapshots for operator archival.
+- name: Inspect retired system unit files
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ item }}"
+  loop:
+    - mission-control-capture.service
+    - mission-control-reader.service
+    - chaldea-waits.service
+    - chaldea-waits-policy-gate.service
+    - chaldea-waits-preflight.service
+  register: retired_services_system
+  become: true
+
+- name: Stop and disable installed retired system units
+  ansible.builtin.systemd_service:
+    name: "{{ item.item }}"
+    scope: system
+    state: stopped
+    enabled: false
+  loop: "{{ retired_services_system.results }}"
+  when: item.stat.exists
+  become: true
+
+- name: Remove retired system unit files
+  ansible.builtin.file:
+    path: "{{ item.stat.path }}"
+    state: absent
+  loop: "{{ retired_services_system.results }}"
+  when: item.stat.exists
+  become: true
+  register: retired_services_system_removed
+
+- name: Reload system definitions after retirement
+  ansible.builtin.systemd_service:
+    scope: system
+    daemon_reload: true
+  when: retired_services_system_removed.changed
+  become: true
+
+- name: Inspect retired user unit files
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/.config/systemd/user/{{ item }}"
+  loop:
+    - mission-control-capture.service
+    - mission-control-reader.service
+    - chaldea-waits.service
+    - chaldea-waits-policy-gate.service
+    - chaldea-waits-preflight.service
+  register: retired_services_user
+  become: false
+
+- name: Stop and disable installed retired user units
+  ansible.builtin.systemd_service:
+    name: "{{ item.item }}"
+    scope: user
+    state: stopped
+    enabled: false
+  loop: "{{ retired_services_user.results }}"
+  when: item.stat.exists
+  become: false
+
+- name: Remove retired user unit files
+  ansible.builtin.file:
+    path: "{{ item.stat.path }}"
+    state: absent
+  loop: "{{ retired_services_user.results }}"
+  when: item.stat.exists
+  become: false
+  register: retired_services_user_removed
+
+- name: Reload user definitions after retirement
+  ansible.builtin.systemd_service:
+    scope: user
+    daemon_reload: true
+  when: retired_services_user_removed.changed
+  become: false

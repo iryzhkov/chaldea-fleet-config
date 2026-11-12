@@ -66,15 +66,9 @@ python tools/check-agent-skills.py
 # Whole-file lanes avoid shared-HOME concurrency and keep parameterized cases intact.
 # The remainder collects tests recursively, so new files are included automatically.
 skill_tests=(tests/test_agent_skills.py tests/test_laptop_skill_links.py)
-role_tests=(tests/test_agent_source_migration.py tests/test_chaldea_client.py tests/test_huyang_role.py
-            tests/test_chaldea_claude_capabilities_probe.py tests/test_chaldea_session_profiles_claude.py)
-# Split the expensive role files observed in run 40952835783. Keep files intact;
-# rest-3 discovers every other test recursively, including future directories.
-rest_1_tests=(tests/test_chaldea_session_profiles.py tests/test_chaldea_session_profiles_opencode.py
-              tests/test_chaldea_waits_legacy.py tests/test_chaldea_waits_recovery.py)
-rest_2_tests=(tests/test_chaldea_waits_runtime_migration.py tests/test_chaldea_waits_system.py
-              tests/test_host_artifact.py tests/test_mission_control.py tests/test_mission_control_capture.py
-              tests/test_laptop_ov_tooling.py tests/test_mise_agents.py)
+role_tests=(tests/test_agent_source_migration.py tests/test_chaldea_client.py tests/test_huyang_role.py)
+rest_1_tests=(tests/test_host_artifact.py)
+rest_2_tests=(tests/test_mise_agents.py)
 pytest_targets=(tests)
 case "$phase" in
 	pytest-skills) pytest_targets=("${skill_tests[@]}") ;;

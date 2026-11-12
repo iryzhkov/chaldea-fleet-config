@@ -15,9 +15,10 @@ def test_manual_collector_uses_timer_lock_and_drops_shared_key(tmp_path):
     state = home / ".local/state/chaldea/events"
     state.mkdir(parents=True)
     script = tmp_path / "collector.py"
-    capture = tmp_path / "capture"
     script.write_text("import json,os,sys\n"
-                      "print(json.dumps([sys.argv[1:], {k:v for k,v in os.environ.items() "
+                      "from pathlib import Path\n"
+                      "config=json.loads((Path(os.environ['XDG_CONFIG_HOME'])/'chaldea/events.json').read_text())\n"
+                      "print(json.dumps([sys.argv[1:], config, {k:v for k,v in os.environ.items() "
                       "if k.startswith(('AKASHA_','FEED_'))}]))\n")
     env = Environment(loader=FileSystemLoader(ROOT / "roles/akasha_collector/templates"),
                       undefined=StrictUndefined)
@@ -26,15 +27,20 @@ def test_manual_collector_uses_timer_lock_and_drops_shared_key(tmp_path):
         fleet_home=str(home), akasha_collector_url="https://akasha.ryzhkov.dev",
         akasha_collector_token_helper="/approved/helper",
         akasha_collector_node="/usr/bin/python3", akasha_collector_script=str(script)))
-    process_env = {**os.environ, "FEED_TOKEN": "must-not-reach-collector",
+    config = home / ".config/chaldea"
+    config.mkdir(parents=True)
+    (config / "events.json").write_text(env.get_template("events.json.j2").render(
+        fleet_home=str(home), akasha_collector_url="https://akasha.ryzhkov.dev",
+        akasha_collector_token_helper="/approved/helper"))
+    process_env = {**os.environ, "XDG_CONFIG_HOME": str(home / ".config"), "FEED_TOKEN": "must-not-reach-collector",
                    "FEED_KEY_FILE": "/never/open", "FEED_CONFIG": "/never/source"}
     with (state / "collector.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         result = subprocess.run(["sh", str(launcher), "--dry-run"], env=process_env, capture_output=True, text=True)
         assert result.returncode != 0 and result.stdout == ""
     result = subprocess.run(["sh", str(launcher), "--dry-run"], env=process_env, capture_output=True, text=True, check=True)
-    args, configured = json.loads(result.stdout)
+    args, configured, inherited = json.loads(result.stdout)
     assert args == ["--dry-run"]
-    assert configured["AKASHA_STATE_FILE"] == str(state / "collector.db")
-    assert configured["AKASHA_TOKEN_HELPER"] == "/approved/helper"
-    assert not any(k.startswith("FEED_") for k in configured)
+    assert configured["stateFile"] == str(state / "collector.db")
+    assert configured["tokenHelper"] == "/approved/helper"
+    assert inherited == {}

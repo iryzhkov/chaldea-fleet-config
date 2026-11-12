@@ -24,7 +24,6 @@
       - akasha_collector_token_helper is match('^/[A-Za-z0-9._/-]+$')
       - akasha_collector_node is match('^/[A-Za-z0-9._/-]+$')
       - akasha_collector_script is match('^/[A-Za-z0-9._/-]+$')
-      - akasha_collector_mission_control_snapshot_file | length == 0 or akasha_collector_mission_control_snapshot_file is regex('^/[A-Za-z0-9._/-]+$', match_type='fullmatch')
     fail_msg: Collector enablement requires HTTPS and a scoped service token helper
   when: akasha_collector_enabled | bool
 
@@ -36,6 +35,18 @@
   loop:
     - "{{ fleet_home }}/.local/state/chaldea/events"
     - "{{ fleet_home }}/.local/state/chaldea/timer-spool"
+
+- name: Create the collector configuration directory
+  ansible.builtin.file:
+    path: "{{ fleet_home }}/.config/chaldea"
+    state: directory
+    mode: "0700"
+
+- name: Configure event delivery at the standard XDG path
+  ansible.builtin.template:
+    src: events.json.j2
+    dest: "{{ fleet_home }}/.config/chaldea/events.json"
+    mode: "0600"
 
 - name: Create the collector command directory
   ansible.builtin.file:
