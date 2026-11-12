@@ -502,5 +502,509 @@
         ]
       }
     ]
+  },
+  {
+    "issuer": "chaldea:agent-a",
+    "kid": "agent-a-2026-11r",
+    "public_key": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "wksr4JuQguvnye7zplBuyXe77avyFpqGCkhSAGcub7k"
+    },
+    "not_before": 1794441600,
+    "issue_until": 1803772800,
+    "verify_until": 1803773610,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "daily-health",
+        "project": "homelab",
+        "source": "chaldea.daily-health.agent-a",
+        "grants": [
+          {
+            "resource": "chaldea.daily-health.agent-a",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-timers",
+        "project": "chaldea",
+        "source": "agent-a.fleet",
+        "grants": [
+          {
+            "resource": "agent-a.fleet",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "agent-a.toolfeedback",
+        "grants": [
+          {
+            "resource": "agent-a.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-publisher",
+        "project": "chaldea",
+        "source": "agent-a.mission-control",
+        "grants": [
+          {
+            "resource": "agent-a.mission-control",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:agent-b",
+    "kid": "agent-b-2026-11r",
+    "public_key": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "EW7eh9OX-gXkHu3nnnyBRtCB2MueHPehpPH2lp5AFRE"
+    },
+    "not_before": 1794441600,
+    "issue_until": 1803772800,
+    "verify_until": 1803773610,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-timers",
+        "project": "chaldea",
+        "source": "agent-b.fleet",
+        "grants": [
+          {
+            "resource": "agent-b.fleet",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "agent-b.toolfeedback",
+        "grants": [
+          {
+            "resource": "agent-b.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-publisher",
+        "project": "chaldea",
+        "source": "agent-b.mission-control",
+        "grants": [
+          {
+            "resource": "agent-b.mission-control",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:omarchy-pc",
+    "kid": "omarchy-pc-2026-11r",
+    "public_key": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "TNllDrUJIPPQi0aoDuX9JTTyjgvaa-O50vawyiuuJ9g"
+    },
+    "not_before": 1794441600,
+    "issue_until": 1803772800,
+    "verify_until": 1803773610,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-timers",
+        "project": "chaldea",
+        "source": "omarchy-pc.fleet",
+        "grants": [
+          {
+            "resource": "omarchy-pc.fleet",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "omarchy-pc.toolfeedback",
+        "grants": [
+          {
+            "resource": "omarchy-pc.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-reader",
+        "project": "chaldea",
+        "source": "fleet-reader",
+        "grants": [
+          {
+            "resource": "fleet-reader",
+            "actions": [
+              "read"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "quota-service",
+        "project": "chaldea",
+        "source": "chaldea-quota",
+        "grants": [
+          {
+            "resource": "chaldea-quota",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-publisher",
+        "project": "chaldea",
+        "source": "omarchy-pc.mission-control",
+        "grants": [
+          {
+            "resource": "omarchy-pc.mission-control",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "route-service",
+        "project": "chaldea",
+        "source": "route",
+        "grants": [
+          {
+            "resource": "route",
+            "actions": [
+              "read"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:omarchy-macbook-air-igor",
+    "kid": "omarchy-macbook-air-igor-2026-11r",
+    "public_key": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "4cJvmmtF5Z4eA9vFbv0u67g72iisFBNDR-OziJcfx7I"
+    },
+    "not_before": 1794441600,
+    "issue_until": 1803772800,
+    "verify_until": 1803773610,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-timers",
+        "project": "chaldea",
+        "source": "omarchy-macbook-air-igor.fleet",
+        "grants": [
+          {
+            "resource": "omarchy-macbook-air-igor.fleet",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "omarchy-macbook-air-igor.toolfeedback",
+        "grants": [
+          {
+            "resource": "omarchy-macbook-air-igor.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-publisher",
+        "project": "chaldea",
+        "source": "omarchy-macbook-air-igor.mission-control",
+        "grants": [
+          {
+            "resource": "omarchy-macbook-air-igor.mission-control",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:homelab",
+    "kid": "homelab-2026-11r",
+    "public_key": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "lj6ZaBJZaFRp6YXB20pPR8f0ehHt6zbA97cd5BZzUNQ"
+    },
+    "not_before": 1794441600,
+    "issue_until": 1803772800,
+    "verify_until": 1803773610,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "feed",
+        "grants": [
+          {
+            "resource": "feed",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "backup",
+        "grants": [
+          {
+            "resource": "backup",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "drift-check",
+        "grants": [
+          {
+            "resource": "drift-check",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "offsite",
+        "grants": [
+          {
+            "resource": "offsite",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "homelab.toolfeedback",
+        "grants": [
+          {
+            "resource": "homelab.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "route-service",
+        "project": "chaldea",
+        "source": "route",
+        "grants": [
+          {
+            "resource": "route",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "issuer": "chaldea:omarchy-normandy",
+    "kid": "omarchy-normandy-2026-11r",
+    "public_key": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "fHyN345Zi63ZQY82YVmOt5SFAQVBEYPVAeQbuSq8cfE"
+    },
+    "not_before": 1794441600,
+    "issue_until": 1803772800,
+    "verify_until": 1803773610,
+    "ceilings": [
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "backup",
+        "grants": [
+          {
+            "resource": "backup",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "feed-writer",
+        "project": "chaldea",
+        "source": "drift-check",
+        "grants": [
+          {
+            "resource": "drift-check",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "toolfeedback",
+        "project": "chaldea",
+        "source": "omarchy-normandy.toolfeedback",
+        "grants": [
+          {
+            "resource": "omarchy-normandy.toolfeedback",
+            "actions": [
+              "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "mission-control-reader",
+        "project": "chaldea",
+        "source": "mission-control-reader",
+        "grants": [
+          {
+            "resource": "mission-control-reader",
+            "actions": [
+              "read"
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]

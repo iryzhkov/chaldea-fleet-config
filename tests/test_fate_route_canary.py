@@ -11,8 +11,13 @@ CLIENT_SHA = "b96c928d050d81e7be96841baf8ce0204927cd14fbd43b62cc0d4ac058fb9c82"
 
 def test_signed_route_ceilings_are_only_homelab_append_and_pc_read():
     issuers = json.loads((ROOT / "access-trust/issuer-grants.json").read_text())
-    actual = [(row["issuer"], ceiling) for row in issuers
-              for ceiling in row["ceilings"] if ceiling["source"] == "route"]
+    # Overlapping replacement kids repeat each issuer's ceilings, so compare
+    # the distinct (issuer, ceiling) pairs in first-seen order.
+    actual = []
+    for row in issuers:
+        for ceiling in row["ceilings"]:
+            if ceiling["source"] == "route" and (row["issuer"], ceiling) not in actual:
+                actual.append((row["issuer"], ceiling))
     assert actual == [
         ("chaldea:omarchy-pc", dict(audience="akasha", profile="route-service",
             project="chaldea", source="route", grants=[dict(resource="route", actions=["read"])])),
