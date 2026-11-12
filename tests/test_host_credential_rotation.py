@@ -129,6 +129,24 @@ def test_symlink_and_hardlink_refused(custody, tmp_path):
         run(fd, api)
 
 
+def test_failure_feed_contains_no_exception_or_secret(custody, monkeypatch):
+    import sys
+    fd, _ = custody
+    monkeypatch.setattr(sys, "argv", ["rotate.py", "--host", "agent-b"])
+    monkeypatch.setattr(r, "directory", lambda _: os.dup(fd))
+    def fail(*args, **kw):
+        raise r.Refused("SYNTHETIC-secret-must-not-appear")
+    monkeypatch.setattr(r, "rotate", fail)
+    calls = []
+    monkeypatch.setattr(r.subprocess, "run", lambda argv, **kw: calls.append(argv))
+    with pytest.raises(SystemExit):
+        r.main()
+    assert len(calls) == 1
+    assert calls[0][:2] == ["feed", "post"]
+    assert calls[0][-4:] == ["--severity", "fail", "--source", "feed"]
+    assert "SYNTHETIC" not in str(calls)
+
+
 def test_fresh_token_no_rotation(custody):
     fd, api = custody
     original = api.token
