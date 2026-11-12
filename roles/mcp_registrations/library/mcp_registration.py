@@ -102,6 +102,8 @@ MANAGED_HOSTS = {"laptop", "agent-a", "agent-b", "omarchy-pc"}
 # Every closed managed_helper registration: its exact name and URL, the native
 # providers that may receive it, and the one fixed command per approved host.
 MANAGED_SERVERS = {
+    "shizune": {"url": "https://shizune.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+                "commands": {host: HELPER_PATH + " shizune " + host for host in ("laptop", "omarchy-pc")}},
     "jocasta": {"url": "https://jocasta.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
                 "commands": {host: HELPER + host for host in MANAGED_HOSTS}},
     "holonet_catalog": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),

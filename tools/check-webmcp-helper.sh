@@ -12,7 +12,9 @@ HUYANG_FRICTION=0 go test -count=1 ./...
 go build -trimpath -o "$HOME/webmcp-interactive-headers" .
 # Open or unknown tuples fail generically before any file or network access.
 # The real "ov laptop", "ov-full HOST" and "jocasta HOST" modes are never invoked here.
-for args in "invalid" "ov" "ov agent-a" "ov laptop extra" "ov --url=https://other.invalid/mcp" "jocasta homelab" \
+for args in "shizune" "shizune agent-a" "shizune controller" "shizune laptop extra" \
+    "shizune --host=laptop" "shizune laptop --url=https://other.invalid/mcp" \
+    "shizune laptop --scope=other" "shizune laptop --credential=other" "invalid" "ov" "ov agent-a" "ov laptop extra" "ov --url=https://other.invalid/mcp" "jocasta homelab" \
     "ov-full" "ov-full agent-a" "ov-full controller" "ov-full laptop extra" "ov-full --host=laptop" "ov omarchy-pc" \
     "holonet-writer" "holonet-writer agent-a" "holonet-writer laptop extra" "holonet-writer --policy=other" \
     "holonet-janitor" "holonet-janitor agent-a" "holonet-janitor laptop extra" "holonet-janitor --scope=holonet.home" \
