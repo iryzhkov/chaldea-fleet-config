@@ -1,4 +1,4 @@
-"""Render each host's owned instruction files against the pre-move byte baseline."""
+"""Compare source and rendered host instructions with the current byte snapshot."""
 import hashlib
 import json
 import os
@@ -29,7 +29,7 @@ def compare(relative, data):
     assert hashlib.sha256(data).hexdigest() == BEFORE["files"][baseline_path], relative
 
 
-def test_source_only_move_recovers_all_pre_move_bytes():
+def test_source_matches_current_snapshot():
     paths = {p.relative_to(ROOT).as_posix() for p in FILES.rglob("*")
              if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
     assert paths == BEFORE["files"].keys() | {"roles/agent_config/files/" + p for p in ADDED_FILES}

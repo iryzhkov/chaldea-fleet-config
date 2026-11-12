@@ -1,5 +1,5 @@
 {
-  "base": "7185b506afe8eca133f2794d17ed1045bbc0a907",
+  "base": "m1/remove-fork-era-fleet current rendered guidance",
   "plugin_source": "omarchy-setup@ebec80bca66d684d6fe47c5c57c7cf212b6558b2",
   "files": {
     "roles/agent_config/files/agents/AGENTS.md": "4d1a0fd70754397cdc192087af090142d1756b85fb86abf6ae476a57edd5a3b9",
