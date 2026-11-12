@@ -229,13 +229,13 @@ def test_full_credential_custody_is_checked_without_reading_it(tmp_path, unsafe)
 
 
 
-def test_shizune_stays_disabled_in_defaults_and_inventory():
+def test_shizune_disabled_by_default_and_enabled_only_on_its_two_hosts():
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults["webmcp_interactive_shizune_enabled"] is False
     owners = set()
     for path in (ROOT / "inventory").rglob("*.yml"):
         data = yaml.safe_load(path.read_text())
         if isinstance(data, dict) and "webmcp_interactive_shizune_enabled" in data:
-            assert data["webmcp_interactive_shizune_enabled"] is False
+            assert data["webmcp_interactive_shizune_enabled"] is True
             owners.add(path.parent.name)
     assert owners == {"omarchy-pc", "laptop"}

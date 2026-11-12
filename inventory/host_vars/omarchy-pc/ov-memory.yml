@@ -12,4 +12,6 @@ webmcp_interactive_ov_full_enabled: true
 # HOLD MERGE: docs/ov-personal-client-activation.md. Shared helper source d6e08f41,
 # Go1.27.0 Linux/amd64 build 2bab960a-881d-469a-b186-417dec2233e8.
 # Protected staging and previous-pin guard are rollout-only inputs.
-webmcp_interactive_helper_sha256: f88abf558d9c6b7b49987b276633a03cb3e3353990f4fd156d3e83a13ffabbf7
+# Shizune mode superset: source 760d3e7 (PR #165), Go 1.27.0 Linux/amd64 Chaldea
+# build 40204767-9cfd-4ce9-8df4-1521887afee9; previous installed f88abf55.
+webmcp_interactive_helper_sha256: 205b9871e67273120c29947a73358bb9fde23c935dfe3b60732ce3ece6d39059
