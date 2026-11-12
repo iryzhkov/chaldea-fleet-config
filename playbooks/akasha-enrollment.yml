@@ -249,6 +249,10 @@
       when: akasha_enrollment_activate | bool and akasha_enrollment_host.fleet
       tags: [enrollment_activate]
     - name: Select CLI-only Akasha access during activation
+      # The reader label follows the composed helper grants, so only hosts that hold
+      # a fleet-reader read grant (PC when approved, agent-a, agent-b, laptop) get it.
+      vars:
+        akasha_feed_reader: "{{ akasha_enrollment_rendered.grants[inventory_hostname] | selectattr('source', 'equalto', 'fleet-reader') | list | length > 0 }}"
       ansible.builtin.copy:
         content: |
           FEED_URL=https://akasha.ryzhkov.dev
@@ -256,8 +260,8 @@
           FEED_TOKEN=''
           FEED_KEY_FILE=''
           FEED_TOKEN_HOST={{ inventory_hostname }}
-          FEED_READ_SOURCE={{ 'fleet-reader' if inventory_hostname == 'omarchy-pc' and akasha_pc_global_reader_enabled else '' }}
-          TOOLFEEDBACK_TOKEN_SOURCE={{ 'fleet-reader' if inventory_hostname == 'omarchy-pc' and akasha_pc_global_reader_enabled else '' }}
+          FEED_READ_SOURCE={{ 'fleet-reader' if akasha_feed_reader | bool else '' }}
+          TOOLFEEDBACK_TOKEN_SOURCE={{ 'fleet-reader' if akasha_feed_reader | bool else '' }}
         dest: "{{ fleet_home }}/.config/feed/config"
         mode: "0600"
         backup: true

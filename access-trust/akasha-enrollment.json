@@ -5,7 +5,9 @@
     "grants": [
       {"uid":1000,"audience":"akasha","action":"append","source":"feed","host":"agent-a","kind":"feed_post","profile":"feed-writer","project":"chaldea"},
       {"uid":1000,"audience":"akasha","action":"append","source":"agent-a.fleet","host":"agent-a","kind":"job_finished","profile":"fleet-timers","project":"chaldea"},
-      {"uid":1000,"audience":"akasha","action":"append","source":"agent-a.toolfeedback","host":"agent-a","kind":"tool_call","profile":"toolfeedback","project":"chaldea"}
+      {"uid":1000,"audience":"akasha","action":"append","source":"agent-a.toolfeedback","host":"agent-a","kind":"tool_call","profile":"toolfeedback","project":"chaldea"},
+      {"uid":1000,"audience":"akasha","action":"read","source":"fleet-reader","host":"agent-a","kind":"feed_post","profile":"fleet-reader","project":"chaldea"},
+      {"uid":1000,"audience":"akasha","action":"read","source":"fleet-reader","host":"agent-a","kind":"tool_call","profile":"fleet-reader","project":"chaldea"}
     ]
   },
   "agent-b": {
@@ -14,7 +16,9 @@
     "grants": [
       {"uid":1000,"audience":"akasha","action":"append","source":"feed","host":"agent-b","kind":"feed_post","profile":"feed-writer","project":"chaldea"},
       {"uid":1000,"audience":"akasha","action":"append","source":"agent-b.fleet","host":"agent-b","kind":"job_finished","profile":"fleet-timers","project":"chaldea"},
-      {"uid":1000,"audience":"akasha","action":"append","source":"agent-b.toolfeedback","host":"agent-b","kind":"tool_call","profile":"toolfeedback","project":"chaldea"}
+      {"uid":1000,"audience":"akasha","action":"append","source":"agent-b.toolfeedback","host":"agent-b","kind":"tool_call","profile":"toolfeedback","project":"chaldea"},
+      {"uid":1000,"audience":"akasha","action":"read","source":"fleet-reader","host":"agent-b","kind":"feed_post","profile":"fleet-reader","project":"chaldea"},
+      {"uid":1000,"audience":"akasha","action":"read","source":"fleet-reader","host":"agent-b","kind":"tool_call","profile":"fleet-reader","project":"chaldea"}
     ]
   },
   "omarchy-pc": {
@@ -32,7 +36,9 @@
     "grants": [
       {"uid":1001,"audience":"akasha","action":"append","source":"feed","host":"omarchy-macbook-air-igor","kind":"feed_post","profile":"feed-writer","project":"chaldea"},
       {"uid":1001,"audience":"akasha","action":"append","source":"omarchy-macbook-air-igor.fleet","host":"omarchy-macbook-air-igor","kind":"job_finished","profile":"fleet-timers","project":"chaldea"},
-      {"uid":1001,"audience":"akasha","action":"append","source":"omarchy-macbook-air-igor.toolfeedback","host":"omarchy-macbook-air-igor","kind":"tool_call","profile":"toolfeedback","project":"chaldea"}
+      {"uid":1001,"audience":"akasha","action":"append","source":"omarchy-macbook-air-igor.toolfeedback","host":"omarchy-macbook-air-igor","kind":"tool_call","profile":"toolfeedback","project":"chaldea"},
+      {"uid":1001,"audience":"akasha","action":"read","source":"fleet-reader","host":"omarchy-macbook-air-igor","kind":"feed_post","profile":"fleet-reader","project":"chaldea"},
+      {"uid":1001,"audience":"akasha","action":"read","source":"fleet-reader","host":"omarchy-macbook-air-igor","kind":"tool_call","profile":"fleet-reader","project":"chaldea"}
     ]
   },
   "homelab": {
