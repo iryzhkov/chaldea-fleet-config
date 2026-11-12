@@ -19,7 +19,12 @@ Use Stop/cancel to cancel an assignment and its children. Manual Settle only
 organizes thread state; native child completion may reopen it. Stop/user
 cancellation still wins; do not promise native preservation of manual Settle.
 
-Restart T3 with `chaldea t3 restart`, never with `systemctl` directly.
+Check running work and recovery before restarting T3 with `t3 service restart`.
+Inspect installed native help first. T3 0.1.8+ provides restart continuation for
+running turns. The agent-b 0.1.9 canary preserved a pending question and resumed
+one running turn exactly once; its subprocess disconnected during restart.
+Evidence: `jocasta:e341c5552d775da74640c460011595c2@18`. Wait for API readiness
+after restart. Older hosts need an explicit recovery plan before restart.
 
 `chaldea quota status` (or `--json`) reads the observer’s cached included-usage windows, aggregate Codex credits, advisory manual-reset inventory and each provider's capacity class, with per-metric freshness; it never spends credits or redeems resets.
 
