@@ -222,12 +222,14 @@
 
 # The MCP entry point parses a waits config even when only routing is used.
 # This supplies its socket without enabling a service or requiring any waits token.
-- name: Render MCP bootstrap configuration on hosts without waits
+# Every host registers the routing-only MCP since wait/decision registration was
+# retired (official T3 lacks externalWakeGuardVersion), including hosts whose
+# waits service stays for the protected session policy.
+- name: Render MCP bootstrap configuration
   ansible.builtin.template:
     src: mcp.json.j2
     dest: "{{ fleet_home }}/.config/chaldea/mcp.json"
     mode: "0600"
-  when: not chaldea_client_waits_enabled
 
 - name: Atomically replace hand-made units with managed units
   ansible.builtin.template:
@@ -307,7 +309,7 @@
     name: mcp_registrations
     tasks_from: chaldea
   vars:
-    mcp_registrations_chaldea_waits_enabled: "{{ chaldea_client_waits_enabled }}"
+    mcp_registrations_chaldea_waits_enabled: false
 
 - name: Preserve the legacy checkout after successful unit convergence
   ansible.builtin.command:
