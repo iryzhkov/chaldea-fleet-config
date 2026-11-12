@@ -75,7 +75,7 @@ def provision():
     safe(home)
     config = home / ".config/chaldea"
     config.mkdir(parents=True)
-    for name in ("t3-token", "waits-t3-token", "waits-answer-token"):
+    for name in ("t3-token",):
         token = config / name
         token.write_text("FIXTURE-SECRET-NEVER-PRINT")
         token.chmod(0o600)
@@ -263,7 +263,7 @@ def test_secret_refusal_precedes_writes_and_unit_calls(tmp_path, monkeypatch, fa
         token.chmod(0o644)
     elif failure == "symlink":
         token.unlink()
-        token.symlink_to("waits-t3-token")
+        token.symlink_to("absent-token")
     else:
         variables["ansible_facts"]["user_uid"] = os.getuid() + 1
     result = run(tmp_path, variables)
@@ -319,8 +319,7 @@ def test_disabled_units_need_no_secrets_and_upgrade_retains_one_previous(tmp_pat
         "client-v9.0.1.json", "client-v9.0.1.tar.gz", "client-v9.0.2.json", "client-v9.0.2.tar.gz"]
     assert not (Path.home() / ".config/chaldea/t3-token").exists()
     mcp = json.loads((Path.home() / ".config/chaldea/mcp.json").read_text())
-    assert mcp["environment"] == "routing-only"
-    assert mcp["socket"] == variables["chaldea_client_waits_socket"]
+    assert mcp == {}
     assert not (Path.home() / ".config/chaldea/waits.json").exists()
     assert json.loads((Path.home() / ".config/chaldea/route.json").read_text())["claudeUsage"]["enabled"] is False
     manager = json.loads((tmp_path / "systemctl.json").read_text())

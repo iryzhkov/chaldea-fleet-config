@@ -180,9 +180,7 @@ source, review and deployment verification requirements remain binding.
 - Load fleet-rollout for authorized deployments; it owns the converge procedure.
   Report verification evidence per host.
 - Run long converges in native delegated tasks and use their completion wake.
-  An existing non-child thread has no equivalent native completion dependency;
-  retain its owner, exact gap and next authorized recovery instead of substituting
-  an external wake requiring Stop preservation. Preserve command, target, log
+  Preserve command, target, log
   and outcome; reconcile a disconnect or reboot before any retry.
 - Prefer the least disruptive effective recovery. Necessary service restarts for
   requested work use standing host authority. For T3, use `chaldea t3 restart`

@@ -35,7 +35,7 @@
     "roles/agent_config/files/skills/resolving-merge-conflicts/agents/openai.yaml": "06d9598f9f133bb6d73cb4411bf635f281f36991687312e32353899c1e9e2600",
     "roles/agent_config/files/skills/review-delegation/SKILL.md": "d784d120968dc888d368ddd35f211e936c383e8fa027e169a5d4f481820dbad8",
     "roles/agent_config/files/skills/review-delegation/references/pr-delivery.md": "8a8e7adbcfd0bfac6a1e1af9d8fde3cbddfdc07eb9b4a14473f1f69392c3468f",
-    "roles/agent_config/files/skills/roadmap-executor/SKILL.md": "0be5150adbb0d2f377b488148a4f24aef6160544a9d4a86c4b6dd035149502fd",
+    "roles/agent_config/files/skills/roadmap-executor/SKILL.md": "e817b26a38950ee7b0d3daea440c37cd0093555db3c7d9f2a3f459f3b93cb3d6",
     "roles/agent_config/files/skills/roadmap-planner/SKILL.md": "f3d6ff81c529d09d7e94f47c1bbd3951f55e9ba2db2baf765960cffc4b1eae65",
     "roles/agent_config/files/skills/safety-critical-code/SKILL.md": "243058637908a99bbe452c0924e7e2d8cbd57f25fa77bbdf6f10d36a5841cd51",
     "roles/agent_config/files/skills/safety-critical-code/agents/openai.yaml": "a9f3ea05b9dfed38e4e924e23112ce38a6284f9b5d54b2d637531f9c61865b31",
