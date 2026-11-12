@@ -79,9 +79,14 @@ def test_inventory_disabled_and_units_use_isolated_state():
     assert {row["issuer"] for row in keys} == {"chaldea:" + host for host in policy}
     assert len(keys) == 6
     key = keys[0]
-    assert (key["issuer"], key["kid"]) == ("chaldea:agent-a", "agent-a-2026-10")
-    assert key["public_key"] == {"kty": "OKP", "crv": "Ed25519", "x": "1LEmYnODsGqzGLbE_F5uqOx1VoY5I2EmJSbLAKMJtCM"}
-    assert key["not_before"] == 1792195200
+    assert (key["issuer"], key["kid"]) == ("chaldea:agent-a", "agent-a-2026-11")
+    assert key["public_key"] == {"kty": "OKP", "crv": "Ed25519", "x": "Dui1JSMyV_q_L4g1GzGL5oU3Hx3chOL3AdSoINrCCRk"}
+    # 2026-11 rotation: every issuer shares one 30-day window from 2026-11-12T00:00:00Z.
+    assert {(row["not_before"], row["issue_until"], row["verify_until"]) for row in keys} == {
+        (1794441600, 1797033600, 1797034410)}
+    assert {row["kid"] for row in keys} == {host + "-2026-11" for host in policy}
+    assert all(policy[host]["kid"] == host + "-2026-11" for host in policy)
+    assert key["not_before"] == 1794441600
     assert key["issue_until"] - key["not_before"] == 30 * 86400
     assert key["verify_until"] - key["issue_until"] == 810
     assert {(c["profile"], c["project"], c["source"]) for c in key["ceilings"]} == {

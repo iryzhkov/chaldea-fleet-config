@@ -1,15 +1,15 @@
 [
   {
     "issuer": "chaldea:agent-a",
-    "kid": "agent-a-2026-10",
+    "kid": "agent-a-2026-11",
     "public_key": {
       "kty": "OKP",
       "crv": "Ed25519",
-      "x": "1LEmYnODsGqzGLbE_F5uqOx1VoY5I2EmJSbLAKMJtCM"
+      "x": "Dui1JSMyV_q_L4g1GzGL5oU3Hx3chOL3AdSoINrCCRk"
     },
-    "not_before": 1792195200,
-    "issue_until": 1794787200,
-    "verify_until": 1794788010,
+    "not_before": 1794441600,
+    "issue_until": 1797033600,
+    "verify_until": 1797034410,
     "ceilings": [
       {
         "audience": "akasha",
@@ -85,15 +85,15 @@
   },
   {
     "issuer": "chaldea:agent-b",
-    "kid": "agent-b-2026-10-cutover",
+    "kid": "agent-b-2026-11",
     "public_key": {
       "crv": "Ed25519",
       "kty": "OKP",
-      "x": "_8EAgbpZk3gjc2ebs2jrUIctVluEwQCwl5iD2EmXzss"
+      "x": "B5XMv43ZAFjurdXl1KgDJDmmAdLavIwI76I9huY6CWM"
     },
-    "not_before": 1792281600,
-    "issue_until": 1794787200,
-    "verify_until": 1794788010,
+    "not_before": 1794441600,
+    "issue_until": 1797033600,
+    "verify_until": 1797034410,
     "ceilings": [
       {
         "audience": "akasha",
@@ -155,15 +155,15 @@
   },
   {
     "issuer": "chaldea:omarchy-pc",
-    "kid": "omarchy-pc-2026-10-cutover",
+    "kid": "omarchy-pc-2026-11",
     "public_key": {
       "crv": "Ed25519",
       "kty": "OKP",
-      "x": "FMb5zp98f5RjlxOtXbJnkiaYTDYyBgB7dVmB_5zcbuE"
+      "x": "kK3WcfbZQ1dTFAF8t5k2xwJ_oBeI5PzEhdPUGuAFA04"
     },
-    "not_before": 1792281600,
-    "issue_until": 1794787200,
-    "verify_until": 1794788010,
+    "not_before": 1794441600,
+    "issue_until": 1797033600,
+    "verify_until": 1797034410,
     "ceilings": [
       {
         "audience": "akasha",
@@ -267,15 +267,15 @@
   },
   {
     "issuer": "chaldea:omarchy-macbook-air-igor",
-    "kid": "omarchy-macbook-air-igor-2026-10-cutover",
+    "kid": "omarchy-macbook-air-igor-2026-11",
     "public_key": {
       "crv": "Ed25519",
       "kty": "OKP",
-      "x": "IB6iP1Vwh4OiV8sTbZoaqNbsoH32S-KAMXMipqXglPI"
+      "x": "8QFoCr1CRhdDpjK3t9D9V5IEEip0lD-0a7mKe6oyGts"
     },
-    "not_before": 1792281600,
-    "issue_until": 1794787200,
-    "verify_until": 1794788010,
+    "not_before": 1794441600,
+    "issue_until": 1797033600,
+    "verify_until": 1797034410,
     "ceilings": [
       {
         "audience": "akasha",
@@ -337,15 +337,15 @@
   },
   {
     "issuer": "chaldea:homelab",
-    "kid": "homelab-2026-10-cutover",
+    "kid": "homelab-2026-11",
     "public_key": {
       "crv": "Ed25519",
       "kty": "OKP",
-      "x": "oABs56BgYIuzC-CFcrBiVcm9FRp2cgxCWWFM0_3a0-g"
+      "x": "uSLNP95IXZf1vIgEvcyf68wtNHyPp6bMO_QUGeFYgpA"
     },
-    "not_before": 1792281600,
-    "issue_until": 1794787200,
-    "verify_until": 1794788010,
+    "not_before": 1794441600,
+    "issue_until": 1797033600,
+    "verify_until": 1797034410,
     "ceilings": [
       {
         "audience": "akasha",
@@ -435,15 +435,15 @@
   },
   {
     "issuer": "chaldea:omarchy-normandy",
-    "kid": "omarchy-normandy-2026-10-cutover",
+    "kid": "omarchy-normandy-2026-11",
     "public_key": {
       "crv": "Ed25519",
       "kty": "OKP",
-      "x": "gEIey4yOqmpb6okwWXhL8ut2GVIPFvnIvtREUhzp3_M"
+      "x": "QoI_Q4alDCDX7SwnpC6EHkai20ZigyM1t6Ui0-Sh5-4"
     },
-    "not_before": 1792281600,
-    "issue_until": 1794787200,
-    "verify_until": 1794788010,
+    "not_before": 1794441600,
+    "issue_until": 1797033600,
+    "verify_until": 1797034410,
     "ceilings": [
       {
         "audience": "akasha",
