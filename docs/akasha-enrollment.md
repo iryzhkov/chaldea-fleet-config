@@ -35,6 +35,12 @@ Ed25519 JWK for each canonical inventory name. Optional boolean fields
 akasha_pc_global_reader_enabled and akasha_pc_quota_events_enabled default false.
 Only set them after separate approval. The reader exposes every native kind to
 PC UID 1000 and same-UID processes; helper kind selectors do not narrow that read.
+On 2026-11-12 Igor approved the same fleet-reader grant for the interactive
+hosts agent-a, agent-b and the laptop, so agents there can run `feed recent`.
+Those grants are part of the base policy in access-trust/akasha-enrollment.json
+and their ceilings are in issuer-grants.json for both kids. homelab and Normandy
+stay producer-only, and the feed configuration selects the reader label only for
+a host whose composed grants include fleet-reader.
 The quota proposal is seven exact PC append kinds, excluding provider switching.
 When explicitly approved, activation writes only PC events.json and restarts its
 existing quota user service if that file changes. It does not upgrade its client.
