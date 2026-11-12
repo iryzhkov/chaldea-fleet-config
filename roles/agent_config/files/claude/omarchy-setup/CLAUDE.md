@@ -83,7 +83,7 @@ from this host's Chaldea token helper. The old feed on homelab port 1934 no long
 
 Read it before answering anything about recent homelab activity — what a scheduled job found,
 whether a service was updated or held, what broke last night — because the detail lives in T3
-threads on six fleet machines and the feed is the only place they meet. It complements OV
+threads on four different machines and the feed is the only place they meet. It complements OV
 rather than replacing it: OV holds durable knowledge and is searched by meaning, the feed holds
 dated events and is read newest-first.
 
