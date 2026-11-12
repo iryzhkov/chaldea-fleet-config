@@ -47,7 +47,7 @@ def test_existing_omarchy_registration_is_unchanged(tmp_path, provider):
     assert path.read_bytes() == before
 
 
-def test_waits_are_opted_in_only_on_omarchy_pc():
+def test_waits_mcp_registration_is_retired_on_every_host():
     inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
     defaults = yaml.safe_load((ROOT / "roles/mcp_registrations/defaults/main.yml").read_text())
     assert defaults["mcp_registrations_chaldea_waits_enabled"] is False
@@ -57,7 +57,9 @@ def test_waits_are_opted_in_only_on_omarchy_pc():
         for host, values in group["hosts"].items()
         if values.get("mcp_registrations_chaldea_waits_enabled", False)
     ]
-    assert enabled == ["omarchy-pc"]
+    # Official T3 refuses wait and decision registration (no externalWakeGuardVersion),
+    # so no host registers the waits MCP tools; the waits service stays for sessions.
+    assert enabled == []
 
 
 def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
