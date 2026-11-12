@@ -27,7 +27,7 @@
     t3_update_report:
       component: t3
       installed: "{{ t3_active_version }}"
-      pinned: "{{ t3_version }}"
+      minimum: "{{ t3_min_version }}"
       source: "{{ t3_release_metadata_url }}"
       latest_stable: >-
         {{ t3_release_lookup.json.tag_name | regex_replace('^v', '')
