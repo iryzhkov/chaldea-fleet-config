@@ -53,11 +53,10 @@ session; it only keeps the tools and shared files those sessions use in place.
   still requires its own native-client acceptance. Public OAuth remains supported
   for explicitly selected entries. The module compares only the named entry's
   public fields in `~/.claude.json` and changes Claude registration through its CLI.
-- `t3`: asserts that T3 runs the pinned version and its user service is active.
-  It upgrades only when `t3_allow_upgrade=true` is passed, because `t3 update`
-  restarts the service and interrupts running sessions. After the pin/service
+- `t3`: asserts that T3 meets `t3_min_version` and its user service is active.
+  Updates belong to T3\'s native updater. After the floor/service
   assertions and earlier roles succeed, a pull checks GitHub's latest stable
-  release and writes installed/pinned/latest versions and discovery status directly
+  release and writes installed/minimum/latest versions and discovery status directly
   to the local journal under tag `chaldea-t3-release`, including unavailable
   lookups. The existing four-hour timer supplies unattended checks with the UI
   closed; discovery does not install or restart T3. Check mode makes no release request. Set
