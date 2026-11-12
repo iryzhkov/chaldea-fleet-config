@@ -116,4 +116,4 @@ def test_role_gates_chaldea_for_both_providers_and_converges(tmp_path):
         str(home / ".local/share/chaldea/current/bin/chaldea"), "mcp", "--config",
         str(home / ".config/chaldea/mcp.json")]
     assert opencode["mcp"]["chaldea"]["enabled"] is True
-    assert re.search(r"changed=0\s", run(False, managed=True))
+    assert re.search(r"changed=0\s", run(True, managed=True))
