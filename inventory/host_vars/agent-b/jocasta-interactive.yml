@@ -6,7 +6,12 @@
 # OpenCode is excluded. Rollback must restore this host's prior entry absence.
 webmcp_interactive_enabled: true
 webmcp_interactive_laptop_qualified: true
+# M3 P3.1 selector-aware helper, built from fleet 8492830 with Go 1.27.0.
+# Build/install/CHECK receipt and rollback artifact are recorded in the cutover PR.
 webmcp_interactive_helper_source: /usr/local/libexec/webmcp-interactive-headers
+webmcp_interactive_helper_sha256: 8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc
+webmcp_interactive_previous_helper_sha256: 667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed
+chaldea_host_identity_enabled: true
 webmcp_interactive_credential_source: "{{ fleet_home }}/.config/webmcp-interactive/enrollment.json"
 
 mcp_registrations_jocasta_interactive_state: present
