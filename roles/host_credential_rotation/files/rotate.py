@@ -214,8 +214,9 @@ def main():
         rotate(fd, args.host, API(args.host), args.revoked)
     except Exception:
         # Fixed text only. The daily timer has no Restart policy.
-        subprocess.run(["feed", "post", "--severity", "fail", "--source", "feed",
-                        "Host app credential rotation failed; inspect the host rotation service."],
+        subprocess.run(["feed", "post",
+                        "Host app credential rotation failed; inspect the host rotation service.",
+                        "--severity", "fail", "--source", "feed"],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20, check=False)
         raise SystemExit(1) from None
     finally:
