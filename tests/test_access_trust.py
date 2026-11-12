@@ -102,10 +102,13 @@ def test_inventory_disabled_and_units_use_isolated_state():
         ("fleet-timers", "chaldea", "agent-a.fleet"),
         ("toolfeedback", "chaldea", "agent-a.toolfeedback"),
         ("feed-writer", "chaldea", "feed"),
+        # Approved 2026-11-12: interactive hosts read the fleet feed.
+        ("fleet-reader", "chaldea", "fleet-reader"),
     }
     for ceiling in key["ceilings"]:
         assert ceiling["audience"] == "akasha"
-        assert ceiling["grants"] == [{"resource": ceiling["source"], "actions": ["append"]}]
+        action = "read" if ceiling["source"] == "fleet-reader" else "append"
+        assert ceiling["grants"] == [{"resource": ceiling["source"], "actions": [action]}]
 
 
 def test_updater_paths_are_one_consistent_fetch_and_unit_contract():

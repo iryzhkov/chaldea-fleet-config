@@ -66,6 +66,20 @@
             ]
           }
         ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-reader",
+        "project": "chaldea",
+        "source": "fleet-reader",
+        "grants": [
+          {
+            "resource": "fleet-reader",
+            "actions": [
+              "read"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -119,6 +133,20 @@
             "resource": "agent-b.toolfeedback",
             "actions": [
               "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-reader",
+        "project": "chaldea",
+        "source": "fleet-reader",
+        "grants": [
+          {
+            "resource": "fleet-reader",
+            "actions": [
+              "read"
             ]
           }
         ]
@@ -273,6 +301,20 @@
             "resource": "omarchy-macbook-air-igor.toolfeedback",
             "actions": [
               "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-reader",
+        "project": "chaldea",
+        "source": "fleet-reader",
+        "grants": [
+          {
+            "resource": "fleet-reader",
+            "actions": [
+              "read"
             ]
           }
         ]
@@ -500,6 +542,20 @@
             ]
           }
         ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-reader",
+        "project": "chaldea",
+        "source": "fleet-reader",
+        "grants": [
+          {
+            "resource": "fleet-reader",
+            "actions": [
+              "read"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -553,6 +609,20 @@
             "resource": "agent-b.toolfeedback",
             "actions": [
               "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-reader",
+        "project": "chaldea",
+        "source": "fleet-reader",
+        "grants": [
+          {
+            "resource": "fleet-reader",
+            "actions": [
+              "read"
             ]
           }
         ]
@@ -707,6 +777,20 @@
             "resource": "omarchy-macbook-air-igor.toolfeedback",
             "actions": [
               "append"
+            ]
+          }
+        ]
+      },
+      {
+        "audience": "akasha",
+        "profile": "fleet-reader",
+        "project": "chaldea",
+        "source": "fleet-reader",
+        "grants": [
+          {
+            "resource": "fleet-reader",
+            "actions": [
+              "read"
             ]
           }
         ]
