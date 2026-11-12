@@ -1,6 +1,6 @@
 ---
 # Per-host cutover only after host credential enrollment. No host opts in here.
-chaldea_host_identity_enabled: false
+chaldea_host_identity_enabled: false  # noqa: var-naming[no-role-prefix] shared per-host switch
 # Source capability only; enable after separate Shizune identity enrollment.
 webmcp_interactive_shizune_enabled: false
 # Capability only. Root activates each host after protected enrollment.
