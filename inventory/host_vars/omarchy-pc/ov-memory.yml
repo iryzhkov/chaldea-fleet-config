@@ -14,4 +14,8 @@ webmcp_interactive_ov_full_enabled: true
 # Protected staging and previous-pin guard are rollout-only inputs.
 # Shizune mode superset: source 760d3e7 (PR #165), Go 1.27.0 Linux/amd64 Chaldea
 # build 40204767-9cfd-4ce9-8df4-1521887afee9; previous installed f88abf55.
-webmcp_interactive_helper_sha256: 205b9871e67273120c29947a73358bb9fde23c935dfe3b60732ce3ece6d39059
+# M3 P3.1 selector-aware helper, built from fleet e2bef1a with Go 1.27.0.
+webmcp_interactive_helper_sha256: 8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc
+# Rollback: legacy helper 205b9871e67273120c29947a73358bb9fde23c935dfe3b60732ce3ece6d39059
+# retained at /usr/local/libexec/webmcp-interactive-headers.legacy-205b9871e672 on omarchy-pc.
+chaldea_host_identity_enabled: true

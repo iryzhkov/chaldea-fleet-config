@@ -138,8 +138,8 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
         "x86_64": "667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed",
     }
     host_pins = {host: pins[architectures[host]] for host in HOSTS}
-    # Shizune-capable superset helper (source 760d3e7, Chaldea build 40204767).
-    host_pins["omarchy-pc"] = "205b9871e67273120c29947a73358bb9fde23c935dfe3b60732ce3ece6d39059"
+    # M3 P3.1: omarchy-pc selects the selector-aware helper, which keeps Shizune mode.
+    host_pins["omarchy-pc"] = "8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc"
     # M3 P3.1 cutover: agent-b runs the selector-aware helper (fleet 8492830).
     host_pins["agent-b"] = "8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc"
     # M3 P3.1: agent-a selects the selector-aware helper.
