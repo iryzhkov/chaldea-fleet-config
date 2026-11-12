@@ -1,7 +1,7 @@
 # Native T3 recovery settings
 
 Fleet sets only `autoResumeLimitedThreads=true` in
-`~/.t3/userdata/settings.json` for active T3 0.1.8 or later. The runtime floor
+`~/.t3/userdata/settings.json` for active T3 0.1.9 or later. The runtime floor
 stays 0.1.6. omarchy-pc remains on 0.1.6 until the root operator upgrades it;
 the settings task skips that version.
 

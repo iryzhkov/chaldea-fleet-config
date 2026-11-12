@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 
 from test_chaldea_client import ROOT, fixture, provision, run, success
@@ -48,10 +49,16 @@ def test_omarchy_native_quota_reader_uses_unpinned_role_policy(tmp_path, monkeyp
     assert "changed=0" in repeated.stdout
 
 
-def test_old_client_refuses_reader_config_before_writes(tmp_path, monkeypatch):
-    variables = fixture(tmp_path, monkeypatch, version="client-v0.3.0")
-    variables["chaldea_client_claude_usage_source"] = {
-        "envFile": str(Path.home() / ".config/claude/oauth.env")}
+@pytest.mark.parametrize("version", ["client-v0.3.0", "client-v0.4.26"])
+@pytest.mark.parametrize("key,value", [
+    ("chaldea_client_claude_usage_enabled", True),
+    ("chaldea_client_claude_usage_provider", "claudeAgent"),
+    ("chaldea_client_claude_usage_source", {"envFile": "/unused/oauth.env"}),
+    ("chaldea_client_claude_contexts", [{"providerInstanceId": "claudeAgent"}]),
+])
+def test_retired_claude_config_refused_before_writes(tmp_path, monkeypatch, version, key, value):
+    variables = fixture(tmp_path, monkeypatch, version=version)
+    variables[key] = value
     result = run(tmp_path, variables)
     assert result.returncode != 0
     assert not (Path.home() / ".local/share/chaldea").exists()

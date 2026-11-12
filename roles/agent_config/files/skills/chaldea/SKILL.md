@@ -20,7 +20,7 @@ organizes thread state; native child completion may reopen it. Stop/user
 cancellation still wins; do not promise native preservation of manual Settle.
 
 Check running work and recovery before restarting T3 with `t3 service restart`.
-Inspect installed native help first. T3 0.1.8+ provides restart continuation for
+Inspect installed native help first. T3 0.1.9+ provides restart continuation for
 running turns. The agent-b 0.1.9 canary preserved a pending question and resumed
 one running turn exactly once; its subprocess disconnected during restart.
 Evidence: `jocasta:e341c5552d775da74640c460011595c2@18`. Wait for API readiness

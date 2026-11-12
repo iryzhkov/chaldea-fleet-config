@@ -184,7 +184,7 @@ source, review and deployment verification requirements remain binding.
 - Prefer the least disruptive effective recovery. Necessary service restarts for
   requested work use standing host authority. Check running work and recovery,
   inspect installed native help, then use `t3 service restart` for T3.
-  Native T3 0.1.8+ resumes running turns after restart. The agent-b 0.1.9 canary
+  Native T3 0.1.9+ resumes running turns after restart. The agent-b 0.1.9 canary
   preserved a pending question and resumed one turn exactly once, but its
   subprocess disconnected. Preserve continuation evidence and wait for API
   readiness. Receipt: `jocasta:e341c5552d775da74640c460011595c2@18`.
