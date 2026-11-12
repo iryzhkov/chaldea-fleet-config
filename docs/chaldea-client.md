@@ -19,18 +19,7 @@ quota were fresh, CHECK/REAL/repeat reported 2/10/0 changes and zero errors,
 The shared desired pin and matching PC override prevent ordinary pulls from
 restoring an older client. The PC's FATE policy is unchanged.
 
-## Laptop routing client selection
-
-The laptop sets `chaldea_client_route_entry` to the already-installed immutable
-`releases/client-v0.4.23/bin/chaldea`. The launcher reuses its command selector
-pattern for `chaldea route`; routing-only MCP selects the same entry directly.
-Both retain the ordinary inventory-pinned Node. Other commands keep their existing selection.
-An unset or empty override preserves the old defaults.
-
-This fixes the older client's rejection of T3 0.1.5 catalog keybindings.
-It installs no payload and changes no links, services, route policy or credentials.
-The parent operator owns live repair and verification. Missing selected entries
-refuse rather than falling back to `current`. ## First release and activation
+## First release and activation
 
 The following bootstrap procedure predates the current pin. Initially inventory
 left `chaldea_client_enabled: false` and the version/checksum empty until a real
