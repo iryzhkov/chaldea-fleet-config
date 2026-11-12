@@ -172,7 +172,7 @@ def test_remaining_collectors_native_uid_scope_and_preservation(canonical, tmp_p
             source=host + ".mission-control",
             grants=[dict(resource=host + ".mission-control", actions=["append"])])
         row = next(r for r in previous if r["issuer"] == "chaldea:" + host)
-        assert row["kid"] == host + "-2026-10-cutover"
+        assert row["kid"] == host + "-2026-11"
         assert row["ceilings"].count(ceiling) == 1
         assert row["ceilings"][-1] == ceiling
         row["ceilings"].remove(ceiling)

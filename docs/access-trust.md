@@ -155,18 +155,33 @@ operator procedure. The renewal job refuses empty grants to prevent accidental
 mass revocation. Ordinary disconnected issuer revocation can take the remaining
 24h lease; 13-minute bearers plus skew retain the <15-minute cancellation bound.
 
-## First issuer
+## First issuer (historical)
 
-agent-a-2026-10 is append-only, audience akasha, with exact source resources:
+agent-a-2026-10, superseded by agent-a-2026-11 in the 2026-11 rotation below, was
+append-only, audience akasha, with exact source resources:
 
 - daily-health / homelab / chaldea.daily-health.agent-a, report.
 - fleet-timers / chaldea / agent-a.fleet, job_finished.
 - toolfeedback / chaldea / agent-a.toolfeedback, tool_call.
 
-The issuance window is 2026-10-17T00:00:00Z <= iat < 2026-11-16T00:00:00Z.
-verify_until is 2026-11-16T00:13:30Z, exactly 810 seconds later. Rotate before
-cutoff; never extend deadlines under an existing kid. This window is separate
-from the 24h trust lease.
+The original issuance window was 2026-10-17T00:00:00Z <= iat < 2026-11-16T00:00:00Z.
+
+## 2026-11 rotation
+
+On 2026-11-12 every issuer moved to a new kid HOST-2026-11 (for example
+agent-a-2026-11) with a fresh Ed25519 key created on its host as the
+chaldea-issuer user at /var/lib/chaldea-issuer/keys/KID.pem, mode 0600. Only the
+public x left the host. Ceilings are unchanged. All six share the window
+2026-11-12T00:00:00Z <= iat < 2026-12-12T00:00:00Z, with verify_until
+2026-12-12T00:13:30Z, exactly 810 seconds later. The next rotation is due before
+2026-12-12. Rotate before cutoff; never extend deadlines under an existing kid.
+This window is separate from the 24h trust lease.
+
+A rotation replaces each issuer's row in access-trust/issuer-grants.json and its
+kid in access-trust/akasha-enrollment.json. After the Normandy publisher signs the
+new bundle, each host's /etc/chaldea/token-helper.json is pointed at the new
+key_file and kid. Tokens minted under the old kid stop verifying when the new
+bundle arrives, so collectors keep their queues for the few minutes in between.
 
 ## Checks
 
