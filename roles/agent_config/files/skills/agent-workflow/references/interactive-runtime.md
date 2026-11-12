@@ -55,7 +55,6 @@ Use native `delegate_task` completion and `watch_pull_request` for actual depend
 PR checks/comments/conflicts can wake; merge ends the watch silently. After CI, handle
 your own authorized merge and continue, or retain owner/recovery for an external merge.
 
-
 Batch routine child and CI notifications into meaningful milestone updates. Surface material
 failures, blockers, needed decisions or changed plans promptly. A wake should advance or
 reconcile work, not automatically send a "still waiting" reply. Answer requested status

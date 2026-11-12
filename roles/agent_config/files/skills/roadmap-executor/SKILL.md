@@ -152,7 +152,6 @@ source, review and deployment verification requirements remain binding.
   and continue, or retain an owner and recovery action for an external merge.
   Registration is not completion. Continue independent ready work before yielding.
   Never poll, add duplicate monitors, dummy children or fake recurring schedules.
-
 - Before yielding, checkpoint each dependency's owner, task/PR/wait ID and retry
   key, exact source revision, expected wake, next action, recovery deadline and
   recovery action. A deadline prompts diagnosis of that dependency and continued
@@ -180,8 +179,8 @@ source, review and deployment verification requirements remain binding.
 - Load fleet-rollout for authorized deployments; it owns the converge procedure.
   Report verification evidence per host.
 - Run long converges in native delegated tasks and use their completion wake.
-  Preserve command, target, log
-  and outcome; reconcile a disconnect or reboot before any retry.
+  Preserve command, target, log and outcome; reconcile a disconnect or reboot
+  before any retry.
 - Prefer the least disruptive effective recovery. Necessary service restarts for
   requested work use standing host authority. For T3, use `chaldea t3 restart`
   after inspecting installed help and capability; preserve continuation evidence.

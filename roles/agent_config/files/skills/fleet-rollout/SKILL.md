@@ -25,7 +25,6 @@ timer/service state. Report activation and installed verification separately.
 - Run long converges through native T3 `delegate_task` and use its completion
   wake; registration is not completion. Executor skills own temporary pin cleanup.
 
-
 Set `fleet_host`, `fleet_revision` (the approved commit) and `rollout_scratch`
 to verified values in the host-side script. The pinned invocation is:
 
