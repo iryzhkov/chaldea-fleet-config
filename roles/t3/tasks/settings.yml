@@ -1,0 +1,27 @@
+---
+# T3 0.1.9 watches settings.json and reloads it after a 100 ms debounce.
+# No service restart or settings CLI is needed.
+- name: Inspect native T3 settings metadata
+  ansible.builtin.stat:
+    path: "{{ t3_home }}/userdata/settings.json"
+  register: t3_settings_stat
+
+- name: Read native T3 settings
+  ansible.builtin.slurp:
+    src: "{{ t3_home }}/userdata/settings.json"
+  register: t3_settings_raw
+  when: t3_settings_stat.stat.exists
+
+- name: Decode native T3 settings
+  ansible.builtin.set_fact:
+    t3_settings: "{{ (t3_settings_raw.content | b64decode | from_json) if t3_settings_stat.stat.exists else {} }}"
+
+- name: Enable native quota reset continuation
+  diff: false
+  ansible.builtin.copy:
+    dest: "{{ t3_home }}/userdata/settings.json"
+    content: "{{ t3_settings | combine({'autoResumeLimitedThreads': true}) | to_nice_json }}\n"
+    mode: "{{ t3_settings_stat.stat.mode | default('0600') }}"
+    owner: "{{ t3_settings_stat.stat.uid | default(omit) }}"
+    group: "{{ t3_settings_stat.stat.gid | default(omit) }}"
+  when: t3_settings.get('autoResumeLimitedThreads') is not sameas true

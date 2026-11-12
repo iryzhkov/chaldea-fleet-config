@@ -54,7 +54,7 @@ def test_scoped_publisher_cannot_change_normal_observer_or_reader():
     assert "--quota-config %h/.config/chaldea/quota-sharing.json" in sharing
     assert "--state-file %h/.local/state/chaldea/quota-sharing/observer.json" in sharing
     assert "--feed-command /usr/bin/true" in sharing
-    assert "--restart-config %h/.config/chaldea/quota-sharing-runtime/chaldea/restart.json" in sharing
+    assert "--restart-config" not in sharing
     assert "Environment=XDG_CONFIG_HOME=%h/.config/chaldea/quota-sharing-runtime\n" in sharing
     assert "Environment=XDG_STATE_HOME=%h/.local/state/chaldea/quota-sharing-runtime\n" in sharing
     assert "UnsetEnvironment=AKASHA_URL AKASHA_TOKEN_HELPER\n" in sharing

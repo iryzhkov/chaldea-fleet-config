@@ -60,7 +60,8 @@ a later fleet release/policy rollout remains separate.
 After activation:
 1. Confirm current resolves to the pinned immutable release.
 2. After the paired config converges, confirm all three Codex pins remain,
-   route claudeUsage is disabled and quota.json has no HTTP Claude context.
+   route.json omits the retired claudeUsage and claudeWeeklyTarget keys and
+   quota.json has no HTTP Claude context.
    Inspect selected fields; preserve the private legacy env file.
 3. Run the installed chaldea route for the three roles. Verify Codex targets,
    correct efforts and explicit fallback reasons. A builder review with
