@@ -192,7 +192,7 @@ def test_inert_activation_example_is_exact_and_invents_no_hash():
     # Preserve the original OV artifact receipt rather than relabel it as the
     # later HoloNet superset build. Current host pins are checked separately.
     assert example["helper_pin"]["sha256"] == "ff9ccff552680ce1e86b3bed4c68c1a7902a0a0e7a0b5f9de174bc3d74b568fc"
-    assert laptop["webmcp_interactive_helper_sha256"] == "9086fa224b660314c3aff7d09ec5a8f4a5e344011151eb125c84c6b2efe236b3"
+    assert laptop["webmcp_interactive_helper_sha256"] == "9a9455eeffe62f0287ebaa36fc7f0cd5024ef819722cb277b44dd3b5bf8694ad"
     assert example["helper_pin"]["scope"] == "inventory/host_vars/laptop"
     pins = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())["webmcp_interactive_helper_checksums"]
     assert example["helper_pin"]["previous_sha256"] == pins["aarch64"] != example["helper_pin"]["sha256"]
