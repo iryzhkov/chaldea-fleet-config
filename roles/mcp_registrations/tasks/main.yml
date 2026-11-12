@@ -162,6 +162,52 @@
     - webmcp_interactive_enabled | default(false) | bool
     - webmcp_interactive_holonet_seed_join_enabled | default(false) | bool
 
+
+- name: Select the closed laptop HoloNet acquisition read on explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'holonet_acquire_read') | list)
+         + [{'name': 'holonet_acquire_read', 'url': 'https://media.mcp.ryzhkov.dev/mcp',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_acquire_read')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper', 'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_acquire_read')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_holonet_acquire_read_enabled | default(false) | bool
+
+- name: Select the closed laptop HoloNet acquisition start on explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'holonet_acquire_start') | list)
+         + [{'name': 'holonet_acquire_start', 'url': 'https://media.mcp.ryzhkov.dev/mcp',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_acquire_start')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper', 'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_acquire_start')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_holonet_acquire_start_enabled | default(false) | bool
+
+- name: Select the closed laptop HoloNet acquisition media on explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'holonet_acquire_media') | list)
+         + [{'name': 'holonet_acquire_media', 'url': 'https://media.mcp.ryzhkov.dev/mcp',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_acquire_media')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper', 'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_acquire_media')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_holonet_acquire_media_enabled | default(false) | bool
+
 - name: Check the opt-in remote MCP servers
   ansible.builtin.assert:
     that:
