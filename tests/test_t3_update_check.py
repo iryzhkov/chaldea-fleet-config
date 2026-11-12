@@ -63,7 +63,7 @@ def test_release_discovery_is_read_only(tmp_path, release, http_status, installe
         "hosts": "localhost", "gather_facts": False,
         "vars": {
             "t3_active_version": installed,
-            "t3_version": "0.1.5",
+            "t3_min_version": "0.1.6",
             "t3_update_check_enabled": True,
             "t3_release_metadata_url": f"http://127.0.0.1:{server.server_port}/releases/latest",
         },
@@ -87,7 +87,7 @@ def test_release_discovery_is_read_only(tmp_path, release, http_status, installe
         record = json.loads(journal_record.read_text())
         assert record["status"] == expected
         assert record["installed"] == installed
-        assert record["pinned"] == "0.1.5"
+        assert record["minimum"] == "0.1.6"
         assert record["component"] == "t3"
         assert record["latest_stable"] == (None if expected == "unavailable" else release["tag_name"][1:])
         assert record["lookup_status"] == http_status

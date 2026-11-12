@@ -127,10 +127,8 @@ t3_enabled: true
 # 2026-11-03/07. Checked 2026-11-11: quota observer reads T3 normally. Waits
 # still refuse registration on official T3 (no externalWakeGuardVersion), as
 # they did on 0.1.5; see chaldea docs/waits.md.
-t3_version: 0.1.6
-# Set true for one run to move T3 to t3_version. t3 update restarts the
-# service, which interrupts running sessions, so it never happens implicitly.
-t3_allow_upgrade: false
+# Native T3 updates may advance beyond this floor without blocking fleet pulls.
+t3_min_version: 0.1.6
 
 # Both timers stay off until enabled per host after a reviewed check run.
 pull_timer_enabled: false
