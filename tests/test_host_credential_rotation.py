@@ -147,6 +147,83 @@ def test_failure_feed_contains_no_exception_or_secret(custody, monkeypatch):
     assert "SYNTHETIC" not in str(calls)
 
 
+@pytest.mark.parametrize("error", [FileNotFoundError, r.subprocess.TimeoutExpired])
+def test_feed_unavailable_exits_cleanly(custody, monkeypatch, error):
+    import sys
+    fd, _ = custody
+    monkeypatch.setattr(sys, "argv", ["rotate.py", "--host", "agent-b"])
+    monkeypatch.setattr(r, "directory", lambda _: os.dup(fd))
+    monkeypatch.setattr(r, "rotate", lambda *a: (_ for _ in ()).throw(r.Refused()))
+    def fail(*a, **kw):
+        if error is r.subprocess.TimeoutExpired:
+            raise error("feed", 20)
+        raise error("feed")
+    monkeypatch.setattr(r.subprocess, "run", fail)
+    with pytest.raises(SystemExit) as exc:
+        r.main()
+    assert exc.value.code == 1
+
+
+def test_revocation_waits_for_real_flock(custody, monkeypatch):
+    import sys
+    import threading
+    fd, _ = custody
+    held = os.open("host.lock", os.O_RDWR | os.O_CREAT, 0o600, dir_fd=fd)
+    r.fcntl.flock(held, r.fcntl.LOCK_EX)
+    monkeypatch.setattr(sys, "argv", ["rotate.py", "--host", "agent-b", "--revoked"])
+    monkeypatch.setattr(r, "directory", lambda _: os.dup(fd))
+    timer = threading.Timer(0.2, lambda: r.fcntl.flock(held, r.fcntl.LOCK_UN))
+    timer.start()
+    try:
+        r.main()
+        assert r.read(fd, "host.app-password", True) is None
+        assert json.loads(r.read(fd, "host.generation.json"))["status"] == "revoked"
+    finally:
+        timer.join()
+        os.close(held)
+
+
+def test_held_flock_timeout_refuses(custody):
+    fd, _ = custody
+    held = os.open("host.lock", os.O_RDWR | os.O_CREAT, 0o600, dir_fd=fd)
+    contender = os.open("host.lock", os.O_RDWR, dir_fd=fd)
+    try:
+        r.fcntl.flock(held, r.fcntl.LOCK_EX)
+        with pytest.raises(r.Refused):
+            r.acquire_lock(contender, True, timeout=0.1)
+        assert r.read(fd, "host.app-password")
+        assert json.loads(r.read(fd, "host.generation.json"))["status"] == "committed"
+    finally:
+        os.close(contender)
+        os.close(held)
+
+
+def test_pending_journal_refuses_unrelated_valid_key(custody):
+    fd, api = custody
+    def crash(stage):
+        if stage == "created":
+            raise Crash()
+    with pytest.raises(Crash):
+        run(fd, api, checkpoint=crash)
+    foreign = b"SYNTHETIC-unrelated-valid-password"
+    api.tokens["foreign"] = foreign
+    r.atomic(fd, "host.app-password", foreign)
+    with pytest.raises(r.Refused):
+        run(fd, api)
+    assert r.read(fd, "host.app-password") == foreign
+    assert len(api.tokens) == 3
+
+
+def test_expiry_has_clock_skew_margin(custody):
+    fd, api = custody
+    original = api.create
+    def create(name, expires):
+        assert dt.datetime.fromisoformat(expires) == NOW + dt.timedelta(days=59)
+        original(name, expires)
+    api.create = create
+    run(fd, api)
+
+
 def test_fresh_token_no_rotation(custody):
     fd, api = custody
     original = api.token

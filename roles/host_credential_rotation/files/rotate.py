@@ -9,6 +9,7 @@ import os
 import re
 import stat
 import subprocess
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -101,15 +102,12 @@ def atomic(fd, name, body):
     except FileNotFoundError:
         pass
     f = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=fd)
-    try:
-        with os.fdopen(f, "wb") as stream:
-            stream.write(body)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.rename(stage, name, src_dir_fd=fd, dst_dir_fd=fd)
-        os.fsync(fd)
-    finally:
-        pass
+    with os.fdopen(f, "wb") as stream:
+        stream.write(body)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.rename(stage, name, src_dir_fd=fd, dst_dir_fd=fd)
+    os.fsync(fd)
 
 
 def put(fd, name, value):
@@ -173,7 +171,7 @@ def rotate(fd, host, api, revoked=False, now=None, checkpoint=lambda _: None):
             return
         journal = {"host": host, "old": old, "new": "chaldea-" + host + "-g" + str(marker["generation"] + 1),
                    "generation": marker["generation"] + 1,
-                   "expires": (now + dt.timedelta(days=60)).isoformat()}
+                   "expires": (now + dt.timedelta(days=59)).isoformat()}
         put(fd, "rotation.json", journal)  # Persist identity BEFORE a possibly uncertain POST.
     new = journal["new"]
     token = api.token(new)
@@ -182,6 +180,10 @@ def rotate(fd, host, api, revoked=False, now=None, checkpoint=lambda _: None):
         checkpoint("created")
     key = api.token(new, key=True)["key"].encode()
     require(16 <= len(key) <= 256 and all(33 <= b <= 126 for b in key))
+    # Recovery accepts only the recorded current key or this generation's
+    # server-staged replacement, never another valid credential for the user.
+    require(hashlib.sha256(current).hexdigest() in
+            (marker["sha256"], hashlib.sha256(key).hexdigest()))
     api.exchange(key)  # Verify before switching or deleting anything.
     checkpoint("verified")
     atomic(fd, "host.app-password", key)
@@ -193,6 +195,17 @@ def rotate(fd, host, api, revoked=False, now=None, checkpoint=lambda _: None):
     api.token(old, "DELETE")
     checkpoint("deleted")
     remove(fd, "rotation.json")
+
+
+def acquire_lock(lock, revoked, timeout=120):
+    deadline = time.monotonic() + (timeout if revoked else 0)
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except BlockingIOError:
+            require(time.monotonic() < deadline)
+            time.sleep(0.1)
 
 
 def main():
@@ -207,17 +220,17 @@ def main():
         s = os.fstat(lock)
         require(stat.S_ISREG(s.st_mode) and s.st_uid == os.getuid()
                 and s.st_nlink == 1 and stat.S_IMODE(s.st_mode) == 0o600)
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return
+        acquire_lock(lock, args.revoked)
         rotate(fd, args.host, API(args.host), args.revoked)
     except Exception:
         # Fixed text only. The daily timer has no Restart policy.
-        subprocess.run(["feed", "post",
-                        "Host app credential rotation failed; inspect the host rotation service.",
-                        "--severity", "fail", "--source", "feed"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20, check=False)
+        try:
+            subprocess.run(["feed", "post",
+                            "Host app credential rotation failed; inspect the host rotation service.",
+                            "--severity", "fail", "--source", "feed"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
         raise SystemExit(1) from None
     finally:
         if lock is not None:

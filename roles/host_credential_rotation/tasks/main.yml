@@ -1,51 +1,10 @@
 ---
-- name: Validate rotation host and home binding
-  ansible.builtin.assert:
-    that:
-      - inventory_hostname in ['laptop', 'omarchy-pc', 'agent-a', 'agent-b', 'homelab']
-      - fleet_home is match('^/home/[a-z0-9_-]+$')
-    quiet: true
+- name: Check for an installed rotation timer
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/.config/systemd/user/chaldea-host-rotation.timer"
+    get_checksum: false
+  register: host_credential_rotation_installed
 
-- name: Create user service and tool directories
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: "0700"
-  loop:
-    - "{{ fleet_home }}/.local/lib/chaldea-rotation"
-    - "{{ fleet_home }}/.config/systemd/user"
-
-- name: Install the credential rotation tool
-  ansible.builtin.copy:
-    src: rotate.py
-    dest: "{{ fleet_home }}/.local/lib/chaldea-rotation/rotate.py"
-    mode: "0700"
-
-- name: Install user rotation units
-  ansible.builtin.template:
-    src: "{{ item }}.j2"
-    dest: "{{ fleet_home }}/.config/systemd/user/{{ item }}"
-    mode: "0600"
-  loop:
-    - chaldea-host-rotation.service
-    - chaldea-host-rotation.timer
-  register: host_credential_rotation_units
-
-- name: Apply inventory revocation under the credential lock
-  ansible.builtin.command:
-    argv:
-      - /usr/bin/python3
-      - "{{ fleet_home }}/.local/lib/chaldea-rotation/rotate.py"
-      - --host
-      - "{{ inventory_hostname }}"
-      - --revoked
-  when: host_credential_rotation_revoked | bool
-  changed_when: true
-
-- name: Enable the root-free rotation timer
-  ansible.builtin.systemd_service:
-    name: chaldea-host-rotation.timer
-    scope: user
-    daemon_reload: "{{ host_credential_rotation_units.changed }}"
-    enabled: "{{ not host_credential_rotation_revoked | bool }}"
-    state: "{{ 'stopped' if host_credential_rotation_revoked | bool else 'started' }}"
+- name: Manage opted-in or previously installed rotation
+  ansible.builtin.include_tasks: manage.yml
+  when: host_credential_rotation_enabled | bool or host_credential_rotation_revoked | bool or host_credential_rotation_installed.stat.exists

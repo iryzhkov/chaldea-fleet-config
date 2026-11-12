@@ -1,0 +1,42 @@
+---
+- name: Validate rotation host and home binding
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname in ['laptop', 'omarchy-pc', 'agent-a', 'agent-b', 'homelab']
+      - fleet_home is match('^/home/[a-z0-9_-]+$')
+    quiet: true
+
+- name: Create user service and tool directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ fleet_home }}/.local/lib/chaldea-rotation"
+    - "{{ fleet_home }}/.config/systemd/user"
+
+- name: Install the credential rotation tool
+  ansible.builtin.copy:
+    src: rotate.py
+    dest: "{{ fleet_home }}/.local/lib/chaldea-rotation/rotate.py"
+    mode: "0700"
+
+- name: Apply inventory revocation under the credential lock
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - "{{ fleet_home }}/.local/lib/chaldea-rotation/rotate.py"
+      - --host
+      - "{{ inventory_hostname }}"
+      - --revoked
+  when: host_credential_rotation_revoked | bool
+  changed_when: true
+
+- name: Manage the root-free rotation timer
+  ansible.builtin.include_role:
+    name: user_timer
+  vars:
+    user_timer_name: chaldea-host-rotation
+    user_timer_service: "{{ lookup('template', 'chaldea-host-rotation.service.j2') }}"
+    user_timer_timer: "{{ lookup('template', 'chaldea-host-rotation.timer.j2') }}"
+    user_timer_enabled: "{{ host_credential_rotation_enabled | bool and not host_credential_rotation_revoked | bool }}"

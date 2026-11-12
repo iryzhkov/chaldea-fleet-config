@@ -3,5 +3,6 @@ Description=Rotate this host's Authentik app credential
 [Service]
 Type=oneshot
 UMask=0077
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/python3 {{ fleet_home }}/.local/lib/chaldea-rotation/rotate.py --host {{ inventory_hostname }}{{ ' --revoked' if host_credential_rotation_revoked | bool else '' }}
 TimeoutStartSec=180
