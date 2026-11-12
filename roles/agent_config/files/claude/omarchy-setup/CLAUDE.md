@@ -77,7 +77,9 @@ Namespaces, document shape, the tool-by-tool procedure and curation passes: the 
 
 # Fleet feed
 
-The fleet feed runs on homelab, port 1934.
+The fleet feed is Akasha, the Chaldea event gateway on homelab, at https://akasha.ryzhkov.dev.
+Use the `feed` CLI (`feed recent`, `feed show ID`, `feed post`); it gets short-lived tokens
+from this host's Chaldea token helper. The old feed on homelab port 1934 no longer exists.
 
 Read it before answering anything about recent homelab activity — what a scheduled job found,
 whether a service was updated or held, what broke last night — because the detail lives in T3

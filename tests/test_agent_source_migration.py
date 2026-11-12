@@ -778,7 +778,16 @@ DELIVERY_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_pr_delivery.json").read_text())
 
 
+# Fleet feed moved to Akasha; the port-1934 guidance was stale, 2026-11-11.
+FLEET_FEED_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_fleet_feed_akasha.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(FLEET_FEED_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(DELIVERY_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative
