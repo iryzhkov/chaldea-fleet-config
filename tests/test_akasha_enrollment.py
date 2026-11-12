@@ -157,7 +157,7 @@ def test_quota_service_permissions_are_independent_and_never_global(client, lapt
         assert all(g["action"] == ("read" if host == "omarchy-pc" else "append") for g in quota)
         assert all(g["uid"] == (1001 if host == "omarchy-macbook-air-igor" else 1000) for g in quota)
     for key in rendered["issuers"]:
-        prior = next(k for k in baseline["issuers"] if k["issuer"] == key["issuer"])
+        prior = next(k for k in baseline["issuers"] if k["issuer"] == key["issuer"] and k["kid"] == key["kid"])
         assert {k:v for k,v in key.items() if k != "ceilings"} == {k:v for k,v in prior.items() if k != "ceilings"}
         assert [c for c in key["ceilings"] if c["source"] != "quota"] == prior["ceilings"]
         for ceiling in [c for c in key["ceilings"] if c["source"] == "quota"]:

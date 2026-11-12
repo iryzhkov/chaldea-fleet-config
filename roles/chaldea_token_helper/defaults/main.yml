@@ -7,8 +7,8 @@ chaldea_token_helper_client_sha256: ""
 chaldea_token_helper_node_version: "26.12.0"
 chaldea_token_helper_issuer:
   uid: 995
-  key_file: /var/lib/chaldea-issuer/keys/agent-a-2026-11.pem
+  key_file: /var/lib/chaldea-issuer/keys/agent-a-2026-11r.pem
   name: chaldea:agent-a
-  kid: agent-a-2026-11
+  kid: agent-a-2026-11r
 chaldea_token_helper_state: /var/lib/chaldea-issuer/access/state.sqlite
 chaldea_token_helper_grants: []

@@ -211,6 +211,8 @@
     - name: Install the canonical root-owned helper
       ansible.builtin.include_role:
         name: chaldea_token_helper
+        apply:
+          tags: [enrollment_install]
       tags: [enrollment_install]
     # Trust already belongs to infra on homelab/Normandy. Never replace it here.
     - name: Activate canonical fleet trust only in the activation phase
