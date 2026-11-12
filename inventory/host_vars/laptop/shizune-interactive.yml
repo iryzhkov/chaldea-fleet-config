@@ -1,3 +1,3 @@
 ---
-# Parent flips this after identity enrollment and helper artifact staging.
-webmcp_interactive_shizune_enabled: false
+# Enabled after identity enrollment (homelab-infra PR #158) and helper staging.
+webmcp_interactive_shizune_enabled: true

@@ -138,8 +138,9 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
         "x86_64": "667cd06e83a091d607306e6486ff079d0065038abf2db64b87234d15492bd6ed",
     }
     host_pins = {host: pins[architectures[host]] for host in HOSTS}
-    host_pins["laptop"] = "9086fa224b660314c3aff7d09ec5a8f4a5e344011151eb125c84c6b2efe236b3"
-    host_pins["omarchy-pc"] = "f88abf558d9c6b7b49987b276633a03cb3e3353990f4fd156d3e83a13ffabbf7"
+    # Shizune-capable superset helper (source 760d3e7, Chaldea build 40204767).
+    host_pins["laptop"] = "9a9455eeffe62f0287ebaa36fc7f0cd5024ef819722cb277b44dd3b5bf8694ad"
+    host_pins["omarchy-pc"] = "205b9871e67273120c29947a73358bb9fde23c935dfe3b60732ce3ece6d39059"
     ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["claude", "codex"],
                 "auth_mode": "managed_helper", "helper_host": "{{ inventory_hostname }}",
                 "helper_profile": "ov-full", "state": "present"}
