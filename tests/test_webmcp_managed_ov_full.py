@@ -32,7 +32,7 @@ def full(**change):
 
 
 def test_closed_profiles_keep_ov_full_and_the_narrow_tuple_with_holonet_reader():
-    assert set(module_code.MANAGED_SERVERS) == {"jocasta", "ov", "holonet_catalog", "holonet_recommendations", "holonet_janitor", "holonet_janitor_torrents", "holonet_janitor_seed_join", "holonet_acquire_read", "holonet_acquire_start", "holonet_acquire_media"}
+    assert set(module_code.MANAGED_SERVERS) == {"shizune", "jocasta", "ov", "holonet_catalog", "holonet_recommendations", "holonet_janitor", "holonet_janitor_torrents", "holonet_janitor_seed_join", "holonet_acquire_read", "holonet_acquire_start", "holonet_acquire_media"}
     assert module_code.MANAGED_SERVERS["ov"] == {"url": OV_URL, "providers": frozenset({"codex"}),
                                                  "commands": {"laptop": NARROW}}
     assert module_code.MANAGED_PROFILES == {"ov-full": {
