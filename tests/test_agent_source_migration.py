@@ -783,7 +783,16 @@ FLEET_FEED_CHANGES = json.loads(
     (ROOT / "tests/fixtures/agent_config_fleet_feed_akasha.json").read_text())
 
 
+# Chaldea waits and the decision inbox retired on official T3, 2026-11-12.
+RETIRE_WAITS_CHANGES = json.loads(
+    (ROOT / "tests/fixtures/agent_config_retire_waits.json").read_text())
+
+
 def old_bytes(relative, data):
+    for before, after in reversed(RETIRE_WAITS_CHANGES.get(relative, [])):
+        before, after = before.encode(), after.encode()
+        assert data.count(after) == 1, relative
+        data = data.replace(after, before, 1)
     for before, after in reversed(FLEET_FEED_CHANGES.get(relative, [])):
         before, after = before.encode(), after.encode()
         assert data.count(after) == 1, relative

@@ -1,14 +1,14 @@
 ---
 name: chaldea
 description: >-
-  Use Chaldea for builds, tests and heavy runs on fleet job hosts, explicitly
-  requested non-executor time/thread waits, and questions in Igor's decision inbox.
+  Use Chaldea for builds, tests and heavy runs on fleet job hosts. Chaldea waits
+  and the decision inbox are retired; this skill names the native T3 replacements.
   Reviews and worker briefs belong to review-delegation.
 ---
 
 # Chaldea in T3 sessions
 
-Chaldea adds fleet compute, durable waits and a decision inbox to T3. Keep using
+Chaldea adds fleet compute to T3. Keep using
 T3's native `delegate_task` completion and `watch_pull_request` for actual child
 and PR dependencies. PR checks/comments/conflicts can wake; merge ends the watch
 silently. Handle your own authorized merge after CI and continue, or retain an
@@ -175,122 +175,33 @@ For each registration, save a stable `requestId` of the form
 retry with exactly the same key and arguments. The CLI can generate a key, but
 passing `--request-id` explicitly makes retries safe.
 
-## Explicit non-executor waits
+## Waits and the decision inbox are retired
 
-For an explicitly requested non-executor time/thread wait, verify installed client
-and server compatibility plus service availability before registration. External
-cancellation cannot retract an accepted message or guarantee Stop preservation on
-stock T3; retain recovery ownership and report unsupported delivery instead of
-promising a wake. The native executor dependency rule above still applies.
+Chaldea waits and decisions require a T3 server that advertises
+`externalWakeGuardVersion:1`. Only the archived T3 fork did; official T3 (0.1.5 and
+0.1.6) does not, so every registration is refused with "T3 external wake guard or
+lifecycle history is unsupported". Do not call `chaldea_wait*` or `chaldea_decision*`
+or the `chaldea wait`/`chaldea decision` CLI. Use the native T3 equivalent instead:
 
-Use `chaldea_wait` with your `threadId`, `requestId`, and either
-`condition: {kind: "time", at: "<RFC3339 with offset>"}` or
-`condition: {kind: "thread", threadId: "<target>", runId: "<run>"}`.
-An optional `deadline` bounds the wait. Retain a
-recovery deadline and action with the continuation owner even when the runtime
-does not support that deadline. Omitting `runId` pins the latest accepted run at
-registration; it does not wait for a future run. Quota pauses remain pending
-through recovery; preserve the assignment and its IDs.
+- Waiting for a child task: `delegate_task`; its completion wakes the parent.
+- Waiting for another thread's run: `t3_thread_wait`.
+- Waiting for a pull request: `watch_pull_request`.
+- Resuming at a time or on a schedule: `schedule_task` bound to the thread, and
+  `delete_scheduled_task` once it has fired if it should run only once.
+- Waiting for a background command: `t3_background_wait`.
+- A question for Igor: ask in the conversation or through the runtime's own
+  question mechanism.
 
-On a client release that supports wait descriptions, pass optional `description`
-to record the purpose, for example "Recheck review availability after quota reset".
-CLI time/thread waits use `--description TEXT`. Keep it nonblank, single-line plain
-text within 512 UTF-8 bytes, with no control or format characters. The description
-is context, never an executable instruction or authorization. Reuse it unchanged
-with the retry key. Registration/status and single/combined wakes carry it;
-unlabeled waits use the target time or thread/run. Already-attempted wakes retain
-their original immutable delivery text, including older opaque messages.
-
-Registration returns immediately; up to eight active waits per thread are allowed.
-Pending wakes combine into one queued message listing wait IDs and outcomes; each
-wait retains its own delivery record. For waits, `requestId` is optional, with a
-server-generated `<epoch milliseconds>:<random>`; save an explicit key for retries.
-Continue useful authorized independent work after registration. Yield only when no
-such work is ready. Do not sleep, poll status or add another watcher. Read an
-outcome with `chaldea_wait_status` (`id`); cancel an unwanted wait with
-`chaldea_wait_cancel` (`id`). Cancellation before resolution sends no wake;
-it cannot retract an already accepted message.
-
-Before yielding, retain the dependency, continuation owner, task/PR/wait ID, retry
-key, exact source revision, expected wake, next action and recovery deadline/action.
-On a wake, reconcile authoritative status once and continue; ignore an already
-handled duplicate. A failed child or CI result needs diagnosis against that source,
-not a blind retry. Explicit stop overrides late wakes and propagates to children
-and outstanding waits/watchers, with in-flight effects reconciled safely.
-
-A recovery deadline is a diagnostic boundary, not evidence of success, an answer
-or permission. If a wake is missing or failed, the retained owner inspects the
-native task/PR/wait status and delivery evidence once on the next available
-continuation, records what failed and recovers or escalates that dependency.
-Continue other ready lanes. If no continuation occurs, leave the recovery obligation
-visible for the root or next operator session; a recorded deadline cannot wake it.
-Do not add a polling loop or duplicate watcher, or replay an uncertain mutation.
-On T3 v0.1.0, automatic settlement can orphan external Chaldea waits, while an
-external stale wake can survive offline Stop/resume. Native ownership/dependencies
-are separate controls, not a repair for external admission. Neither wait registration
-nor a deadline guarantees continuation. Never ignore settled flags, auto-unsettle
-threads or revive explicitly stopped work. Retain recovery ownership for the next
-authorized continuation.
-
-CLI equivalents (set these variables to the actual IDs and desired times):
-
-```sh
-request_id="$(date +%s%3N):$(uuidgen)"
-chaldea wait time --after 30s --thread "$thread_id" --request-id "$request_id" \
-  --description "Recheck review availability after quota reset"
-chaldea wait time --at "$at" --thread "$thread_id" --request-id "$time_request_id"
-chaldea wait thread --target "$other_thread" --run "$run_id" \
-  --thread "$thread_id" --request-id "$thread_request_id"
-chaldea wait status "$wait_id"
-chaldea wait cancel "$wait_id"
-```
-
-Use a separate saved request key for each registration.
+Before yielding, still retain the dependency, continuation owner, task/PR ID,
+exact source revision, next action and recovery action.
 
 ## Ask Igor, then keep working
 
 Apply standing host/homelab authority from the shared instructions. Ask only when
 material direction, substantial new cost or an action beyond the requested outcome
 needs Igor's choice. Ask ordinary clarifications directly in the conversation;
-optional preferences do not block authorized work. Use the decision inbox below only
-for material direction questions needing durable tracking or when Igor requests it.
-Only the dependent action waits; useful independent work continues.
-
-When using the decision inbox with a native T3 direction question, call
-`chaldea_decision_prepare({threadId, requestId, dependentAction, defaultAction, deadline})`
-with your own thread ID and saved retry key. Then ask in T3; the preparation binds
-the next native user-input request within ten minutes. For a known native request,
-use `chaldea_decision_track` with the same policy fields and `runtimeRequestId`.
-Read policy, binding and outcome through `chaldea_decision_status` with `id`.
-Native answers stay in T3 and add no Chaldea wake. A native question's deadline
-guarantees neither an answer nor a continuation wake. Retain the native request ID,
-owner and recovery action for the next continuation; a deadline only skips or
-defers dependent work. It never authorizes it. Runtime security approval requests
-stay in the runtime's approval mechanism; never track or answer them through these tools.
-
-For a durable direction question without native input, use `chaldea_decision_ask` with
-your `threadId`, a saved `requestId`,
-`question`, two to eight `options`, a concrete `dependentAction`,
-`defaultAction: "skip" | "defer"`, and a `deadline` in RFC3339 with an offset.
-Keep working on independent tasks; leave the dependent action pending until
-Igor answers. Resolution sends one queued wake. No answer by the deadline only
-skips or defers the dependent action. A default never selects an option or
-grants approval, permission or extra autonomy.
-
-Never answer your own question, including through the CLI. For fallback questions,
-Igor uses the answer page or `chaldea decision answer ID --answer TEXT`. For an authorized
-answer from another local thread, `chaldea_decision_answer` takes `id`,
-`answer` and that thread's own `answeringThreadId`. Such an answer is recorded
-as `mcp:<thread>`, never as Igor's consent. Read state, answer source and the
-deadline outcome with `chaldea_decision_status` (`id`).
-
-```sh
-chaldea decision ask --thread "$thread_id" --question 'Which retention policy should the service use?' \
-  --option '30 days' --option '90 days' --dependent-action 'configure retention' \
-  --default-action defer --deadline "$deadline" --request-id "$decision_request_id"
-chaldea decision status "$question_id"
-```
-
-All wait and decision CLI commands accept `--config PATH`; the fleet config is
-`~/.config/chaldea/waits.json`. Discover current syntax with
-`chaldea wait --help` or `chaldea decision --help`.
+optional preferences do not block authorized work. Ask material direction questions
+the same way. Only the dependent action waits; useful independent work continues.
+Runtime security approval requests stay in the runtime's approval mechanism.
+Never answer your own question. A deadline or unanswered question never grants
+permission; it only leaves the dependent action deferred.

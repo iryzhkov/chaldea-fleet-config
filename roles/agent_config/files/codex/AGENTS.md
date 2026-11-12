@@ -114,13 +114,13 @@ need no separate approval. Continue independent work while a real question is pe
 
 ## Chaldea and scratch
 
-Use the `chaldea` skill for builds and heavy runs on job hosts, explicitly requested
-non-executor waits and the decision inbox, with its availability/cancellation limits.
+Use the `chaldea` skill for builds and heavy runs on job hosts. Chaldea waits and the
+decision inbox are retired because official T3 refuses their registration; use native T3.
 Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
 Ask ordinary clarifying questions directly in the current conversation. Optional
 preferences do not block work; use a reasonable in-scope assumption when safe.
-Use the Chaldea decision inbox only when a material direction question needs durable
-tracking or Igor requests it; follow the `chaldea` skill for that path. Runtime
+Ask material direction questions the same way, through the runtime's own question
+mechanism. Runtime
 security approval requests stay in the runtime's own approval mechanism. A deadline
 or unanswered question never grants permission.
 
