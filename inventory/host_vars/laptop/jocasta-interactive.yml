@@ -35,7 +35,9 @@ webmcp_interactive_ov_full_enabled: true
 # Single native canary: jocasta:b5c3380ab7e3ffdd8002e1d5615b1677@1.
 # Existing torrent, janitor, TV/Anime, OV and Jocasta modes remain in the same
 # reviewed binary.
-webmcp_interactive_helper_sha256: 9086fa224b660314c3aff7d09ec5a8f4a5e344011151eb125c84c6b2efe236b3
+# Shizune mode superset: source 760d3e7 (PR #165), Go 1.27.0 Linux/ARM64 Chaldea
+# build 40204767-9cfd-4ce9-8df4-1521887afee9; previous installed 9086fa22.
+webmcp_interactive_helper_sha256: 9a9455eeffe62f0287ebaa36fc7f0cd5024ef819722cb277b44dd3b5bf8694ad
 
 mcp_registrations_jocasta_interactive_state: present
 
