@@ -25,7 +25,7 @@ chaldea_client_codex_assert_runtime_home: false
 chaldea_client_low_headroom_percent: 10
 # Route/capacity defaults. Role-target fields require a compatible client.
 chaldea_client_claude_usage_enabled: false
-chaldea_client_claude_usage_provider: claudeAgent
+chaldea_client_claude_usage_provider: ""
 # Token paths only. Readers never render or copy credential contents.
 chaldea_client_claude_usage_source: {}
 chaldea_client_claude_contexts: []

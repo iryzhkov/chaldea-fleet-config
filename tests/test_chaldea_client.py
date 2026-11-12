@@ -208,7 +208,7 @@ def test_apply_migration_units_and_idempotence(tmp_path, monkeypatch):
     assert all(u["active"] and u["enabled"] for u in manager["units"].values())
     route = json.loads((home / ".config/chaldea/route.json").read_text())
     capacity = json.loads((home / ".config/chaldea/capacity.json").read_text())
-    assert route["claudeUsage"] == {"enabled": False, "providerInstanceId": "claudeAgent"}
+    assert "claudeUsage" not in route and "claudeWeeklyTarget" not in route
     assert route["paceMargin"] == capacity["paceMargin"] == 0.10
     assert route["minimumRemaining"] == capacity["minimumRemaining"] == 0.10
     assert route["quotaMaxAgeMs"] == capacity["maxAgeMs"] == 900000
@@ -321,7 +321,7 @@ def test_disabled_units_need_no_secrets_and_upgrade_retains_one_previous(tmp_pat
     mcp = json.loads((Path.home() / ".config/chaldea/mcp.json").read_text())
     assert mcp == {}
     assert not (Path.home() / ".config/chaldea/waits.json").exists()
-    assert json.loads((Path.home() / ".config/chaldea/route.json").read_text())["claudeUsage"]["enabled"] is False
+    assert "claudeUsage" not in json.loads((Path.home() / ".config/chaldea/route.json").read_text())
     manager = json.loads((tmp_path / "systemctl.json").read_text())
     assert all(not u["enabled"] and not u["active"] for u in manager["units"].values())
 

@@ -40,7 +40,11 @@ webmcp_interactive_ov_full_enabled: true
 # contains PR #164, and main 98c1b74 rebuilds 9a9455ee byte for byte (Chaldea
 # job 61982613-362c-45bd-b142-37cbbc68cbeb). It supersedes the pre-Shizune
 # acquisition candidate 3490d4a7. No acquisition mode is selected here.
-webmcp_interactive_helper_sha256: 9a9455eeffe62f0287ebaa36fc7f0cd5024ef819722cb277b44dd3b5bf8694ad
+# M3 P3.1 selector-aware helper, built from fleet e2bef1a with Go 1.27.0.
+webmcp_interactive_helper_sha256: 4417f939c2a23f7d6e87d68373985a3065cce0434093f26c80422469a604a66f
+# Rollback: legacy helper 9a9455eeffe62f0287ebaa36fc7f0cd5024ef819722cb277b44dd3b5bf8694ad
+# retained at /usr/local/libexec/webmcp-interactive-headers.legacy-9a9455eeffe6 on laptop.
+chaldea_host_identity_enabled: true
 
 mcp_registrations_jocasta_interactive_state: present
 

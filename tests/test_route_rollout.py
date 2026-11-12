@@ -16,8 +16,8 @@ def test_agent_clients_use_native_t3_quota():
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert set(hosts) == {"agent-a", "agent-b", "omarchy-pc", "laptop"}
-    assert common["chaldea_client_version"] == "client-v0.4.25"
-    assert common["chaldea_client_sha256"] == "3d9dff298a345fc66afc1536684220b8a76ff6ffee5282fdb5096c4b21090e2c"
+    assert common["chaldea_client_version"] == "client-v0.4.26"
+    assert common["chaldea_client_sha256"] == "072b7a690c67ebdbc6310916b6fb04b9034171e74da486b3f7b13f46045af0fe"
     # All agent hosts now use native T3 quota after approved local login checks.
     for name, values in hosts.items():
         assert "chaldea_client_version" not in values
@@ -25,7 +25,7 @@ def test_agent_clients_use_native_t3_quota():
         effective = defaults | common | values
         assert effective["chaldea_client_enabled"] is True
         assert effective["chaldea_client_claude_usage_enabled"] is False
-        assert effective["chaldea_client_version"] == "client-v0.4.25"
+        assert effective["chaldea_client_version"] == "client-v0.4.26"
         assert effective["chaldea_client_quota_enabled"] is True
         assert effective["chaldea_client_codex_assert_runtime_home"] is True
 
@@ -39,10 +39,12 @@ HOST_RELEASE_SELECTIONS = {
     # M3 P3.1: retain this host's selector-aware helper pin in the allowlist.
     "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({
         "agent_tools_ov_memory_ref", "webmcp_interactive_helper_sha256"}),
+    # M3 P3.1: retain this host's selector-aware helper pin in the allowlist.
     "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({
         "webmcp_interactive_helper_sha256", "chaldea_node_version"}),
     # M3 P3.1 cutover: agent-b selects the selector-aware helper build.
     "inventory/host_vars/agent-b/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
+    "inventory/host_vars/agent-a/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
     # Inactive-runtime retention only; bounded histories and cleanup preservation
     # are exercised in test_chaldea_client.py. These do not select active pins.
     "inventory/host_vars/agent-a/chaldea-staging-retention.yml": frozenset({"chaldea_client_retained_versions"}),

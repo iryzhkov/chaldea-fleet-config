@@ -182,10 +182,14 @@ source, review and deployment verification requirements remain binding.
   Preserve command, target, log and outcome; reconcile a disconnect or reboot
   before any retry.
 - Prefer the least disruptive effective recovery. Necessary service restarts for
-  requested work use standing host authority. For T3, use `chaldea t3 restart`
-  after inspecting installed help and capability; preserve continuation evidence.
-  Reboot only when needed for the requested outcome and after checking running
-  work and recovery. Do not substitute a raw T3 service restart.
+  requested work use standing host authority. Check running work and recovery,
+  inspect installed native help, then use `t3 service restart` for T3.
+  Native T3 0.1.9+ resumes running turns after restart. The agent-b 0.1.9 canary
+  preserved a pending question and resumed one turn exactly once, but its
+  subprocess disconnected. Preserve continuation evidence and wait for API
+  readiness. Receipt: `jocasta:e341c5552d775da74640c460011595c2@18`.
+  Older hosts need an explicit recovery plan. Reboot only when needed for the
+  requested outcome and after checking running work and recovery.
 
 ## Keep the next milestone resumable
 
