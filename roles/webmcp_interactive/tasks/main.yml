@@ -8,7 +8,8 @@
       - inventory_hostname == 'laptop' or webmcp_interactive_laptop_qualified | bool
       - webmcp_interactive_helper_source is match('^/')
       - webmcp_interactive_helper_sha256 is match('^[0-9a-f]{64}$')
-      - webmcp_interactive_credential_source is match('^/')
+      - chaldea_host_identity_enabled | default(false) | type_debug == 'bool'
+      - chaldea_host_identity_enabled | default(false) | bool or webmcp_interactive_credential_source is match('^/')
       - fleet_home == ansible_facts.user_dir
       - webmcp_interactive_shizune_enabled | default(false) | type_debug == 'bool'
       - not (webmcp_interactive_shizune_enabled | default(false)) or (inventory_hostname in ['laptop', 'omarchy-pc'] and ansible_facts.user_uid | int == (1001 if inventory_hostname == 'laptop' else 1000))
@@ -84,6 +85,9 @@
       - not webmcp_interactive_helper_target.stat.exists or webmcp_interactive_helper_target.stat.checksum in [webmcp_interactive_helper_sha256, webmcp_interactive_previous_helper_sha256]
     quiet: true
 
+- name: Validate host credential before selecting it
+  ansible.builtin.include_tasks: host-identity.yml
+
 # homelab-infra's authentik-ov-http-identities.yml delivers this credential to
 # the bound laptop UID. Metadata only: the file is never read or checksummed.
 - name: Inspect the separately delivered laptop OV credential without reading it
@@ -97,7 +101,7 @@
     - "{{ fleet_home }}/.config"
     - "{{ fleet_home }}/.config/chaldea"
     - "{{ fleet_home }}/.config/chaldea/authentik"
-    - "{{ fleet_home }}/.config/chaldea/authentik/ov-interactive-codex.app-password"
+    - "{{ fleet_home }}/.config/chaldea/authentik/{{ 'host' if chaldea_host_identity_enabled | default(false) | bool else 'ov-interactive-codex' }}.app-password"
   register: webmcp_interactive_ov_credential
   when: webmcp_interactive_ov_enabled | default(false) | bool
 
@@ -129,7 +133,7 @@
     - "{{ fleet_home }}/.config"
     - "{{ fleet_home }}/.config/chaldea"
     - "{{ fleet_home }}/.config/chaldea/authentik"
-    - "{{ fleet_home }}/.config/chaldea/authentik/ov-full-interactive.app-password"
+    - "{{ fleet_home }}/.config/chaldea/authentik/{{ 'host' if chaldea_host_identity_enabled | default(false) | bool else 'ov-full-interactive' }}.app-password"
   register: webmcp_interactive_ov_full_credential
   when: webmcp_interactive_ov_full_enabled | default(false) | bool
 
@@ -159,7 +163,7 @@
     - "{{ fleet_home }}/.config"
     - "{{ fleet_home }}/.config/chaldea"
     - "{{ fleet_home }}/.config/chaldea/authentik"
-    - "{{ fleet_home }}/.config/chaldea/authentik/shizune-interactive.app-password"
+    - "{{ fleet_home }}/.config/chaldea/authentik/{{ 'host' if chaldea_host_identity_enabled | default(false) | bool else 'shizune-interactive' }}.app-password"
   register: webmcp_interactive_shizune_credential
   when: webmcp_interactive_shizune_enabled | default(false) | bool
 
@@ -190,7 +194,7 @@
     - "{{ fleet_home }}/.config"
     - "{{ fleet_home }}/.config/chaldea"
     - "{{ fleet_home }}/.config/chaldea/authentik"
-    - "{{ fleet_home }}/.config/chaldea/authentik/holonet-interactive.app-password"
+    - "{{ fleet_home }}/.config/chaldea/authentik/{{ 'host' if chaldea_host_identity_enabled | default(false) | bool else 'holonet-interactive' }}.app-password"
   register: webmcp_interactive_holonet_credential
   when: webmcp_interactive_holonet_enabled | default(false) | bool
 
@@ -214,6 +218,7 @@
   when: webmcp_interactive_holonet_writer_enabled | default(false) | bool
 
 - name: Stage only a protected per-host enrollment
+  when: not (chaldea_host_identity_enabled | default(false) | bool)
   no_log: true
   diff: false
   block:

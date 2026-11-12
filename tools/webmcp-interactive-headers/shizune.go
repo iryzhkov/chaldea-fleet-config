@@ -50,7 +50,7 @@ func acquireShizune(ctx context.Context, client *http.Client, host, password str
 	username := "chaldea-" + host + "-shizune-interactive"
 	scope := shizuneScope
 	// The Shizune provider fixes the audience; no resource selector is sent.
-	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {shizuneClientID}, "username": {username},
+	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {shizuneClientID}, "username": {identityUsername(username)},
 		"password": {password}, "scope": {scope}}
 	start := now().Unix()
 	data, err := response(ctx, client, "POST", tokenURL, strings.NewReader(form.Encode()), 32768)
