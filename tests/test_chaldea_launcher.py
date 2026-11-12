@@ -409,12 +409,10 @@ def test_mcp_route_selection(tmp_path, entry):
     assert server["command"] == str(tmp_path / f"home/.local/share/mise/installs/node/{NODE_VERSION}/bin/node")
 
 
-def test_only_laptop_selects_the_routing_client():
+def test_all_hosts_route_through_the_current_client():
     listed = subprocess.run(["ansible-inventory", "-i", str(ROOT / "inventory"), "--list"],
                             cwd=ROOT, capture_output=True, text=True)
     assert listed.returncode == 0, listed.stderr
     hosts = json.loads(listed.stdout)["_meta"]["hostvars"]
     for host, values in hosts.items():
-        assert values.get("chaldea_client_route_entry", "") == (
-            "{{ fleet_home }}/.local/share/chaldea/releases/client-v0.4.23/bin/chaldea"
-            if host == "laptop" else "")
+        assert values.get("chaldea_client_route_entry", "") == ""
