@@ -4,7 +4,7 @@
     that:
       - chaldea_token_helper_enabled | bool
       - chaldea_access_trust_enabled | bool
-      - not (chaldea_akasha_authentik_enabled | bool) or chaldea_token_helper_client_version[8:] is version('0.4.27', '>=', version_type='semver')
+      - not (chaldea_token_helper_authentik_enabled | bool) or chaldea_token_helper_client_version[8:] is version('0.4.27', '>=', version_type='semver')
       - chaldea_token_helper_root == '/opt/chaldea-token-helper'
       - chaldea_token_helper_client_version is regex('^client-v[0-9]+[.][0-9]+[.][0-9]+$', match_type='fullmatch')
       - chaldea_token_helper_client_version[8:] is version('0.2.1', '>=', version_type='semver')
@@ -192,7 +192,7 @@
         owner: root
         group: root
         mode: "0755"
-      when: chaldea_akasha_authentik_enabled | bool
+      when: chaldea_token_helper_authentik_enabled | bool
     - name: Render the fixed issuer command
       ansible.builtin.template:
         src: issuer-command.j2

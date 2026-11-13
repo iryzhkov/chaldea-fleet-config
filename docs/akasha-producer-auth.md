@@ -75,7 +75,7 @@ shared-root GC as part of this helper-only playbook.
 
 For laptop/omarchy-pc/agent-a/agent-b run fleet-config
 playbooks/akasha-producer-auth.yml with --limit HOST, protected pin vars and
--e '{"chaldea_akasha_authentik_enabled":true}'. First --check --diff, review,
+-e '{"chaldea_token_helper_authentik_enabled":true}'. First --check --diff, review,
 then apply and repeat for zero changes. This explicit playbook reuses the current
 public enrollment and does not run trust updater installation. ANSIBLE_ROLES_PATH
 must include the reviewed fleet-config roles and ANSIBLE_LIBRARY its library.
@@ -110,7 +110,7 @@ Always limit one host; preserve aliases laptop/normandy for Authentik usernames.
 ## Rollback
 
 Run the same per-host helper playbook with
--e '{"chaldea_akasha_authentik_enabled":false}', check, apply, repeat.
+-e '{"chaldea_token_helper_authentik_enabled":false}', check, apply, repeat.
 It removes authentik from config and restores chaldea-issuer launcher/sudo target.
 Infra also removes the homelab route namespace drop-in and reloads systemd.
 Header-capable client/collector releases remain PKI-compatible; no downgrade is

@@ -41,7 +41,7 @@ def test_templates_bind_config_and_allow_only_exact_selectors(tmp_path):
     grant = dict(uid=1000, audience="akasha", action="append", source="timer",
                  host="agent-b", kind="timer_run", profile="timer-service", project="chaldea")
     identity = dict(uid=1234, key_file="/private/b.pem", name="chaldea:agent-b", kid="b-key")
-    variables = dict(chaldea_akasha_authentik_enabled=False, chaldea_token_helper_issuer=identity, chaldea_token_helper_state="/private/state",
+    variables = dict(chaldea_token_helper_authentik_enabled=False, chaldea_token_helper_issuer=identity, chaldea_token_helper_state="/private/state",
                      chaldea_access_paths=dict(bundle="/public/bundle", root="/etc/trust", clock_health="/public/clock"),
                      chaldea_token_helper_grants=[grant],
                      chaldea_token_helper_node="/opt/helper/node/bin/node",
@@ -49,9 +49,9 @@ def test_templates_bind_config_and_allow_only_exact_selectors(tmp_path):
     config = json.loads(render("token-helper.json.j2", variables))
     assert config["issuer"] == identity and config["grants"] == [grant]
     assert config["anchor_file"] == "/etc/trust/anchors.json"
-    auth_variables = variables | dict(chaldea_akasha_authentik_enabled=True,
-        inventory_hostname="agent-b", chaldea_akasha_authentik_home="/home/igor",
-        chaldea_akasha_authentik_uid=1000)
+    auth_variables = variables | dict(chaldea_token_helper_authentik_enabled=True,
+        inventory_hostname="agent-b", chaldea_token_helper_authentik_home="/home/igor",
+        chaldea_token_helper_authentik_uid=1000)
     auth = json.loads(render("token-helper.json.j2", auth_variables))
     assert auth["authentik"] == dict(host="agent-b", home="/home/igor", uid=1000)
     assert "authentik" not in config
