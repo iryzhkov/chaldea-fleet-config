@@ -5,12 +5,14 @@ from pathlib import Path
 import shutil
 import subprocess
 import yaml
+import pytest
 from host_artifact_fixture import stage
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_collector_installs_independently_and_preserves_every_shared_asset(tmp_path):
+@pytest.mark.parametrize("homelab_retention", [False, True])
+def test_collector_installs_independently_and_preserves_every_shared_asset(tmp_path, homelab_retention):
     pins = stage(tmp_path)
     shared = tmp_path / "shared"
     shared.mkdir()
@@ -48,6 +50,30 @@ def test_collector_installs_independently_and_preserves_every_shared_asset(tmp_p
                  "akasha_collector_url": "https://akasha.example",
                  "akasha_collector_token_helper": "/approved/helper",
                  "akasha_collector_node": "/approved/node"}
+    retained = {}
+    if homelab_retention:
+        inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
+        homelab = inventory["all"]["children"]["servers"]["hosts"]["homelab"]
+        keep = homelab["akasha_collector_preserve_versions"]
+        assert keep == ["host-v0.2.17", "host-v0.2.18"]
+        variables["akasha_collector_preserve_versions"] = keep
+        release_root = Path(variables["akasha_collector_release_root"])
+        cache = Path(variables["akasha_collector_cache"])
+        release_root.mkdir(); cache.mkdir()
+        for index, version in enumerate(keep + ["host-v0.2.20"], 1):
+            release = release_root / version
+            release.mkdir()
+            (release / "sentinel").write_text(version)
+            os.utime(release, (index, index))
+            paths = [release, release / "sentinel"]
+            for suffix in (".tar.gz", ".json"):
+                entry = cache / (version + suffix)
+                entry.write_text(version)
+                paths.append(entry)
+            for path in paths:
+                stat = path.stat()
+                retained[path] = (path.read_bytes() if path.is_file() else None,
+                                  stat.st_ino, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_mode)
     play = tmp_path / "scope.yml"
     play.write_text(yaml.safe_dump([{"hosts": "localhost", "connection": "local",
                                     "gather_facts": False, "vars": variables,
@@ -60,6 +86,13 @@ def test_collector_installs_independently_and_preserves_every_shared_asset(tmp_p
         if attempt:
             assert "changed=0" in result.stdout
         assert snapshot() == before
+        if homelab_retention:
+            assert sorted(p.name for p in release_root.iterdir()) == sorted(
+                keep + ["host-v0.2.20", pins["chaldea_host_version"]])
+        for path, expected in retained.items():
+            stat = path.stat()
+            assert (path.read_bytes() if path.is_file() else None,
+                    stat.st_ino, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_mode) == expected
     assert Path(variables["akasha_collector_script"]).is_file()
     unit = (tmp_path / "collector.service").read_text()
     assert str(shared) not in unit
