@@ -30,6 +30,12 @@
     - name: Retain existing enrollment
       ansible.builtin.set_fact:
         akasha_helper_baseline: "{{ akasha_existing_helper.content | b64decode | from_json }}"
+    - name: Allow a caller's grant override only to narrow the installed grants
+      ansible.builtin.assert:
+        that:
+          - akasha_helper_grants_override is not defined or akasha_helper_grants_override | reject('in', akasha_helper_baseline.grants) | list | length == 0
+        fail_msg: The grant override may only remove installed grants.
+        quiet: true
     - name: Reuse the installed enrollment without changing trust
       ansible.builtin.set_fact:
         chaldea_token_helper_enabled: true
