@@ -4,6 +4,7 @@
     that:
       - chaldea_token_helper_enabled | bool
       - chaldea_access_trust_enabled | bool
+      - not (chaldea_akasha_authentik_enabled | bool) or chaldea_token_helper_client_version[8:] is version('0.4.27', '>=', version_type='semver')
       - chaldea_token_helper_root == '/opt/chaldea-token-helper'
       - chaldea_token_helper_client_version is regex('^client-v[0-9]+[.][0-9]+[.][0-9]+$', match_type='fullmatch')
       - chaldea_token_helper_client_version[8:] is version('0.2.1', '>=', version_type='semver')
@@ -17,7 +18,7 @@
       - chaldea_token_helper_issuer.uid > 0
       - chaldea_token_helper_issuer.uid < 4294967295
       - chaldea_token_helper_issuer.key_file is regex('^/[A-Za-z0-9/_.-]+$', match_type='fullmatch')
-      - chaldea_token_helper_issuer.name == 'chaldea:' ~ inventory_hostname
+      - chaldea_token_helper_issuer.name == 'chaldea:' ~ (expected_hostname | default(inventory_hostname))
       - chaldea_token_helper_issuer.kid is regex('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$', match_type='fullmatch')
       - chaldea_token_helper_state is regex('^/[A-Za-z0-9/_.-]+$', match_type='fullmatch')
       - chaldea_token_helper_grants | length > 0
@@ -35,7 +36,7 @@
       - item.uid != chaldea_token_helper_issuer.uid
       - item.audience == 'akasha'
       - item.action in ['append', 'read']
-      - item.host == inventory_hostname
+      - item.host == (expected_hostname | default(inventory_hostname))
       - item.source is regex('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$', match_type='fullmatch')
       - item.kind is regex('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$', match_type='fullmatch')
       - item.profile is regex('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$', match_type='fullmatch')
@@ -182,6 +183,16 @@
         group: root
         mode: "0755"
       when: not ansible_check_mode
+    - name: Select root broker launcher only for Authentik mode
+      ansible.builtin.copy:
+        content: |
+          #!/bin/sh
+          exec /usr/bin/sudo -n -u root -- /usr/local/libexec/chaldea-token-helper-issuer "$@"
+        dest: /usr/local/bin/chaldea-token-helper
+        owner: root
+        group: root
+        mode: "0755"
+      when: chaldea_akasha_authentik_enabled | bool
     - name: Render the fixed issuer command
       ansible.builtin.template:
         src: issuer-command.j2

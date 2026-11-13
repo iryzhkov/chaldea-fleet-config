@@ -1,3 +1,4 @@
+{% set auth = {'authentik': {'host': inventory_hostname, 'home': chaldea_akasha_authentik_home, 'uid': chaldea_akasha_authentik_uid | int}} if chaldea_akasha_authentik_enabled | default(false) | bool else {} %}
 {{ {
   'issuer': chaldea_token_helper_issuer,
   'state_file': chaldea_token_helper_state,
@@ -5,4 +6,4 @@
   'anchor_file': chaldea_access_paths.root ~ '/anchors.json',
   'clock_health_file': chaldea_access_paths.clock_health,
   'grants': chaldea_token_helper_grants
-} | to_nice_json }}
+} | combine(auth) | to_nice_json }}
