@@ -32,7 +32,7 @@ def test_only_laptop_and_omarchy_pc_select_safe_legacy_ov(tmp_path):
             "expected_refs": expected_refs,
             "expected_sources": [
                 {"name": "homelab-cli", "repo": "{{ agent_tools_homelab_cli_repo }}",
-                 "ref": "601d226867238a5e3d9150f09aa5bf4ed7fba06c"},
+                 "ref": "d2099ddf44f36762cdd5b09bd27d5a284d09cc41"},
                 {"name": "ov-memory", "repo": "https://github.com/iryzhkov/ov-mcp.git",
                  "ref": "{{ expected_refs[inventory_hostname] }}"},
             ],

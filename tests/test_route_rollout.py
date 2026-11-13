@@ -16,8 +16,8 @@ def test_agent_clients_use_native_t3_quota():
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     hosts = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())["all"]["children"]["agent_hosts"]["hosts"]
     assert set(hosts) == {"agent-a", "agent-b", "omarchy-pc", "laptop"}
-    assert common["chaldea_client_version"] == "client-v0.4.26"
-    assert common["chaldea_client_sha256"] == "072b7a690c67ebdbc6310916b6fb04b9034171e74da486b3f7b13f46045af0fe"
+    assert common["chaldea_client_version"] == "client-v0.4.27"
+    assert common["chaldea_client_sha256"] == "a6a1f5c47ebb60d0372a1d1dc135d5a86d2a3eb0f4f2ba33f565e555a978ec0d"
     # All agent hosts now use native T3 quota after approved local login checks.
     for name, values in hosts.items():
         assert "chaldea_client_version" not in values
@@ -25,7 +25,7 @@ def test_agent_clients_use_native_t3_quota():
         effective = defaults | common | values
         assert effective["chaldea_client_enabled"] is True
         assert effective["chaldea_client_claude_usage_enabled"] is False
-        assert effective["chaldea_client_version"] == "client-v0.4.26"
+        assert effective["chaldea_client_version"] == "client-v0.4.27"
         assert effective["chaldea_client_quota_enabled"] is True
         assert effective["chaldea_client_codex_assert_runtime_home"] is True
 
@@ -58,7 +58,7 @@ def test_host_settings_do_not_override_shared_software_releases():
         if isinstance(values, dict):
             for key, value in values.items():
                 # Retention records keep rollback artifacts, not desired releases.
-                if key == "chaldea_host_artifact_preserve_versions" or key in allowed:
+                if key in ("chaldea_host_artifact_preserve_versions", "akasha_collector_preserve_versions") or key in allowed:
                     continue
                 assert not re.search(r"(^|_)(versions?|sha256|checksums?|revision|commit|ref|build|release)(_|$)", key), (location, key)
                 check(value, f"{location}.{key}")

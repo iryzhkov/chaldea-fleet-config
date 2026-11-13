@@ -1,7 +1,7 @@
 ---
-# Independent collector runtime from Chaldea main 72021ba; clock012 stays unchanged.
-akasha_collector_version: host-v0.2.18
-akasha_collector_sha256: 34d2fd21fc04cd946e6b3bf586d1e47aad22ae2b31f4cc7a797f4dbb28fc4b7c
+# Independent collector runtime from Chaldea main b5656fa; clock012 stays unchanged.
+akasha_collector_version: host-v0.2.21
+akasha_collector_sha256: 090bd269f0369f71b746d800ed68ced14f6ed9dff313cb439dfecb2d556bb524
 akasha_collector_release_root: /opt/chaldea-akasha-host/releases
 akasha_collector_cache: /var/cache/chaldea-akasha-host
 akasha_collector_script: "{{ akasha_collector_release_root }}/{{ akasha_collector_version }}/host/akasha-collector.mjs"

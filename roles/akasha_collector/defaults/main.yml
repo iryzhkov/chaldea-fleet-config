@@ -4,6 +4,7 @@ akasha_collector_version: ""
 akasha_collector_sha256: ""
 akasha_collector_release_root: /opt/chaldea-akasha-host/releases
 akasha_collector_cache: /var/cache/chaldea-akasha-host
+akasha_collector_preserve_versions: []
 akasha_collector_enabled: false
 # Absent from generated configuration unless explicitly selected.
 akasha_collector_url: ""
