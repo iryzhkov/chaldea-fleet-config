@@ -41,7 +41,7 @@ def test_templates_bind_config_and_allow_only_exact_selectors(tmp_path):
     grant = dict(uid=1000, audience="akasha", action="append", source="timer",
                  host="agent-b", kind="timer_run", profile="timer-service", project="chaldea")
     identity = dict(uid=1234, key_file="/private/b.pem", name="chaldea:agent-b", kid="b-key")
-    variables = dict(chaldea_token_helper_issuer=identity, chaldea_token_helper_state="/private/state",
+    variables = dict(chaldea_token_helper_authentik_enabled=False, chaldea_token_helper_issuer=identity, chaldea_token_helper_state="/private/state",
                      chaldea_access_paths=dict(bundle="/public/bundle", root="/etc/trust", clock_health="/public/clock"),
                      chaldea_token_helper_grants=[grant],
                      chaldea_token_helper_node="/opt/helper/node/bin/node",
@@ -49,6 +49,13 @@ def test_templates_bind_config_and_allow_only_exact_selectors(tmp_path):
     config = json.loads(render("token-helper.json.j2", variables))
     assert config["issuer"] == identity and config["grants"] == [grant]
     assert config["anchor_file"] == "/etc/trust/anchors.json"
+    auth_variables = variables | dict(chaldea_token_helper_authentik_enabled=True,
+        inventory_hostname="agent-b", chaldea_token_helper_authentik_home="/home/igor",
+        chaldea_token_helper_authentik_uid=1000)
+    auth = json.loads(render("token-helper.json.j2", auth_variables))
+    assert auth["authentik"] == dict(host="agent-b", home="/home/igor", uid=1000)
+    assert "authentik" not in config
+    assert "#1000 ALL=(root)" in render("sudoers.j2", auth_variables)
     sudoers = render("sudoers.j2", variables)
     assert "NOPASSWD: NOSETENV:" in sudoers
     assert "#1000 ALL=(chaldea-issuer)" in sudoers
@@ -63,6 +70,53 @@ def test_templates_bind_config_and_allow_only_exact_selectors(tmp_path):
     assert '/usr/bin/env -i PATH=/usr/bin:/bin SUDO_UID="${SUDO_UID-}"' in wrapper
     assert "/opt/helper/node/bin/node /opt/helper/releases/client-v0.2.1/bin/chaldea access token-helper" in wrapper
     assert '".local/share' not in wrapper
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_launcher_switch_is_stable_on_repeat(tmp_path, enabled):
+    assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).parent)
+    role = yaml.safe_load((ROLE / "tasks/main.yml").read_text())
+    block = next(t["block"] for t in role if t["name"] == "Install the release launcher and cleared-environment issuer wrapper")
+    tasks = [t for t in block if t["name"] in (
+        "Copy the verified client release launcher", "Select root broker launcher only for Authentik mode")]
+    release = tmp_path / "release/bin"
+    release.mkdir(parents=True)
+    (release / "chaldea-token-helper").write_text("#!/bin/sh\\n# PKI fixture\\n")
+    dest = tmp_path / "launcher"
+    for task in tasks:
+        task["ansible.builtin.copy"].update(dest=str(dest), owner=str(os.getuid()), group=str(os.getgid()))
+    play = tmp_path / "repeat.yml"
+    play.write_text(yaml.safe_dump([dict(name="Stable selector", hosts="localhost", gather_facts=False,
+        vars=dict(chaldea_token_helper_authentik_enabled=enabled,
+                  chaldea_token_helper_release=str(release.parent)), tasks=tasks)]))
+    env = dict(os.environ, ANSIBLE_LOCAL_TEMP=str(tmp_path / "local"), ANSIBLE_REMOTE_TEMP=str(tmp_path / "remote"))
+    args = ["ansible-playbook", "-i", "localhost,", "-c", "local", str(play)]
+    first = subprocess.run(args, env=env, capture_output=True, text=True)
+    assert first.returncode == 0, first.stdout + first.stderr
+    repeated = subprocess.run(args, env=env, check=True, capture_output=True, text=True)
+    assert "changed=0" in repeated.stdout
+    assert ("-u root" in dest.read_text()) is enabled
+
+
+@pytest.mark.parametrize("alias,canonical", [("laptop", "omarchy-macbook-air-igor"),
+                                            ("normandy", "omarchy-normandy"), ("agent-a", "agent-a")])
+@pytest.mark.parametrize("enabled", [False, True])
+def test_enrollment_reuses_persistent_inventory_mode(tmp_path, alias, canonical, enabled):
+    assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).parent)
+    source = yaml.safe_load((ROOT / "playbooks/akasha-enrollment.yml").read_text())[0]["pre_tasks"]
+    tasks = [t for t in source if t["name"] in (
+        "Require the persistent producer mode from the owning inventory",
+        "Use the same persistent producer mode as normal convergence")]
+    inventory = tmp_path / "inventory.yml"
+    hosts = {canonical: dict(ansible_connection="local")}
+    hosts.setdefault(alias, {})["chaldea_token_helper_authentik_enabled"] = enabled
+    inventory.write_text(yaml.safe_dump(dict(all=dict(hosts=hosts))))
+    tasks.append({"name": "Check selected mode", "ansible.builtin.assert":
+                  {"that": f"chaldea_token_helper_authentik_enabled == {'true' if enabled else 'false'}"}})
+    play = tmp_path / "mode.yml"
+    play.write_text(yaml.safe_dump([dict(name="Persistent selector", hosts=canonical, gather_facts=False, tasks=tasks)]))
+    env = dict(os.environ, ANSIBLE_LOCAL_TEMP=str(tmp_path / "local"))
+    subprocess.run(["ansible-playbook", "-i", str(inventory), str(play)], env=env, check=True, capture_output=True)
 
 
 def test_issuer_wrapper_discards_caller_environment(tmp_path):
