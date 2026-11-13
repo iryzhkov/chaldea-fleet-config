@@ -1,0 +1,54 @@
+---
+# Use only on already-enrolled hosts. Reuse the existing public grants and PKI
+# paths; do not bootstrap identities or read secret bytes.
+- name: Select existing Akasha producer authentication
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Require exactly one selected host
+      ansible.builtin.assert:
+        that: ansible_play_hosts_all | length == 1
+        quiet: true
+    - name: Require the persistent producer mode from the owning inventory
+      ansible.builtin.assert:
+        that:
+          - hostvars[akasha_producer_mode_alias].chaldea_token_helper_authentik_enabled is defined
+        fail_msg: Load the normal fleet inventory and infra inventory for servers; never default a missing persistent mode.
+        quiet: true
+      vars:
+        akasha_producer_mode_alias: "{{ {'omarchy-macbook-air-igor': 'laptop', 'omarchy-normandy': 'normandy'}.get(inventory_hostname, inventory_hostname) }}"
+    - name: Use the same persistent producer mode as normal convergence
+      ansible.builtin.set_fact:
+        chaldea_token_helper_authentik_enabled: "{{ hostvars[akasha_producer_mode_alias].chaldea_token_helper_authentik_enabled | bool }}"
+      vars:
+        akasha_producer_mode_alias: "{{ {'omarchy-macbook-air-igor': 'laptop', 'omarchy-normandy': 'normandy'}.get(inventory_hostname, inventory_hostname) }}"
+    - name: Read existing public token helper configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/chaldea/token-helper.json
+      register: akasha_existing_helper
+    - name: Retain existing enrollment
+      ansible.builtin.set_fact:
+        akasha_helper_baseline: "{{ akasha_existing_helper.content | b64decode | from_json }}"
+    - name: Allow a caller's grant override only to narrow the installed grants
+      ansible.builtin.assert:
+        that:
+          - akasha_helper_grants_override is not defined or akasha_helper_grants_override | reject('in', akasha_helper_baseline.grants) | list | length == 0
+        fail_msg: The grant override may only remove installed grants.
+        quiet: true
+    - name: Reuse the installed enrollment without changing trust
+      ansible.builtin.set_fact:
+        chaldea_token_helper_enabled: true
+        chaldea_access_trust_enabled: true
+        chaldea_token_helper_issuer: "{{ akasha_helper_baseline.issuer }}"
+        chaldea_token_helper_state: "{{ akasha_helper_baseline.state_file }}"
+        # A caller play (homelab-infra) may pass grants it filtered this run, so
+        # check mode sees the same grants as apply.
+        chaldea_token_helper_grants: "{{ akasha_helper_grants_override | default(akasha_helper_baseline.grants) }}"
+        chaldea_access_paths:
+          bundle: "{{ akasha_helper_baseline.bundle_file }}"
+          root: "{{ akasha_helper_baseline.anchor_file | dirname }}"
+          clock_health: "{{ akasha_helper_baseline.clock_health_file }}"
+    - name: Install the independently pinned helper and select authentication
+      ansible.builtin.include_role:
+        name: chaldea_token_helper

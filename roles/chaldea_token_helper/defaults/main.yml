@@ -1,6 +1,10 @@
 ---
 # No host is enrolled by this change. Bootstrap state/key and signed ceilings first.
 chaldea_token_helper_enabled: false
+# Root broker reads the existing host credential; PKI remains the default.
+chaldea_token_helper_authentik_enabled: false
+chaldea_token_helper_authentik_home: "{{ ansible_facts.env.HOME }}"
+chaldea_token_helper_authentik_uid: "{{ ansible_facts.user_uid }}"
 chaldea_token_helper_root: /opt/chaldea-token-helper
 chaldea_token_helper_client_version: ""
 chaldea_token_helper_client_sha256: ""
