@@ -72,6 +72,53 @@ def test_templates_bind_config_and_allow_only_exact_selectors(tmp_path):
     assert '".local/share' not in wrapper
 
 
+@pytest.mark.parametrize("enabled", [False, True])
+def test_launcher_switch_is_stable_on_repeat(tmp_path, enabled):
+    assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).parent)
+    role = yaml.safe_load((ROLE / "tasks/main.yml").read_text())
+    block = next(t["block"] for t in role if t["name"] == "Install the release launcher and cleared-environment issuer wrapper")
+    tasks = [t for t in block if t["name"] in (
+        "Copy the verified client release launcher", "Select root broker launcher only for Authentik mode")]
+    release = tmp_path / "release/bin"
+    release.mkdir(parents=True)
+    (release / "chaldea-token-helper").write_text("#!/bin/sh\\n# PKI fixture\\n")
+    dest = tmp_path / "launcher"
+    for task in tasks:
+        task["ansible.builtin.copy"].update(dest=str(dest), owner=str(os.getuid()), group=str(os.getgid()))
+    play = tmp_path / "repeat.yml"
+    play.write_text(yaml.safe_dump([dict(name="Stable selector", hosts="localhost", gather_facts=False,
+        vars=dict(chaldea_token_helper_authentik_enabled=enabled,
+                  chaldea_token_helper_release=str(release.parent)), tasks=tasks)]))
+    env = dict(os.environ, ANSIBLE_LOCAL_TEMP=str(tmp_path / "local"), ANSIBLE_REMOTE_TEMP=str(tmp_path / "remote"))
+    args = ["ansible-playbook", "-i", "localhost,", "-c", "local", str(play)]
+    first = subprocess.run(args, env=env, capture_output=True, text=True)
+    assert first.returncode == 0, first.stdout + first.stderr
+    repeated = subprocess.run(args, env=env, check=True, capture_output=True, text=True)
+    assert "changed=0" in repeated.stdout
+    assert ("-u root" in dest.read_text()) is enabled
+
+
+@pytest.mark.parametrize("alias,canonical", [("laptop", "omarchy-macbook-air-igor"),
+                                            ("normandy", "omarchy-normandy"), ("agent-a", "agent-a")])
+@pytest.mark.parametrize("enabled", [False, True])
+def test_enrollment_reuses_persistent_inventory_mode(tmp_path, alias, canonical, enabled):
+    assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).parent)
+    source = yaml.safe_load((ROOT / "playbooks/akasha-enrollment.yml").read_text())[0]["pre_tasks"]
+    tasks = [t for t in source if t["name"] in (
+        "Require the persistent producer mode from the owning inventory",
+        "Use the same persistent producer mode as normal convergence")]
+    inventory = tmp_path / "inventory.yml"
+    hosts = {canonical: dict(ansible_connection="local")}
+    hosts.setdefault(alias, {})["chaldea_token_helper_authentik_enabled"] = enabled
+    inventory.write_text(yaml.safe_dump(dict(all=dict(hosts=hosts))))
+    tasks.append({"name": "Check selected mode", "ansible.builtin.assert":
+                  {"that": f"chaldea_token_helper_authentik_enabled == {'true' if enabled else 'false'}"}})
+    play = tmp_path / "mode.yml"
+    play.write_text(yaml.safe_dump([dict(name="Persistent selector", hosts=canonical, gather_facts=False, tasks=tasks)]))
+    env = dict(os.environ, ANSIBLE_LOCAL_TEMP=str(tmp_path / "local"))
+    subprocess.run(["ansible-playbook", "-i", str(inventory), str(play)], env=env, check=True, capture_output=True)
+
+
 def test_issuer_wrapper_discards_caller_environment(tmp_path):
     assert Path.home().is_relative_to(Path(os.environ["TMPDIR"]).parent)
     node = tmp_path / "node"

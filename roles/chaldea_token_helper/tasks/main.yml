@@ -3,6 +3,7 @@
   ansible.builtin.assert:
     that:
       - chaldea_token_helper_enabled | bool
+      - not (chaldea_token_helper_authentik_enabled | bool) or chaldea_token_helper_authentik_uid | int > 0
       - chaldea_access_trust_enabled | bool
       - not (chaldea_token_helper_authentik_enabled | bool) or chaldea_token_helper_client_version[8:] is version('0.4.27', '>=', version_type='semver')
       - chaldea_token_helper_root == '/opt/chaldea-token-helper'
@@ -34,6 +35,7 @@
       - item.uid >= 0
       - item.uid < 4294967295
       - item.uid != chaldea_token_helper_issuer.uid
+      - not (chaldea_token_helper_authentik_enabled | bool) or item.uid in [0, chaldea_token_helper_authentik_uid | int]
       - item.audience == 'akasha'
       - item.action in ['append', 'read']
       - item.host == (expected_hostname | default(inventory_hostname))
@@ -182,7 +184,7 @@
         owner: root
         group: root
         mode: "0755"
-      when: not ansible_check_mode
+      when: not ansible_check_mode and not (chaldea_token_helper_authentik_enabled | bool)
     - name: Select root broker launcher only for Authentik mode
       ansible.builtin.copy:
         content: |

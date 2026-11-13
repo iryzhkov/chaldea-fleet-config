@@ -21,10 +21,14 @@ Live public config and timer/unit inspection confirmed this on every host.
 | agent-a | collector; feed; toolfeedback spool/ship; fleet job_finished; mission-control agent_status; fleet-reader | 1000 | fleet-config |
 | agent-b | collector; feed; toolfeedback spool/ship; fleet job_finished; mission-control agent_status; fleet-reader | 1000 | fleet-config |
 | homelab | collector; feed sources feed/backup/drift-check/offsite; toolfeedback spool; route_score_snapshot publisher | 1000; route publisher 0 | homelab-infra for producer enrollment/route; fleet-config for collector |
-| normandy, registry omarchy-normandy | collector; feed sources backup/drift-check; toolfeedback spool; mission-control-reader grants for agent_status/job_finished/report | 1000; mission reader 940 | homelab-infra for enrollment; fleet-config for collector |
+| normandy, registry omarchy-normandy | collector; feed sources backup/drift-check; toolfeedback spool; retired reader grants removed by infra | 1000 | homelab-infra for enrollment; fleet-config for collector |
 
-A grant is not proof a producer is currently running. Normandy's mission reader
-grants exist but no mission-control system unit was found. No job_finished grant
+Round 1 live audit found only Normandy UID 940 outside root/the producer UID:
+mission-control-reader reads for agent_status, job_finished and report. No Mission
+Control units remain on any host. Infra removes these three retired grants before
+regenerating sudoers; no affected live consumer remains. The other five hosts have
+no refused caller grants. Inspect the public config again before each cutover;
+retain any newly discovered live narrow caller on PKI and block that host's enablement. No job_finished grant
 exists for homelab or Normandy; their collector timer events are deliberately off.
 Do not add grants during migration. Their feed append canary must use backup,
 not an ungranted generic feed source on Normandy. Read homelab/Normandy receipts
@@ -37,27 +41,7 @@ route publisher and route-reader bundles must be upgraded before mode selection.
 Feed/toolfeedback need the homelab-cli PR installed through their existing source pin.
 No Akasha server change is included.
 
-## Authentication and custody
-
-PKI mode retains the old launcher, sudo grants and config shape. Authentik mode
-adds an authentik object to the public helper config and selects root for only the
-same exact sudo command/selector grants. Root is required because the existing
-host.app-password is private to the enrolled user, not chaldea-issuer. It is never
-copied into the issuer account. The cleared wrapper environment remains unchanged.
-The configured home and UID come from the SSH login user's gathered facts, never
-producer environment. Reconcile those facts with the enrolled host before applying.
-
-The root helper checks sudo caller UID and all five selectors before reading the
-password. It walks every directory with no-follow descriptors, requires root/user
-non-writable ancestors, a user-owned 0700 parent and user-owned regular 0600
-single-link leaf, 16-256 printable ASCII bytes. One bounded HTTPS POST requests
-client_id chaldea-akasha, grant_type client_credentials, username chaldea-HOST,
-scope akasha.ingest and resource https://akasha.ryzhkov.dev. Redirects refuse.
-JWT response checks host mapping, issuer, audience, username, run_id, scope and
-at most 300 seconds. Akasha independently verifies signature and registry authority.
-No helper cache or PKI fallback exists. Existing per-invocation collector cache
-is bounded by JWT expiry minus five seconds and twenty seconds.
-Never invoke the helper alone in a terminal, print its output, or inspect secrets.
+Authentication and credential custody: see Chaldea docs/token-helper.md.
 
 ## Per-host enablement
 
@@ -73,9 +57,12 @@ Install the header-capable host collector, route publisher/reader runtimes and
 homelab-cli source pin using their existing qualified workflows first. Do not run
 shared-root GC as part of this helper-only playbook.
 
+Set chaldea_token_helper_authentik_enabled: true persistently in that host's
+fleet inventory/host_vars/HOST/akasha-auth.yml, or infra inventory/host_vars/HOST.yml
+for homelab/normandy. Commit the selected host only; do not pass a global mode -e.
 For laptop/omarchy-pc/agent-a/agent-b run fleet-config
-playbooks/akasha-producer-auth.yml with --limit HOST, protected pin vars and
--e '{"chaldea_token_helper_authentik_enabled":true}'. First --check --diff, review,
+playbooks/akasha-producer-auth.yml with --limit HOST and protected release pin vars.
+First --check --diff, review,
 then apply and repeat for zero changes. This explicit playbook reuses the current
 public enrollment and does not run trust updater installation. ANSIBLE_ROLES_PATH
 must include the reviewed fleet-config roles and ANSIBLE_LIBRARY its library.
@@ -87,6 +74,10 @@ the reviewed absolute fleet-config checkout. Infra imports the shared implementa
 On homelab it also binds only the credential directory read-only through the
 route service's ProtectHome namespace. No automatic service start occurs.
 Always limit one host; preserve aliases laptop/normandy for Authentik usernames.
+Normal site.yml reads that same host variable. Canonical akasha-enrollment.yml
+requires the normal alias hostvars from the fleet inventory plus infra inventory
+for servers, and uses their persistent mode; a missing selection refuses rather
+than reverting to PKI. Supply the same qualified helper release pins on all paths.
 
 1. Feed: post a uniquely titled canary with --source feed on interactive hosts,
    --source backup on servers. Read its exact returned ID via feed show on a
@@ -97,20 +88,20 @@ Always limit one host; preserve aliases laptop/normandy for Authentik usernames.
 3. Jobs on the four agent hosts: run a harmless chaldea exec -- true from a scratch
    repository, run the collector, then verify its unique job_finished ID, host,
    source and visible receipt. Do not create server job grants for this check.
-4. Route on homelab: start chaldea-route-scores.service after the runtime upgrade;
+4. Route on homelab: verify issuance inside chaldea-route-scores.service's namespace
+   with ProtectHome=tmpfs and the read-only credential bind, then start the service;
    use its existing cached daily snapshot, avoiding a forced paid AA refresh.
    Verify a route_score_snapshot event with verified homelab provenance, then
    refresh/read it through the omarchy-pc route reader and verify exact delivery.
-5. Check quota/status events where granted and the existing mission-control reader
-   if active. Test selected-mode issuance failure in a synthetic fixture, never by
+5. Check quota/status events where granted. Test selected-mode issuance failure in a synthetic fixture, never by
    damaging the production credential. Source tests cover redaction and fail-closed.
 6. Record exact revisions, installed pins, accepted event IDs and check/apply/repeat
    outcomes per host before moving to the next. Server append-only scope stays as is.
 
 ## Rollback
 
-Run the same per-host helper playbook with
--e '{"chaldea_token_helper_authentik_enabled":false}', check, apply, repeat.
+Set the same host's persistent chaldea_token_helper_authentik_enabled back to false
+in its owning inventory, commit, then check, apply and repeat the helper playbook.
 It removes authentik from config and restores chaldea-issuer launcher/sudo target.
 Infra also removes the homelab route namespace drop-in and reloads systemd.
 Header-capable client/collector releases remain PKI-compatible; no downgrade is

@@ -8,6 +8,21 @@
       ansible.builtin.meta: end_play
       when: not akasha_enrollment_enabled | bool
       tags: [always]
+    - name: Require the persistent producer mode from the owning inventory
+      ansible.builtin.assert:
+        that:
+          - hostvars[akasha_enrollment_mode_alias].chaldea_token_helper_authentik_enabled is defined
+        fail_msg: Load the normal fleet inventory and infra inventory for servers; never default a missing persistent mode.
+        quiet: true
+      vars:
+        akasha_enrollment_mode_alias: "{{ {'omarchy-macbook-air-igor': 'laptop', 'omarchy-normandy': 'normandy'}.get(inventory_hostname, inventory_hostname) }}"
+      tags: [always]
+    - name: Use the same persistent producer mode as normal convergence
+      ansible.builtin.set_fact:
+        chaldea_token_helper_authentik_enabled: "{{ hostvars[akasha_enrollment_mode_alias].chaldea_token_helper_authentik_enabled | bool }}"
+      vars:
+        akasha_enrollment_mode_alias: "{{ {'omarchy-macbook-air-igor': 'laptop', 'omarchy-normandy': 'normandy'}.get(inventory_hostname, inventory_hostname) }}"
+      tags: [always]
     - name: Require one exact canonical local host
       ansible.builtin.assert:
         that:
