@@ -9,6 +9,19 @@
       ansible.builtin.assert:
         that: ansible_play_hosts_all | length == 1
         quiet: true
+    - name: Require the persistent producer mode from the owning inventory
+      ansible.builtin.assert:
+        that:
+          - hostvars[akasha_producer_mode_alias].chaldea_token_helper_authentik_enabled is defined
+        fail_msg: Load the normal fleet inventory and infra inventory for servers; never default a missing persistent mode.
+        quiet: true
+      vars:
+        akasha_producer_mode_alias: "{{ {'omarchy-macbook-air-igor': 'laptop', 'omarchy-normandy': 'normandy'}.get(inventory_hostname, inventory_hostname) }}"
+    - name: Use the same persistent producer mode as normal convergence
+      ansible.builtin.set_fact:
+        chaldea_token_helper_authentik_enabled: "{{ hostvars[akasha_producer_mode_alias].chaldea_token_helper_authentik_enabled | bool }}"
+      vars:
+        akasha_producer_mode_alias: "{{ {'omarchy-macbook-air-igor': 'laptop', 'omarchy-normandy': 'normandy'}.get(inventory_hostname, inventory_hostname) }}"
     - name: Read existing public token helper configuration
       become: true
       ansible.builtin.slurp:
@@ -23,7 +36,9 @@
         chaldea_access_trust_enabled: true
         chaldea_token_helper_issuer: "{{ akasha_helper_baseline.issuer }}"
         chaldea_token_helper_state: "{{ akasha_helper_baseline.state_file }}"
-        chaldea_token_helper_grants: "{{ akasha_helper_baseline.grants }}"
+        # A caller play (homelab-infra) may pass grants it filtered this run, so
+        # check mode sees the same grants as apply.
+        chaldea_token_helper_grants: "{{ akasha_helper_grants_override | default(akasha_helper_baseline.grants) }}"
         chaldea_access_paths:
           bundle: "{{ akasha_helper_baseline.bundle_file }}"
           root: "{{ akasha_helper_baseline.anchor_file | dirname }}"
