@@ -55,12 +55,13 @@ def test_collector_installs_independently_and_preserves_every_shared_asset(tmp_p
         inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
         homelab = inventory["all"]["children"]["servers"]["hosts"]["homelab"]
         keep = homelab["akasha_collector_preserve_versions"]
-        assert keep == ["host-v0.2.17", "host-v0.2.18"]
+        # The server's active 022 and rollback 020 share this root with the collector.
+        assert keep == ["host-v0.2.17", "host-v0.2.18", "host-v0.2.20", "host-v0.2.22"]
         variables["akasha_collector_preserve_versions"] = keep
         release_root = Path(variables["akasha_collector_release_root"])
         cache = Path(variables["akasha_collector_cache"])
         release_root.mkdir(); cache.mkdir()
-        for index, version in enumerate(keep + ["host-v0.2.20"], 1):
+        for index, version in enumerate(keep, 1):
             release = release_root / version
             release.mkdir()
             (release / "sentinel").write_text(version)
@@ -88,7 +89,7 @@ def test_collector_installs_independently_and_preserves_every_shared_asset(tmp_p
         assert snapshot() == before
         if homelab_retention:
             assert sorted(p.name for p in release_root.iterdir()) == sorted(
-                keep + ["host-v0.2.20", pins["chaldea_host_version"]])
+                keep + [pins["chaldea_host_version"]])
         for path, expected in retained.items():
             stat = path.stat()
             assert (path.read_bytes() if path.is_file() else None,
