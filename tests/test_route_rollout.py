@@ -58,7 +58,7 @@ def test_host_settings_do_not_override_shared_software_releases():
         if isinstance(values, dict):
             for key, value in values.items():
                 # Retention records keep rollback artifacts, not desired releases.
-                if key == "chaldea_host_artifact_preserve_versions" or key in allowed:
+                if key in ("chaldea_host_artifact_preserve_versions", "akasha_collector_preserve_versions") or key in allowed:
                     continue
                 assert not re.search(r"(^|_)(versions?|sha256|checksums?|revision|commit|ref|build|release)(_|$)", key), (location, key)
                 check(value, f"{location}.{key}")
