@@ -84,6 +84,8 @@ def test_independent_runtime_vars_preserve_all_helper_rendered_outputs():
             source="timer", host="laptop", kind="timer_run", profile="timer-service", project="chaldea")],
         chaldea_token_helper_node="/opt/chaldea-token-helper/node/bin/node",
         chaldea_token_helper_release="/opt/chaldea-token-helper/releases/client-v0.4.0",
+        # Role default: PKI mode.
+        chaldea_token_helper_authentik_enabled=False,
     )
     quota = dict(chaldea_client_quota_runtime_enabled=True,
                  chaldea_client_quota_runtime_version="client-v0.4.2",
