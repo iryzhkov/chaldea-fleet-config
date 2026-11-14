@@ -16,6 +16,10 @@ webmcp_interactive_holonet_torrents_enabled: true
 # Approved packet jocasta:c61d194504ef8dd2318e1a1e3e1a5bfc@3; one native
 # canary: jocasta:b5c3380ab7e3ffdd8002e1d5615b1677@1.
 webmcp_interactive_holonet_seed_join_enabled: true
+# Acquisition READ on the original writer only (inspect and search, no start or
+# media). Issuer READ mapping and consumer READ config live since 2026-11-14:
+# jocasta:39d9021b49ef3e92579a57a8ec0eaf61@336. Start and media stay off.
+webmcp_interactive_holonet_acquire_read_enabled: true
 webmcp_interactive_holonet_writer_enabled: true
 webmcp_interactive_holonet_writer_targets:
   - 22703968ab0b48eebb4faf7c1d16262c

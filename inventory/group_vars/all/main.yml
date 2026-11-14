@@ -42,7 +42,7 @@ webmcp_interactive_helper_sha256: "{{ webmcp_interactive_helper_checksums[ansibl
 # Separate capability pins: legacy/default and host-specific pins stay unchanged.
 webmcp_interactive_host_identity_helper_checksums:
   x86_64: "8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc"
-  aarch64: "4417f939c2a23f7d6e87d68373985a3065cce0434093f26c80422469a604a66f"
+  aarch64: "268a48219a44c46d35740764cf4067bb2a3e95d86917960b988dc8f17124f038"
 
 # Credentials are referenced by path only (relative to the home directory);
 # the play checks that each file exists and is private, never reads it.

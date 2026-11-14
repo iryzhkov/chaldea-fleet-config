@@ -37,6 +37,17 @@ Returned artifacts are under .chaldea/artifacts/ade8955f-22bf-4f6a-8671-0f6f312e
 The separate webmcp_interactive_host_identity_helper_checksums map is a
 capability allowlist, not a replacement for any existing default or host pin.
 
+## Laptop acquisition-identity rebuild (2026-11-14)
+
+Fleet main ae1213374b678866fe0f634d0fe6ae8f02f61945 (PR191) keeps the three
+HoloNet acquisition modes on the original writer account and credential while
+every other mode follows the selector. Chaldea job
+1660b886-fbc6-4150-883b-9919a9ba044a used the recipe above for arm64 only:
+helper-arm64 SHA256 268a48219a44c46d35740764cf4067bb2a3e95d86917960b988dc8f17124f038.
+The same recipe at e2bef1a reproduced 4417f939 byte for byte. Only the laptop
+runs aarch64 with host identity; the x86_64 pin is unchanged because the
+acquisition modes are laptop-only.
+
 ## Per-host cutover prerequisite
 
 Before flipping chaldea_host_identity_enabled, coordinate pull writers and
