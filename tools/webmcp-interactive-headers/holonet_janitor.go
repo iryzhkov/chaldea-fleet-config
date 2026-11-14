@@ -21,13 +21,22 @@ func holonetJanitorMode() {
 	holonetJanitorModeFor(holonetJanitorContract())
 }
 
+// holonetCredentialPathFor keeps acquisition purposes on the writer credential;
+// other janitor modes follow the host identity selector.
+func holonetCredentialPathFor(uid int, contract holonetContract) (string, error) {
+	if contract.originalWriter {
+		return ownCredentialPath(uid, holonetWriterCredential)
+	}
+	return credentialPath(uid, holonetWriterCredential)
+}
+
 // Both closed modes use the same bound credential and acquisition pipeline.
 func holonetJanitorModeFor(contract holonetContract) {
 	node, err := os.Hostname()
 	if err != nil || holonetBinding(node, os.Getuid()) != nil {
 		fail()
 	}
-	path, err := credentialPath(os.Getuid(), holonetWriterCredential)
+	path, err := holonetCredentialPathFor(os.Getuid(), contract)
 	if err != nil {
 		fail()
 	}
