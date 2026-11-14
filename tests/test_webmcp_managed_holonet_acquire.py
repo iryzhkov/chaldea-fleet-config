@@ -69,7 +69,13 @@ def test_default_off_and_real_selection(tmp_path, purpose):
     flag = "webmcp_interactive_holonet_acquire_" + purpose + "_enabled"
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults[flag] is False
-    assert all(flag not in p.read_text() for p in (ROOT / "inventory").rglob("*.yml"))
+    # Only the laptop opts into READ; start and media stay out of inventory.
+    opted = [p for p in (ROOT / "inventory").rglob("*.yml") if flag in p.read_text()]
+    if purpose == "read":
+        assert opted == [ROOT / "inventory/host_vars/laptop/holonet-interactive.yml"]
+        assert yaml.safe_load(opted[0].read_text())[flag] is True
+    else:
+        assert opted == []
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     select = next(t for t in tasks if t["name"] ==
         "Select the closed laptop HoloNet acquisition " + purpose + " on explicit opt-in")

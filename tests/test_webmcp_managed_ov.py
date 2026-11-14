@@ -190,7 +190,8 @@ def test_inert_activation_example_is_exact_and_invents_no_hash():
     # later HoloNet superset build. Current host pins are checked separately.
     assert example["helper_pin"]["sha256"] == "ff9ccff552680ce1e86b3bed4c68c1a7902a0a0e7a0b5f9de174bc3d74b568fc"
     # M3 P3.1 cutover: the laptop runs the selector-aware aarch64 helper.
-    assert laptop["webmcp_interactive_helper_sha256"] == "4417f939c2a23f7d6e87d68373985a3065cce0434093f26c80422469a604a66f"
+    # PR191 rebuild keeps acquisition modes on the original writer.
+    assert laptop["webmcp_interactive_helper_sha256"] == "268a48219a44c46d35740764cf4067bb2a3e95d86917960b988dc8f17124f038"
     assert example["helper_pin"]["scope"] == "inventory/host_vars/laptop"
     pins = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())["webmcp_interactive_helper_checksums"]
     assert example["helper_pin"]["previous_sha256"] == pins["aarch64"] != example["helper_pin"]["sha256"]
