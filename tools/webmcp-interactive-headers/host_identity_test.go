@@ -53,9 +53,40 @@ func TestHostIdentityRequestsStaySeparate(t *testing.T) {
 			continue
 		}
 		check(ovClientID, ovScope, "", func(c *http.Client) { acquireOV(ctx, c, password, now) })
-		for _, contract := range []holonetContract{holonetReaderContract(), holonetRecommendationContract(holonetWriterPolicy{Targets: []string{holonetUser}}), holonetJanitorContract(), holonetTorrentsContract(), holonetSeedJoinContract(), holonetAcquireContract("read"), holonetAcquireContract("start"), holonetAcquireContract("media")} {
+		for _, contract := range []holonetContract{holonetReaderContract(), holonetRecommendationContract(holonetWriterPolicy{Targets: []string{holonetUser}}), holonetJanitorContract(), holonetTorrentsContract(), holonetSeedJoinContract()} {
 			check(holonetClientID, contract.scope, holonetResource, func(c *http.Client) { acquireHolonetFor(ctx, c, password, now, contract) })
 		}
+	}
+}
+
+// Acquisition purposes are enrolled for the original writer only. The selector
+// must not move their exchange or credential to the host account.
+func TestHostIdentityLeavesAcquisitionOnOriginalWriter(t *testing.T) {
+	defer func() { hostIdentityUsername = "" }()
+	hostIdentityUsername = "chaldea-laptop"
+	for _, purpose := range []string{"read", "start", "media"} {
+		contract := holonetAcquireContract(purpose)
+		path, err := holonetCredentialPathFor(os.Getuid(), contract)
+		if err != nil || !strings.HasSuffix(path, "/"+holonetWriterCredential) {
+			t.Fatal("acquisition credential moved to host identity", purpose, path)
+		}
+		calls := 0
+		client := httpClient()
+		client.Transport = roundTrip(func(req *http.Request) (*http.Response, error) {
+			calls++
+			if req.ParseForm() != nil || req.PostForm.Get("username") != holonetWriterUsername || req.PostForm.Get("scope") != contract.scope {
+				t.Fatal("acquisition exchange used host identity", purpose)
+			}
+			return &http.Response{StatusCode: 403, Body: io.NopCloser(strings.NewReader(""))}, nil
+		})
+		acquireHolonetFor(context.Background(), client, "FixtureWriterPassword0123456789", time.Now, contract)
+		if calls != 1 {
+			t.Fatal("fallback or extra request")
+		}
+	}
+	janitor, err := holonetCredentialPathFor(os.Getuid(), holonetJanitorContract())
+	if err != nil || !strings.HasSuffix(janitor, "/"+hostCredential) {
+		t.Fatal("janitor mode stopped following the host identity selector", janitor)
 	}
 }
 

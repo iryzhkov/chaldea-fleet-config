@@ -351,12 +351,18 @@ func ovCredentialPath(uid int) (string, error) {
 }
 
 func credentialPath(uid int, relative string) (string, error) {
+	if hostIdentityUsername != "" {
+		relative = hostCredential
+	}
+	return ownCredentialPath(uid, relative)
+}
+
+// ownCredentialPath resolves the named credential without the host identity
+// substitution. Only modes pinned to their own account use it directly.
+func ownCredentialPath(uid int, relative string) (string, error) {
 	account, err := user.LookupId(strconv.Itoa(uid))
 	if err != nil || account.Uid != strconv.Itoa(uid) || !filepath.IsAbs(account.HomeDir) || filepath.Clean(account.HomeDir) != account.HomeDir {
 		return "", denied
-	}
-	if hostIdentityUsername != "" {
-		relative = hostCredential
 	}
 	return filepath.Join(account.HomeDir, relative), nil
 }

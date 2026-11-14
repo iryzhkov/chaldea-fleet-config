@@ -34,6 +34,9 @@ type holonetContract struct {
 	username, scope, namespace                    string
 	targets, history, actions, libraries, catalog []string
 	writer                                        bool
+	// originalWriter pins the exchange to the existing writer account and its
+	// own credential even when the host identity selector is installed.
+	originalWriter bool
 }
 type holonetWriterPolicy struct {
 	Version   int      `json:"version"`
