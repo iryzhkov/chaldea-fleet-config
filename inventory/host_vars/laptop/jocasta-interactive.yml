@@ -44,8 +44,8 @@ webmcp_interactive_ov_full_enabled: true
 # original writer under host identity), Go 1.27.0, Chaldea job
 # 1660b886-fbc6-4150-883b-9919a9ba044a; the same recipe reproduces 4417f939 from e2bef1a.
 webmcp_interactive_helper_sha256: 268a48219a44c46d35740764cf4067bb2a3e95d86917960b988dc8f17124f038
-# Previous M3 P3.1 selector-aware helper, retained on the laptop for rollback.
-webmcp_interactive_previous_helper_sha256: 4417f939c2a23f7d6e87d68373985a3065cce0434093f26c80422469a604a66f
+# Rollback: previous selector-aware helper 4417f939 retained at
+# /usr/local/libexec/webmcp-interactive-headers.previous-4417f939c2a2 on the laptop.
 # Rollback: legacy helper 9a9455eeffe62f0287ebaa36fc7f0cd5024ef819722cb277b44dd3b5bf8694ad
 # retained at /usr/local/libexec/webmcp-interactive-headers.legacy-9a9455eeffe6 on laptop.
 chaldea_host_identity_enabled: true
