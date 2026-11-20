@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.mark.parametrize("initial", [None, {}, {"autoResumeLimitedThreads": False},
                                     {"autoResumeLimitedThreads": True}])
-def test_settings_merge_preserves_preferences_and_metadata(tmp_path, initial):
+@pytest.mark.parametrize("provider", [None, {}, {"enabled": False, "config": {"authMethod": "keep", "custom": 7}}])
+def test_settings_merge_preserves_preferences_and_metadata(tmp_path, initial, provider):
     home = tmp_path / "home"
     settings = home / ".t3/userdata/settings.json"
     settings.parent.mkdir(parents=True)
@@ -20,11 +21,14 @@ def test_settings_merge_preserves_preferences_and_metadata(tmp_path, initial):
         initial = initial | {"favorites": [{"model": "keep"}], "futureKey": {"keep": 7}}
         settings.write_text(json.dumps(initial))
         settings.chmod(0o640)
+    if provider is not None:
+        initial = (initial or {}) | {"providerInstances": {"other": {"keep": True}, "antigravity": provider}}
+        settings.write_text(json.dumps(initial))
     before = settings.stat() if settings.exists() else None
     play = tmp_path / "settings.yml"
     play.write_text(yaml.safe_dump([{
         "hosts": "localhost", "gather_facts": False,
-        "vars": {"t3_home": str(home / ".t3")},
+        "vars": {"t3_home": str(home / ".t3"), "t3_antigravity_enabled": provider is not None},
         "tasks": [{"name": "Apply native settings",
                    "ansible.builtin.include_tasks": str(ROOT / "roles/t3/tasks/settings.yml")}],
     }]))
@@ -42,12 +46,17 @@ def test_settings_merge_preserves_preferences_and_metadata(tmp_path, initial):
     run(check=True)
     assert (json.loads(settings.read_text()) if settings.exists() else None) == initial
     run()
-    assert json.loads(settings.read_text()) == (initial or {}) | {"autoResumeLimitedThreads": True}
+    expected = (initial or {}) | {"autoResumeLimitedThreads": True}
+    if provider is not None:
+        expected["providerInstances"]["antigravity"] = {
+            "driver": "antigravity", "enabled": True, **provider,
+            "config": {"authMethod": "oauth-personal", **provider.get("config", {})}}
+    assert json.loads(settings.read_text()) == expected
     after = settings.stat()
     if before:
         assert (after.st_mode, after.st_uid, after.st_gid) == (
             before.st_mode, before.st_uid, before.st_gid)
-        if initial is not None and initial.get("autoResumeLimitedThreads") is True:
+        if provider is None and initial is not None and initial.get("autoResumeLimitedThreads") is True:
             assert after.st_mtime_ns == before.st_mtime_ns
     else:
         assert after.st_mode & 0o777 == 0o600

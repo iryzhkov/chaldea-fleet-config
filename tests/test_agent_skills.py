@@ -140,6 +140,21 @@ def laptop_layout():
     return home, claude, agents, store
 
 
+def test_antigravity_skills_use_guarded_install():
+    home = scratch() / "gemini-fleet"
+    root = home / ".gemini/config/skills"
+    root.mkdir(parents=True)
+    target = scratch() / "unmanaged-skill"
+    target.mkdir()
+    (root / "tdd").symlink_to(target, target_is_directory=True)
+    run_role(home, "install-skills", skills=["tdd"], succeeds=False)
+    assert (root / "tdd").is_symlink()
+    (root / "tdd").unlink()
+    run_role(home, "install-skills", skills=["tdd"])
+    assert (root / "tdd/SKILL.md").read_bytes() == (SKILLS / "tdd/SKILL.md").read_bytes()
+    assert re.search(r"changed=0\s", run_role(home, "install-skills", skills=["tdd"]))
+
+
 def test_identical_laptop_links_become_managed_copies():
     home, claude, agents, store = laptop_layout()
     names = ["safety-critical-code", "unslop"]

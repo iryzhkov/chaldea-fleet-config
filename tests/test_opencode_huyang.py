@@ -112,7 +112,7 @@ def test_claude_and_codex_keep_the_explicit_full_registration():
     defaults = yaml.safe_load((ROOT / "roles/mcp_registrations/defaults/main.yml").read_text())
     huyang = next(item for item in defaults["mcp_registrations_servers"] if item["name"] == "huyang")
     assert huyang["args"] == ["mcp", "--profile", "full"]
-    assert defaults["mcp_registrations_providers"] == ["claude", "codex"]
+    assert defaults["mcp_registrations_providers"] == ["claude", "codex", "antigravity"]
 
 
 def test_codex_ov_memory_forwards_only_the_keyring_session_names():

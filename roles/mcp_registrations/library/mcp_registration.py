@@ -530,6 +530,51 @@ def opencode(module, params):
     module.exit_json(changed=True, diff=diff(name, current, desired, remote_view if remote else redacted))
 
 
+def antigravity(module, params):
+    """Reconcile one stdio entry; retain unrelated settings and redact env."""
+    path, name = params["antigravity_config"], params["name"]
+    if params["transport"] != "stdio":
+        module.fail_json(msg="Antigravity fleet registrations support stdio only")
+    if os.path.lexists(path) and not stat.S_ISREG(os.lstat(path).st_mode):
+        module.fail_json(msg="Antigravity config must be a regular file")
+    try:
+        handle = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        with os.fdopen(handle, encoding="utf-8") as stream:
+            text = stream.read()
+        # agy creates an empty file on first run; treat it like a missing one.
+        document = jsonc_loads(text) if text.strip() else {}
+    except FileNotFoundError:
+        document = {}
+    except (ValueError, OSError):
+        module.fail_json(msg="Antigravity config must be a readable JSON object")
+    if not isinstance(document, dict) or not isinstance(document.get("mcpServers", {}), dict):
+        module.fail_json(msg="Antigravity config and mcpServers must be JSON objects")
+    if set(params["extra"]) - {"disabledTools"}:
+        module.fail_json(msg="Antigravity stdio extra supports only disabledTools")
+    current = document.get("mcpServers", {}).get(name)
+    desired = None if params["state"] == "absent" else {
+        "command": params["command"], "args": params["args"], "env": params["env"], **params["extra"]}
+    if current == desired:
+        module.exit_json(changed=False)
+    servers = dict(document.get("mcpServers", {}))
+    if desired is None:
+        servers.pop(name, None)
+    else:
+        servers[name] = desired
+    if not module.check_mode:
+        write_atomically(path, json.dumps({**document, "mcpServers": servers}, indent=2, ensure_ascii=False) + "\n")
+    module.exit_json(changed=True, diff=diff(name, current, desired))
+
+
+def jsonc_loads(text):
+    """Remove comments/trailing commas without interpreting string contents."""
+    tokens = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*[\s\S]*?\*/')
+    text = tokens.sub(lambda match: match[0] if match[0].startswith('"') else " ", text)
+    text = re.sub(r'("(?:\\.|[^"\\])*")|,\s*(?=[}\]])',
+                  lambda match: match[1] or "", text)
+    return json.loads(text)
+
+
 def write_atomically(path, text):
     directory = os.path.dirname(path) or "."
     os.makedirs(directory, exist_ok=True)
@@ -537,7 +582,7 @@ def write_atomically(path, text):
         mode = os.stat(path).st_mode & 0o7777
     except FileNotFoundError:
         mode = 0o600
-    handle, temporary = tempfile.mkstemp(dir=directory, prefix=".config.toml.")
+    handle, temporary = tempfile.mkstemp(dir=directory, prefix="." + os.path.basename(path) + ".")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as out:
             out.write(text)
@@ -551,7 +596,7 @@ def write_atomically(path, text):
 def main():
     module = AnsibleModule(
         argument_spec={
-            "provider": {"type": "str", "required": True, "choices": ["claude", "codex", "opencode"]},
+            "provider": {"type": "str", "required": True, "choices": ["claude", "codex", "opencode", "antigravity"]},
             "name": {"type": "str", "required": True},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
             "transport": {"type": "str", "default": "stdio", "choices": ["stdio", "remote"]},
@@ -567,15 +612,18 @@ def main():
             "claude_config": {"type": "path", "default": "~/.claude.json"},
             "codex_config": {"type": "path", "default": "~/.codex/config.toml"},
             "opencode_config": {"type": "path", "default": "~/.config/opencode/opencode.json"},
+            "antigravity_config": {"type": "path", "default": "~/.gemini/config/mcp_config.json"},
         },
         supports_check_mode=True,
     )
     check_transport(module, module.params)
-    {"claude": claude, "codex": codex, "opencode": opencode}[module.params["provider"]](module, module.params)
+    {"claude": claude, "codex": codex, "opencode": opencode, "antigravity": antigravity}[module.params["provider"]](module, module.params)
 
 
 def check_transport(module, params):
     """A stdio server needs a command; a remote one a public HTTPS URL and no stdio fields."""
+    if params.get("provider") == "antigravity" and params["transport"] != "stdio":
+        module.fail_json(msg="Antigravity fleet registrations support stdio only")
     if params["transport"] == "stdio":
         if (params.get("auth_mode", "oauth") != "oauth" or params.get("helper_host") is not None
                 or params.get("helper_profile") is not None):

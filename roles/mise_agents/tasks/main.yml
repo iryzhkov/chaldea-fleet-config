@@ -23,6 +23,32 @@
     dest: "{{ mise_agents_dropin }}"
     mode: "0644"
 
+# Shell startup files avoid mise's home-wide trust requirement for [env].
+# Only .bashrc may be created; .zshrc is edited only where it already exists,
+# and existing file modes are left alone.
+- name: Find existing shell startup files
+  ansible.builtin.stat:
+    path: "{{ fleet_home }}/{{ item }}"
+    get_checksum: false
+    get_mime: false
+  loop: [.bashrc, .zshrc]
+  register: mise_agents_shell_rc
+  when: "'antigravity-cli' in (mise_agents_tools | map(attribute='name') | list)"
+
+- name: Disable Antigravity self updates in interactive shells
+  ansible.builtin.blockinfile:
+    path: "{{ fleet_home }}/{{ item.item }}"
+    marker: "# {mark} ANSIBLE MANAGED Antigravity update policy"
+    block: export AGY_CLI_DISABLE_AUTO_UPDATE=true
+    create: "{{ item.item == '.bashrc' }}"
+    mode: "{{ omit if item.stat.exists else '0644' }}"
+  loop: "{{ mise_agents_shell_rc.results | default([]) }}"
+  loop_control:
+    label: "~/{{ item.item }}"
+  when:
+    - "'antigravity-cli' in (mise_agents_tools | map(attribute='name') | list)"
+    - item.item == '.bashrc' or item.stat.exists
+
 - name: Find the newest release of each agent CLI old enough to install
   ansible.builtin.command:
     argv: [mise, latest, "{{ item.name }}"]

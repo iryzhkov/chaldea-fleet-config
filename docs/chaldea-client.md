@@ -73,6 +73,10 @@ creates one. Missing tokens/catalogs produce an unavailable recommendation and
 agents use the shared CLAUDE.md model roles and `review-delegation`'s provider rule
 and "Quota exception". An unavailable recommendation alone grants no waiver.
 
+Antigravity CLI also receives a stdio Chaldea registration where
+mcp_registrations_chaldea_providers allows it; see [Antigravity](antigravity.md)
+for CLI/T3 isolation and the T3 enablement dependency.
+
 Claude and Codex registrations, and only OpenCode's `mcp.chaldea` entry in
 `~/.config/opencode/opencode.json`, point at the managed client on every enabled
 host. Other OpenCode settings and servers are preserved. Symlinked configs,
