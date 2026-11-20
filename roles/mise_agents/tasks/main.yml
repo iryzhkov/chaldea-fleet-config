@@ -23,6 +23,17 @@
     dest: "{{ mise_agents_dropin }}"
     mode: "0644"
 
+# Shell startup files avoid mise's home-wide trust requirement for [env].
+- name: Disable Antigravity self updates in interactive shells
+  ansible.builtin.blockinfile:
+    path: "{{ fleet_home }}/{{ item }}"
+    marker: "# {mark} ANSIBLE MANAGED Antigravity update policy"
+    block: export AGY_CLI_DISABLE_AUTO_UPDATE=true
+    create: true
+    mode: "0644"
+  loop: [.bashrc, .zshrc]
+  when: "'antigravity-cli' in (mise_agents_tools | map(attribute='name') | list)"
+
 - name: Find the newest release of each agent CLI old enough to install
   ansible.builtin.command:
     argv: [mise, latest, "{{ item.name }}"]

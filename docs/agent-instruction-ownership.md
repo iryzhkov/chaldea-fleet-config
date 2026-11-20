@@ -15,7 +15,10 @@ Its bytes match the former ebec80b source, SHA-256
 e46883992727741758115492030f75bb26dbea14dccd3a4b4c3459cc5547f6c4.
 See [the plugin contract](opencode-huyang-profiles.md).
 
-Fleet skills install in ~/.claude/skills and ~/.agents/skills. Existing unrelated
+Antigravity CLI reuses agents/AGENTS.md at ~/.gemini/AGENTS.md; its guidance
+and MCP do not apply to T3's private managed ACP runtime. See [Antigravity](antigravity.md).
+
+Fleet skills install in ~/.claude/skills, ~/.agents/skills and ~/.gemini/config/skills. Existing unrelated
 skills stay unmanaged. Retirement remains limited to find-skills,
 improve-codebase-architecture, domain-modeling, prototype, code-review and
 implementation-session. Exact relative Claude aliases to these retired shared

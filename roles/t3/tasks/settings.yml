@@ -16,6 +16,14 @@
   ansible.builtin.set_fact:
     t3_settings: "{{ (t3_settings_raw.content | b64decode | from_json) if t3_settings_stat.stat.exists else {} }}"
 
+- name: Fill missing Antigravity provider settings on explicit opt-in
+  ansible.builtin.set_fact:
+    t3_settings: >-
+      {{ {'providerInstances': {'antigravity': {'driver': 'antigravity',
+           'enabled': true, 'config': {'authMethod': 'oauth-personal'}}}}
+         | combine(t3_settings, recursive=true) }}
+  when: t3_antigravity_enabled | default(false) | bool
+
 - name: Enable native quota reset continuation
   diff: false
   ansible.builtin.copy:
@@ -24,4 +32,7 @@
     mode: "{{ t3_settings_stat.stat.mode | default('0600') }}"
     owner: "{{ t3_settings_stat.stat.uid | default(omit) }}"
     group: "{{ t3_settings_stat.stat.gid | default(omit) }}"
-  when: t3_settings.get('autoResumeLimitedThreads') is not sameas true
+  when: >-
+    t3_settings.get('autoResumeLimitedThreads') is not sameas true or
+    (t3_antigravity_enabled | default(false) | bool and
+     t3_settings != ((t3_settings_raw.content | b64decode | from_json) if t3_settings_stat.stat.exists else {}))

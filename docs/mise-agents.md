@@ -1,5 +1,9 @@
 # Mise tool ownership
 
+Managed tools include antigravity-cli (agy), restored fleet-wide by request.
+Its self-update policy and Linux arm64 availability are documented in
+[Antigravity](antigravity.md). User declarations use the same omission rules.
+
 The role never writes the user's global config. It reads literal TOML in
 `~/.config/mise/config.toml`, `mise.toml`, `config.local.toml`,
 `config.override.toml` and plain `conf.d/*.toml` fragments. Tools declared

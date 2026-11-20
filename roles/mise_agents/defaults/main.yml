@@ -9,6 +9,7 @@
 mise_agents_tools:
   - {name: claude}
   - {name: codex}
+  - {name: antigravity-cli}
   - {name: "npm:@opencode/cli", install_options: allow_builds=@opencode/cli}
 mise_agents_minimum_release_age: 24h
 mise_agents_dropin: "{{ fleet_home }}/.config/mise/conf.d/agents.toml"

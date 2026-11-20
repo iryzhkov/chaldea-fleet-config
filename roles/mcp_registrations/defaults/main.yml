@@ -5,7 +5,7 @@ chaldea_host_identity_enabled: false  # noqa: var-naming[no-role-prefix] shared 
 # scope, through the claude CLI) and Codex ([mcp_servers.NAME] in
 # config.toml). Other registrations on a host are left alone. agent_env names
 # a variable set to PROVIDER-HOST, which tells OpenViking who wrote a note.
-mcp_registrations_chaldea_providers: [claude, codex, opencode]
+mcp_registrations_chaldea_providers: [claude, codex, opencode, antigravity]
 mcp_registrations_opencode_config: "{{ fleet_home }}/.config/opencode/opencode.json"
 mcp_registrations_servers:
   - name: chaldea
@@ -23,6 +23,8 @@ mcp_registrations_servers:
     codex: {env_vars: [XDG_RUNTIME_DIR, HUYANG_SOCKET]}
   - name: ov-memory
     enabled: "{{ mcp_registrations_ov_memory_enabled | default(true) | bool }}"
+    # Native HTTP retirement applies to Claude/Codex, not the agy CLI.
+    enabled_by_provider: {antigravity: true}
     command: "{{ fleet_home }}/.local/bin/ov-memory-mcp"
     env: {OV_BASE_URL: "https://ov.ryzhkov.dev"}
     agent_env: OV_AGENT
@@ -34,7 +36,8 @@ mcp_registrations_servers:
 mcp_registrations_retired:
   - local-file-llm
 mcp_registrations_agent_host: "{{ inventory_hostname }}"
-mcp_registrations_providers: [claude, codex]
+mcp_registrations_providers: [claude, codex, antigravity]
+mcp_registrations_antigravity_config: "{{ fleet_home }}/.gemini/config/mcp_config.json"
 mcp_registrations_claude: [claude]
 # Read, never written, to compare a remote server's OAuth options; the claude
 # CLI makes every change.

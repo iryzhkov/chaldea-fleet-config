@@ -55,21 +55,23 @@ def test_before_after_render_for_every_host(tmp_path, host):
     ], text=True, capture_output=True, env=env, cwd=ROOT)
     assert result.returncode == 0, result.stdout + result.stderr
     defaults = yaml.safe_load((ROOT / "roles/agent_config/defaults/main.yml").read_text())
-    assert {entry["src"]: entry["dest"] for entry in defaults["agent_config_files"]} == {
+    assert {entry["src"]: entry["dest"] for entry in defaults["agent_config_files"]
+            if entry["dest"] != ".gemini/AGENTS.md"} == {
         source: dest for source, dest in DESTINATIONS.items() if source != "opencode/huyang-profiles.js"}
+    compare("agents/AGENTS.md", (home / ".gemini/AGENTS.md").read_bytes())
     for source, destination in DESTINATIONS.items():
         compare(source, (home / destination).read_bytes())
-    for target in (".agents", ".claude"):
+    for target in (".agents", ".claude", ".gemini/config"):
         assert_delegation_contract(lambda path: (
             home / (DESTINATIONS[path] if path in DESTINATIONS else target + "/" + path)
         ).read_text())
     skill_files = [p for p in BEFORE["files"] if "/files/skills/" in p]
     for path in skill_files:
         relative = Path(path).relative_to("roles/agent_config/files").as_posix()
-        for target in (".agents", ".claude"):
+        for target in (".agents", ".claude", ".gemini/config"):
             compare(relative, (home / target / relative).read_bytes())
     for relative in ADDED_FILES:
-        for target in (".agents", ".claude"):
+        for target in (".agents", ".claude", ".gemini/config"):
             installed = home / target / relative
             assert installed.is_file() and not installed.parent.is_symlink()
             assert installed.read_bytes() == (FILES / relative).read_bytes()

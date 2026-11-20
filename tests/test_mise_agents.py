@@ -19,6 +19,7 @@ GLOBAL = '''# Personal config, never rewritten.
 claude = "2.1.97"
 codex = {version = "0.163.0", minimum_release_age = "48h"}
 "npm:@opencode/cli" = {version = "latest", allow_builds = "@opencode/cli"}
+"antigravity-cli" = "1.4.12"
 node = ["24", "26"]
 [env]
 PRIVATE_FIXTURE = "do-not-print-this-value"
@@ -183,7 +184,7 @@ def test_install_disabled_still_converges_declarations(tmp_path):
     _, _, managed, run, calls = fixture(tmp_path, "", install=False)
     run()
     assert set(tomllib.loads(managed.read_text())["tools"]) == {
-        "claude", "codex", "npm:@opencode/cli"}
+        "claude", "codex", "npm:@opencode/cli", "antigravity-cli"}
     assert calls() == []
 
 

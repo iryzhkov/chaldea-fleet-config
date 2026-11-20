@@ -1,5 +1,7 @@
 ---
 t3_min_version: "0.1.6"
+# Requires a Chaldea client that accepts Antigravity usageLimits: null.
+t3_antigravity_enabled: false
 t3_home: "{{ fleet_home }}/.t3"
 t3_service: t3code.service
 # Runs during the existing fleet pull; discovery never installs or restarts.

@@ -88,7 +88,7 @@ def inventory_vars(host):
 def test_four_hosts_opt_in_and_the_role_default_is_off():
     defaults = yaml.safe_load((ROOT / "roles/mcp_registrations/defaults/main.yml").read_text())
     assert defaults["mcp_registrations_remote_servers"] == []
-    assert defaults["mcp_registrations_providers"] == ["claude", "codex"]
+    assert defaults["mcp_registrations_providers"] == ["claude", "codex", "antigravity"]
     agent_defaults = yaml.safe_load((ROOT / "roles/agent_config/defaults/main.yml").read_text())
     assert agent_defaults["agent_config_fleet_tools_profile"]["mcp"] == ["ov-memory"]
     for host in ("normandy", "homelab"):
