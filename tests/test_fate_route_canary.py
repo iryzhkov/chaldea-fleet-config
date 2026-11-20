@@ -6,7 +6,7 @@ import subprocess
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-CLIENT_SHA = "a74232fb16256a188086be1b522350d02c5d57b7e60b3e55d727b467432c252a"
+CLIENT_SHA = "697584b8f988fceb73ba97e4fe041bcc705cebce7b3651a779666de9558e65c7"
 
 
 def test_signed_route_ceilings_are_only_homelab_append_and_pc_read():
@@ -41,7 +41,7 @@ def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
     hosts = json.loads(result.stdout)["_meta"]["hostvars"]
     for host in ["agent-a", "agent-b", "laptop", "omarchy-pc"]:
         values = hosts[host]
-        assert values["chaldea_client_version"] == "client-v0.4.28"
+        assert values["chaldea_client_version"] == "client-v0.4.29"
         assert values["chaldea_token_helper_client_version"] == values["chaldea_client_version"]
         assert values["chaldea_token_helper_client_sha256"] == values["chaldea_client_sha256"]
         if host != "omarchy-pc":
@@ -68,7 +68,7 @@ def test_actual_managed_pc_rollback_releases_remain_explicitly_retained():
 
 def test_baseline_floors_and_qualified_default_release_are_preserved():
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
-    assert common["chaldea_client_version"] == "client-v0.4.28"
+    assert common["chaldea_client_version"] == "client-v0.4.29"
     targets = yaml.safe_load((ROOT / "inventory/host_vars/omarchy-pc/fate-route.yml").read_text())[
         "chaldea_client_route_targets"]
     assert "floors" not in targets
