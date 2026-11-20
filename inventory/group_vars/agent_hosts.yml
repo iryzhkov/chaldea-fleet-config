@@ -6,5 +6,8 @@
 pull_timer_enabled: true
 retention_timer_enabled: true
 
+# Sequence after the Chaldea client pin accepts Antigravity usageLimits: null.
+t3_antigravity_enabled: true
+
 # Collector runtime selection is independent of trust/job022 and clock012.
 # all/akasha-collector-runtime.yml also supplies the explicit server upgrade play.
