@@ -55,7 +55,9 @@ explicitly assigned milestone group. On planning-to-execution transitions, load
 the execution skill even in the same thread. Material reshaping returns through
 the planning skill without discarding authority or current execution state.
 
-Jocasta owns active plans, checkpoints and evidence links. OV is proactively
+Jocasta owns active plans, checkpoints and evidence links when work needs durable
+continuation or handoff: multi-session work, a roadmap, or a run likely to outlast its
+context. Plans for shorter autopilot runs stay in the conversation. OV is proactively
 available to agents for durable knowledge and lessons without per-note approval;
 ov-memory owns its transport, grants and safe updates. review-delegation owns
 briefs, routing and independent acceptance. Runtime rules still determine which

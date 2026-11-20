@@ -18,13 +18,15 @@ create a PR or review pair. Group related work before review and CI as below.
 
 Scale review to risk. Pick the tier from what the change can break, not its size:
 
-- Tier 0: documentation, comments, tests-only changes, and configuration or code with
+- Tier 0: documentation other than agent guidance, skills and instruction files;
+  comments; tests-only changes; and configuration or code with
   no security, authority or data effect that is small and easy to revert. Self-verify
   on the exact source and require CI; no delegated review.
 - Tier 1: ordinary code and behavior changes. One independent fresh-context review on
   the provider that did not write the change: Opus 5.5 medium for Codex-authored work,
-  Sol 6.1 high for Claude-authored work. If no other-provider reviewer can run, record
-  why and continue at tier 0 with that limitation in the report.
+  Sol 6.1 high for Claude-authored work. If no other-provider reviewer can run because
+  of quota, outage or routing failure, record the evidence and continue at tier 0 with
+  that limitation in the PR and the report.
 - Tier 2: security, credentials, access or authority, data-loss risk, deployment
   pipelines, agent guidance that changes autonomy, or release acceptance. Use the pair
   below. Tier 2 never drops below one independent review.
@@ -62,7 +64,8 @@ Before each delegation, call FATE through `chaldea_route` or
 and `options` exactly as the T3 `delegate_task` target, including effort.
 Each route returns one target plus alternatives/byProvider, not a review pair.
 The orchestrator selects each reviewer separately, calls FATE for each delegation
-and launches two fresh contexts. Current pins still apply; this guidance adds no
+and launches the fresh contexts the tier requires: one for tier 1, two for tier 2,
+and one for any recheck. Current pins still apply; this guidance adds no
 automatic pair selection or joint model/effort optimizer.
 Use `builder` for main diff reviews, `critical-review` for consequential design
 or disputed findings, `bulk-read` for readers and `general` for other work.
@@ -94,12 +97,14 @@ Haiku needs an available catalog target. Never use max, ultra, ultrathink or ult
 Start every review round, including re-reviews, as a fresh
 `delegate_task` that carries the brief, the prior findings and the responses to
 them; do not continue a review through `t3_thread_send` on a child thread. Give
-each round its own `clientRequestId`. Launch the independent pair and any justified
-bounded lens together; a finished child wakes the parent, so never poll.
+each round its own `clientRequestId`. For tier 2, launch the independent pair and any
+justified bounded lens together; rechecks use the single-reviewer rule under "What
+blocks". A finished child wakes the parent, so never poll.
 
 ## Quota exception
 
-Use both providers whenever quota allows. When quota is tight, two independent
+This section governs tier 2 pairs. The tier 1 fallback above is separate: it needs no
+quota evidence and is not a quota waiver. Use both providers whenever quota allows. When quota is tight, two independent
 reviews on the same provider with different models are allowed. Keep a fresh independent context
 through a new T3 `delegate_task` for each reviewer. For
 Sol-authored Codex work, Sol 6.1 high plus Astra medium is an available-provider

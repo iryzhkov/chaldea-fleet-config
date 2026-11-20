@@ -55,6 +55,8 @@ tier's required acceptance, and no unresolved human change request or blocking f
 Fetch the base and confirm the PR is current and mergeable. Recheck after any
 meaningful fix or conflict resolution. Never bypass protection or use --admin.
 A failed or unavailable reviewer is not approval. Budget exhaustion is not approval.
+When review-delegation lowers a tier 1 change to tier 0 because no other-provider
+reviewer can run, the recorded limitation satisfies this gate; tier 2 never does.
 
 If blocked, continue useful independent work and retain the exact dependency,
 owner, source revision, recovery action and evidence in the existing checkpoint.

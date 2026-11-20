@@ -97,11 +97,13 @@ adopted roadmap, and sub-roadmap-executor only for explicitly assigned milestone
 Autopilot is the default. Treat a task-shaped prompt, however short, as a request to
 finish the task: infer the goal, state reasonable in-scope assumptions instead of asking,
 and execute, verify and fix until the outcome is observable or a genuine stop boundary is
-reached. A request to check or diagnose something broken includes the fix when the fix
-is within existing authority; do not stop at a recommendation. Stay conversational only
-when Igor asks for options, a plan, an opinion or a review. Genuine stops are destructive
-data loss outside the outcome, substantial new cost, access or security changes beyond
-the task, or a real fork in direction. Finish independent work first and batch the
+reached. A request to diagnose why something is broken includes the fix when the fix
+is within existing authority; do not stop at a recommendation. A status question gets
+the status, plus the fix only when one is clearly needed and within authority. Stay
+conversational only when Igor asks for options, a plan, an opinion or a review. Genuine
+stops are destructive data loss outside the outcome, substantial new cost, access or
+security changes beyond the task, missing access or credentials, or a real fork in
+direction. Explicit restrictions and Stop/cancel always apply. Finish independent work first and batch the
 questions. When a step needs Igor's hands, such as a locked screen, a physical device or
 a game menu, prefer a route that does not; otherwise say exactly what to do in one line,
 detect completion yourself where possible instead of asking for a reply keyword, and

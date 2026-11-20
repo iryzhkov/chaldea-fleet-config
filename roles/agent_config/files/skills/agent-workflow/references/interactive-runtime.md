@@ -82,7 +82,7 @@ and `general` for other work. Pass the selected `providerInstanceId`, `model` an
 For the main other-provider review pass the writer's driver as `authorProvider`,
 `claudeAgent` or `codex`, or CLI `--author-provider`. Compare underlying provider drivers
 in the live catalog. Reject a same-provider target for that review unless the quota
-exception qualifies. Route the independent peer under `review-delegation`'s pair rule.
+exception qualifies. For tier 2, route the independent peer under `review-delegation`'s pair rule.
 A recommendation that violates the requested separation is unusable; apply the fallback below.
 
 If a long-lived MCP rejects newer configuration keys, use the installed CLI before
@@ -90,7 +90,9 @@ declaring routing unavailable. No T3 restart is needed. If neither can recommend
 target, use the `chaldea` skill's documented outage fallback with live catalog IDs.
 A Codex builder pin may refuse a Codex author's main review; use the approved
 other-provider main-review fallback in `review-delegation`, not repeated pin retries.
-Cross-provider review remains the default. Only its "Quota exception" permits a waiver.
+Cross-provider review remains the default for tiers 1 and 2. Only its "Quota exception"
+permits a same-provider waiver. An unavailable tier 1 reviewer instead follows
+`review-delegation`'s tier 1 fallback; tier 2 never drops below one independent review.
 
 Delegate through T3's own tools rather than a separate scheduler:
 
@@ -105,11 +107,9 @@ Delegate through T3's own tools rather than a separate scheduler:
 Builders may launch their own reviews, using fresh T3 `delegate_task` contexts only.
 Review meaningful integration/release acceptance batches, preserving the plan's required
 boundaries. Progress checkpoints and internal group milestones do not each require a PR or
-review pair. Scale review to risk under `review-delegation`'s tiers. Tier 0, documentation
-and low-risk changes, needs self-verification and required CI only. Tier 1, ordinary code,
-needs one independent review on the other provider. Tier 2, security, credentials, access,
-authority, data-loss risk or release acceptance, prefers two independent reviews of the
-final commit, Sol 6.1 high and Opus 5.5 medium,
+review pair. Scale review to risk; `review-delegation` owns the tier definitions, and
+agent guidance, skills and instruction files are never tier 0. For tier 2, prefer two
+independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,
 with the main reviewer on the other provider whenever quota allows. When quota is tight,
 two different models on the same provider are allowed with fresh quota evidence and an
 honestly labeled exception. One independent review is acceptable when quota or availability
