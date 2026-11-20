@@ -31,8 +31,9 @@ Resolve genuinely conflicting requested outcomes before the dependent action.
 3. Verify the requested behavior on the exact source. Use meaningful reproductions
    and required checks. Missing evidence is a limitation, never a passing check.
    Follow the runtime's available browser and tool rules; this skill overrides none.
-4. Obtain independent acceptance under review-delegation's current routing, pair,
-   quota, evidence and fix-round rules. Do not add a second competing review loop.
+4. Obtain the acceptance that review-delegation's risk tier requires, under its
+   routing, quota, evidence and fix-round rules. Tier 0 changes need no delegated
+   review. Do not add a second competing review loop.
 5. Follow review-delegation's PR delivery reference for a concise PR explaining
    the problem, result and verification, and for a merge pinned to the checked head.
    Link it to the current T3 thread immediately. Preserve contributor credit.
@@ -49,11 +50,13 @@ A PR is needed only when the requested outcome changes versioned source.
 
 ## Merge gate and stop boundaries
 
-On the live final head, require relevant proof, all required checks, required
-independent acceptance, and no unresolved human change request or blocking finding.
+On the live final head, require relevant proof, all required checks, the review
+tier's required acceptance, and no unresolved human change request or blocking finding.
 Fetch the base and confirm the PR is current and mergeable. Recheck after any
 meaningful fix or conflict resolution. Never bypass protection or use --admin.
 A failed or unavailable reviewer is not approval. Budget exhaustion is not approval.
+When review-delegation lowers a tier 1 change to tier 0 because no other-provider
+reviewer can run, the recorded limitation satisfies this gate; tier 2 never does.
 
 If blocked, continue useful independent work and retain the exact dependency,
 owner, source revision, recovery action and evidence in the existing checkpoint.
