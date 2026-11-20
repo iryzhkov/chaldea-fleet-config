@@ -50,6 +50,11 @@ copy credentials or switch transport to bypass a refusal.
 - Write useful durable agent knowledge proactively under the policy above.
   Store facts and reasons, with credential pointers rather than secrets.
   Reuse an existing namespace.
+- Pass every URI in canonical form, with no trailing slash: `to` is
+  `viking://resources/chaldea`, never `viking://resources/chaldea/`. The server
+  refuses a non-canonical URI with the same opaque "Resource unavailable." it
+  uses for missing grants, so check the URI before suspecting the service.
+  `dry_run=true` reports such a refusal at preflight stage `authorization`.
 - Default `memory_write` ingests a document directory. For overwrite, create the
   authorized destination's `archive` parent first and set `overwrite=true`.
   The service observes typed state for CAS. Caller `expected_sha256` is
