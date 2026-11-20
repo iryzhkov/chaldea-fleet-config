@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.mark.parametrize("initial", [None, {}, {"autoResumeLimitedThreads": False},
                                     {"autoResumeLimitedThreads": True}])
-@pytest.mark.parametrize("provider", [None, {}, {"enabled": False, "config": {"authMethod": "keep", "custom": 7}}])
+@pytest.mark.parametrize("provider", [None, {}, {"enabled": False, "config": {
+    "authMethod": "keep", "binaryPath": "/opt/keep/agy", "custom": 7}}])
 def test_settings_merge_preserves_preferences_and_metadata(tmp_path, initial, provider):
     home = tmp_path / "home"
     settings = home / ".t3/userdata/settings.json"
@@ -50,7 +51,9 @@ def test_settings_merge_preserves_preferences_and_metadata(tmp_path, initial, pr
     if provider is not None:
         expected["providerInstances"]["antigravity"] = {
             "driver": "antigravity", "enabled": True, **provider,
-            "config": {"authMethod": "oauth-personal", **provider.get("config", {})}}
+            "config": {"authMethod": "oauth-personal",
+                       "binaryPath": "~/.local/share/mise/installs/antigravity-cli/latest/agy",
+                       **provider.get("config", {})}}
     assert json.loads(settings.read_text()) == expected
     after = settings.stat()
     if before:

@@ -20,7 +20,9 @@
   ansible.builtin.set_fact:
     t3_settings: >-
       {{ {'providerInstances': {'antigravity': {'driver': 'antigravity',
-           'enabled': true, 'config': {'authMethod': 'oauth-personal'}}}}
+           'enabled': true, 'config': {'authMethod': 'oauth-personal',
+           'binaryPath': t3_antigravity_binary_path | default(
+             '~/.local/share/mise/installs/antigravity-cli/latest/agy')}}}}
          | combine(t3_settings, recursive=true) }}
   when: t3_antigravity_enabled | default(false) | bool
 
