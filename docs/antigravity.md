@@ -30,15 +30,35 @@ HTTP authentication remain limited to their existing providers. A scratch
 XDG_RUNTIME_DIR and HUYANG_SOCKET from the CLI's environment, so no values
 from the converging Ansible process are captured in configuration.
 
-T3 uses its own managed Antigravity ACP runtime and a private per-instance
-GEMINI_HOME. The CLI guidance and MCP configuration above do not configure T3
-sessions; T3 links skills only. Do not set binaryPath to the agy executable.
+T3 runs the agy CLI as its Antigravity ACP runtime with a private
+per-instance GEMINI_HOME under `~/.t3/userdata/providers/antigravity/<id>`.
+The CLI guidance and MCP configuration above do not configure T3 sessions; T3
+links skills only. T3 0.1.9 and later look on PATH only for their own managed
+runtime, so without `binaryPath` the provider reports "not installed" even
+when agy is present. T3 0.1.6 rejected agy as binaryPath; every agent host ran
+0.1.10 or later when this default was added on 2026-11-20.
 
 The role default `t3_antigravity_enabled: false` leaves provider settings alone.
 Opting in fills missing keys in `providerInstances.antigravity`:
-driver `antigravity`, enabled `true`, config.authMethod `oauth-personal`.
+driver `antigravity`, enabled `true`, config.authMethod `oauth-personal` and
+config.binaryPath `t3_antigravity_binary_path` (the mise `latest` agy).
 Existing values, including disabled state and authentication choices, win.
 T3 reloads settings without restart; sign-in is manual on each host.
+
+Sign-in from T3 settings works only where agy can open a browser. On a host
+without a display it fails with "No browser is available here"; on omarchy-pc
+the browser opens on the locked autologin desktop. In both cases run the login
+in a terminal on that host with T3's profile directory, open the printed
+Google URL elsewhere and paste back the code:
+
+    P=$(ls -d ~/.t3/userdata/providers/antigravity/*/); P=${P%/}
+    AGY_ACP_FORCE_FILE_STORAGE=1 GEMINI_HOME=$P BROWSER=true \
+      agy acp --gemini-dir "$P" --app-data-dir antigravity-acp --login
+
+T3 reads the token from `$P/antigravity-acp/antigravity-oauth-token`. Where a
+Secret Service keyring is reachable, agy 1.5.13 stored the token in the keyring
+(service `gemini`, user `antigravity`) instead of that file even with
+AGY_ACP_FORCE_FILE_STORAGE set, so check that the file exists afterwards.
 
 The final inventory enablement commit must follow a Chaldea client release
 and pin bump that accepts `usageLimits: null`. Client v0.4.27 fails route
