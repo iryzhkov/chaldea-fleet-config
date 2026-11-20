@@ -99,7 +99,9 @@ Use review-delegation's necessity rules in the existing review.
 
 Use logs, errors, source and failing tests to find the cause and resolve bugs
 within the requested outcome. Load diagnosing-bugs for difficult diagnosis.
-Do not require the user to direct routine investigation or CI fixes. Distinguish
+Do not require the user to direct routine investigation or CI fixes. When asked
+why something is broken, apply the in-authority fix and verify it rather than
+returning a recommendation. Distinguish
 a hypothesis from a confirmed cause; reconcile uncertain operations before retry.
 Ask only for material unresolved direction, missing access or new authority.
 

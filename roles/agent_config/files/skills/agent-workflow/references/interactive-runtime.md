@@ -16,8 +16,9 @@ before implementation, even in the same thread. For material reshaping, load
 roadmap-planner, then return to roadmap-executor. Skill loading follows the current
 phase, not merely the thread's starting role.
 
-Work happens in interactive T3 sessions. Stay interactive while exploring, designing and
-making decisions turn by turn. For requested work, record the plan in Jocasta when needed and execute
+Work happens in interactive T3 sessions. Autopilot is the default: stay conversational
+only while Igor is exploring options, designing or deciding. For requested work, keep the plan in
+context, record it in Jocasta only for durable continuation or handoff, and execute
 assigned milestones through observable completion, explicit stop, an agreed budget limit,
 or a blocker with no useful authorized ready work left. Milestone or review completion,
 context compaction and monitor registration do not end the assignment.
@@ -104,7 +105,11 @@ Delegate through T3's own tools rather than a separate scheduler:
 Builders may launch their own reviews, using fresh T3 `delegate_task` contexts only.
 Review meaningful integration/release acceptance batches, preserving the plan's required
 boundaries. Progress checkpoints and internal group milestones do not each require a PR or
-review pair. Prefer two independent reviews of the final commit, Sol 6.1 high and Opus 5.5 medium,
+review pair. Scale review to risk under `review-delegation`'s tiers. Tier 0, documentation
+and low-risk changes, needs self-verification and required CI only. Tier 1, ordinary code,
+needs one independent review on the other provider. Tier 2, security, credentials, access,
+authority, data-loss risk or release acceptance, prefers two independent reviews of the
+final commit, Sol 6.1 high and Opus 5.5 medium,
 with the main reviewer on the other provider whenever quota allows. When quota is tight,
 two different models on the same provider are allowed with fresh quota evidence and an
 honestly labeled exception. One independent review is acceptable when quota or availability

@@ -14,7 +14,22 @@ reviews, but every review must use T3 `delegate_task`.
 Review the final commit at each meaningful integration or release acceptance
 batch required by the agreed plan. Preserve explicit acceptance boundaries.
 Progress checkpoints and internal milestones within a related group do not each
-create a PR or review pair. Group related work before review and CI as below:
+create a PR or review pair. Group related work before review and CI as below.
+
+Scale review to risk. Pick the tier from what the change can break, not its size:
+
+- Tier 0: documentation, comments, tests-only changes, and configuration or code with
+  no security, authority or data effect that is small and easy to revert. Self-verify
+  on the exact source and require CI; no delegated review.
+- Tier 1: ordinary code and behavior changes. One independent fresh-context review on
+  the provider that did not write the change: Opus 5.5 medium for Codex-authored work,
+  Sol 6.1 high for Claude-authored work. If no other-provider reviewer can run, record
+  why and continue at tier 0 with that limitation in the report.
+- Tier 2: security, credentials, access or authority, data-loss risk, deployment
+  pipelines, agent guidance that changes autonomy, or release acceptance. Use the pair
+  below. Tier 2 never drops below one independent review.
+
+When unsure between two tiers, take the higher one. For tier 2:
 
 - Prefer two independent fresh-context reviews, Sol 6.1 high and Opus 5.5 medium,
   using both providers whenever quota allows. The main reviewer uses the provider
@@ -173,7 +188,9 @@ linked PRs across repositories. Batching never waives exact-head review or requi
   authority, acceptance or behavior changes. Such changes and larger follow-ups
   need review of the final commit. Required tests and CI still apply.
 - At most two fix rounds per milestone. After that the lead decides or asks
-  Igor.
+  Igor. A recheck after fixes uses one reviewer, normally the one that raised
+  the blocking findings, and focuses on changed code and open findings. When that
+  recheck accepts, do not add a separate final-check round or re-run the pair.
 - The author may dispute a finding with a reason. Disputes go to a
   critical-review model or to Igor, not to another round of the same reviewer.
 

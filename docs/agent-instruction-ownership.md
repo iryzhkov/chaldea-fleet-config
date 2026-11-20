@@ -92,6 +92,15 @@ promptly. Claude's no-progress-note rule was narrowed to permit these approved u
 its other style preferences are unchanged. Exact review IDs, models, verdicts and commits
 remain in durable receipts, with short verdicts and links in chat.
 
+Autopilot is the default execution mode in all three entry points: a task-shaped prompt
+is finished without turn-by-turn confirmation, assumptions are reported instead of asked,
+diagnosis requests include the in-authority fix, and bulky work is still delegated to keep
+the parent context small. Review-delegation scales review to risk in three tiers: tier 0
+self-verification plus CI, tier 1 one other-provider review, tier 2 the existing pair.
+The change followed an analysis of recent T3 threads on omarchy-pc in November 2026, where
+short prompts stopped at recommendations, waited on reply keywords, and single PRs
+accumulated five review threads.
+
 ## Byte compatibility
 
 tests/fixtures/agent_config_before.json records SHA-256 hashes of the current
