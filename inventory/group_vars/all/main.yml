@@ -52,18 +52,18 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Published client-v0.4.27 from Chaldea main b5656fa
-# (Akasha Authentik helper and source-selector headers; existing T3 support retained).
+# Published client-v0.4.28 from Chaldea main 64e8dc3
+# (v0.4.27 plus acceptance of a null T3 provider usageLimits, sent by Antigravity).
 # Archive and manifest SHA-256 verified by downloading both release assets.
-# Manifest SHA-256: cc25444e9bc9ddea758037ef1ba8dadef75ce97a06be3a1b4935bb36b281071c.
+# Manifest SHA-256: d975394b024c23c5280e2adfcd5de1da8c1c2c89bff6418057d69a1112108126.
 # Desired ordinary-client pin for every host.
 # See docs/chaldea-client.md for installed-state and migration-owner obligations.
 chaldea_client_enabled: true
-chaldea_client_version: client-v0.4.27
-chaldea_client_sha256: "a6a1f5c47ebb60d0372a1d1dc135d5a86d2a3eb0f4f2ba33f565e555a978ec0d"
+chaldea_client_version: client-v0.4.28
+chaldea_client_sha256: "a74232fb16256a188086be1b522350d02c5d57b7e60b3e55d727b467432c252a"
 # The privileged helper consumes the same independently verified release.
-chaldea_token_helper_client_version: client-v0.4.27
-chaldea_token_helper_client_sha256: a6a1f5c47ebb60d0372a1d1dc135d5a86d2a3eb0f4f2ba33f565e555a978ec0d
+chaldea_token_helper_client_version: client-v0.4.28
+chaldea_token_helper_client_sha256: a74232fb16256a188086be1b522350d02c5d57b7e60b3e55d727b467432c252a
 # Observed ordinary-client rollback history, not active per-host version pins.
 # Keep existing payloads/caches only; absent versions are never installed.
 # Keep client-v0.4.8 when the 0.4.11 upgrade moves previous to 0.4.9.
