@@ -50,6 +50,21 @@ def test_ov_stdio_retirement_does_not_disable_antigravity():
         assert env.from_string(state).render(item=[provider, {**ov, "enabled": False}]) == expected
 
 
+def test_empty_config_written_by_agy_is_treated_as_missing(tmp_path):
+    path = tmp_path / "gemini/config/mcp_config.json"
+    path.parent.mkdir(parents=True)
+    params = {"antigravity_config": str(path), "name": "huyang", "command": "/opt/huyang"}
+    for empty in ("", "  \n"):
+        path.write_text(empty)
+        path.chmod(0o644)
+        assert call("antigravity", check_mode=True, **params)["changed"]
+        assert path.read_text() == empty
+        assert call("antigravity", **params)["changed"]
+        assert json.loads(path.read_text())["mcpServers"]["huyang"]["command"] == "/opt/huyang"
+        assert path.stat().st_mode & 0o777 == 0o644
+        assert not call("antigravity", **params)["changed"]
+
+
 def test_missing_config_and_unsafe_config(tmp_path):
     path = tmp_path / "new/mcp_config.json"
     params = {"antigravity_config": str(path), "name": "ov-memory", "command": "/opt/ov"}

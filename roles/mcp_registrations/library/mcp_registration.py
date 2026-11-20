@@ -538,8 +538,11 @@ def antigravity(module, params):
     if os.path.lexists(path) and not stat.S_ISREG(os.lstat(path).st_mode):
         module.fail_json(msg="Antigravity config must be a regular file")
     try:
-        with open(path, encoding="utf-8") as handle:
-            document = jsonc_loads(handle.read())
+        handle = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        with os.fdopen(handle, encoding="utf-8") as stream:
+            text = stream.read()
+        # agy creates an empty file on first run; treat it like a missing one.
+        document = jsonc_loads(text) if text.strip() else {}
     except FileNotFoundError:
         document = {}
     except (ValueError, OSError):
@@ -579,7 +582,7 @@ def write_atomically(path, text):
         mode = os.stat(path).st_mode & 0o7777
     except FileNotFoundError:
         mode = 0o600
-    handle, temporary = tempfile.mkstemp(dir=directory, prefix=".config.toml.")
+    handle, temporary = tempfile.mkstemp(dir=directory, prefix="." + os.path.basename(path) + ".")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as out:
             out.write(text)
