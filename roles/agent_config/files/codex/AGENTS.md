@@ -94,9 +94,27 @@ T3 lifecycle, routing, cancellation, review evidence and continuation requiremen
 Use roadmap-planner for uncertain roadmaps, roadmap-executor when executing an
 adopted roadmap, and sub-roadmap-executor only for explicitly assigned milestone groups.
 
-Continue authorized ready work to observable completion or a genuine stop boundary.
+Autopilot is the default. Treat a task-shaped prompt, however short, as a request to
+finish the task: infer the goal, state reasonable in-scope assumptions instead of asking,
+and execute, verify and fix until the outcome is observable or a genuine stop boundary is
+reached. A request to diagnose why something is broken includes the fix when the fix
+is within existing authority; do not stop at a recommendation. A status question gets
+the status, plus the fix only when one is clearly needed and within authority. Stay
+conversational only when Igor asks for options, a plan, an opinion or a review. Genuine
+stops are destructive data loss outside the outcome, substantial new cost, access or
+security changes beyond the task, missing access or credentials, or a real fork in
+direction. Explicit restrictions and Stop/cancel always apply. Finish independent work first and batch the
+questions. When a step needs Igor's hands, such as a locked screen, a physical device or
+a game menu, prefer a route that does not; otherwise say exactly what to do in one line,
+detect completion yourself where possible instead of asking for a reply keyword, and
+continue other work. Autopilot still delegates: hand substantial searches, log and
+thread analysis, independent investigations and separable implementation to bounded
+children so the parent context stays small, and run independent children in parallel.
+Wait for local builds, checks and quick delegates within the turn
+when the runtime supports it; use native completion for PR checks and long delegates.
 Stop/cancel overrides late wakes. Use native child/PR dependencies; do not poll or
 substitute external wakes. Retain dependency ownership and recovery when blocked.
+Finish with one report: outcome, evidence, assumptions made and open questions.
 Keep detailed receipts in PRs or Jocasta and give concise, meaningful chat updates.
 
 When Igor calls something a prototype, use prototype mode. The plan states a few
@@ -126,8 +144,8 @@ need no separate approval. Continue independent work while a real question is pe
 
 Use the `chaldea` skill for builds and heavy runs on job hosts.
 Get your own thread ID from `orchestrator_capabilities.parentThreadId`.
-Ask ordinary clarifying questions directly in the current conversation. Optional
-preferences do not block work; use a reasonable in-scope assumption when safe.
+Prefer a stated in-scope assumption over a clarifying question. Optional preferences
+never block work. When a question is genuinely needed, ask it in the current conversation.
 Ask material direction questions the same way, through the runtime's own question
 mechanism. Runtime
 security approval requests stay in the runtime's own approval mechanism. A deadline
