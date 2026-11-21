@@ -6,7 +6,7 @@ import subprocess
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-CLIENT_SHA = "697584b8f988fceb73ba97e4fe041bcc705cebce7b3651a779666de9558e65c7"
+CLIENT_SHA = "21f8f650d43f7109e1fc0b31319f88911f9740360aecc5c1c8e202bf2d7af279"
 
 
 def test_signed_route_ceilings_are_only_homelab_append_and_pc_read():
@@ -41,7 +41,7 @@ def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
     hosts = json.loads(result.stdout)["_meta"]["hostvars"]
     for host in ["agent-a", "agent-b", "laptop", "omarchy-pc"]:
         values = hosts[host]
-        assert values["chaldea_client_version"] == "client-v0.4.29"
+        assert values["chaldea_client_version"] == "client-v0.4.30"
         assert values["chaldea_token_helper_client_version"] == values["chaldea_client_version"]
         assert values["chaldea_token_helper_client_sha256"] == values["chaldea_client_sha256"]
         if host != "omarchy-pc":
@@ -53,6 +53,9 @@ def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
         scores=dict(enabled=True, url="https://akasha.ryzhkov.dev",
                     tokenHelper="/usr/local/bin/chaldea-token-helper", host="omarchy-pc"),
         announceHost="homelab", pins={},
+        providerPreference=["antigravity", "codex", "claudeAgent"],
+        bans=["*sonnet*", "gemini-pro-orchestrator-*", "gpt-oss-*",
+              "gemini-4-hydrogen*", "gemini-4-argon*", "gemini-3.8-flash*"],
         benchmark=dict(indexVersion="5", anchors={
             "bulk-read": ["gpt-6.1-sol", "claude-opus-5-5"],
             "critical-review": ["gpt-6.1-sol", "claude-opus-5-5"]}))
@@ -68,7 +71,7 @@ def test_actual_managed_pc_rollback_releases_remain_explicitly_retained():
 
 def test_baseline_floors_and_qualified_default_release_are_preserved():
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
-    assert common["chaldea_client_version"] == "client-v0.4.29"
+    assert common["chaldea_client_version"] == "client-v0.4.30"
     targets = yaml.safe_load((ROOT / "inventory/host_vars/omarchy-pc/fate-route.yml").read_text())[
         "chaldea_client_route_targets"]
     assert "floors" not in targets

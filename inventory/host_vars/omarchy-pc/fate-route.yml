@@ -1,8 +1,8 @@
 ---
 # Qualified client and protected reader canary, omarchy-pc only.
-# Client-v0.4.29 from Chaldea main b077c9f; release assets verified by download.
-chaldea_client_version: client-v0.4.29
-chaldea_client_sha256: 697584b8f988fceb73ba97e4fe041bcc705cebce7b3651a779666de9558e65c7
+# Client-v0.4.30 from Chaldea main 672fdf3; release assets verified by download.
+chaldea_client_version: client-v0.4.30
+chaldea_client_sha256: 21f8f650d43f7109e1fc0b31319f88911f9740360aecc5c1c8e202bf2d7af279
 chaldea_client_route_targets:
   scores:
     enabled: true
@@ -12,6 +12,19 @@ chaldea_client_route_targets:
   # This canary has read permission only. Homelab publishes snapshots.
   announceHost: homelab
   pins: {}
+  # Antigravity ranks first among eligible providers; quota stops, capacity,
+  # floors, bans and review separation still apply (Chaldea PR #112).
+  providerPreference: [antigravity, codex, claudeAgent]
+  # Setting bans replaces the default, so keep *sonnet*. The Gemini bans leave
+  # Gemini 4 Neon as the only Antigravity Gemini pick; orchestrators and
+  # gpt-oss have no usable AA rows.
+  bans:
+    - "*sonnet*"
+    - "gemini-pro-orchestrator-*"
+    - "gpt-oss-*"
+    - "gemini-4-hydrogen*"
+    - "gemini-4-argon*"
+    - "gemini-3.8-flash*"
   benchmark:
     indexVersion: "5"
     anchors:
