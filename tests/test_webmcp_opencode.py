@@ -181,7 +181,11 @@ def test_selection_is_explicit_standalone_and_laptop_only():
     assert names.index("Stage explicitly enabled managed interactive credentials and helper") \
         < names.index(deliver["name"])
     select = next(t for t in tasks if t["name"].startswith("Select explicit"))
-    assert "'providers': ['claude', 'codex']" in select["ansible.builtin.set_fact"]["mcp_registrations_effective_remote_servers"]
+    # Managed Jocasta providers default to the two native helper clients; a host
+    # may add Antigravity's bridge. OpenCode never joins (the module refuses it).
+    assert "default=['claude', 'codex']" in select["ansible.builtin.set_fact"]["mcp_registrations_effective_remote_servers"]
+    from test_mcp_registration import module_code
+    assert "opencode" not in module_code.MANAGED_SERVERS["jocasta"]["providers"]
     inventory = ROOT / "inventory"
     selections = {path.relative_to(inventory).as_posix()
                   for path in inventory.rglob("*.yml")

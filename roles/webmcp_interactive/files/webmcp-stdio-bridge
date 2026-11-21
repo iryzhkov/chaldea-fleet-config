@@ -1,0 +1,290 @@
+#!/usr/bin/python3 -I
+"""webmcp-stdio-bridge: a closed stdio-to-Streamable-HTTP bridge for Antigravity.
+
+Antigravity (agy) accepts only static headers for an HTTP MCP server and has no
+header-helper hook, so the fleet never writes a remote entry for it. Instead its
+mcp_config.json names this bridge as a stdio server with exactly two arguments,
+SERVER HOST. The bridge forwards each JSON-RPC message from stdin to that
+server's fixed HTTPS URL and writes the replies to stdout.
+
+Authorization comes only from the reviewed native helper
+/usr/local/libexec/webmcp-interactive-headers, run with the same fixed mode and
+host tuple that Claude and Codex use. The bridge keeps the helper's header in
+memory for at most HEADER_TTL seconds and asks again after a 401. It never
+writes a header or token to disk, argv, the environment, stdout or stderr.
+
+There is no option to choose another URL, helper, mode, header or proxy: the
+only accepted invocations are the tuples in SERVERS. Environment proxies and
+redirects are refused, and TLS uses the system trust store.
+"""
+
+import json
+import subprocess
+import sys
+import threading
+import time
+import urllib.error
+import urllib.request
+
+HELPER = "/usr/local/libexec/webmcp-interactive-headers"
+# SERVER -> (fixed URL, helper mode, hosts that may use it). These mirror the
+# managed_helper tuples in roles/mcp_registrations/library/mcp_registration.py.
+SERVERS = {
+    "jocasta": ("https://jocasta.mcp.ryzhkov.dev/mcp", "jocasta",
+                frozenset({"laptop", "agent-a", "agent-b", "omarchy-pc"})),
+    "ov": ("https://ov.mcp.ryzhkov.dev/mcp", "ov-full", frozenset({"laptop", "omarchy-pc"})),
+    "shizune": ("https://shizune.mcp.ryzhkov.dev/mcp", "shizune", frozenset({"laptop", "omarchy-pc"})),
+}
+HEADER_TTL = 60
+HELPER_TIMEOUT = 20
+REQUEST_TIMEOUT = 300
+MAX_RESPONSE = 64 * 1024 * 1024
+MAX_WORKERS = 8
+SESSION_EXPIRED = -32001
+UPSTREAM_ERROR = -32000
+
+
+def note(message):
+    """A fixed diagnostic line; callers never pass headers, tokens or bodies."""
+    print("webmcp-stdio-bridge: " + message, file=sys.stderr, flush=True)
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+class Bridge:
+    def __init__(self, url, mode, host, run=subprocess.run, opener=None, clock=time.monotonic):
+        self.url, self.mode, self.host = url, mode, host
+        self.run, self.clock = run, clock
+        self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+        self.lock = threading.Lock()
+        self.out_lock = threading.Lock()
+        self.header, self.header_time = None, 0.0
+        self.session, self.protocol = None, None
+
+    # Authorization
+
+    def authorization(self, refresh=False):
+        with self.lock:
+            if refresh or self.header is None or self.clock() - self.header_time >= HEADER_TTL:
+                self.header, self.header_time = None, 0.0
+                value = self.fetch_header()
+                self.header, self.header_time = value, self.clock()
+            return self.header
+
+    def fetch_header(self):
+        try:
+            done = self.run([HELPER, self.mode, self.host], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL, timeout=HELPER_TIMEOUT, check=False, env={})
+        except (OSError, subprocess.SubprocessError):
+            raise Unavailable("managed headers unavailable") from None
+        if done.returncode != 0:
+            raise Unavailable("managed headers unavailable")
+        try:
+            headers = json.loads(done.stdout)
+        except ValueError:
+            raise Unavailable("managed headers malformed") from None
+        value = headers.get("Authorization") if isinstance(headers, dict) and len(headers) == 1 else None
+        if (not isinstance(value, str) or not value.startswith("Bearer ") or len(value) <= 7
+                or len(value) > 16384 or not value.isascii() or not value.isprintable()):
+            raise Unavailable("managed headers malformed")
+        return value
+
+    # Transport
+
+    def headers(self, authorization, initialize):
+        headers = {"Authorization": authorization, "Accept": "application/json, text/event-stream",
+                   "Content-Type": "application/json"}
+        with self.lock:
+            if self.session is not None and not initialize:
+                headers["Mcp-Session-Id"] = self.session
+            if self.protocol is not None and not initialize:
+                headers["MCP-Protocol-Version"] = self.protocol
+        return headers
+
+    def post(self, body, initialize):
+        """POST one message; retry once with fresh headers after a 401."""
+        for attempt in (0, 1):
+            request = urllib.request.Request(self.url, data=body, method="POST",
+                                             headers=self.headers(self.authorization(refresh=attempt == 1), initialize))
+            try:
+                return self.opener.open(request, timeout=REQUEST_TIMEOUT)
+            except urllib.error.HTTPError as error:
+                error.close()
+                if error.code == 401 and attempt == 0:
+                    continue
+                raise Upstream(error.code) from None
+            except (urllib.error.URLError, OSError, ValueError):
+                raise Upstream(None) from None
+        raise Upstream(401)
+
+    def handle(self, message):
+        """Forward one parsed JSON-RPC message and relay every reply."""
+        initialize = isinstance(message, dict) and message.get("method") == "initialize"
+        ids = request_ids(message)
+        try:
+            response = self.post(json.dumps(message, separators=(",", ":")).encode(), initialize)
+        except Unavailable as error:
+            note(str(error))
+            self.fail(ids, UPSTREAM_ERROR, str(error))
+            return
+        except Upstream as error:
+            if error.status == 404 and self.session is not None:
+                note("upstream session expired")
+                self.fail(ids, SESSION_EXPIRED, "upstream session expired; reconnect the server")
+            else:
+                note(f"upstream request failed ({error.status or 'network'})")
+                self.fail(ids, UPSTREAM_ERROR, f"upstream request failed ({error.status or 'network'})")
+            return
+        with response:
+            if initialize:
+                session = response.headers.get("Mcp-Session-Id")
+                if session is not None and (not session.isascii() or not session.isprintable() or len(session) > 1024):
+                    session = None
+                with self.lock:
+                    self.session = session
+            if response.status == 202:
+                return
+            kind = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            try:
+                if kind == "text/event-stream":
+                    for data in events(response):
+                        self.relay(data, initialize)
+                elif kind == "application/json":
+                    self.relay(read_bounded(response), initialize)
+                elif ids:
+                    raise Upstream(response.status)
+            except (Upstream, OSError, ValueError):
+                note("upstream response unreadable")
+                self.fail(ids, UPSTREAM_ERROR, "upstream response unreadable")
+
+    def relay(self, data, initialize):
+        if not data.strip():
+            return
+        payload = json.loads(data)
+        if initialize:
+            for item in payload if isinstance(payload, list) else [payload]:
+                result = item.get("result") if isinstance(item, dict) else None
+                version = result.get("protocolVersion") if isinstance(result, dict) else None
+                if isinstance(version, str) and version.isascii() and version.isprintable() and len(version) < 64:
+                    with self.lock:
+                        self.protocol = version
+        self.write(payload)
+
+    def write(self, payload):
+        line = json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n"
+        with self.out_lock:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+
+    def fail(self, ids, code, message):
+        for ident in ids:
+            self.write({"jsonrpc": "2.0", "id": ident, "error": {"code": code, "message": message}})
+
+    def close(self):
+        """End the upstream session, best effort."""
+        with self.lock:
+            session = self.session
+        if session is None:
+            return
+        try:
+            headers = {"Authorization": self.authorization(), "Mcp-Session-Id": session}
+            if self.protocol is not None:
+                headers["MCP-Protocol-Version"] = self.protocol
+            request = urllib.request.Request(self.url, method="DELETE", headers=headers)
+            self.opener.open(request, timeout=10).close()
+        except (Unavailable, urllib.error.URLError, OSError, ValueError):
+            pass
+
+
+class Unavailable(Exception):
+    pass
+
+
+class Upstream(Exception):
+    def __init__(self, status):
+        super().__init__(status)
+        self.status = status
+
+
+def request_ids(message):
+    items = message if isinstance(message, list) else [message]
+    return [item["id"] for item in items
+            if isinstance(item, dict) and "method" in item and item.get("id") is not None]
+
+
+def read_bounded(response):
+    data = response.read(MAX_RESPONSE + 1)
+    if len(data) > MAX_RESPONSE:
+        raise ValueError("response too large")
+    return data.decode("utf-8")
+
+
+def events(response):
+    """The data of each Server-Sent Event, bounded in total size."""
+    data, total = [], 0
+    for raw in response:
+        total += len(raw)
+        if total > MAX_RESPONSE:
+            raise ValueError("response too large")
+        line = raw.decode("utf-8").rstrip("\r\n")
+        if not line:
+            if data:
+                yield "\n".join(data)
+            data = []
+        elif line.startswith("data:"):
+            value = line[5:]
+            data.append(value[1:] if value.startswith(" ") else value)
+    if data:
+        yield "\n".join(data)
+
+
+def serve(bridge, stream):
+    workers = threading.BoundedSemaphore(MAX_WORKERS)
+    threads = []
+
+    def work(message):
+        try:
+            bridge.handle(message)
+        finally:
+            workers.release()
+
+    for line in stream:
+        if not line.strip():
+            continue
+        try:
+            message = json.loads(line)
+        except ValueError:
+            bridge.write({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}})
+            continue
+        if isinstance(message, dict) and message.get("method") in ("initialize", "notifications/initialized"):
+            # Later messages need the session and the completed lifecycle
+            # these establish, so they run in order before anything else.
+            for thread in threads:
+                thread.join()
+            threads = []
+            bridge.handle(message)
+            continue
+        workers.acquire()
+        thread = threading.Thread(target=work, args=(message,), daemon=True)
+        thread.start()
+        threads = [item for item in threads if item.is_alive()] + [thread]
+    for thread in threads:
+        thread.join(timeout=REQUEST_TIMEOUT)
+    bridge.close()
+
+
+def main(argv):
+    selected = SERVERS.get(argv[0]) if len(argv) == 2 else None
+    if selected is None or argv[1] not in selected[2]:
+        note("usage: webmcp-stdio-bridge SERVER HOST with a reviewed server and host")
+        return 2
+    url, mode, hosts = selected
+    serve(Bridge(url, mode, argv[1]), sys.stdin)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -19,7 +19,8 @@ mcp_registrations_remote_servers:
   - name: jocasta
     state: "{{ mcp_registrations_jocasta_interactive_state }}"
     url: https://jocasta.mcp.ryzhkov.dev/mcp
-    providers: [claude, codex]
+    # Antigravity gets the closed stdio bridge to the same helper tuple.
+    providers: [claude, codex, antigravity]
 
 agent_config_fleet_tools_profile:
   name: interactive-operator

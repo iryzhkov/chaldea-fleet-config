@@ -36,7 +36,7 @@ def test_closed_profiles_keep_ov_full_and_the_narrow_tuple_with_holonet_reader()
     assert module_code.MANAGED_SERVERS["ov"] == {"url": OV_URL, "providers": frozenset({"codex"}),
                                                  "commands": {"laptop": NARROW}}
     assert module_code.MANAGED_PROFILES == {"ov-full": {
-        "name": "ov", "url": OV_URL, "providers": frozenset({"claude", "codex"}),
+        "name": "ov", "url": OV_URL, "providers": frozenset({"claude", "codex", "antigravity"}),
         "commands": {"laptop": HELPER + " ov-full laptop", "omarchy-pc": HELPER + " ov-full omarchy-pc"}}}
 
 

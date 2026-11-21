@@ -48,11 +48,12 @@ def test_selector_aware_helper_preflight(tmp_path, enabled, installed, source, o
 
 def test_native_adapters_match_main_golden():
     # Git blob IDs at 72add22, except the two mcp_registrations files, which
-    # were deliberately extended for the Antigravity provider (PR #194).
+    # were deliberately extended for the Antigravity provider (PR #194) and
+    # for Antigravity's managed web MCP bridge entries (PR #202).
     # Jobs omit .git, so check the golden bytes directly.
     for path, expected in {
-        "roles/mcp_registrations/library/mcp_registration.py": "9d0e4b5cff67a3e6622a7f2ec5ebde479fe37003",
-        "roles/mcp_registrations/tasks/main.yml": "026c3f5dc741fd8637615e31952ed62b2ce39f3c",
+        "roles/mcp_registrations/library/mcp_registration.py": "b63ed5a819f1020d5b9afdbff82d5526fde24051",
+        "roles/mcp_registrations/tasks/main.yml": "767dcab3d8704bb52e1168844d4e82148155fc0c",
         "roles/webmcp_interactive/templates/opencode-webmcp-jocasta.js.j2": "70f98a89a833cc61e43733ac4b8096096e4215b2",
     }.items():
         data = (ROOT / path).read_bytes()
