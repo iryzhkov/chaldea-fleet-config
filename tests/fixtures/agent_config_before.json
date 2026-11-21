@@ -29,7 +29,7 @@
     "roles/agent_config/files/skills/grilling/SKILL.md": "10ff989e7498b23b5acb49d5048f11dcd906757d2f79c5cdf8a00001381296f2",
     "roles/agent_config/files/skills/grilling/agents/openai.yaml": "1411d7df7d99b7e621a1ff8283c8133cc2464be63d064e52d8ce169c6800ee9b",
     "roles/agent_config/files/skills/huyang/SKILL.md": "1d05a9eb8c1c9c60e131a1b4fb5bde92bd732db1ef229eeae9bf7049dd5e8913",
-    "roles/agent_config/files/skills/ov-memory/SKILL.md": "236deec6c934900529e6352f9c2c769c5794faf5650d9fecb4c62828743c8929",
+    "roles/agent_config/files/skills/ov-memory/SKILL.md": "0a1ef77f3d67c60d92a85856c6fae7017c18b0ee651aab36de3fdc3b6a181fc3",
     "roles/agent_config/files/skills/ov-memory-curation/SKILL.md": "66bd5a6b9bd2a15960f27bd6927bc2cd83f17b5cf991b1c87bf22014d1136032",
     "roles/agent_config/files/skills/resolving-merge-conflicts/SKILL.md": "9afeef7ef796800f41d64b82eeaa56cc0d98c27836825ac0f1c6d5284fe920bb",
     "roles/agent_config/files/skills/resolving-merge-conflicts/agents/openai.yaml": "a1f4f96838f2ed6282eb28abbbf99029cb8fadce552baf53da90a025b8bffddf",
