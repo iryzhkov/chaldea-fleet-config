@@ -175,8 +175,10 @@ What the server actually does, and why the tools compensate:
   files it can list, but each document's hidden `.abstract.md` and
   `.overview.md` are filtered out of that listing, so their records keep pointing
   at the old URI, outrank the live note, and resolve to nothing. `memory_mv`
-  prunes those orphans after every move and, by default, re-ingests the moved
-  documents so their abstracts index at the new URI.
+  prunes those orphans after every move. Pass `reindex=False`: the default
+  `reindex=True` re-ingested the moved documents and now refuses without
+  changing anything, because re-ingestion deletes each note and the current
+  backend cannot write it back. Moved notes stay findable by their content.
 - **`DELETE /fs` removes the node before it cleans the index**, so it fails on a
   node that is already gone and cannot repair an orphan. `memory_index_prune`
   does that repair; `memory_index_audit "<query>"` finds the orphans by running
@@ -185,13 +187,9 @@ What the server actually does, and why the tools compensate:
 - **`memory_rm` does clear the index** for the note it deletes, and also prunes
   the hidden records the server leaves behind. It takes `dry_run=True`; use it,
   because there is still no undo.
-- **`memory_reindex`** rebuilds a note's chunks, abstract and index records from
-  its current content. Use it when a note was moved with `reindex=False`, or when
-  search returns a URI that no longer matches where the note lives.
-
-The one cost to weigh: re-ingestion regenerates the abstract through the model,
-so a move of a large namespace is not free. `memory_mv` skips re-ingestion above
-twenty documents and says so.
+- **`memory_reindex`** is disabled and refuses without changing anything, for
+  the same reason. There is no legacy way to rebuild a moved note's abstract
+  index records; native `ov` moves transfer them instead.
 
 ## What a pass can do
 
@@ -203,9 +201,9 @@ twenty documents and says so.
    questions the store is supposed to answer. A hit that resolves to nothing is
    an orphaned record, and `fix=True` removes it.
 3. **Reorganise.** `memory_mv` a badly named namespace or note, then confirm with
-   `memory_index_audit` on a query the moved note should answer. Move a whole
-   namespace in one call rather than note by note; each call re-ingests what it
-   moved.
+   `memory_index_audit` on a query the moved note should answer. Use
+   `reindex=False`, and move a whole namespace in one call rather than note by
+   note.
 4. **Correct additively.** When a note is wrong or superseded, write the
    corrected note into the right namespace and say in its text which URI it
    supersedes. `memory_write(..., archived=True)` files the old version under

@@ -31,14 +31,12 @@ def test_agent_clients_use_native_t3_quota():
 
 
 # Reviewed host-level release selections, by exact file and top-level key.
-# The laptop and omarchy-pc stdio OV safety pins are checked for every host in
+# The shared stdio OV safety pin is checked for every host in
 # test_ov_source_selection.py.
 HOST_RELEASE_SELECTIONS = {
     "inventory/host_vars/omarchy-pc/fate-route.yml": frozenset({"chaldea_client_version", "chaldea_client_sha256"}),
-    "inventory/host_vars/laptop/ov-memory.yml": frozenset({"agent_tools_ov_memory_ref"}),
     # M3 P3.1: retain this host's selector-aware helper pin in the allowlist.
-    "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({
-        "agent_tools_ov_memory_ref", "webmcp_interactive_helper_sha256"}),
+    "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({"webmcp_interactive_helper_sha256"}),
     # M3 P3.1: retain this host's selector-aware helper pin in the allowlist.
     "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({
         "webmcp_interactive_helper_sha256", "chaldea_node_version"}),

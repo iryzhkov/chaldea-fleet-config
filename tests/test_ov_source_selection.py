@@ -6,14 +6,13 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-OLD = "efac1c8f04662a3512da84aa6559a26061e97832"
 SAFE = "355a92adb0658853b7439e91d4429be3d0b270fc"
 
 
-def test_only_laptop_and_omarchy_pc_select_safe_legacy_ov(tmp_path):
+def test_every_host_selects_safe_legacy_ov(tmp_path):
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
-    assert common["agent_tools_ov_memory_ref"] == OLD
-    expected_refs = {host: SAFE if host in {"laptop", "omarchy-pc"} else OLD
+    assert common["agent_tools_ov_memory_ref"] == SAFE
+    expected_refs = {host: SAFE
                      for host in ("agent-a", "agent-b", "laptop", "omarchy-pc", "homelab", "normandy")}
     inventory = subprocess.run(
         ["ansible-inventory", "-i", "inventory/hosts.yml", "--list"],
