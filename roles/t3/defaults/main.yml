@@ -5,6 +5,8 @@ t3_antigravity_enabled: false
 # T3 0.1.9+ finds only its managed runtime on PATH; point it at the mise agy CLI.
 # T3 expands the leading ~ for the service user.
 t3_antigravity_binary_path: "~/.local/share/mise/installs/antigravity-cli/latest/agy"
+# The agy MCP config that mcp_registrations manages; T3 profiles link to it.
+t3_antigravity_mcp_config: "{{ fleet_home }}/.gemini/config/mcp_config.json"
 t3_home: "{{ fleet_home }}/.t3"
 t3_service: t3code.service
 # Runs during the existing fleet pull; discovery never installs or restarts.
