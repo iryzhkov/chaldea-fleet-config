@@ -549,7 +549,7 @@ def antigravity(module, params):
     """
     path, name = params["antigravity_config"], params["name"]
     remote = params["transport"] == "remote"
-    if remote and params.get("auth_mode", "oauth") != "managed_helper":
+    if remote and params.get("auth_mode", "oauth") != "managed_helper" and params["state"] != "absent":
         module.fail_json(msg="Antigravity remote registrations support only the closed managed_helper bridge")
     if os.path.lexists(path) and not stat.S_ISREG(os.lstat(path).st_mode):
         module.fail_json(msg="Antigravity config must be a regular file")
@@ -642,8 +642,9 @@ def main():
 
 def check_transport(module, params):
     """A stdio server needs a command; a remote one a public HTTPS URL and no stdio fields."""
+    # Removal by name needs no authentication form, so absent is allowed in any mode.
     if (params.get("provider") == "antigravity" and params["transport"] != "stdio"
-            and params.get("auth_mode", "oauth") != "managed_helper"):
+            and params.get("auth_mode", "oauth") != "managed_helper" and params["state"] != "absent"):
         module.fail_json(msg="Antigravity remote registrations support only the closed managed_helper bridge")
     if params["transport"] == "stdio":
         if (params.get("auth_mode", "oauth") != "oauth" or params.get("helper_host") is not None

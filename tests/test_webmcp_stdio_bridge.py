@@ -130,6 +130,16 @@ def test_session_protocol_sse_and_fixed_helper_invocation(capsys):
     assert instance.run.calls[0][1]["env"] == {} and instance.run.calls[0][1]["stderr"] == subprocess.DEVNULL
 
 
+def test_initialized_reaches_the_server_before_later_requests(capsys):
+    init = Response(body=json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}).encode(), headers={"Mcp-Session-Id": "s"})
+    instance = make({"initialize": [init], "notifications/initialized": [Response(status=202, kind="")],
+                     "tools/list": [Response(body=json.dumps({"jsonrpc": "2.0", "id": 2, "result": {}}).encode())],
+                     "DELETE": [Response(status=200)]})
+    serve(instance, INIT, INITIALIZED, LIST, capsys=capsys)
+    methods = [json.loads(r.data)["method"] if r.data else r.get_method() for r in instance.opener.requests]
+    assert methods == ["initialize", "notifications/initialized", "tools/list", "DELETE"]
+
+
 def test_401_refreshes_the_header_once_then_fails_closed(capsys):
     ok = Response(body=json.dumps({"jsonrpc": "2.0", "id": 2, "result": {}}).encode())
     instance = make([401, ok], outputs=[header("Bearer old-SECRET"), header()])

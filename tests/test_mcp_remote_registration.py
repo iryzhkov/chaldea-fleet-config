@@ -147,7 +147,17 @@ def test_role_selects_antigravity_only_through_the_managed_entries(tmp_path):
     fallback = run({"webmcp_interactive_enabled": False, "mcp_registrations_remote_servers": declared})
     assert [server["name"] for server in fallback] == ["jocasta"] and "auth_mode" not in fallback[0]
     register = next(task for task in tasks if task["name"] == "Register the opt-in remote MCP servers")
-    assert register["when"] == "item.1 != 'antigravity' or item.0.auth_mode | default('oauth') == 'managed_helper'"
+    from jinja2 import Environment
+    condition = Environment().compile_expression(register["when"])
+    assert not condition(item=[fallback[0], "antigravity"])
+    assert condition(item=[fallback[0], "claude"])
+    assert condition(item=[managed[0], "antigravity"])
+    # An explicit absent removes the bridge entry even in the OAuth fallback.
+    removal = run({"webmcp_interactive_enabled": False, "mcp_registrations_remote_servers": [
+        {"name": "jocasta", "state": "absent", "providers": everything},
+        {"name": "shizune", "state": "absent", "providers": everything}]})
+    assert [server["name"] for server in removal] == ["jocasta", "shizune"]
+    assert all(condition(item=[server, "antigravity"]) for server in removal)
     # Antigravity on any other remote entry is refused before registration.
     other = {"name": "unrelated", "url": "https://other.example/mcp", "providers": ["codex", "antigravity"]}
     assert "antigravity is accepted only" in run({"webmcp_interactive_enabled": True,

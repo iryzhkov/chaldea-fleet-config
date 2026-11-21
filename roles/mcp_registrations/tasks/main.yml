@@ -285,8 +285,11 @@
   loop: "{{ mcp_registrations_effective_remote_servers | subelements('providers') }}"
   loop_control:
     label: "{{ item.1 }}: {{ item.0.name }}"
-  # Antigravity has no native OAuth form, so an OAuth fallback skips it.
-  when: item.1 != 'antigravity' or item.0.auth_mode | default('oauth') == 'managed_helper'
+  # Antigravity has no native OAuth form, so an OAuth fallback skips it, except
+  # that an explicit absent still removes its entry in any mode.
+  when: >-
+    item.1 != 'antigravity' or item.0.auth_mode | default('oauth') == 'managed_helper'
+    or item.0.state | default('present') == 'absent'
 
 - name: Remove retired MCP servers
   mcp_registration:

@@ -259,8 +259,9 @@ def serve(bridge, stream):
         except ValueError:
             bridge.write({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}})
             continue
-        if isinstance(message, dict) and message.get("method") == "initialize":
-            # Later messages need the session this one establishes.
+        if isinstance(message, dict) and message.get("method") in ("initialize", "notifications/initialized"):
+            # Later messages need the session and the completed lifecycle
+            # these establish, so they run in order before anything else.
             for thread in threads:
                 thread.join()
             threads = []

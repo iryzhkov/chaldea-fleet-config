@@ -102,6 +102,17 @@ def test_managed_entries_become_the_fixed_stdio_bridge(tmp_path, name, url, prof
     assert name not in json.loads(path.read_text())["mcpServers"]
 
 
+def test_absent_removes_a_bridge_entry_in_oauth_fallback(tmp_path):
+    """Installed bridge entry, managed flag later off, explicit absent: removed."""
+    path = tmp_path / "mcp_config.json"
+    name, url, profile, hosts = MANAGED[2]
+    assert call("antigravity", **managed(path, name, url, profile, hosts[0]))["changed"]
+    absent = {"antigravity_config": str(path), "name": name, "transport": "remote", "state": "absent"}
+    assert call("antigravity", **absent)["changed"]
+    assert name not in json.loads(path.read_text())["mcpServers"]
+    assert not call("antigravity", **absent)["changed"]
+
+
 @pytest.mark.parametrize("change", [
     {"auth_mode": "oauth", "helper_host": None},  # Antigravity has no native OAuth form.
     {"helper_host": "normandy"}, {"helper_host": None},
