@@ -46,7 +46,16 @@ provides the target plumbing, compatibility renderer and version guard.
 
 Pins require an available catalog model, allowed effort, provider separation
 and quota admission. Supported policy fields include pins, bans, floors,
-probation and score settings. AA support is not a claim of live activation.
+probation, score settings and, from client-v0.4.30, `providerPreference`.
+
+From client-v0.4.30 FATE also routes the T3 `antigravity` provider. Without
+`providerPreference` it ranks after Codex and Claude. omarchy-pc sets
+`providerPreference: [antigravity, codex, claudeAgent]` and bans every
+Antigravity Gemini model except Gemini 4 Neon. Because a configured `bans`
+list replaces the client default, it repeats `*sonnet*`. Antigravity stays
+ineligible in benchmark mode until the homelab score publisher, upgraded by
+hand to the same release, has published a snapshot with the Gemini rows. See
+Chaldea docs/route.md for the provider rules and known limitations. AA support is not a claim of live activation.
 The AA key stays only on homelab. Future shared score snapshots contain no
 secret and require compatible Akasha registrations and scoped grants. Never
 put the key in inventory, prompts or this repository. Missing coding metrics
