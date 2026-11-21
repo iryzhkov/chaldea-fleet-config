@@ -122,17 +122,18 @@ def test_role_selects_antigravity_only_through_the_managed_entries(tmp_path):
 
     def run(variables, expect_ok=True):
         play = tmp_path / "selection.yml"
-        verify = {"name": "Show", "ansible.builtin.debug": {"msg": "{{ mcp_registrations_effective_remote_servers | to_json }}"}}
+        output = tmp_path / "effective.json"
+        verify = {"name": "Record", "ansible.builtin.copy": {
+            "content": "{{ mcp_registrations_effective_remote_servers | to_json }}", "dest": str(output)}}
         play.write_text(yaml.safe_dump([{"hosts": "omarchy-pc", "connection": "local", "gather_facts": False,
                                          "vars": {"mcp_registrations_servers": [], "mcp_registrations_retired": [], **variables},
                                          "tasks": [*selection, verify]}]))
         result = subprocess.run(["ansible-playbook", "-i", "omarchy-pc,", str(play)], capture_output=True, text=True,
-                                env={**os.environ, "ANSIBLE_STDOUT_CALLBACK": "json", "ANSIBLE_LOCAL_TEMP": str(tmp_path / "a")})
+                                env={**os.environ, "ANSIBLE_LOCAL_TEMP": str(tmp_path / "a")})
         assert (result.returncode == 0) is expect_ok, result.stdout + result.stderr
         if not expect_ok:
             return result.stdout
-        plays = json.loads(result.stdout)["plays"][0]["tasks"]
-        return json.loads(plays[-1]["hosts"]["omarchy-pc"]["msg"])
+        return json.loads(output.read_text())
 
     managed = run({"webmcp_interactive_enabled": True, "webmcp_interactive_ov_full_enabled": True,
                    "webmcp_interactive_shizune_enabled": True, "mcp_registrations_remote_servers": declared})
