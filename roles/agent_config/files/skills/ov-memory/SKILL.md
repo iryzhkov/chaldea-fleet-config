@@ -50,11 +50,14 @@ copy credentials or switch transport to bypass a refusal.
 - Write useful durable agent knowledge proactively under the policy above.
   Store facts and reasons, with credential pointers rather than secrets.
   Reuse an existing namespace.
-- Pass every native URI argument (`uri`, `scope`, `to`) in canonical form,
-  with no trailing slash: `to` is `viking://resources/chaldea`, never
-  `viking://resources/chaldea/`. The server refuses a non-canonical URI with
-  the same opaque "Resource unavailable." it uses for missing grants, so check
-  the URI before suspecting the service. For a default document `memory_write`,
+- Native URI arguments (`uri`, `scope`, `to`, `from_uri`, `to_uri`, `targets`)
+  may end in one trailing slash: `viking://resources/chaldea/` and
+  `viking://resources/chaldea` are the same, and results return the form
+  without the slash. Every other non-canonical form is refused: a doubled
+  slash, `.` or `..` segments, percent encoding, surrounding whitespace,
+  reserved or sidecar names, and the bare root `viking://resources/`. The
+  server refuses these with the same opaque "Resource unavailable." it uses
+  for missing grants, so check the URI before suspecting the service. For a default document `memory_write`,
   `dry_run=true` reports a malformed `to` at preflight stage `authorization`;
   `file-deferred-v1` has no dry run.
 - Default `memory_write` ingests a document directory. For overwrite, create the
