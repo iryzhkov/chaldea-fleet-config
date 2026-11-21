@@ -147,7 +147,8 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
     # M3 P3.1: laptop selects the selector-aware helper.
     # PR191 rebuild: acquisition modes keep the original writer under host identity.
     host_pins["laptop"] = "268a48219a44c46d35740764cf4067bb2a3e95d86917960b988dc8f17124f038"
-    ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["claude", "codex"],
+    # Every managed host declares Antigravity for its managed entries.
+    ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["claude", "codex", "antigravity"],
                 "auth_mode": "managed_helper", "helper_host": "{{ inventory_hostname }}",
                 "helper_profile": "ov-full", "state": "present"}
     holonet_entry = {"name": "holonet_catalog", "url": "https://media.mcp.ryzhkov.dev/mcp",
@@ -188,7 +189,7 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
                 "(mcp_registrations_ov_memory_enabled | default(true) | bool) == "
                 "(inventory_hostname not in ['laptop', 'omarchy-pc'])"]},
              "vars": {"pins": pins, "expected": [
-                 {"name": "jocasta", "url": URL, "providers": ["claude", "codex"],
+                 {"name": "jocasta", "url": URL, "providers": ["claude", "codex", "antigravity"],
                   "auth_mode": "managed_helper", "helper_host": "{{ inventory_hostname }}",
                   "state": "present"}]}},
         ]}]))

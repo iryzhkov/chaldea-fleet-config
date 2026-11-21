@@ -312,3 +312,30 @@
       - ansible_check_mode or webmcp_interactive_helper_installed.stat.checksum == webmcp_interactive_helper_sha256
       - ansible_check_mode or (webmcp_interactive_helper_installed.stat.uid == 0 and webmcp_interactive_helper_installed.stat.mode == '0755' and webmcp_interactive_helper_installed.stat.nlink == 1)
     quiet: true
+
+# Antigravity has no header-helper hook. Its managed entries run this closed,
+# reviewed stdio bridge, which calls the helper above with the same fixed
+# tuples and keeps headers in memory only. Root-owned like the helper, so the
+# user cannot swap the program that receives the helper's output.
+- name: Inspect the existing Antigravity bridge
+  ansible.builtin.stat:
+    path: /usr/local/libexec/webmcp-stdio-bridge
+    follow: false
+    get_checksum: false
+  register: webmcp_interactive_bridge_target
+
+- name: Refuse a foreign Antigravity bridge path
+  ansible.builtin.assert:
+    that:
+      - not webmcp_interactive_bridge_target.stat.exists or (webmcp_interactive_bridge_target.stat.isreg and not webmcp_interactive_bridge_target.stat.islnk and webmcp_interactive_bridge_target.stat.uid == 0 and webmcp_interactive_bridge_target.stat.nlink == 1)
+    quiet: true
+
+- name: Install the reviewed Antigravity stdio bridge
+  ansible.builtin.copy:
+    src: webmcp-stdio-bridge
+    dest: /usr/local/libexec/webmcp-stdio-bridge
+    owner: root
+    group: root
+    mode: '0755'
+    follow: false
+  become: true

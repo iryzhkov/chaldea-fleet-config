@@ -26,12 +26,18 @@ description:
     only one, ov-full, is the full interactive OV successor of the laptop OV
     entry: the same name and resource for Claude and Codex on laptop and
     omarchy-pc, with the helper's separate "ov-full HOST" mode.
+  - Antigravity has no header-helper hook and takes only static headers, so it
+    never receives a remote entry. For the managed_helper tuples that list it
+    (Jocasta, full OV and Shizune), the module writes a fixed stdio entry that
+    runs the reviewed bridge /usr/local/libexec/webmcp-stdio-bridge with exactly
+    the arguments NAME HOST. The bridge calls the same fixed helper mode and
+    keeps its header in memory only. No URL, header or token is written.
   - claude mcp get does not show the OAuth options, so for a remote server the
     module reads the one user registration from claude_config to compare it.
     Only allowlisted public fields keep their values; any other field counts as
     drift and is shown as <redacted>. Claude's credential store is never read.
 options:
-  provider: {description: claude, codex or opencode, required: true, type: str}
+  provider: {description: claude, codex, opencode or antigravity, required: true, type: str}
   name: {description: Server name, required: true, type: str}
   state: {description: present or absent, default: present, type: str}
   transport: {description: stdio or remote, default: stdio, type: str}
@@ -98,13 +104,15 @@ PORTS = {"callbackPort", "callback_port"}
 HELPER_FIELDS = {"claude": "headersHelper", "codex": "http_headers_helper"}
 HELPER_PATH = "/usr/local/libexec/webmcp-interactive-headers"
 HELPER = HELPER_PATH + " jocasta "
+# Antigravity's only managed form: this root-owned bridge as a stdio server.
+BRIDGE_PATH = "/usr/local/libexec/webmcp-stdio-bridge"
 MANAGED_HOSTS = {"laptop", "agent-a", "agent-b", "omarchy-pc"}
 # Every closed managed_helper registration: its exact name and URL, the native
 # providers that may receive it, and the one fixed command per approved host.
 MANAGED_SERVERS = {
-    "shizune": {"url": "https://shizune.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+    "shizune": {"url": "https://shizune.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex", "antigravity"}),
                 "commands": {host: HELPER_PATH + " shizune " + host for host in ("laptop", "omarchy-pc")}},
-    "jocasta": {"url": "https://jocasta.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+    "jocasta": {"url": "https://jocasta.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex", "antigravity"}),
                 "commands": {host: HELPER + host for host in MANAGED_HOSTS}},
     "holonet_catalog": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
                         "commands": {"laptop": HELPER_PATH + " holonet laptop"}},
@@ -129,7 +137,7 @@ MANAGED_SERVERS = {
 # registration name, so selecting one replaces that name's default tuple on the
 # host instead of adding a second entry with the same tools.
 MANAGED_PROFILES = {
-    "ov-full": {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+    "ov-full": {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex", "antigravity"}),
                 "commands": {host: HELPER_PATH + " ov-full " + host for host in ("laptop", "omarchy-pc")}},
 }
 
@@ -232,9 +240,12 @@ def remote_definition(module, provider, params):
             server = MANAGED_PROFILES.get(profile) if isinstance(profile, str) else None
             if server is not None and server["name"] != params["name"]:
                 server = None
-        if (server is None or provider not in HELPER_FIELDS or provider not in server["providers"]
+        if (server is None or provider not in (*HELPER_FIELDS, "antigravity") or provider not in server["providers"]
                 or host not in server["commands"] or extra or params["url"] != server["url"]):
             module.fail_json(msg="managed_helper requires a fixed reviewed name and resource, its approved host and native provider, without extra options")
+        if provider == "antigravity":
+            # The bridge maps NAME HOST to the same URL and helper mode itself.
+            return {"command": BRIDGE_PATH, "args": [params["name"], host], "env": {}}
         definition = {"url": params["url"], HELPER_FIELDS[provider]: server["commands"][host]}
         return {"type": "http", **definition} if provider == "claude" else definition
     if params.get("helper_host") is not None or params.get("helper_profile") is not None:
@@ -531,10 +542,15 @@ def opencode(module, params):
 
 
 def antigravity(module, params):
-    """Reconcile one stdio entry; retain unrelated settings and redact env."""
+    """Reconcile one stdio entry; retain unrelated settings and redact env.
+
+    A remote server is accepted only in managed_helper mode, and becomes the
+    fixed stdio bridge entry from remote_definition.
+    """
     path, name = params["antigravity_config"], params["name"]
-    if params["transport"] != "stdio":
-        module.fail_json(msg="Antigravity fleet registrations support stdio only")
+    remote = params["transport"] == "remote"
+    if remote and params.get("auth_mode", "oauth") != "managed_helper" and params["state"] != "absent":
+        module.fail_json(msg="Antigravity remote registrations support only the closed managed_helper bridge")
     if os.path.lexists(path) and not stat.S_ISREG(os.lstat(path).st_mode):
         module.fail_json(msg="Antigravity config must be a regular file")
     try:
@@ -549,11 +565,15 @@ def antigravity(module, params):
         module.fail_json(msg="Antigravity config must be a readable JSON object")
     if not isinstance(document, dict) or not isinstance(document.get("mcpServers", {}), dict):
         module.fail_json(msg="Antigravity config and mcpServers must be JSON objects")
-    if set(params["extra"]) - {"disabledTools"}:
+    if not remote and set(params["extra"]) - {"disabledTools"}:
         module.fail_json(msg="Antigravity stdio extra supports only disabledTools")
     current = document.get("mcpServers", {}).get(name)
-    desired = None if params["state"] == "absent" else {
-        "command": params["command"], "args": params["args"], "env": params["env"], **params["extra"]}
+    if params["state"] == "absent":
+        desired = None
+    elif remote:
+        desired = remote_definition(module, "antigravity", params)
+    else:
+        desired = {"command": params["command"], "args": params["args"], "env": params["env"], **params["extra"]}
     if current == desired:
         module.exit_json(changed=False)
     servers = dict(document.get("mcpServers", {}))
@@ -622,8 +642,10 @@ def main():
 
 def check_transport(module, params):
     """A stdio server needs a command; a remote one a public HTTPS URL and no stdio fields."""
-    if params.get("provider") == "antigravity" and params["transport"] != "stdio":
-        module.fail_json(msg="Antigravity fleet registrations support stdio only")
+    # Removal by name needs no authentication form, so absent is allowed in any mode.
+    if (params.get("provider") == "antigravity" and params["transport"] != "stdio"
+            and params.get("auth_mode", "oauth") != "managed_helper" and params["state"] != "absent"):
+        module.fail_json(msg="Antigravity remote registrations support only the closed managed_helper bridge")
     if params["transport"] == "stdio":
         if (params.get("auth_mode", "oauth") != "oauth" or params.get("helper_host") is not None
                 or params.get("helper_profile") is not None):

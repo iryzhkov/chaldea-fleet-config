@@ -66,9 +66,11 @@ def scratch_cwd(tmp_path, tmp_path_factory, monkeypatch):
 def test_laptop_binding_is_the_adopted_public_design():
     values = yaml.safe_load(INTERACTIVE.read_text())
     assert values["mcp_registrations_jocasta_interactive_state"] == "present"
-    [server] = values["mcp_registrations_remote_servers"]
+    server, ov, shizune = values["mcp_registrations_remote_servers"]
+    assert ov == {"name": "ov", "providers": ["claude", "codex", "antigravity"]}
+    assert shizune == {"name": "shizune", "providers": ["claude", "codex", "antigravity"]}
     assert server == {"name": "jocasta", "state": "{{ mcp_registrations_jocasta_interactive_state }}",
-                      "url": URL, "providers": ["claude", "codex"], **EXTRA}
+                      "url": URL, "providers": ["claude", "codex", "antigravity"], **EXTRA}
     assert not set(keys(server)) & (SECRET_KEYS | STDIO_KEYS | {"oauth_resource", "token"})
     assert values["agent_config_fleet_tools_profile"]["tools"] == {"*": ["read", "write"]}
 
@@ -98,8 +100,69 @@ def test_four_hosts_opt_in_and_the_role_default_is_off():
     for host in ("laptop", "agent-a", "agent-b", "omarchy-pc"):
         values = inventory_vars(host)
         assert values["webmcp_interactive_enabled"] is True
-        assert [server["name"] for server in values["mcp_registrations_remote_servers"]] == ["jocasta"]
-        assert values["mcp_registrations_remote_servers"][0]["providers"] == ["claude", "codex"]
+        servers = values["mcp_registrations_remote_servers"]
+        # Full OV and Shizune exist only on the two hosts that enable them;
+        # their entries declare providers only and carry no url.
+        expected = ["jocasta", "ov", "shizune"] if host in ("laptop", "omarchy-pc") else ["jocasta"]
+        assert [server["name"] for server in servers] == expected
+        assert all(server["providers"] == ["claude", "codex", "antigravity"] for server in servers)
+        assert all("url" not in server for server in servers[1:])
+        if host in ("laptop", "omarchy-pc"):
+            assert values["webmcp_interactive_ov_full_enabled"] is True
+            assert values["webmcp_interactive_shizune_enabled"] is True
+
+
+def test_role_selects_antigravity_only_through_the_managed_entries(tmp_path):
+    """The real selection tasks: host-declared providers reach the fixed managed entries."""
+    tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
+    selection = [task for task in tasks if task["name"].startswith("Select ") or task["name"] == "Check the opt-in remote MCP servers"]
+    everything = ["claude", "codex", "antigravity"]
+    declared = [{"name": "jocasta", "url": URL, "providers": everything, "claude": EXTRA["claude"]},
+                {"name": "ov", "providers": everything}, {"name": "shizune", "providers": everything}]
+
+    def run(variables, expect_ok=True):
+        play = tmp_path / "selection.yml"
+        output = tmp_path / "effective.json"
+        verify = {"name": "Record", "ansible.builtin.copy": {
+            "content": "{{ mcp_registrations_effective_remote_servers | to_json }}", "dest": str(output)}}
+        play.write_text(yaml.safe_dump([{"hosts": "omarchy-pc", "connection": "local", "gather_facts": False,
+                                         "vars": {"mcp_registrations_servers": [], "mcp_registrations_retired": [], **variables},
+                                         "tasks": [*selection, verify]}]))
+        result = subprocess.run(["ansible-playbook", "-i", "omarchy-pc,", str(play)], capture_output=True, text=True,
+                                env={**os.environ, "ANSIBLE_LOCAL_TEMP": str(tmp_path / "a")})
+        assert (result.returncode == 0) is expect_ok, result.stdout + result.stderr
+        if not expect_ok:
+            return result.stdout
+        return json.loads(output.read_text())
+
+    managed = run({"webmcp_interactive_enabled": True, "webmcp_interactive_ov_full_enabled": True,
+                   "webmcp_interactive_shizune_enabled": True, "mcp_registrations_remote_servers": declared})
+    assert {server["name"]: server["providers"] for server in managed} == {
+        "jocasta": everything, "ov": everything, "shizune": everything}
+    assert all(server["auth_mode"] == "managed_helper" and server["helper_host"] == "omarchy-pc" for server in managed)
+    assert next(s for s in managed if s["name"] == "ov")["helper_profile"] == "ov-full"
+    # Without their own opt-ins, provider-only declarations register nothing.
+    only_jocasta = run({"webmcp_interactive_enabled": True, "mcp_registrations_remote_servers": declared})
+    assert [server["name"] for server in only_jocasta] == ["jocasta"]
+    # The OAuth fallback keeps only entries with a url; the register task skips Antigravity there.
+    fallback = run({"webmcp_interactive_enabled": False, "mcp_registrations_remote_servers": declared})
+    assert [server["name"] for server in fallback] == ["jocasta"] and "auth_mode" not in fallback[0]
+    register = next(task for task in tasks if task["name"] == "Register the opt-in remote MCP servers")
+    from jinja2 import Environment
+    condition = Environment().compile_expression(register["when"])
+    assert not condition(item=[fallback[0], "antigravity"])
+    assert condition(item=[fallback[0], "claude"])
+    assert condition(item=[managed[0], "antigravity"])
+    # An explicit absent removes the bridge entry even in the OAuth fallback.
+    removal = run({"webmcp_interactive_enabled": False, "mcp_registrations_remote_servers": [
+        {"name": "jocasta", "state": "absent", "providers": everything},
+        {"name": "shizune", "state": "absent", "providers": everything}]})
+    assert [server["name"] for server in removal] == ["jocasta", "shizune"]
+    assert all(condition(item=[server, "antigravity"]) for server in removal)
+    # Antigravity on any other remote entry is refused before registration.
+    other = {"name": "unrelated", "url": "https://other.example/mcp", "providers": ["codex", "antigravity"]}
+    assert "antigravity is accepted only" in run({"webmcp_interactive_enabled": True,
+                                                  "mcp_registrations_remote_servers": [other]}, expect_ok=False)
 
 
 # Codex
