@@ -2,6 +2,9 @@
 t3_min_version: "0.1.6"
 # Requires a Chaldea client that accepts Antigravity usageLimits: null.
 t3_antigravity_enabled: false
+# T3 0.1.9+ finds only its managed runtime on PATH; point it at the mise agy CLI.
+# T3 expands the leading ~ for the service user.
+t3_antigravity_binary_path: "~/.local/share/mise/installs/antigravity-cli/latest/agy"
 t3_home: "{{ fleet_home }}/.t3"
 t3_service: t3code.service
 # Runs during the existing fleet pull; discovery never installs or restarts.
