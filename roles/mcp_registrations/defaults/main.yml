@@ -59,4 +59,8 @@ mcp_registrations_codex_config: "{{ fleet_home }}/.codex/config.toml"
 # "ov-full HOST"); it is off by default and excludes the narrow opt-in.
 # See docs/managed-interactive-webmcp.md; no host is enabled by this capability.
 # Shizune for Claude/Codex is selected only by webmcp_interactive_shizune_enabled.
+# antigravity may be listed in the providers of the managed jocasta, ov and
+# shizune entries only; it receives the fixed stdio bridge, never a remote
+# entry (docs/antigravity.md). An entry with only name and providers declares
+# providers for a managed entry and registers nothing by itself.
 mcp_registrations_remote_servers: []

@@ -31,7 +31,7 @@ def test_closed_tuple_set_preserves_jocasta_and_laptop_ov():
     servers = module_code.MANAGED_SERVERS
     assert set(servers) == {"shizune", "jocasta", "ov", "holonet_catalog", "holonet_recommendations", "holonet_janitor", "holonet_janitor_torrents", "holonet_janitor_seed_join", "holonet_acquire_read", "holonet_acquire_start", "holonet_acquire_media"}
     assert servers["ov"] == {"url": OV_URL, "providers": frozenset({"codex"}), "commands": {"laptop": OV_HELPER}}
-    assert servers["jocasta"]["url"] == URL and servers["jocasta"]["providers"] == {"claude", "codex"}
+    assert servers["jocasta"]["url"] == URL and servers["jocasta"]["providers"] == {"claude", "codex", "antigravity"}
     assert servers["jocasta"]["commands"] == {h: module_code.HELPER + h for h in ("laptop", "agent-a", "agent-b", "omarchy-pc")}
 
 
@@ -175,7 +175,9 @@ def test_capability_is_off_by_default_and_only_the_held_laptop_selects_it():
             # The one-time upgrade guard is never an inventory value.
             assert "previous_helper_sha256" not in text, path
     laptop = yaml.safe_load(owner.read_text())
-    assert [s["name"] for s in laptop["mcp_registrations_remote_servers"]] == ["jocasta"]
+    # ov and shizune declare providers only; no url, so never the narrow tuple.
+    assert [s["name"] for s in laptop["mcp_registrations_remote_servers"]] == ["jocasta", "ov", "shizune"]
+    assert all("url" not in s for s in laptop["mcp_registrations_remote_servers"][1:])
 
 
 def test_inert_activation_example_is_exact_and_invents_no_hash():

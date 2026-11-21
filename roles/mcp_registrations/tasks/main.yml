@@ -39,16 +39,26 @@
       tags: [mcp_registrations]
   when: webmcp_interactive_opencode_state | default('') | length > 0
 
+# An entry with neither url nor state only declares providers for a managed
+# entry that its own opt-in selects below (ov, shizune); it never registers
+# anything itself. A url-less state: absent entry still removes its name.
 - name: Select explicit managed authentication without widening other registrations
   ansible.builtin.set_fact:
     mcp_registrations_effective_remote_servers: >-
-      {{ (mcp_registrations_remote_servers | rejectattr('name', 'equalto', 'jocasta') | list)
+      {{ (mcp_registrations_remote_servers | rejectattr('name', 'in', mcp_registrations_remote_servers
+            | rejectattr('url', 'defined') | rejectattr('state', 'defined') | map(attribute='name') | list)
+          | rejectattr('name', 'equalto', 'jocasta') | list)
          + [{'name': 'jocasta', 'url': 'https://jocasta.mcp.ryzhkov.dev/mcp',
-             'providers': ['claude', 'codex'], 'auth_mode': 'managed_helper',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'jocasta')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper',
              'helper_host': inventory_hostname,
              'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'jocasta')
                        | map(attribute='state', default='present') | first | default('present'))}]
-         if webmcp_interactive_enabled | default(false) | bool else mcp_registrations_remote_servers }}
+         if webmcp_interactive_enabled | default(false) | bool
+         else mcp_registrations_remote_servers | rejectattr('name', 'in', mcp_registrations_remote_servers
+            | rejectattr('url', 'defined') | rejectattr('state', 'defined') | map(attribute='name') | list) | list }}
 
 # The closed laptop OV entry exists only with both explicit opt-ins. The module
 # refuses any helper_host other than laptop, and the staged role refuses other hosts.
@@ -74,7 +84,10 @@
     mcp_registrations_effective_remote_servers: >-
       {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'ov') | list)
          + [{'name': 'ov', 'url': 'https://ov.mcp.ryzhkov.dev/mcp',
-             'providers': ['claude', 'codex'], 'auth_mode': 'managed_helper',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'ov')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper',
              'helper_host': inventory_hostname, 'helper_profile': 'ov-full',
              'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'ov')
                        | map(attribute='state', default='present') | first | default('present'))}] }}
@@ -87,7 +100,10 @@
     mcp_registrations_effective_remote_servers: >-
       {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'shizune') | list)
          + [{'name': 'shizune', 'url': 'https://shizune.mcp.ryzhkov.dev/mcp',
-             'providers': ['claude', 'codex'], 'auth_mode': 'managed_helper',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'shizune')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper',
              'helper_host': inventory_hostname,
              'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'shizune')
                        | map(attribute='state', default='present') | first | default('present'))}] }}
@@ -232,7 +248,11 @@
       - mcp_registrations_effective_remote_servers | rejectattr('providers', 'defined') | list | length == 0
       - >-
         mcp_registrations_effective_remote_servers | map(attribute='providers') | flatten
-        | difference(['claude', 'codex', 'opencode']) | length == 0
+        | difference(['claude', 'codex', 'opencode', 'antigravity']) | length == 0
+      # Antigravity only through the closed bridge, for these three managed entries.
+      - >-
+        mcp_registrations_effective_remote_servers | rejectattr('name', 'in', ['jocasta', 'ov', 'shizune'])
+        | map(attribute='providers') | flatten | select('equalto', 'antigravity') | list | length == 0
       - mcp_registrations_effective_remote_servers | map(attribute='state', default='present') | difference(['present', 'absent']) | length == 0
       - >-
         mcp_registrations_effective_remote_servers | selectattr('name', 'equalto', 'holonet_catalog')
@@ -240,7 +260,9 @@
       - >-
         mcp_registrations_effective_remote_servers | selectattr('name', 'equalto', 'holonet_recommendations')
         | map(attribute='providers') | flatten | difference(['claude', 'codex']) | length == 0
-    fail_msg: Each remote MCP server needs a unique name of its own, a providers list and state present or absent.
+    fail_msg: >-
+      Each remote MCP server needs a unique name of its own, a providers list and state present or absent;
+      antigravity is accepted only for the managed jocasta, ov and shizune entries.
     quiet: true
   when: mcp_registrations_effective_remote_servers | length > 0
 
@@ -263,6 +285,8 @@
   loop: "{{ mcp_registrations_effective_remote_servers | subelements('providers') }}"
   loop_control:
     label: "{{ item.1 }}: {{ item.0.name }}"
+  # Antigravity has no native OAuth form, so an OAuth fallback skips it.
+  when: item.1 != 'antigravity' or item.0.auth_mode | default('oauth') == 'managed_helper'
 
 - name: Remove retired MCP servers
   mcp_registration:

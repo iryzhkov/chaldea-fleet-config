@@ -56,7 +56,8 @@ mcp_registrations_remote_servers:
   - name: jocasta
     state: "{{ mcp_registrations_jocasta_interactive_state }}"
     url: https://jocasta.mcp.ryzhkov.dev/mcp
-    providers: [claude, codex]
+    # Antigravity gets the closed stdio bridge to the same helper tuple.
+    providers: [claude, codex, antigravity]
     # Exact redirect http://localhost:43182/callback.
     claude:
       oauth:
@@ -79,6 +80,12 @@ mcp_registrations_remote_servers:
         scope: jocasta.read jocasta.write offline_access
         callbackPort: 43183
         redirectUri: http://127.0.0.1:43183/callback
+  # Providers only: the role fixes URL, helper mode and host for these two
+  # managed entries, which still need their own enable flags.
+  - name: ov
+    providers: [claude, codex, antigravity]
+  - name: shizune
+    providers: [claude, codex, antigravity]
 
 # The same interactive profile as the role default, plus the jocasta MCP
 # guidance while the registration is present. Instruction filtering only.

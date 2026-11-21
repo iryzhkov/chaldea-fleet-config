@@ -65,6 +65,80 @@ def test_empty_config_written_by_agy_is_treated_as_missing(tmp_path):
         assert not call("antigravity", **params)["changed"]
 
 
+BRIDGE = "/usr/local/libexec/webmcp-stdio-bridge"
+MANAGED = [("jocasta", "https://jocasta.mcp.ryzhkov.dev/mcp", None, ("laptop", "agent-a", "agent-b", "omarchy-pc")),
+           ("ov", "https://ov.mcp.ryzhkov.dev/mcp", "ov-full", ("laptop", "omarchy-pc")),
+           ("shizune", "https://shizune.mcp.ryzhkov.dev/mcp", None, ("laptop", "omarchy-pc"))]
+SECRET = "Bearer SECRET-sentinel-a9e2"
+
+
+def managed(path, name, url, profile, host, **change):
+    params = {"antigravity_config": str(path), "name": name, "transport": "remote", "url": url,
+              "auth_mode": "managed_helper", "helper_host": host}
+    if profile is not None:
+        params["helper_profile"] = profile
+    return params | change
+
+
+@pytest.mark.parametrize("name,url,profile,hosts", MANAGED)
+def test_managed_entries_become_the_fixed_stdio_bridge(tmp_path, name, url, profile, hosts):
+    path = tmp_path / "gemini/config/mcp_config.json"
+    path.parent.mkdir(parents=True)
+    # A hand-made remote entry with a static token is replaced, never shown.
+    path.write_text(json.dumps({"keep": 1, "mcpServers": {
+        "huyang": {"command": "/opt/huyang", "args": [], "env": {}},
+        name: {"serverUrl": url, "headers": {"Authorization": SECRET}}}}))
+    for host in hosts:
+        params = managed(path, name, url, profile, host)
+        result = call("antigravity", check_mode=True, **params)
+        assert result["changed"] and SECRET not in json.dumps(result)
+        result = call("antigravity", **params)
+        assert SECRET not in json.dumps(result) and SECRET not in path.read_text()
+        data = json.loads(path.read_text())
+        assert data["keep"] == 1 and data["mcpServers"]["huyang"]["command"] == "/opt/huyang"
+        assert data["mcpServers"][name] == {"command": BRIDGE, "args": [name, host], "env": {}}
+        assert not call("antigravity", **params)["changed"]
+    assert call("antigravity", **managed(path, name, url, profile, hosts[0], state="absent"))["changed"]
+    assert name not in json.loads(path.read_text())["mcpServers"]
+
+
+@pytest.mark.parametrize("change", [
+    {"auth_mode": "oauth", "helper_host": None},  # Antigravity has no native OAuth form.
+    {"helper_host": "normandy"}, {"helper_host": None},
+    {"name": "shizune", "url": "https://shizune.mcp.ryzhkov.dev/mcp", "helper_host": "agent-a"},
+    {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "helper_host": "laptop"},  # narrow Codex-only OV
+    {"name": "holonet_catalog", "url": "https://media.mcp.ryzhkov.dev/mcp", "helper_host": "laptop"},
+    {"url": "https://other.example/mcp"}, {"extra": {"headers": {"Authorization": SECRET}}},
+    {"extra": {"command": "/bin/sh"}}, {"command": "/bin/sh"}, {"args": ["jocasta", "laptop"]},
+    {"env": {"TOKEN": SECRET}}, {"helper_profile": "ov-full"},
+])
+def test_antigravity_refuses_everything_but_the_closed_tuples(tmp_path, change):
+    path = tmp_path / "mcp_config.json"
+    path.write_text("{}")
+    params = managed(path, "jocasta", "https://jocasta.mcp.ryzhkov.dev/mcp", None, "laptop") | change
+    with pytest.raises(Failed) as failure:
+        call("antigravity", **params)
+    assert SECRET not in str(failure.value)
+    assert path.read_text() == "{}"
+
+
+def test_bridge_table_matches_the_module_tuples():
+    from test_mcp_registration import module_code
+    from test_webmcp_stdio_bridge import load_bridge
+    bridge = load_bridge()
+    assert module_code.BRIDGE_PATH == BRIDGE
+    for name, url, profile, hosts in MANAGED:
+        server = module_code.MANAGED_PROFILES[profile] if profile else module_code.MANAGED_SERVERS[name]
+        assert "antigravity" in server["providers"]
+        bridge_url, mode, bridge_hosts = bridge.SERVERS[name]
+        assert bridge_url == server["url"] == url and set(bridge_hosts) == set(server["commands"]) == set(hosts)
+        for host in hosts:
+            assert server["commands"][host] == f"{bridge.HELPER} {mode} {host}"
+    assert set(bridge.SERVERS) == {name for name, *_ in MANAGED}
+    others = [s for key, s in module_code.MANAGED_SERVERS.items() if key not in ("jocasta", "shizune")]
+    assert all("antigravity" not in server["providers"] for server in others)
+
+
 def test_missing_config_and_unsafe_config(tmp_path):
     path = tmp_path / "new/mcp_config.json"
     params = {"antigravity_config": str(path), "name": "ov-memory", "command": "/opt/ov"}

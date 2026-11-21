@@ -24,11 +24,60 @@ Fleet stdio registrations use `~/.gemini/config/mcp_config.json` and its
 `mcpServers` map. The module preserves unrelated entries and top-level values,
 removes retired fleet names, redacts environment values, supports check mode
 and refuses invalid or symlinked files. It accepts comments and trailing commas;
-a changed file is serialized as plain JSON. Remote registrations and managed
-HTTP authentication remain limited to their existing providers. A scratch
+a changed file is serialized as plain JSON. A scratch
 1.5.13 probe confirmed that stdio children inherit DBUS_SESSION_BUS_ADDRESS,
 XDG_RUNTIME_DIR and HUYANG_SOCKET from the CLI's environment, so no values
 from the converging Ansible process are captured in configuration.
+
+## Fleet web MCP servers
+
+Antigravity gets the managed Jocasta, full OV (`ov`) and Shizune servers on
+the hosts where Claude and Codex have them: Jocasta on laptop, agent-a,
+agent-b and omarchy-pc; `ov` and `shizune` on laptop and omarchy-pc. Each host
+opts in by listing `antigravity` in that server's `providers` in its
+`mcp_registrations_remote_servers`. The `ov` and `shizune` entries there carry
+only `name` and `providers`; their own enable flags still select them.
+
+agy 1.5.13 cannot use the managed headers helper directly. Its HTTP server
+configuration (`serverUrl` or `url`) accepts only static `headers`, OAuth with
+a registered client (`oauth.clientId`/`clientSecret`) or Google credentials
+(`authProviderType`). `agy mcp add --help` and the strings in the binary show
+no header-helper or command field. A static header would put a token in
+`mcp_config.json`, and OAuth would need a new Authentik client, so neither is
+used.
+
+Instead the module writes a stdio entry that runs the root-owned bridge
+`/usr/local/libexec/webmcp-stdio-bridge` with exactly two arguments, the
+server name and the inventory host, for example
+`{"command": "/usr/local/libexec/webmcp-stdio-bridge", "args": ["jocasta", "omarchy-pc"], "env": {}}`.
+The webmcp_interactive role installs the bridge from
+`roles/webmcp_interactive/files/webmcp-stdio-bridge`. The bridge:
+
+- accepts only the fixed tuples jocasta on the four managed hosts, and ov and
+  shizune on laptop and omarchy-pc; anything else exits with status 2;
+- forwards each JSON-RPC line from stdin to that server's fixed HTTPS URL
+  (Streamable HTTP: JSON or Server-Sent Events replies, `Mcp-Session-Id`,
+  `MCP-Protocol-Version`, and a DELETE of the session at exit);
+- gets `Authorization` from the same helper tuple Claude and Codex use
+  (`jocasta HOST`, `ov-full HOST`, `shizune HOST`), run with an empty
+  environment, so the helper's own host and UID binding applies unchanged;
+- keeps the header in memory for at most 60 seconds, asks the helper again
+  after a 401, and never writes a header or token to disk, argv, stdout or
+  stderr;
+- ignores proxy environment variables, refuses redirects and uses the system
+  trust store.
+
+The bridge is a per-session child of agy, not a daemon, and it holds no
+credential of its own. It does not forward server-initiated messages on a
+separate GET stream, so list-changed notifications are not delivered; replies
+to requests are. If the upstream session expires, the bridge answers with
+error -32001 and agy has to reconnect the server.
+
+Disabling `webmcp_interactive_enabled` makes the role fall back to the OAuth
+definitions, which Antigravity has no form for; its entries are skipped, not
+removed. Set a server's `state: absent` to remove it.
+
+## T3
 
 T3 runs the agy CLI as its Antigravity ACP runtime with a private
 per-instance GEMINI_HOME under `~/.t3/userdata/providers/antigravity/<id>`.
