@@ -1,0 +1,33 @@
+---
+# T3 runs agy with its per-instance profile as the gemini dir, so agy reads
+# <profile>/config/mcp_config.json and never the fleet-managed config that
+# mcp_registrations writes. agy leaves that profile file empty on first run,
+# which hides every fleet MCP server from T3 Antigravity threads. Link only a
+# missing or empty file; a profile with servers of its own is left alone.
+- name: Find T3 Antigravity profile config directories
+  ansible.builtin.find:
+    paths: "{{ t3_home }}/userdata/providers/antigravity"
+    patterns: config
+    file_type: directory
+    recurse: true
+    depth: 2
+  register: t3_antigravity_config_dirs
+
+- name: Inspect T3 Antigravity profile MCP configs
+  ansible.builtin.stat:
+    path: "{{ item.path }}/mcp_config.json"
+  loop: "{{ t3_antigravity_config_dirs.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: t3_antigravity_mcp_configs
+
+- name: Share the fleet Antigravity MCP config with T3 profiles
+  ansible.builtin.file:
+    src: "{{ t3_antigravity_mcp_config }}"
+    dest: "{{ item.item.path }}/mcp_config.json"
+    state: link
+    force: true
+  loop: "{{ t3_antigravity_mcp_configs.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  when: not item.stat.exists or (item.stat.isreg and item.stat.size == 0)

@@ -34,6 +34,10 @@
   ansible.builtin.include_tasks: settings.yml
   when: t3_active_version is version('0.1.9', '>=', version_type='semver')
 
+- name: Give T3 Antigravity threads the fleet MCP servers
+  ansible.builtin.include_tasks: antigravity-mcp.yml
+  when: t3_antigravity_enabled | default(false) | bool
+
 - name: Discover newer stable T3 releases without changing the runtime
   ansible.builtin.include_tasks: update-check.yml
   when: t3_update_check_enabled | bool and not ansible_check_mode

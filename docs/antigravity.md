@@ -32,8 +32,12 @@ from the converging Ansible process are captured in configuration.
 
 T3 runs the agy CLI as its Antigravity ACP runtime with a private
 per-instance GEMINI_HOME under `~/.t3/userdata/providers/antigravity/<id>`.
-The CLI guidance and MCP configuration above do not configure T3 sessions; T3
-links skills only. T3 0.1.9 and later look on PATH only for their own managed
+T3 links AGENTS.md and skills from `~/.gemini` but leaves an empty
+`config/mcp_config.json` in the profile, which hid every fleet MCP server from
+T3 Antigravity threads. When `t3_antigravity_enabled` is set, the t3 role
+replaces a missing or empty profile file with a symlink to the fleet-managed
+`~/.gemini/config/mcp_config.json`, so T3 threads get the same stdio servers as
+the CLI. A profile file with servers of its own is left alone. T3 0.1.9 and later look on PATH only for their own managed
 runtime, so without `binaryPath` the provider reports "not installed" even
 when agy is present. T3 0.1.6 rejected agy as binaryPath; every agent host ran
 0.1.10 or later when this default was added on 2026-11-20.
