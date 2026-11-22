@@ -12,9 +12,11 @@ chaldea_client_route_targets:
   # This canary has read permission only. Homelab publishes snapshots.
   announceHost: homelab
   pins: {}
-  # Antigravity ranks first among eligible providers; quota stops, capacity,
-  # floors, bans and review separation still apply (Chaldea PR #112).
-  providerPreference: [antigravity, codex, claudeAgent]
+  # Stopgap from 2026-11-22: Antigravity weekly usage ran ahead of pace while
+  # Codex was under-paced, and the static order ignores pacing. Codex and
+  # Claude rank first until the client gains pace-aware provider preference;
+  # quota stops, capacity, floors, bans and review separation still apply.
+  providerPreference: [codex, claudeAgent, antigravity]
   # Setting bans replaces the default, so keep *sonnet*. The Gemini bans leave
   # Gemini 4 Neon as the only Antigravity Gemini pick; orchestrators and
   # gpt-oss have no usable AA rows.

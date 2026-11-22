@@ -49,8 +49,11 @@ and quota admission. Supported policy fields include pins, bans, floors,
 probation, score settings and, from client-v0.4.30, `providerPreference`.
 
 From client-v0.4.30 FATE also routes the T3 `antigravity` provider. Without
-`providerPreference` it ranks after Codex and Claude. omarchy-pc sets
-`providerPreference: [antigravity, codex, claudeAgent]` and bans every
+`providerPreference` it ranks after Codex and Claude. omarchy-pc preferred
+Antigravity first until 2026-11-22, when Antigravity ran ahead of its weekly
+pace while Codex sat under-paced; the static order does not consult pacing, so
+omarchy-pc now sets `providerPreference: [codex, claudeAgent, antigravity]`
+until a pace-aware client ships. It also bans every
 Antigravity Gemini model except Gemini 4 Neon. Because a configured `bans`
 list replaces the client default, it repeats `*sonnet*`. Antigravity stays
 ineligible in benchmark mode until the homelab score publisher, upgraded by
