@@ -98,3 +98,78 @@ def test_rendered_credentials_and_missing_file_refusal(tmp_path, host, enabled):
         assert "host.app-password is missing or unsafe" in result.stdout
     else:
         assert result.returncode == 0, result.stdout + result.stderr
+
+
+HOST_ARCHS = {
+    "laptop": "aarch64",
+    "omarchy-pc": "x86_64",
+    "agent-a": "x86_64",
+    "agent-b": "x86_64",
+}
+
+
+def test_host_identity_helper_pin_parity(tmp_path):
+    """Every host-identity host's helper sha256 must match its capability pin per arch."""
+    host_vars_root = ROOT / "inventory/host_vars"
+    host_arches: dict[str, list[str]] = {}
+    for host_dir in sorted(p for p in host_vars_root.iterdir() if p.is_dir()):
+        host = host_dir.name
+        enabled = False
+        scoped_checksums: dict[str, str] = {}
+        for path in sorted(host_dir.glob("*.yml")):
+            data = yaml.safe_load(path.read_text())
+            if not isinstance(data, dict):
+                continue
+            if data.get("chaldea_host_identity_enabled") is True:
+                enabled = True
+            if "webmcp_interactive_host_identity_helper_checksums" in data:
+                checksums = data["webmcp_interactive_host_identity_helper_checksums"]
+                assert isinstance(checksums, dict) and checksums, f"{path}: empty capability pin map"
+                scoped_checksums.update(checksums)
+        if not enabled and not scoped_checksums:
+            continue
+        arches = sorted(scoped_checksums)
+        if host in HOST_ARCHS and HOST_ARCHS[host] not in arches:
+            arches.append(HOST_ARCHS[host])
+        assert arches, f"{host}: host-identity host has no known architecture to verify"
+        host_arches[host] = arches
+
+    assert set(host_arches) >= {"laptop", "omarchy-pc", "agent-a", "agent-b"}
+
+    plays = []
+    for host, arches in sorted(host_arches.items()):
+        tasks = []
+        for arch in arches:
+            tasks.append({
+                "name": f"Assert helper and capability pins match for {host} ({arch})",
+                "ansible.builtin.assert": {
+                    "that": [
+                        "ansible_facts.architecture in webmcp_interactive_host_identity_helper_checksums",
+                        "webmcp_interactive_helper_sha256 is string",
+                        "webmcp_interactive_helper_sha256 is match('^[0-9a-f]{64}$')",
+                        "webmcp_interactive_host_identity_helper_checksums[ansible_facts.architecture] == webmcp_interactive_helper_sha256",
+                    ],
+                    "fail_msg": (
+                        f"{host} ({arch}): webmcp_interactive_helper_sha256 "
+                        "does not match webmcp_interactive_host_identity_helper_checksums[arch]"
+                    ),
+                },
+                "vars": {"ansible_facts": {"architecture": arch}},
+            })
+        plays.append({
+            "hosts": host,
+            "connection": "local",
+            "gather_facts": False,
+            "tasks": tasks,
+        })
+
+    play = tmp_path / "helper-pin-parity.yml"
+    play.write_text(yaml.safe_dump(plays))
+    result = subprocess.run(
+        ["ansible-playbook", "-i", str(ROOT / "inventory/hosts.yml"), str(play)],
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
