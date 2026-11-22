@@ -53,18 +53,18 @@ agent_tools_credential_files:
 # Chaldea runtime, independent of job toolchains; retention keeps this install.
 chaldea_node_version: "26.10.0"
 
-# Published client-v0.4.30 from Chaldea main 672fdf3
-# (v0.4.29 plus Antigravity as a third FATE routing provider, PR #112).
+# Published client-v0.4.31 from Chaldea main 6ff6f5b
+# (v0.4.30 plus pace-aware providerPreference and roleProviderExclusions, PR #116).
 # Archive and manifest SHA-256 verified by downloading both release assets.
-# Manifest SHA-256: fa4b1d12006c4165c94af8b5a73b6c9b5ef5c0a0c3ce9e41b92273d0d908cfbd.
+# Manifest SHA-256: 94439e105cf4e9242e7cd4bbb56cadbe42524714943218ba7c57b431ea14ef72.
 # Desired ordinary-client pin for every host.
 # See docs/chaldea-client.md for installed-state and migration-owner obligations.
 chaldea_client_enabled: true
-chaldea_client_version: client-v0.4.30
-chaldea_client_sha256: "21f8f650d43f7109e1fc0b31319f88911f9740360aecc5c1c8e202bf2d7af279"
+chaldea_client_version: client-v0.4.31
+chaldea_client_sha256: "47dadcb72f85cc0010dcc77b8b5815d063765194371e28bf30445429d06d5978"
 # The privileged helper consumes the same independently verified release.
-chaldea_token_helper_client_version: client-v0.4.30
-chaldea_token_helper_client_sha256: 21f8f650d43f7109e1fc0b31319f88911f9740360aecc5c1c8e202bf2d7af279
+chaldea_token_helper_client_version: client-v0.4.31
+chaldea_token_helper_client_sha256: 47dadcb72f85cc0010dcc77b8b5815d063765194371e28bf30445429d06d5978
 # Observed ordinary-client rollback history, not active per-host version pins.
 # Keep existing payloads/caches only; absent versions are never installed.
 # Keep client-v0.4.8 when the 0.4.11 upgrade moves previous to 0.4.9.

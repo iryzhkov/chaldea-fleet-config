@@ -1,8 +1,8 @@
 ---
 # Qualified client and protected reader canary, omarchy-pc only.
-# Client-v0.4.30 from Chaldea main 672fdf3; release assets verified by download.
-chaldea_client_version: client-v0.4.30
-chaldea_client_sha256: 21f8f650d43f7109e1fc0b31319f88911f9740360aecc5c1c8e202bf2d7af279
+# Client-v0.4.31 from Chaldea main 6ff6f5b; release assets verified by download.
+chaldea_client_version: client-v0.4.31
+chaldea_client_sha256: 47dadcb72f85cc0010dcc77b8b5815d063765194371e28bf30445429d06d5978
 chaldea_client_route_targets:
   scores:
     enabled: true
@@ -12,11 +12,13 @@ chaldea_client_route_targets:
   # This canary has read permission only. Homelab publishes snapshots.
   announceHost: homelab
   pins: {}
-  # Stopgap from 2026-11-22: Antigravity weekly usage ran ahead of pace while
-  # Codex was under-paced, and the static order ignores pacing. Codex and
-  # Claude rank first until the client gains pace-aware provider preference;
-  # quota stops, capacity, floors, bans and review separation still apply.
+  # Codex and Claude rank first. From client-v0.4.31 a preferred provider that
+  # is ahead of its weekly pace also ranks after providers that are not; quota
+  # stops, capacity, floors, bans and review separation still apply.
   providerPreference: [codex, claudeAgent, antigravity]
+  # Antigravity is never used for bulk reading; targeted reviews may use it.
+  roleProviderExclusions:
+    bulk-read: [antigravity]
   # Antigravity routes only Gemini 4 Neon. Its third-party Claude and GPT
   # models are not routed; Claude work goes through the claudeAgent provider.
   driverModels:
