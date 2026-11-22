@@ -36,10 +36,14 @@ def test_agent_clients_use_native_t3_quota():
 HOST_RELEASE_SELECTIONS = {
     "inventory/host_vars/omarchy-pc/fate-route.yml": frozenset({"chaldea_client_version", "chaldea_client_sha256"}),
     # M3 P3.1: retain this host's selector-aware helper pin in the allowlist.
-    "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({"webmcp_interactive_helper_sha256"}),
+    # HoloNet library: host-scoped selector-aware capability pin for this helper.
+    "inventory/host_vars/omarchy-pc/ov-memory.yml": frozenset({
+        "webmcp_interactive_helper_sha256", "webmcp_interactive_host_identity_helper_checksums"}),
     # M3 P3.1: retain this host's selector-aware helper pin in the allowlist.
+    # HoloNet library: host-scoped selector-aware capability pin for this helper.
     "inventory/host_vars/laptop/jocasta-interactive.yml": frozenset({
-        "webmcp_interactive_helper_sha256", "chaldea_node_version"}),
+        "webmcp_interactive_helper_sha256", "webmcp_interactive_host_identity_helper_checksums",
+        "chaldea_node_version"}),
     # M3 P3.1 cutover: agent-b selects the selector-aware helper build.
     "inventory/host_vars/agent-b/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
     "inventory/host_vars/agent-a/jocasta-interactive.yml": frozenset({"webmcp_interactive_helper_sha256"}),
