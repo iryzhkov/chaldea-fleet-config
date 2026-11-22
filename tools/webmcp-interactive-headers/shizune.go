@@ -16,10 +16,25 @@ const shizuneIssuer = origin + "/application/o/shizune-mcp/"
 const shizuneJWKSURL = shizuneIssuer + "jwks/"
 const shizuneResource = "https://shizune.mcp.ryzhkov.dev/mcp"
 const shizuneScope = "shizune.use"
+
+// The gateway's guarded budget writes (bank sync, preview/apply deletes and
+// categorization) need this scope too. Authentik grants it only to the Shizune
+// accounts of omarchy-pc and laptop; a token without it still serves read tools.
+const shizuneWriteScope = "shizune.budget.write"
+const shizuneRequest = shizuneScope + " " + shizuneWriteScope
 const shizuneCredential = ".config/chaldea/authentik/shizune-interactive.app-password"
 
-// Scope membership confers no authority beyond the signed fixed owner.
-func shizuneScopes(scope string) bool { return slices.Contains(strings.Fields(scope), shizuneScope) }
+// Scope membership confers no authority beyond the signed fixed owner. The use
+// scope is required; the only other scope admitted is the budget write scope.
+func shizuneScopes(scope string) bool {
+	fields := strings.Fields(scope)
+	for _, field := range fields {
+		if field != shizuneScope && field != shizuneWriteScope {
+			return false
+		}
+	}
+	return slices.Contains(fields, shizuneScope)
+}
 
 func shizuneMode(host string) {
 	node, err := os.Hostname()
@@ -48,7 +63,7 @@ func acquireShizune(ctx context.Context, client *http.Client, host, password str
 		return "", denied
 	}
 	username := "chaldea-" + host + "-shizune-interactive"
-	scope := shizuneScope
+	scope := shizuneRequest
 	// The Shizune provider fixes the audience; no resource selector is sent.
 	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {shizuneClientID}, "username": {identityUsername(username)},
 		"password": {password}, "scope": {scope}}
