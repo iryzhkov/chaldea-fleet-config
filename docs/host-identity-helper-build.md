@@ -48,6 +48,21 @@ The same recipe at e2bef1a reproduced 4417f939 byte for byte. Only the laptop
 runs aarch64 with host identity; the x86_64 pin is unchanged because the
 acquisition modes are laptop-only.
 
+## HoloNet library helper rebuild (2026-11-22)
+
+Fleet main ac4819f9a3604de96345692e9a2e91656f89a636 (PR203) adds the closed
+`holonet-library` mode for laptop and omarchy-pc on their host identities. Chaldea
+job 2753e515-a53e-47fb-b111-771a7f2c81e3 used the recipe above:
+helper-amd64 68f63634920a5629d26d6480a5aa5c4b60de724746a6d4828e5053a0c5d7f5fa and
+helper-arm64 1e8ff2e22d75ee0796c5eca8c6d7e517d433b01bd8328e5e3a64955491a3035a.
+The same recipe at ae12133 reproduced 268a4821 byte for byte (job
+189237d2-e452-4c72-bd8a-96f7fd30b373). Only laptop and omarchy-pc move; their
+capability pins are host-scoped overrides, so agent-a and agent-b keep the shared
+x86_64 pin 8f091dc9. Each host's binary is installed root:root 0755 by hand with
+the previous binary retained as
+`/usr/local/libexec/webmcp-interactive-headers.previous-<first 12 hex>`, then
+converged with `--tags mcp_registrations`.
+
 ## Per-host cutover prerequisite
 
 Before flipping chaldea_host_identity_enabled, coordinate pull writers and

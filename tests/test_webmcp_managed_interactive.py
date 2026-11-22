@@ -139,14 +139,16 @@ def test_inventory_selects_four_managed_hosts_with_local_sources(tmp_path, disti
     }
     host_pins = {host: pins[architectures[host]] for host in HOSTS}
     # M3 P3.1: omarchy-pc selects the selector-aware helper, which keeps Shizune mode.
-    host_pins["omarchy-pc"] = "8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc"
+    # HoloNet library mode helper (fleet ac4819f) on omarchy-pc.
+    host_pins["omarchy-pc"] = "68f63634920a5629d26d6480a5aa5c4b60de724746a6d4828e5053a0c5d7f5fa"
     # M3 P3.1 cutover: agent-b runs the selector-aware helper (fleet 8492830).
     host_pins["agent-b"] = "8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc"
     # M3 P3.1: agent-a selects the selector-aware helper.
     host_pins["agent-a"] = "8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc"
     # M3 P3.1: laptop selects the selector-aware helper.
     # PR191 rebuild: acquisition modes keep the original writer under host identity.
-    host_pins["laptop"] = "268a48219a44c46d35740764cf4067bb2a3e95d86917960b988dc8f17124f038"
+    # HoloNet library mode helper (fleet ac4819f) on the laptop.
+    host_pins["laptop"] = "1e8ff2e22d75ee0796c5eca8c6d7e517d433b01bd8328e5e3a64955491a3035a"
     # Every managed host declares Antigravity for its managed entries.
     ov_entry = {"name": "ov", "url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": ["claude", "codex", "antigravity"],
                 "auth_mode": "managed_helper", "helper_host": "{{ inventory_hostname }}",

@@ -93,9 +93,17 @@ def _run_play(tmp_path, host, tasks, extra_vars=None):
 def test_default_off_and_real_selection(tmp_path):
     defaults = yaml.safe_load((ROOT / "roles/webmcp_interactive/defaults/main.yml").read_text())
     assert defaults[FLAG] is False
+    # Only the two approved host identities opt in, after issuer enrollment and
+    # consumer deployment (2026-11-22).
+    approved = {ROOT / "inventory/host_vars/laptop/holonet-interactive.yml",
+                ROOT / "inventory/host_vars/omarchy-pc/ov-memory.yml"}
+    selected = set()
     for path in (ROOT / "inventory").rglob("*.yml"):
         data = yaml.safe_load(path.read_text())
-        assert not (isinstance(data, dict) and FLAG in data), f"{path} enables {FLAG}"
+        if isinstance(data, dict) and FLAG in data:
+            assert path in approved and data[FLAG] is True, f"{path} selects {FLAG}"
+            selected.add(path)
+    assert selected == approved
 
     tasks = yaml.safe_load((ROOT / "roles/mcp_registrations/tasks/main.yml").read_text())
     select = next(t for t in tasks if t["name"] ==
