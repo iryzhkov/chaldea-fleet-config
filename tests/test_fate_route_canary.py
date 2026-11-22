@@ -53,7 +53,8 @@ def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
         scores=dict(enabled=True, url="https://akasha.ryzhkov.dev",
                     tokenHelper="/usr/local/bin/chaldea-token-helper", host="omarchy-pc"),
         announceHost="homelab", pins={},
-        providerPreference=["antigravity", "codex", "claudeAgent"],
+        providerPreference=["codex", "claudeAgent", "antigravity"],
+        driverModels={"antigravity": ["gemini-4-neon"]},
         bans=["*sonnet*", "gemini-pro-orchestrator-*", "gpt-oss-*",
               "gemini-4-hydrogen*", "gemini-4-argon*", "gemini-3.8-flash*"],
         benchmark=dict(indexVersion="5", anchors={
