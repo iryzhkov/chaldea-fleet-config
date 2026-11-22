@@ -238,6 +238,21 @@
     - webmcp_interactive_enabled | default(false) | bool
     - webmcp_interactive_holonet_acquire_media_enabled | default(false) | bool
 
+- name: Select the closed HoloNet library manager on explicit opt-in
+  ansible.builtin.set_fact:
+    mcp_registrations_effective_remote_servers: >-
+      {{ (mcp_registrations_effective_remote_servers | rejectattr('name', 'equalto', 'holonet_library') | list)
+         + [{'name': 'holonet_library', 'url': 'https://media.mcp.ryzhkov.dev/mcp',
+             'providers': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_library')
+                           | map(attribute='providers', default=['claude', 'codex'])
+                           | first | default(['claude', 'codex'])),
+             'auth_mode': 'managed_helper', 'helper_host': inventory_hostname,
+             'state': (mcp_registrations_remote_servers | selectattr('name', 'equalto', 'holonet_library')
+                       | map(attribute='state', default='present') | first | default('present'))}] }}
+  when:
+    - webmcp_interactive_enabled | default(false) | bool
+    - webmcp_interactive_holonet_library_enabled | default(false) | bool
+
 - name: Check the opt-in remote MCP servers
   ansible.builtin.assert:
     that:
@@ -259,6 +274,9 @@
         | map(attribute='providers') | flatten | difference(['claude', 'codex']) | length == 0
       - >-
         mcp_registrations_effective_remote_servers | selectattr('name', 'equalto', 'holonet_recommendations')
+        | map(attribute='providers') | flatten | difference(['claude', 'codex']) | length == 0
+      - >-
+        mcp_registrations_effective_remote_servers | selectattr('name', 'equalto', 'holonet_library')
         | map(attribute='providers') | flatten | difference(['claude', 'codex']) | length == 0
     fail_msg: >-
       Each remote MCP server needs a unique name of its own, a providers list and state present or absent;

@@ -32,3 +32,6 @@ webmcp_interactive_holonet_writer_targets:
 webmcp_interactive_holonet_writer_history_users: "{{ webmcp_interactive_holonet_writer_targets }}"
 # Existing writer only: Movies, Anime and TV shows. Ordinary reader stays Movies-only.
 webmcp_interactive_holonet_writer_library_ids: ["3", "615", "1132"]
+# Library management v1 (holonet_library, scope holonet.library) stays off until
+# issuer enrollment and helper rollout (jocasta:d07e09665f67d1ea7b2fb00eae9b6fe0@1).
+# Enable with: webmcp_interactive_holonet_library_enabled: true

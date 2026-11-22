@@ -35,6 +35,9 @@ webmcp_interactive_holonet_seed_join_enabled: false
 webmcp_interactive_holonet_acquire_read_enabled: false
 webmcp_interactive_holonet_acquire_start_enabled: false
 webmcp_interactive_holonet_acquire_media_enabled: false
+# Separate library management capability on the original writer account (laptop
+# and omarchy-pc); source support does not enroll or activate it.
+webmcp_interactive_holonet_library_enabled: false
 webmcp_interactive_holonet_writer_enabled: false
 webmcp_interactive_holonet_writer_targets: []
 # Optional scoped playback history: an explicit subset of the targets above.

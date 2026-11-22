@@ -128,6 +128,8 @@ MANAGED_SERVERS = {
                          "commands": {"laptop": HELPER_PATH + " holonet-acquire-start laptop"}},
     "holonet_acquire_media": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
                          "commands": {"laptop": HELPER_PATH + " holonet-acquire-media laptop"}},
+    "holonet_library": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
+                        "commands": {host: HELPER_PATH + " holonet-library " + host for host in ("laptop", "omarchy-pc")}},
     "holonet_recommendations": {"url": "https://media.mcp.ryzhkov.dev/mcp", "providers": frozenset({"claude", "codex"}),
                                 "commands": {"laptop": HELPER_PATH + " holonet-writer laptop"}},
     "ov": {"url": "https://ov.mcp.ryzhkov.dev/mcp", "providers": frozenset({"codex"}),
