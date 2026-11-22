@@ -48,7 +48,7 @@ func TestHostIdentityRequestsStaySeparate(t *testing.T) {
 			continue
 		}
 		check(ovClientID, ovFullRequestScopes, "", func(c *http.Client) { acquireOVFull(ctx, c, host, password, now) })
-		check(shizuneClientID, shizuneScope, "", func(c *http.Client) { acquireShizune(ctx, c, host, password, now) })
+		check(shizuneClientID, shizuneRequest, "", func(c *http.Client) { acquireShizune(ctx, c, host, password, now) })
 		check(holonetClientID, holonetLibraryScope, holonetResource, func(c *http.Client) { acquireHolonetFor(ctx, c, password, now, holonetLibraryContract()) })
 		if host != "laptop" {
 			continue

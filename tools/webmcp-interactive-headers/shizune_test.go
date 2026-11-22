@@ -20,6 +20,20 @@ func TestShizuneSignedContract(t *testing.T) {
 	if check(c) != nil {
 		t.Fatal("valid token refused")
 	}
+	for _, scope := range []string{shizuneRequest, shizuneWriteScope + " " + shizuneScope} {
+		writer := copyClaims(c)
+		writer["scope"] = scope
+		if check(writer) != nil {
+			t.Fatal("budget writer token refused", scope)
+		}
+	}
+	for _, scope := range []string{shizuneWriteScope, shizuneScope + " shizune.other", shizuneRequest + " ov.read", ""} {
+		bad := copyClaims(c)
+		bad["scope"] = scope
+		if check(bad) == nil {
+			t.Fatal("foreign or missing scope admitted", scope)
+		}
+	}
 	for field, value := range map[string]any{"iss": issuer, "aud": resource, "azp": clientID, "scope": "shizune.other", "shizune_owner": "other", "exp": int64(2000000301), "iat": int64(1999999990), "nbf": int64(2000000001), "sub": "", "ov_actions": []string{"read"}, "holonet_actions": []string{"read"}, "jocasta_operator": true, "grants": nil, "project": "other", "source": "other", "webmcp_identity": "other", "homelab_hosts": []string{}, "ha_actions": []string{}, "SHIZUNE_OWNER": "igor", "ſcope": shizuneScope, "shizune_other": true} {
 		t.Run(field, func(t *testing.T) {
 			bad := copyClaims(c)
@@ -74,10 +88,10 @@ func TestShizuneClosedExchange(t *testing.T) {
 					t.Fatal("bad request")
 				}
 				f := r.PostForm
-				if len(f) != 5 || f.Get("grant_type") != "client_credentials" || f.Get("client_id") != shizuneClientID || f.Get("username") != "chaldea-"+host+"-shizune-interactive" || f.Get("password") != "fixture-password" || f.Get("scope") != shizuneScope {
+				if len(f) != 5 || f.Get("grant_type") != "client_credentials" || f.Get("client_id") != shizuneClientID || f.Get("username") != "chaldea-"+host+"-shizune-interactive" || f.Get("password") != "fixture-password" || f.Get("scope") != "shizune.use shizune.budget.write" {
 					t.Fatal("exchange drift")
 				}
-				b, _ := json.Marshal(map[string]any{"access_token": token, "token_type": "Bearer", "expires_in": 300, "scope": shizuneScope})
+				b, _ := json.Marshal(map[string]any{"access_token": token, "token_type": "Bearer", "expires_in": 300, "scope": shizuneRequest})
 				body = string(b)
 			} else if r.URL.String() != shizuneJWKSURL || r.Method != "GET" {
 				t.Fatal("unapproved endpoint")

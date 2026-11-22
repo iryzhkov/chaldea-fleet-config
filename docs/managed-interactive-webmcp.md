@@ -11,8 +11,13 @@ Fleet checks metadata only. It never delivers or reads this credential.
 
 The helper exchanges `chaldea-HOST-shizune-interactive` credentials at the fixed
 Authentik token endpoint with client `shizune-mcp-machine` and scope
-`shizune.use`. It verifies RS256 against the fixed shizune-mcp JWKS before
-checking issuer, Shizune MCP audience, client, scope membership, owner igor,
+`shizune.use shizune.budget.write`. The second scope unlocks the gateway's guarded
+budget writes (bank sync and preview/apply deletes and categorization); Authentik
+grants it only to the accounts this mode uses on omarchy-pc and laptop (the host
+identity where it is selected, otherwise shizune-interactive), and a token that carries
+only `shizune.use` still serves every read tool. It verifies RS256 against the fixed
+shizune-mcp JWKS before checking issuer, Shizune MCP audience, client, that the
+scopes include `shizune.use` and nothing beyond the budget write scope, owner igor,
 foreign grants and a maximum 300-second lifetime. It emits Authorization JSON
 without a token cache. Claude and Codex receive the fixed HTTP server
 `shizune` at `https://shizune.mcp.ryzhkov.dev/mcp`.
