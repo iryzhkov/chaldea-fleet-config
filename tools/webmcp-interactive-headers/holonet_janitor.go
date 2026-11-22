@@ -22,10 +22,17 @@ func holonetJanitorMode() {
 }
 
 // holonetCredentialPathFor keeps acquisition purposes on the writer credential;
-// other janitor modes follow the host identity selector.
+// host-identity-only modes require host.app-password without fallback, and other
+// janitor modes follow the host identity selector.
 func holonetCredentialPathFor(uid int, contract holonetContract) (string, error) {
 	if contract.originalWriter {
 		return ownCredentialPath(uid, holonetWriterCredential)
+	}
+	if contract.username == "" {
+		if hostIdentityUsername == "" {
+			return "", denied
+		}
+		return ownCredentialPath(uid, hostCredential)
 	}
 	return credentialPath(uid, holonetWriterCredential)
 }

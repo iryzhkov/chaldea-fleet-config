@@ -126,17 +126,57 @@ func TestHolonetLibrarySignedAndDisjoint(t *testing.T) {
 	}
 }
 
-func TestHolonetLibraryUsesOriginalWriterAndExactExchange(t *testing.T) {
+func TestHolonetLibraryUsesHostIdentityAndExactExchange(t *testing.T) {
 	defer func() { hostIdentityUsername = "" }()
 	key, keys, reader := holonetFixture(t)
 	contract := holonetLibraryContract()
 	token := signed(t, key, holonetLibraryClaims(reader))
 
-	for _, hostIdentity := range []string{"", "chaldea-laptop", "chaldea-omarchy-pc"} {
-		hostIdentityUsername = hostIdentity
-		path, err := holonetCredentialPathFor(os.Getuid(), contract)
-		if err != nil || !strings.HasSuffix(path, "/"+holonetWriterCredential) {
-			t.Fatal("library credential moved to host identity", hostIdentity, path)
+	// Without host identity selection, library mode must refuse and never fall
+	// back to the original writer username or credential.
+	hostIdentityUsername = ""
+	for _, host := range []string{"laptop", "omarchy-pc"} {
+		if _, err := holonetLibraryCredentialPath(os.Getuid(), host); err == nil {
+			t.Fatal("missing host identity admitted", host)
+		}
+	}
+	if _, err := holonetCredentialPathFor(os.Getuid(), contract); err == nil {
+		t.Fatal("missing host identity admitted via holonetCredentialPathFor")
+	}
+	noNetCalls := 0
+	noNetClient := &http.Client{Transport: roundTrip(func(r *http.Request) (*http.Response, error) {
+		noNetCalls++
+		return nil, denied
+	})}
+	if _, err := acquireHolonetFor(context.Background(), noNetClient, "synthetic-password",
+		func() time.Time { return time.Unix(2000000000, 0) }, contract); err == nil || noNetCalls != 0 {
+		t.Fatal("missing host identity attempted exchange", err, noNetCalls)
+	}
+
+	// Mismatched or original-writer identities must be refused.
+	for _, bad := range []struct{ host, identity string }{
+		{"laptop", "chaldea-omarchy-pc"},
+		{"omarchy-pc", "chaldea-laptop"},
+		{"laptop", holonetWriterUsername},
+		{"omarchy-pc", holonetWriterUsername},
+		{"agent-a", "chaldea-agent-a"},
+	} {
+		hostIdentityUsername = bad.identity
+		if _, err := holonetLibraryCredentialPath(os.Getuid(), bad.host); err == nil {
+			t.Fatal("mismatched host identity admitted", bad)
+		}
+	}
+
+	for _, host := range []string{"laptop", "omarchy-pc"} {
+		wantUser := "chaldea-" + host
+		hostIdentityUsername = wantUser
+		path, err := holonetLibraryCredentialPath(os.Getuid(), host)
+		if err != nil || !strings.HasSuffix(path, "/"+hostCredential) {
+			t.Fatal("library credential did not use host.app-password", host, path, err)
+		}
+		viaContract, err := holonetCredentialPathFor(os.Getuid(), contract)
+		if err != nil || viaContract != path {
+			t.Fatal("contract credential path drifted from host.app-password", host, viaContract, err)
 		}
 		calls := 0
 		client := &http.Client{Transport: roundTrip(func(r *http.Request) (*http.Response, error) {
@@ -152,7 +192,7 @@ func TestHolonetLibraryUsesOriginalWriterAndExactExchange(t *testing.T) {
 				want := map[string]string{
 					"grant_type": "client_credentials",
 					"client_id":  holonetClientID,
-					"username":   holonetWriterUsername,
+					"username":   wantUser,
 					"password":   "synthetic-password",
 					"scope":      holonetLibraryScope,
 					"resource":   holonetResource,
@@ -185,7 +225,7 @@ func TestHolonetLibraryUsesOriginalWriterAndExactExchange(t *testing.T) {
 		got, err := acquireHolonetFor(context.Background(), client, "synthetic-password",
 			func() time.Time { return time.Unix(2000000000, 0) }, contract)
 		if err != nil || got != token || calls != 2 {
-			t.Fatal("fixed library acquisition", hostIdentity, err, calls)
+			t.Fatal("host identity library acquisition", host, err, calls)
 		}
 	}
 }
@@ -199,29 +239,30 @@ func TestHolonetLibraryCredentialNeverFallsBack(t *testing.T) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	// Even when host.app-password exists, missing writer credential must fail.
-	hostPath := filepath.Join(home, hostCredential)
-	if err := os.WriteFile(hostPath, []byte("FixtureHostPassword0123456789"), 0600); err != nil {
-		t.Fatal(err)
-	}
+	// Even when only holonet-recommendations.app-password exists, missing
+	// host.app-password must fail without falling back.
 	writerPath := filepath.Join(home, holonetWriterCredential)
-	if _, err := readOVCredential(writerPath, os.Getuid()); err == nil {
-		t.Fatal("missing writer credential admitted")
-	}
 	if err := os.WriteFile(writerPath, []byte("FixtureLibraryWriterPass0123456"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(writerPath, 0644); err != nil {
+	hostPath := filepath.Join(home, hostCredential)
+	if _, err := readOVCredential(hostPath, os.Getuid()); err == nil {
+		t.Fatal("missing host credential admitted when writer credential exists")
+	}
+	if err := os.WriteFile(hostPath, []byte("FixtureHostPassword0123456789"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := readOVCredential(writerPath, os.Getuid()); err == nil {
-		t.Fatal("world-readable writer credential admitted")
-	}
-	if err := os.Chmod(writerPath, 0600); err != nil {
+	if err := os.Chmod(hostPath, 0644); err != nil {
 		t.Fatal(err)
 	}
-	got, err := readOVCredential(writerPath, os.Getuid())
-	if err != nil || got != "FixtureLibraryWriterPass0123456" {
-		t.Fatal("protected writer credential refused", err)
+	if _, err := readOVCredential(hostPath, os.Getuid()); err == nil {
+		t.Fatal("world-readable host credential admitted")
+	}
+	if err := os.Chmod(hostPath, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readOVCredential(hostPath, os.Getuid())
+	if err != nil || got != "FixtureHostPassword0123456789" {
+		t.Fatal("protected host credential refused", err)
 	}
 }

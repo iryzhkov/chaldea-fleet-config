@@ -114,7 +114,7 @@ func main() {
 	if mode == "" {
 		fail()
 	}
-	if err := configureHostIdentity(os.Args[2]); err != nil {
+	if err := configureHostIdentity(os.Args[2]); err != nil || (mode == "holonet-library" && hostIdentityUsername == "") {
 		fmt.Fprintln(os.Stderr, "host identity unavailable: protected selector or host.app-password missing or unsafe")
 		os.Exit(1)
 	}

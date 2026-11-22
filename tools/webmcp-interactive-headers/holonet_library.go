@@ -8,24 +8,29 @@ import (
 
 const holonetLibraryScope = "holonet.library"
 
-// Closed library management contract on the existing original writer account.
-// No caller supplies scopes, actions, resource, identity, libraries or credential.
-// Both laptop and omarchy-pc authenticate as the original writer subject using
-// their own protected holonet-recommendations.app-password token; host identity
-// selection never substitutes the host account or host.app-password.
+// Closed library management contract on the M3 host identities (chaldea-laptop
+// and chaldea-omarchy-pc). No caller supplies scopes, actions, resource,
+// identity, libraries or credential. Both laptop and omarchy-pc authenticate
+// through the host identity selector and host.app-password; never the original
+// writer username or holonet-recommendations.app-password, and never falling back.
 func holonetLibraryContract() holonetContract {
 	return holonetContract{
-		username:       holonetWriterUsername,
-		scope:          holonetLibraryScope,
-		namespace:      "managed-library",
-		libraries:      []string{"1132", "3", "615"},
-		catalog:        []string{},
-		targets:        []string{},
-		history:        []string{},
-		actions:        []string{"library.read", "library.manage"},
-		writer:         true,
-		originalWriter: true,
+		scope:     holonetLibraryScope,
+		namespace: "managed-library",
+		libraries: []string{"1132", "3", "615"},
+		catalog:   []string{},
+		targets:   []string{},
+		history:   []string{},
+		actions:   []string{"library.read", "library.manage"},
+		writer:    true,
 	}
+}
+
+func holonetLibraryCredentialPath(uid int, host string) (string, error) {
+	if _, ok := ovFullHosts[host]; !ok || hostIdentityUsername != "chaldea-"+host {
+		return "", denied
+	}
+	return ownCredentialPath(uid, hostCredential)
 }
 
 func holonetLibraryMode(host string) {
@@ -33,8 +38,7 @@ func holonetLibraryMode(host string) {
 	if err != nil || ovFullBinding(host, node, os.Getuid()) != nil {
 		fail()
 	}
-	contract := holonetLibraryContract()
-	path, err := holonetCredentialPathFor(os.Getuid(), contract)
+	path, err := holonetLibraryCredentialPath(os.Getuid(), host)
 	if err != nil {
 		fail()
 	}
@@ -44,7 +48,7 @@ func holonetLibraryMode(host string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
-	token, err := acquireHolonetFor(ctx, httpClient(), password, time.Now, contract)
+	token, err := acquireHolonetFor(ctx, httpClient(), password, time.Now, holonetLibraryContract())
 	if err != nil {
 		fail()
 	}
