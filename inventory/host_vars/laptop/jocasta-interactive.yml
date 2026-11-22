@@ -46,11 +46,15 @@ webmcp_interactive_ov_full_enabled: true
 # HoloNet library mode: fleet main ac4819f (PR203), Go 1.27.0 Linux/ARM64 with the
 # same recipe, Chaldea job 2753e515-a53e-47fb-b111-771a7f2c81e3; the recipe
 # reproduces 268a4821 from ae12133 byte for byte (job 189237d2).
-webmcp_interactive_helper_sha256: 1e8ff2e22d75ee0796c5eca8c6d7e517d433b01bd8328e5e3a64955491a3035a
+# Shizune budget write scope (PR208): fleet main 7b63585, Go 1.27.0 Linux/ARM64,
+# same recipe, Chaldea job ea4a63aa-439e-49c7-a922-388ba6b29c73.
+webmcp_interactive_helper_sha256: 736c06be435f748f4265728daf08789b6d4809c9d6fc221fe1d3583d17d31d5f
+# Rollback: previous library-capable helper 1e8ff2e2 (ac4819f, PR203), retained at
+# /usr/local/libexec/webmcp-interactive-headers.previous-1e8ff2e22d75 on the laptop.
 # Rollback: previous helper 268a4821 (ae12133, PR191).
-# Host-scoped capability pin for the library-capable selector-aware helper.
+# Host-scoped capability pin for the selector-aware helper.
 webmcp_interactive_host_identity_helper_checksums:
-  aarch64: "1e8ff2e22d75ee0796c5eca8c6d7e517d433b01bd8328e5e3a64955491a3035a"
+  aarch64: "736c06be435f748f4265728daf08789b6d4809c9d6fc221fe1d3583d17d31d5f"
 # Rollback: previous selector-aware helper 4417f939 retained at
 # /usr/local/libexec/webmcp-interactive-headers.previous-4417f939c2a2 on the laptop.
 # Rollback: legacy helper 9a9455eeffe62f0287ebaa36fc7f0cd5024ef819722cb277b44dd3b5bf8694ad

@@ -194,7 +194,8 @@ def test_inert_activation_example_is_exact_and_invents_no_hash():
     # M3 P3.1 cutover: the laptop runs the selector-aware aarch64 helper.
     # PR191 rebuild keeps acquisition modes on the original writer.
     # HoloNet library mode helper (fleet ac4819f).
-    assert laptop["webmcp_interactive_helper_sha256"] == "1e8ff2e22d75ee0796c5eca8c6d7e517d433b01bd8328e5e3a64955491a3035a"
+    # Shizune budget write scope helper (fleet 7b63585).
+    assert laptop["webmcp_interactive_helper_sha256"] == "736c06be435f748f4265728daf08789b6d4809c9d6fc221fe1d3583d17d31d5f"
     assert example["helper_pin"]["scope"] == "inventory/host_vars/laptop"
     pins = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())["webmcp_interactive_helper_checksums"]
     assert example["helper_pin"]["previous_sha256"] == pins["aarch64"] != example["helper_pin"]["sha256"]

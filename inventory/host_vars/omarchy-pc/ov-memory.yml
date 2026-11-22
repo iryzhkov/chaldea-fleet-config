@@ -14,11 +14,16 @@ webmcp_interactive_ov_full_enabled: true
 # HoloNet library mode: fleet main ac4819f (PR203), Go 1.27.0 Linux/amd64 with the
 # docs/host-identity-helper-build.md recipe, Chaldea job
 # 2753e515-a53e-47fb-b111-771a7f2c81e3; previous installed 8f091dc9.
-webmcp_interactive_helper_sha256: 68f63634920a5629d26d6480a5aa5c4b60de724746a6d4828e5053a0c5d7f5fa
-# Host-scoped capability pin for the library-capable selector-aware helper;
+# Shizune budget write scope (PR208): fleet main 7b63585, Go 1.27.0 Linux/amd64,
+# recipe in docs/host-identity-helper-build.md, Chaldea job
+# ea4a63aa-439e-49c7-a922-388ba6b29c73.
+webmcp_interactive_helper_sha256: a054538042a7396d746288ebdd42d4262e4cd68908a4d3e0114a1bb8b122e269
+# Rollback: previous library-capable helper 68f63634 (ac4819f, PR203), retained at
+# /usr/local/libexec/webmcp-interactive-headers.previous-68f63634920a on omarchy-pc.
+# Host-scoped capability pin for the selector-aware helper;
 # other x86_64 hosts keep the shared group pin.
 webmcp_interactive_host_identity_helper_checksums:
-  x86_64: "68f63634920a5629d26d6480a5aa5c4b60de724746a6d4828e5053a0c5d7f5fa"
+  x86_64: "a054538042a7396d746288ebdd42d4262e4cd68908a4d3e0114a1bb8b122e269"
 # HoloNet library management v1 (holonet_library, Claude and Codex only) on the
 # chaldea-omarchy-pc host identity (host.app-password). Issuer grant enrolled and
 # consumer deployed 2026-11-22 (jocasta:d07e09665f67d1ea7b2fb00eae9b6fe0@1).
