@@ -12,10 +12,10 @@ chaldea_client_route_targets:
   # This canary has read permission only. Homelab publishes snapshots.
   announceHost: homelab
   pins: {}
-  # Codex and Claude rank first. From client-v0.4.31 a preferred provider that
-  # is ahead of its weekly pace also ranks after providers that are not; quota
-  # stops, capacity, floors, bans and review separation still apply.
-  providerPreference: [codex, claudeAgent, antigravity]
+  # No providerPreference: quota pacing chooses between Codex and Claude, and
+  # Antigravity ranks after both as a fallback. A fixed order only demotes a
+  # provider that is ahead of pace and never promotes an under-used one, so
+  # with Codex first Claude's weekly quota went unused (2026-11-22).
   # Antigravity is never used for bulk reading; targeted reviews may use it.
   roleProviderExclusions:
     bulk-read: [antigravity]
