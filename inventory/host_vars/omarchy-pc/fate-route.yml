@@ -17,6 +17,10 @@ chaldea_client_route_targets:
   # Claude rank first until the client gains pace-aware provider preference;
   # quota stops, capacity, floors, bans and review separation still apply.
   providerPreference: [codex, claudeAgent, antigravity]
+  # Antigravity routes only Gemini 4 Neon. Its third-party Claude and GPT
+  # models are not routed; Claude work goes through the claudeAgent provider.
+  driverModels:
+    antigravity: [gemini-4-neon]
   # Setting bans replaces the default, so keep *sonnet*. The Gemini bans leave
   # Gemini 4 Neon as the only Antigravity Gemini pick; orchestrators and
   # gpt-oss have no usable AA rows.
