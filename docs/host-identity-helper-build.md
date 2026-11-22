@@ -63,6 +63,16 @@ the previous binary retained as
 `/usr/local/libexec/webmcp-interactive-headers.previous-<first 12 hex>`, then
 converged with `--tags mcp_registrations`.
 
+## Shizune budget write scope rebuild (2026-11-22)
+
+Fleet main 7b6358515ebbeec4102fafe6dcbe07a5747cb4c1 (PR208) makes the `shizune`
+mode request `shizune.use shizune.budget.write`. Chaldea job
+ea4a63aa-439e-49c7-a922-388ba6b29c73 used the recipe above:
+helper-amd64 a054538042a7396d746288ebdd42d4262e4cd68908a4d3e0114a1bb8b122e269 and
+helper-arm64 736c06be435f748f4265728daf08789b6d4809c9d6fc221fe1d3583d17d31d5f.
+Only laptop and omarchy-pc move, through their host-scoped pins; each previous
+binary is retained as `webmcp-interactive-headers.previous-<first 12 hex>`.
+
 ## Per-host cutover prerequisite
 
 Before flipping chaldea_host_identity_enabled, coordinate pull writers and
