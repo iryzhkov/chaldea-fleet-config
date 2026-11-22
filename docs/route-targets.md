@@ -52,8 +52,11 @@ From client-v0.4.30 FATE also routes the T3 `antigravity` provider. Without
 `providerPreference` it ranks after Codex and Claude. omarchy-pc preferred
 Antigravity first until 2026-11-22, when Antigravity ran ahead of its weekly
 pace while Codex sat under-paced; the static order does not consult pacing, so
-omarchy-pc now sets `providerPreference: [codex, claudeAgent, antigravity]`
-until a pace-aware client ships. Its `driverModels` allowlist limits
+omarchy-pc now sets `providerPreference: [codex, claudeAgent, antigravity]`.
+From client-v0.4.31 the preference is pace-aware: a preferred provider ahead of
+its weekly pace ranks after providers that are not. omarchy-pc also sets
+`roleProviderExclusions: {bulk-read: [antigravity]}`, so Antigravity is never
+used for bulk reading while targeted reviews may still use it. Its `driverModels` allowlist limits
 Antigravity to Gemini 4 Neon, so third-party Claude and GPT models served
 through Antigravity are never routed. It also bans every
 Antigravity Gemini model except Gemini 4 Neon. Because a configured `bans`
