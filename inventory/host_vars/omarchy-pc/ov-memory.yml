@@ -11,7 +11,18 @@ webmcp_interactive_ov_full_enabled: true
 # Shizune mode superset: source 760d3e7 (PR #165), Go 1.27.0 Linux/amd64 Chaldea
 # build 40204767-9cfd-4ce9-8df4-1521887afee9; previous installed f88abf55.
 # M3 P3.1 selector-aware helper, built from fleet e2bef1a with Go 1.27.0.
-webmcp_interactive_helper_sha256: 8f091dc9579db25e2f58b62963e9330814da0ad28b9079dd7129603d20a333fc
+# HoloNet library mode: fleet main ac4819f (PR203), Go 1.27.0 Linux/amd64 with the
+# docs/host-identity-helper-build.md recipe, Chaldea job
+# 2753e515-a53e-47fb-b111-771a7f2c81e3; previous installed 8f091dc9.
+webmcp_interactive_helper_sha256: 68f63634920a5629d26d6480a5aa5c4b60de724746a6d4828e5053a0c5d7f5fa
+# Host-scoped capability pin for the library-capable selector-aware helper;
+# other x86_64 hosts keep the shared group pin.
+webmcp_interactive_host_identity_helper_checksums:
+  x86_64: "68f63634920a5629d26d6480a5aa5c4b60de724746a6d4828e5053a0c5d7f5fa"
+# HoloNet library management v1 (holonet_library, Claude and Codex only) on the
+# chaldea-omarchy-pc host identity (host.app-password). Issuer grant enrolled and
+# consumer deployed 2026-11-22 (jocasta:d07e09665f67d1ea7b2fb00eae9b6fe0@1).
+webmcp_interactive_holonet_library_enabled: true
 # Rollback: legacy helper 205b9871e67273120c29947a73358bb9fde23c935dfe3b60732ce3ece6d39059
 # retained at /usr/local/libexec/webmcp-interactive-headers.legacy-205b9871e672 on omarchy-pc.
 chaldea_host_identity_enabled: true

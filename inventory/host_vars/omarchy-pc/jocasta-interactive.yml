@@ -22,11 +22,6 @@ mcp_registrations_remote_servers:
     providers: [claude, codex, antigravity]
   - name: shizune
     providers: [claude, codex, antigravity]
-  # HoloNet library management v1 (holonet_library, Claude and Codex only, never
-  # OpenCode or Antigravity) stays off until homelab-infra enrolls the
-  # holonet.library grant on chaldea-omarchy-pc (host.app-password) and the
-  # helper carrying holonet-library is installed (jocasta:d07e09665f67d1ea7b2fb00eae9b6fe0@1).
-  # Enable with: webmcp_interactive_holonet_library_enabled: true
 
 agent_config_fleet_tools_profile:
   name: interactive-operator

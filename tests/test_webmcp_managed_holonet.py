@@ -121,7 +121,9 @@ def test_actual_selection_defaults_off_preserves_entries_and_absent_intent(tmp_p
                              "webmcp_interactive_holonet_janitor_enabled",
                              "webmcp_interactive_holonet_torrents_enabled",
                              "webmcp_interactive_holonet_seed_join_enabled",
-                             "webmcp_interactive_holonet_acquire_read_enabled"}
+                             "webmcp_interactive_holonet_acquire_read_enabled",
+                             "webmcp_interactive_holonet_library_enabled"}
+    assert selected["webmcp_interactive_holonet_library_enabled"] is True
     assert selected["webmcp_interactive_holonet_writer_library_ids"] == ["3", "615", "1132"]
     for path in (ROOT / "inventory").rglob("*.yml"):
         assert (FLAG in path.read_text(errors="replace")) is (path == owner)
