@@ -29,6 +29,8 @@
       - not (webmcp_interactive_holonet_acquire_start_enabled | default(false)) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001 and webmcp_interactive_holonet_writer_enabled | default(false) | bool)
       - webmcp_interactive_holonet_acquire_media_enabled | default(false) | type_debug == 'bool'
       - not (webmcp_interactive_holonet_acquire_media_enabled | default(false)) or (inventory_hostname == 'laptop' and ansible_facts.user_uid | int == 1001 and webmcp_interactive_holonet_writer_enabled | default(false) | bool)
+      - webmcp_interactive_holonet_library_enabled | default(false) | type_debug == 'bool'
+      - not (webmcp_interactive_holonet_library_enabled | default(false)) or (inventory_hostname in ['laptop', 'omarchy-pc'] and ansible_facts.user_uid | int == (1001 if inventory_hostname == 'laptop' else 1000) and chaldea_host_identity_enabled | default(false) | bool)
       - not (webmcp_interactive_ov_full_enabled | default(false) | bool and webmcp_interactive_ov_enabled | default(false) | bool)
     quiet: true
 

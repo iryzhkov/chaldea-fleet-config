@@ -66,6 +66,9 @@ func acquireHolonetFor(ctx context.Context, client *http.Client, password string
 	if contract.originalWriter {
 		username = contract.username
 	}
+	if username == "" {
+		return "", denied
+	}
 	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {holonetClientID},
 		"username": {username}, "password": {password}, "scope": {contract.scope}, "resource": {holonetResource}}
 	start := now().Unix()
