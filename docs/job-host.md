@@ -56,7 +56,9 @@ reviewed pair and the concrete public-key inventory are approved.
   cannot enforce a process-tree memory budget. The existing shared cgroup is the
   safer small change; one job may use spare budget, and an aggregate OOM can
   terminate all jobs. Slots provide concurrency, not equal resource guarantees.
-  Defaults: agent-a 8G/512 tasks, agent-b 4G/512, desktop 4G/256, laptop 2G/128.
+  Defaults: agent-a 8G/512 tasks, agent-b 4G/512, desktop 4G/256, laptop 4G/128.
+  The laptop retains one slot on 24 GiB RAM after full HA regressions exhausted
+  its former 2G budget. CPU weight/quota and the no-swap job limit still apply.
   The generic default is the smaller of 4 GiB and half the detected RAM; apply
   refuses any inventory MemoryMax above half RAM. Recheck this after VM resizing.
   Its dedicated top-level chaldea.slice is a direct sibling of user.slice, with
