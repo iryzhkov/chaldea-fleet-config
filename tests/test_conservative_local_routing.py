@@ -9,13 +9,13 @@ from test_chaldea_client import ROOT, fixture, provision, run, success
 
 
 def test_omarchy_native_quota_reader_uses_unpinned_role_policy(tmp_path, monkeypatch):
-    variables = fixture(tmp_path, monkeypatch, version="client-v0.4.32")
+    variables = fixture(tmp_path, monkeypatch, version="client-v0.4.33")
     inventory = yaml.safe_load((ROOT / "inventory/hosts.yml").read_text())
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     host_vars = yaml.safe_load((ROOT / "inventory/host_vars/omarchy-pc/fate-route.yml").read_text())
     host = common | inventory["all"]["children"]["agent_hosts"]["hosts"]["omarchy-pc"] | host_vars
-    assert host["chaldea_client_version"] == "client-v0.4.32"
-    assert host["chaldea_client_sha256"] == "103274f4b7a701e2134a9fddbb6b1e62ce012f3ce1d49acfb130ede9141cb881"
+    assert host["chaldea_client_version"] == "client-v0.4.33"
+    assert host["chaldea_client_sha256"] == "7fa45ff2a0810487493000eb9c2f67897f3bf209af5ad648a96da9720af8216b"
     for key in ("chaldea_client_claude_usage_enabled", "chaldea_client_claude_usage_source",
                 "chaldea_client_claude_contexts", "chaldea_client_route_targets",
                 "chaldea_client_analytics_max_age_ms"):
