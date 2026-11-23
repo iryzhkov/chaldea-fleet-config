@@ -57,16 +57,16 @@ def test_shared_collector_selection_preserves_enrollment_inventory():
     assert inventory["laptop"]["expected_hostname"] == "omarchy-macbook-air-igor"
     normal = hostvars("inventory/hosts.yml")
     for host in ("agent-a", "agent-b", "omarchy-pc", "laptop"):
-        assert normal[host]["akasha_collector_version"] == "host-v0.2.21"
+        assert normal[host]["akasha_collector_version"] == "host-v0.2.23"
         assert normal[host]["akasha_collector_script"] == "{{ akasha_collector_release_root }}/{{ akasha_collector_version }}/host/akasha-collector.mjs"
         assert normal[host]["akasha_collector_release_root"] == "/opt/chaldea-akasha-host/releases"
         assert normal[host]["akasha_collector_cache"] == "/var/cache/chaldea-akasha-host"
-        assert normal[host]["chaldea_host_version"] == "host-v0.2.21"
-        assert normal[host]["chaldea_host_sha256"] == "090bd269f0369f71b746d800ed68ced14f6ed9dff313cb439dfecb2d556bb524"
+        assert normal[host]["chaldea_host_version"] == "host-v0.2.23"
+        assert normal[host]["chaldea_host_sha256"] == "1d702d8a783838dfa3c5874b20a0db64a465151b59efcd775e4458986244aadb"
         assert normal[host]["pull_timer_enabled"] is True
         assert normal[host]["retention_timer_enabled"] is True
     for values in hostvars("inventory/akasha-enrollment.yml").values():
-        assert values["akasha_collector_version"] == "host-v0.2.21"
+        assert values["akasha_collector_version"] == "host-v0.2.23"
         assert values.get("akasha_collector_enabled", False) is False
     for host in ("homelab", "normandy"):
         assert normal[host]["akasha_collector_enabled"] is True

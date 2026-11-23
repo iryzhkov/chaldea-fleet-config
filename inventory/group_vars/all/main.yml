@@ -79,11 +79,11 @@ chaldea_client_retained_versions:
 # Opt-in requires Igor's approval and verified local account binding on each host.
 chaldea_client_claude_usage_enabled: false
 
-# Published from Chaldea main b5656fa.
+# Published from Chaldea main 9567ff7 (fleet timer failure causes in feed entries).
 # Archive SHA-256 verified by downloading the release asset.
 # Keep this version and digest identical in fleet-config and homelab-infra.
-chaldea_host_version: host-v0.2.21
-chaldea_host_sha256: "090bd269f0369f71b746d800ed68ced14f6ed9dff313cb439dfecb2d556bb524"
+chaldea_host_version: host-v0.2.23
+chaldea_host_sha256: "1d702d8a783838dfa3c5874b20a0db64a465151b59efcd775e4458986244aadb"
 
 # Clock repair is independent of job, collector and issuer runtime pins.
 chaldea_clock_host_version: host-v0.2.12
