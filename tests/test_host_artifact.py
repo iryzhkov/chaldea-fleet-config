@@ -76,6 +76,51 @@ def test_pin_mismatch_is_rejected_before_install(tmp_path, failure):
     assert not (tmp_path / "releases" / pins["chaldea_host_version"] / "host").exists()
 
 
+@pytest.mark.parametrize("failures", [2, 99])
+def test_manifest_download_retries_and_fails_closed(tmp_path, failures):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    pins = stage(tmp_path)
+    manifest = Path(pins["chaldea_host_artifact_manifest_source"]).read_bytes()
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            requests.append(self.path)
+            if len(requests) <= failures:
+                self.send_error(503)
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(manifest)))
+            self.end_headers()
+            self.wfile.write(manifest)
+
+        def log_message(self, format, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    pins["chaldea_host_artifact_manifest_source"] = ""
+    pins["chaldea_host_artifact_release_url"] = f"http://127.0.0.1:{server.server_port}"
+    try:
+        result = run_role(tmp_path, pins)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+    installed = tmp_path / "releases" / pins["chaldea_host_version"] / "host"
+    if failures == 2:
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert installed.is_dir()
+        assert len(requests) == 3
+    else:
+        assert result.returncode != 0
+        assert not installed.exists()
+        assert len(requests) == 4  # initial attempt plus three retries
+
+
 def test_timer_roles_install_artifact_bytes_and_delivery_config(tmp_path, monkeypatch):
     pins = stage(tmp_path)
     home = tmp_path / "operator"

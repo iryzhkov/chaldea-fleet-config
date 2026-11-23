@@ -74,6 +74,12 @@
     owner: "{{ chaldea_host_artifact_owner }}"
     group: "{{ chaldea_host_artifact_group }}"
     mode: "0644"
+    timeout: 30
+  # Release downloads occasionally time out; exhausted retries still stop apply.
+  register: chaldea_host_artifact_manifest_download
+  until: chaldea_host_artifact_manifest_download is succeeded
+  retries: 3
+  delay: 5
   when:
     - not ansible_check_mode
     - chaldea_host_artifact_manifest_source | length == 0
