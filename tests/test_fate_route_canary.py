@@ -44,6 +44,8 @@ def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
         assert values["chaldea_client_version"] == "client-v0.4.36"
         assert values["chaldea_token_helper_client_version"] == values["chaldea_client_version"]
         assert values["chaldea_token_helper_client_sha256"] == values["chaldea_client_sha256"]
+        assert not values.get("chaldea_job_client_exec_entry"), host
+        assert not values.get("chaldea_job_client_exec_node"), host
         if host != "omarchy-pc":
             assert not values.get("chaldea_client_route_targets", {}).get("scores", {}).get("enabled", False)
     pc = hosts["omarchy-pc"]
@@ -61,8 +63,6 @@ def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
         benchmark=dict(indexVersion="5", anchors={
             "bulk-read": ["gpt-6.1-sol", "claude-opus-5-5"],
             "critical-review": ["gpt-6.1-sol", "claude-opus-5-5"]}))
-    assert pc["chaldea_job_client_exec_entry"].endswith(
-        "client-1e86175cd2ef2e11fdf4584d22cc73127a162d42/bin/chaldea")
 
 
 def test_actual_managed_pc_rollback_releases_remain_explicitly_retained():

@@ -124,101 +124,97 @@ For later rollback, pin the retained prior version and its published checksum in
 
 ## Exec-only client selection
 
-`chaldea_job_client_exec_entry` and `chaldea_job_client_exec_node` let
-`chaldea exec` on one host run a separately admitted client, such as the
-blob-capable private controller, while every other command keeps the pinned
-release, its services and its `current` link. Both default to empty, which
-renders the launcher byte for byte as before; only omarchy-pc sets them. Set both or neither, as distinct absolute paths of letters, digits, `.`,
-`_`, `-` and `/` with no `.` or `..` segment. Both roles that render
-`~/.local/bin/chaldea` refuse anything else before they change a file.
+`chaldea_job_client_exec_entry` and `chaldea_job_client_exec_node` remain
+available for a separately admitted exec client. Set both or neither, as distinct
+absolute paths containing only letters, digits, `.`, `_`, `-` and `/`, with
+no `.` or `..` segment. Both launcher roles validate this before writing.
+A selected entry must be a regular file and its Node an executable regular file;
+missing selections exit 69 without fallback. Admission, rather than the launcher,
+verifies the selected bytes. Keep a private selection under an owner-only directory.
 
-The launcher checks only the first argument. When it is exactly `exec`, the
-launcher runs the selected Node on the selected entry with the arguments, exit
-status, environment and working directory unchanged. HOME and XDG are not
-touched, so the exec journal, state, `exec-hosts`, SSH configuration and
-`--host` fallback stay where the pinned client keeps them. Every other
-invocation, including no arguments, `--describe`, `--help`, `wait`,
-`decision`, `quota`, `route` and `artifacts`, still runs the pinned release.
-A selected entry that is not a regular file, or a Node that is not an executable
-regular file, makes `chaldea exec` exit 69 without falling back. The launcher
-does not hash the selected bytes: deployment admission establishes them, so keep
-both under an owner-only directory.
+### omarchy-pc admission to client-v0.4.36
 
-A `blob.json` alone cannot add custody to ordinary exec: client-v0.4.11 has no
-blob support and ignores the file. The selected client reads the default
-`$XDG_CONFIG_HOME/chaldea/blob.json` only when `--artifact` names an output;
-without one, a job behaves as before. With `"publication": "manual"`, an
-artifact job records a pending custody intent that keeps its journal record and
-local artifact reserve until publication is confirmed, and makes no network
-attempt to the store, whether or not the tunnel is open. Publication still
-needs an operator, an admitted tunnel and an approved window. Enabling manual
-mode uploads nothing and widens no NAS artifact-risk approval. Journal
-retention is unchanged except that pending custody records are kept.
+omarchy-pc now leaves both overrides empty. All commands, including exec, use
+`~/.local/share/chaldea/current/bin/chaldea` with the inventory-pinned Node.
+The shared pin is client-v0.4.36, containing Chaldea PR121's concurrent exec
+transport fix and retained refusal reasons. No separate private copy is needed:
+the checksum-verified release directory is already owner-only, mode 0700.
+This removes the old private controller selection without moving state or config.
 
-omarchy-pc sets both in `inventory/hosts.yml`:
+The former selection remains on disk for recovery:
 
-```yaml
-chaldea_job_client_exec_entry: /home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f/client-1e86175cd2ef2e11fdf4584d22cc73127a162d42/bin/chaldea
-chaldea_job_client_exec_node: /home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f/node-26.10.0
+```text
+/home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f/client-1e86175cd2ef2e11fdf4584d22cc73127a162d42/bin/chaldea
+/home/igor/.local/lib/chaldea-blob-controller/4f57cc27fa5a08da15233b018cf773c08a07291f/node-26.10.0
 ```
 
-The matching manual `~/.config/chaldea/blob.json`, mode 0600, names the
-existing publisher credential by path and contains no secret:
+Comparison against those installed bytes on 2026-11-23 found identical
+`src/exec/blob.ts`, `custody.ts`, `artifacts.ts`, `state.ts`, `logs.ts`,
+and `src/config/exec.ts`. Journal runtime pruning is identical; its changes
+add a refusal field and sanitizer. History changes only add refusal reasons
+to list/show. The exec client keeps the same custody calls and adds refusal
+recording plus transport shutdown fixes. Pending records still bypass pruning,
+their publication drafts remain, and artifact cleanup protects pending custody.
 
-```json
-{"version": 1, "endpoint": "http://127.0.0.1:43900", "bucket": "artifacts-igor-exec",
- "principal": "igor-exec", "region": "garage", "publication": "manual",
- "credentialFile": "/home/igor/.local/share/chaldea-blob-profiles/publisher/credential.json"}
-```
+Compatibility job `0cb497a6-7e36-495f-833c-f957b03f9b01` passed on agent-a.
+It used copied real journals in an asserted scratch HOME, with all filesystem
+paths relocated there. Both old and new code retained all 715 pending records
+byte-for-byte after relocation, including reserve metadata, after forced
+zero-age/zero-count pruning, artifact cleanup and list/show. Artifact and
+publication sentinel files survived. These sentinels exercise retention without
+copying actual output or credentials. The real publication directory held 135 job directories containing only empty
+accounting locks and no drafts.
+The copied nonsecret blob config remained manual with the same store identity.
+No logs, artifact payloads or publisher credentials were copied.
 
-**Merging the enrollment activates it on omarchy-pc.** That host's pull timer
-converges main with the full site play, and both launcher roles render the same
-bytes, so the next pull after the merge installs the selection. Before the
-merge, the operator verifies the admitted bytes of the selected Node and entry
-and the custody of the publisher credential, confirms that the normal
-`blob.json` and `exec.json` are absent, keeps a copy of the current launcher,
-and creates `blob.json` exclusively, never over an existing file. Without
-`blob.json`, the selected client runs `--artifact` jobs without custody, as
-before. After the merge, record the exact merge commit, and converge only the
-launcher at once rather than waiting for the timer. Run from a checkout whose
-`git rev-parse HEAD` equals that recorded commit, not a moving `main`, and
-review the check run's diff first:
+HOME and XDG remain unchanged by the launcher. The existing default journal,
+publication directory, local artifact reserves, exec-hosts and SSH config stay
+in place. There was no `exec.json` override at admission. Preserve any later
+custom stateDir when qualifying another client. Keep the existing mode-0600
+`~/.config/chaldea/blob.json` unchanged. The client reads it for artifact jobs;
+manual publication records pending custody and makes no store request.
+Publication still requires an operator, admitted tunnel and approved window.
+This switch authorizes no upload, credential change or wider NAS access.
+
+### Activation
+
+Merging activates the launcher change through omarchy-pc's existing pull timer.
+Before merging, verify that current resolves to the admitted client-v0.4.36,
+its checksum-verified release and pinned Node are intact, and keep a copy of
+the current launcher outside the repository. Do not recreate or remove blob.json.
+After merging, record the exact merge commit and run from a checkout whose
+`git rev-parse HEAD` equals it. Review the launcher-only check/diff before apply:
 
 ```sh
 ansible-playbook -i inventory site.yml --limit omarchy-pc --tags chaldea_exec_launcher --check --diff
 ansible-playbook -i inventory site.yml --limit omarchy-pc --tags chaldea_exec_launcher
 ```
 
-The tag runs the validation and the launcher template only: no SSH enrollment,
-client release, `current` link or user service.
+This tag validates and renders only the launcher. It does not install a client,
+move current, enroll SSH or restart services. Verify the resulting exec path,
+existing jobs and pending custody with exec list/show, concurrent exec completion
+and a busy refusal reason. Preserve the old controller and saved launcher.
 
-### Rollback only without pending custody
+### Rollback with custody intact
 
-Rolling back hands real `chaldea exec` to client-v0.4.11, which knows nothing
-of pending custody: its journal pruning deletes pending records together with
-their publication drafts and local artifact reserves. Before any step that lets
-client-v0.4.11 run `chaldea exec` again (removing either setting on main,
-rendering or restoring an earlier launcher) and before removing `blob.json`,
-even before the merge, take a bounded read-only inventory of the exec state
-directory (`$XDG_STATE_HOME/chaldea/exec` unless `exec.json` sets `stateDir`)
-while no `chaldea exec` runs, and start none until the rollback completes:
+Restoring the former blob-capable controller is custody-compatible with this
+admission, but restores its known exec bugs. Restore both exact override paths
+in a reviewed inventory change and apply the same launcher-only tag. Keep
+blob.json, journals, drafts, logs and local artifacts untouched. A saved launcher
+is only temporary because the next pull renders inventory again.
 
-- every entry in `journal/` is a regular file (not a symlink) holding a JSON
-  object, and no record has a `blob` field whose `state` is anything other than
-  `confirmed`;
-- every entry under `publication/` is named for a job whose journal record has
-  `blob.state` `confirmed`.
-
-If any record is pending, or any entry is malformed, unreadable, unsafe or
-otherwise incomplete, refuse the rollback. Keep the selection, `blob.json`,
-local artifacts, journals and reserves, and do not abandon, delete or retry
-anything until an operator has confirmed publication. To pause publication,
-close the tunnel or the publication window and keep the selected client; that
-is not a rollback. Only when the inventory is clean, remove both settings on
-main (a source change under the same review and merge rules) and run the same
-launcher-only command; the launcher returns to the pinned bytes. Restoring a
-saved launcher by hand lasts only until the next pull while the settings remain
-on main.
+An older ordinary client such as client-v0.4.11 is unsafe with pending custody:
+its pruning deletes pending records, drafts and local artifact reserves.
+Clearing the overrides is safe here only because current is admitted v0.4.36.
+Before selecting any different rollback target, compare its retention paths and
+repeat copied-state checks. If compatibility is unproven, stop exec activity
+and take a bounded inventory of the effective state directory while no exec runs.
+Every journal entry must be a regular nonsymlink file containing a JSON object,
+with every blob state confirmed; every publication entry must belong to a
+confirmed journal record. Pending, malformed, unreadable or incomplete state
+refuses an incompatible rollback. Keep the compatible client, blob.json and
+all state until an operator confirms publication. Closing the tunnel or window
+pauses publication without discarding custody.
 
 ## Tests
 
