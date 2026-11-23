@@ -162,7 +162,8 @@ paths relocated there. Both old and new code retained all 715 pending records
 byte-for-byte after relocation, including reserve metadata, after forced
 zero-age/zero-count pruning, artifact cleanup and list/show. Artifact and
 publication sentinel files survived. These sentinels exercise retention without
-copying actual output or credentials. The real publication directory was empty.
+copying actual output or credentials. The real publication directory held 135 job directories containing only empty
+accounting locks and no drafts.
 The copied nonsecret blob config remained manual with the same store identity.
 No logs, artifact payloads or publisher credentials were copied.
 
