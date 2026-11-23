@@ -1,8 +1,8 @@
 ---
 # Qualified client and protected reader canary, omarchy-pc only.
-# Client-v0.4.35 from Chaldea main 27d94dc; release assets verified by download.
-chaldea_client_version: client-v0.4.35
-chaldea_client_sha256: f58d2956814ab491ca22ffe25c9f0cec10d23551855c570799bfa927c7b147ca
+# Client-v0.4.36 from Chaldea main 1ba301d; release assets verified by download.
+chaldea_client_version: client-v0.4.36
+chaldea_client_sha256: 094234ac319081c10dc558fb0dc7fcc8b62e4ae36910d312ff57a7acf690b01d
 chaldea_client_route_targets:
   scores:
     enabled: true
