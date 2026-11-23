@@ -71,7 +71,11 @@ Chaldea docs/route.md for the provider rules and known limitations. AA support i
 The AA key stays only on homelab. Future shared score snapshots contain no
 secret and require compatible Akasha registrations and scoped grants. Never
 put the key in inventory, prompts or this repository. Missing coding metrics
-stay unknown; floors are never rounded up or lowered to admit candidates.
+stay unknown; floors are never rounded up or lowered automatically to admit
+candidates. A floor changes only by an explicit operator decision in inventory:
+on 2026-11-22 Igor lowered omarchy-pc's builder floor from 50 to 48 so Claude
+Opus 5.5 at medium effort (AA intelligence 48.2) qualifies ahead of the more
+expensive Fable 5.2 at low effort.
 
 ## Verified activation boundary
 

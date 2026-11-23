@@ -16,6 +16,12 @@ chaldea_client_route_targets:
   # Antigravity ranks after both as a fallback. A fixed order only demotes a
   # provider that is ahead of pace and never promotes an under-used one, so
   # with Codex first Claude's weekly quota went unused (2026-11-22).
+  # Builder floor lowered from 50 to 48 (2026-11-22, Igor's decision) so
+  # Claude Opus 5.5 at medium effort (AA intelligence 48.2, about $2.45 per
+  # benchmark task) qualifies ahead of Fable 5.2 at low effort (53.9, $3.10).
+  # Every other role keeps the client default floor.
+  floors:
+    builder: 48
   # Antigravity is never used for bulk reading; targeted reviews may use it.
   roleProviderExclusions:
     bulk-read: [antigravity]
