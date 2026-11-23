@@ -53,6 +53,7 @@ def test_actual_inventory_shares_client_pin_and_limits_score_transport_to_pc():
         scores=dict(enabled=True, url="https://akasha.ryzhkov.dev",
                     tokenHelper="/usr/local/bin/chaldea-token-helper", host="omarchy-pc"),
         announceHost="homelab", pins={},
+        floors={"builder": 48},
         driverModels={"antigravity": ["gemini-4-neon"]},
         roleProviderExclusions={"bulk-read": ["antigravity"]},
         bans=["*sonnet*", "gemini-pro-orchestrator-*", "gpt-oss-*",
@@ -70,9 +71,9 @@ def test_actual_managed_pc_rollback_releases_remain_explicitly_retained():
         "client-v0.4.0", "client-v0.4.2", "client-v0.4.7", "client-v0.4.8", "client-v0.4.11", "client-v0.4.20"}
 
 
-def test_baseline_floors_and_qualified_default_release_are_preserved():
+def test_only_the_builder_floor_is_lowered_and_default_release_is_preserved():
     common = yaml.safe_load((ROOT / "inventory/group_vars/all/main.yml").read_text())
     assert common["chaldea_client_version"] == "client-v0.4.32"
     targets = yaml.safe_load((ROOT / "inventory/host_vars/omarchy-pc/fate-route.yml").read_text())[
         "chaldea_client_route_targets"]
-    assert "floors" not in targets
+    assert targets["floors"] == {"builder": 48}
