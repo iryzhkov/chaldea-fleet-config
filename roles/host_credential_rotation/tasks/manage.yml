@@ -6,14 +6,13 @@
       - fleet_home is match('^/home/[a-z0-9_-]+$')
     quiet: true
 
-- name: Create user service and tool directories
+# user_timer creates the shared unit directory and preserves its permissions.
+# Making it private here fights timer_reporting's 0755 on every full run.
+- name: Create the private rotation tool directory
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ fleet_home }}/.local/lib/chaldea-rotation"
     state: directory
     mode: "0700"
-  loop:
-    - "{{ fleet_home }}/.local/lib/chaldea-rotation"
-    - "{{ fleet_home }}/.config/systemd/user"
 
 - name: Install the credential rotation tool
   ansible.builtin.copy:
