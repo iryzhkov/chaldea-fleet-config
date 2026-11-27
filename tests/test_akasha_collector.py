@@ -61,8 +61,8 @@ def test_shared_collector_selection_preserves_enrollment_inventory():
         assert normal[host]["akasha_collector_script"] == "{{ akasha_collector_release_root }}/{{ akasha_collector_version }}/host/akasha-collector.mjs"
         assert normal[host]["akasha_collector_release_root"] == "/opt/chaldea-akasha-host/releases"
         assert normal[host]["akasha_collector_cache"] == "/var/cache/chaldea-akasha-host"
-        assert normal[host]["chaldea_host_version"] == "host-v0.2.23"
-        assert normal[host]["chaldea_host_sha256"] == "1d702d8a783838dfa3c5874b20a0db64a465151b59efcd775e4458986244aadb"
+        assert normal[host]["chaldea_host_version"] == "host-v0.2.24"
+        assert normal[host]["chaldea_host_sha256"] == "8a94042352c31905694f25800dfb7240b80e914ba0e7653e74e60bf650766ca5"
         assert normal[host]["pull_timer_enabled"] is True
         assert normal[host]["retention_timer_enabled"] is True
     for values in hostvars("inventory/akasha-enrollment.yml").values():
